@@ -58,3 +58,5 @@ D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Debug\net8.0\refint\api-dotnet.d
 D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Debug\net8.0\api-dotnet.pdb
 D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Debug\net8.0\api-dotnet.genruntimeconfig.cache
 D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Debug\net8.0\ref\api-dotnet.dll
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\bin\Debug\net8.0\api-dotnet.staticwebassets.runtime.json
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Debug\net8.0\api-dotnet.sourcelink.json

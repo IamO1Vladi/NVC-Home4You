@@ -29,3 +29,4 @@ D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\refint\api-dotnet
 D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\api-dotnet.pdb
 D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\api-dotnet.genruntimeconfig.cache
 D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\ref\api-dotnet.dll
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\api-dotnet.sourcelink.json
