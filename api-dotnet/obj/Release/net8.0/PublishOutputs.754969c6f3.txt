@@ -1,0 +1,9 @@
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\api-dotnet.exe
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\api-dotnet.dll
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\api-dotnet.deps.json
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\api-dotnet.runtimeconfig.json
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\api-dotnet.pdb
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\Microsoft.OpenApi.dll
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\Swashbuckle.AspNetCore.Swagger.dll
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\Swashbuckle.AspNetCore.SwaggerGen.dll
+D:\NVCHome4Youfinalversion\NVCV5\api-dotnet\obj\Release\net8.0\PubTmp\Out\Swashbuckle.AspNetCore.SwaggerUI.dll
