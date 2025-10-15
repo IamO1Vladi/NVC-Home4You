@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { useI18n } from '../i18n/I18nContext.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 
-export default function Lightbox({ title, images, index=0, onClose, price, currency='EUR', desc }){
+export default function Lightbox({ title, images, index=0, onClose, price, currency='EUR', desc,modelId,onRequest }){
   const { t } = useI18n()
   const { openOffer } = useModalActions()
   const [i, setI] = useState(index)
@@ -52,7 +52,7 @@ export default function Lightbox({ title, images, index=0, onClose, price, curre
                   {currency==='EUR' ? '€' : ''}{price.toLocaleString()}+
                 </div>
               )}
-              <button className="btn mt-3" onClick={openOffer}>{t('product.request')}</button>
+              <button className="btn mt-3"   onClick={() => onRequest?.({ id: modelId, title })}>{t('product.request')}</button>
             </div>
           </div>
         )}

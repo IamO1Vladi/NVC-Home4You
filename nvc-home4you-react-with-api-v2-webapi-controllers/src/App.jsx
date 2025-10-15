@@ -126,12 +126,16 @@ function _App(){
         <Routes>
           <Route path="/" element={<Home onOpenOffer={()=>setOfferOpen(true)} onOpenQuestion={()=>setQuestionOpen(true)} />} />
           <Route path="/services" element={<Services />} />
-          <Route path="/gallery" element={
-            <Gallery
-              // If you want to prefill modelId from Gallery later:
-              // onRequestModel={({modelId, title}) => { setSelectedModel({ id:modelId, title }); setOfferOpen(true); }}
-            />
-          } />
+         <Route path="/gallery" element={
+    <Gallery onRequestModel={(m) => {
+      // normalize: accept id, modelId or modelID from API/lightbox
+      const id = String(m?.id ?? m?.modelId ?? m?.modelID ?? '');
+      const title = m?.title ?? m?.name ?? '';
+      if (id) setSelectedModel({ id, title });
+      setOfferOpen(true);
+    }} />
+  }
+/>
           <Route path="/faq" element={<FAQ />} />
           <Route path="/about" element={<About />} />
         </Routes>
