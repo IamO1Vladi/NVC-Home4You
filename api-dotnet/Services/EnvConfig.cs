@@ -18,7 +18,8 @@ public class EnvConfig
     public int F_HOUSE_TITLE => int.Parse(_cfg["FID_HOUSE_TITLE"] ?? "6");
     public int F_HOUSE_PRICE => int.Parse(_cfg["FID_HOUSE_PRICE"] ?? "10");
     public int F_HOUSE_DESC => int.Parse(_cfg["FID_HOUSE_DESC"] ?? "7");
-
+    public int? F_HOUSE_TITLE_BG => int.Parse(_cfg["F_HOUSE_TITLE_B"] ?? "13");
+    public int? F_HOUSE_DESC_BG => int.Parse(_cfg["F_HOUSE_DESC_BG"] ?? "14");
     public int F_IMG_PARENT => int.Parse(_cfg["FID_IMG_PARENT"] ?? "6");
     public int F_IMG_URL => int.Parse(_cfg["FID_IMG_URL"] ?? "10");
     public int F_IMG_FILE => int.Parse(_cfg["FID_IMG_FILE"] ?? "9");

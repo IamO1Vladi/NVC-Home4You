@@ -23,37 +23,55 @@ namespace Services
         public async Task<IEnumerable<GalleryItem>> GetAsync(CancellationToken ct = default)
         {
             // 1) Houses — one query
+            // Build select list: base fields + optional BG fields
+            var select = new List<int> { _env.F_HOUSE_RID, _env.F_HOUSE_TITLE, _env.F_HOUSE_PRICE, _env.F_HOUSE_DESC };
+            if (_env.F_HOUSE_TITLE_BG.HasValue) select.Add(_env.F_HOUSE_TITLE_BG.Value);
+            if (_env.F_HOUSE_DESC_BG.HasValue) select.Add(_env.F_HOUSE_DESC_BG.Value);
+
             var qHouses = new
             {
                 from = _env.TableHouses,
-                select = new[] { _env.F_HOUSE_RID, _env.F_HOUSE_TITLE, _env.F_HOUSE_PRICE, _env.F_HOUSE_DESC },
+                select = select.ToArray(),
                 where = "",
                 sortBy = new[] { new { fieldId = _env.F_HOUSE_TITLE, order = "ASC" } }
             };
+
             var houses = await _qb.QueryAsync(qHouses, ct);
 
             var items = new List<GalleryItem>();
-            if (houses?.data == null || houses.data.Count == 0) return items;
+            var ids = new List<long>();
 
-            foreach (var rec in houses.data)
+            if (houses?.data != null)
             {
-                var idStr = rec.Get(_env.F_HOUSE_RID);
-                if (!long.TryParse(idStr, out var id)) continue;
-
-                decimal? price = null;
-                var priceStr = rec.Get(_env.F_HOUSE_PRICE);
-                if (decimal.TryParse(priceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
-                    price = p;
-
-                items.Add(new GalleryItem
+                foreach (var rec in houses.data)
                 {
-                    Id = id,
-                    Title = rec.Get(_env.F_HOUSE_TITLE) ?? "",
-                    Price = price,
-                    Currency = "EUR",
-                    Description = rec.Get(_env.F_HOUSE_DESC) ?? "",
-                    Images = new List<string>()
-                });
+                    var idStr = rec.Get(_env.F_HOUSE_RID);
+                    if (!long.TryParse(idStr, out var id)) continue;
+                    ids.Add(id);
+
+                    var title = rec.Get(_env.F_HOUSE_TITLE) ?? "";
+                    var desc = rec.Get(_env.F_HOUSE_DESC) ?? "";
+
+                    string? titleBg = _env.F_HOUSE_TITLE_BG.HasValue ? rec.Get(_env.F_HOUSE_TITLE_BG.Value) : null;
+                    string? descBg = _env.F_HOUSE_DESC_BG.HasValue ? rec.Get(_env.F_HOUSE_DESC_BG.Value) : null;
+
+                    decimal? price = null;
+                    var priceStr = rec.Get(_env.F_HOUSE_PRICE);
+                    if (decimal.TryParse(priceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
+                        price = p;
+
+                    items.Add(new GalleryItem
+                    {
+                        Id = id,
+                        Title = title,
+                        Description = desc,
+                        TitleBg = string.IsNullOrWhiteSpace(titleBg) ? null : titleBg,
+                        DescriptionBg = string.IsNullOrWhiteSpace(descBg) ? null : descBg,
+                        Price = price,
+                        Currency = "EUR",
+                        Images = new List<string>()
+                    });
+                }
             }
 
             if (items.Count == 0) return items;

@@ -13,6 +13,8 @@ public class GalleryItem {
   public string Description { get; set; } = "";
   public string? CoverUrl { get; set; }
   public List<string> Images { get; set; } = new();
+  public string? TitleBg { get; set; }
+  public string? DescriptionBg { get; set; }
 }
 
 // Quickbase shapes
