@@ -63,11 +63,11 @@ export default function Header({ onOpenOffer, onOpenQuestion }){
           <button className="btn" onClick={onOpenOffer}>{t('nav.quote')}</button>
         </nav>
 
-        <div className="row" style={{gap:8}}>
+        <div className="row header-actions" style={{gap:8}}>
           <div className="card p-4" style={{display:'flex',alignItems:'center',gap:8,borderRadius:12}}>
             <label className="visually-hidden" htmlFor="themeSelect">Theme</label>
             <select id="themeSelect" value={theme} onChange={(e)=>setTheme(e.target.value)}
-              className="header-select" aria-label="Theme">
+              className="header-select theme-toggle" aria-label="Theme">
               <option value="light">{t('nav.theme.light')}</option>
               <option value="dark">{t('nav.theme.dark')}</option>
               <option value="system">{t('nav.theme.system')}</option>
@@ -75,14 +75,16 @@ export default function Header({ onOpenOffer, onOpenQuestion }){
 
             <label className="visually-hidden" htmlFor="langSelect">Language</label>
             <select id="langSelect" value={lang} onChange={(e)=>setLang(e.target.value)}
-              className="header-select" aria-label={t('nav.lang')}>
+              className="header-select lang-toggle" aria-label={t('nav.lang')}>
               <option value="en">EN</option>
               <option value="bg">BG</option>
             </select>
           </div>
         </div>
 
-        <button className="hamburger" aria-label="Open menu" onClick={()=>setMobileOpen(v=>!v)}>☰</button>
+        <button className="hamburger" aria-label="Open menu" onClick={()=>setMobileOpen(v=>!v)}>  <svg className="nav-icon" width="24" height="24" viewBox="0 0 24 24" role="img" aria-hidden="true">
+    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg></button>
       </div>
 
       <AnimatePresence>

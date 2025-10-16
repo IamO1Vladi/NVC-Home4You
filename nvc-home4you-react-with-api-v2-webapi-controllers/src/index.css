@@ -86,7 +86,7 @@ nav .link-btn{
 }
 nav .link-btn:hover, nav a:hover{color:#fff;background:#ffffff10}
 nav .active{color:#fff;background:#ffffff12}
-.hamburger{display:inline-flex;border:1px solid #ffffff1a;color:#fff;border-radius:10px;padding:8px 12px;background:none}
+
 
 .menu{position:relative}
 .menu-panel{
@@ -202,6 +202,17 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
     radial-gradient(800px 500px at 90% -10%, rgba(57,181,213,.10), transparent);
 }
 :root[data-theme='light'] .btn.ghost{ color:#111827; border-color:#00000026 }
+
+/* Let icons inherit a theme color */
+.nav-icon { color: inherit; }
+
+/* Theme colors for icons */
+.theme-light .nav-icon,
+.theme-light .hamburger { color: #0f172a; } /* slate-900-ish, dark on light */
+
+.theme-dark .nav-icon,
+.theme-dark .hamburger { color: #f1f5f9; }  /* slate-100-ish, light on dark */
+
 
 /* Feature cards */
 .feature-card{ position:relative; overflow:hidden }
@@ -332,3 +343,118 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 :root[data-theme='light'] .time-card{ background:#ffffff; border-color:#00000016; color:#111827 }
 :root[data-theme='light'] .timeline-rail:before{ opacity:.55 }
 :root[data-theme='light'] .time-desc{ opacity:.85 }
+
+
+
+/* ===== Header action sizing & spacing ===== */
+:root {
+  --header-gap: 8px;            /* spacing between controls */
+  --ctrl-h: 36px;                /* default control height (desktop/tablet) */
+  --ctrl-h-mobile: 40px;         /* unified control height on mobile */
+  --ctrl-px: 12px;               /* horizontal padding for pill buttons */
+  --ctrl-radius: 10px;           /* rounding to match your UI */
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--header-gap);
+}
+
+/* Let inline SVGs follow the element color */
+.nav-icon { color: inherit; stroke: currentColor; fill: none; }
+
+/* Baseline (desktop/tablet): bring controls to a consistent height */
+.header-actions .lang-toggle,
+.header-actions .theme-toggle {
+  height: var(--ctrl-h);
+  padding: 0 var(--ctrl-px);
+  border-radius: var(--ctrl-radius);
+  line-height: 1;
+}
+
+/* The menu button should be a square target (touch-friendly) */
+.menu-btn {
+  width: var(--ctrl-h);
+  height: var(--ctrl-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  line-height: 1;
+  /* Prevent being pushed away if a sibling has margin-left:auto */
+  margin-left: 0;
+}
+
+/* ===== Compact sizing for header controls (mobile) ===== */
+:root {
+  /* Set the mobile size you want for the hamburger & toggles */
+  --menu-sz: 36px;                 /* try 36; use 40 if you prefer a bit larger */
+  --toggle-fs-mobile: 12px;        /* compact font for lang chip */
+  --toggle-px-mobile: 8px;         /* compact horizontal padding */
+  --toggle-radius-mobile: 8px;     /* compact rounding */
+  --header-gap-mobile: 6px;        /* tighter spacing between controls */
+}
+
+/* Ensure icons inherit color and center correctly */
+.nav-icon { color: inherit; stroke: currentColor; fill: none; }
+.header-actions { display: flex; align-items: center; gap: 8px; }
+
+@media (max-width: 640px) {
+  .header-actions { gap: var(--header-gap-mobile); }
+
+  /* Language + Theme -> same height as menu, compact text/padding */
+  .header-actions .lang-toggle,
+  .header-actions .theme-toggle,
+  .header-actions .chip {             /* include chip if you use it for language */
+    height: var(--menu-sz);
+    padding: 0 var(--toggle-px-mobile);
+    font-size: var(--toggle-fs-mobile);
+    line-height: 1;
+    border-radius: var(--toggle-radius-mobile);
+    min-width: 0;                     /* allow smaller widths */
+  }
+
+  /* Theme toggle sometimes is an icon button: force square size */
+  .header-actions .theme-toggle.icon-btn {
+    width: var(--menu-sz);
+    height: var(--menu-sz);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Hamburger -> same square size */
+  .hamburger {
+    width: var(--menu-sz);
+    height: var(--menu-sz);
+    padding: 0;
+    border: none;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  /* Scale the hamburger glyph nicely inside the square */
+  .hamburger .nav-icon {
+    width: calc(var(--menu-sz) - 12px);   /* e.g., 24px if menu-sz=36px */
+    height: calc(var(--menu-sz) - 12px);
+  }
+
+  /* Remove any faint borders in light mode */
+  .theme-light .lang-toggle,
+  .theme-light .theme-toggle,
+  .theme-light .hamburger {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* Optional: Prevent generic .btn rules from forcing large min-widths in header */
+.header-actions .btn { min-width: 0; }
+
