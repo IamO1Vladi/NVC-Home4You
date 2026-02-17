@@ -11,6 +11,17 @@ export default function Header({ onOpenOffer, onOpenQuestion }){
   const [mobileOpen, setMobileOpen] = useState(false)
   const menuRef = useRef(null)
 
+  const navItems = [
+  { to: '/services', label: t('nav.services') },
+  { to: '/gallery',  label: t('nav.gallery') },
+  { to: '/faq',      label: t('nav.faq') },   
+  { to: '/about',    label: t('nav.about') },
+  { to: '/modular-builds',  label: t('nav.modularBuilds') },
+  { to: '/modular-houses',  label: t('nav.modularHouses') },
+  { to: '/steel-houses',    label: t('nav.steelHouses') },
+  { to: '/interiors',       label: t('nav.interiors') }, // ← NEW page 4
+ ]
+
   useEffect(()=>{
     function onDoc(e){ if(menuOpen && menuRef.current && !menuRef.current.contains(e.target)){ setMenuOpen(false) } }
     document.addEventListener('click', onDoc); return () => document.removeEventListener('click', onDoc)
@@ -41,17 +52,16 @@ export default function Header({ onOpenOffer, onOpenQuestion }){
                   exit={{opacity:0, y:4, scale:.98}} transition={{type:'spring', stiffness:300, damping:26}}>
                   <div className="grid cols-3">
                     <div><div className="mb-2"><strong className="grad-text">{t('services.categories.0.h')}</strong></div>
-                      <ul><li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.0.items.0.0')}</Link></li>
-                          <li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.0.items.1.0')}</Link></li>
-                          <li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.0.items.2.0')}</Link></li></ul></div>
+                      <ul><li><Link to="/modular-builds" onClick={()=>setMenuOpen(false)}>{t('services.categories.0.items.0.0')}</Link></li>
+                          <li><Link to="/modular-houses" onClick={()=>setMenuOpen(false)}>{t('services.categories.0.items.1.0')}</Link></li>
+                          <li><Link to="/steel-houses" onClick={()=>setMenuOpen(false)}>{t('services.categories.0.items.2.0')}</Link></li></ul></div>
                     <div><div className="mb-2"><strong className="grad-text">{t('services.categories.1.h')}</strong></div>
-                      <ul><li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.1.items.0.0')}</Link></li>
-                          <li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.1.items.1.0')}</Link></li>
-                          <li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.1.items.2.0')}</Link></li></ul></div>
+                      <ul><li><Link to="/delivery" onClick={()=>setMenuOpen(false)}>{t('services.categories.1.items.0.0')}</Link></li>
+                          <li><Link to="/logistics" onClick={()=>setMenuOpen(false)}>{t('services.categories.1.items.1.0')}</Link></li>
+                          </ul></div>
                     <div><div className="mb-2"><strong className="grad-text">{t('services.categories.2.h')}</strong></div>
-                      <ul><li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.2.items.0.0')}</Link></li>
-                          <li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.2.items.1.0')}</Link></li>
-                          <li><Link to="/services" onClick={()=>setMenuOpen(false)}>{t('services.categories.2.items.2.0')}</Link></li></ul></div>
+                      <ul><li><Link to="/interiors" onClick={()=>setMenuOpen(false)}>{t('services.categories.2.items.0.0')}</Link></li>
+                       </ul></div>
                   </div>
                 </motion.div>
               )}
@@ -60,6 +70,7 @@ export default function Header({ onOpenOffer, onOpenQuestion }){
           <NavLink to="/gallery" className={({isActive})=>['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{t('nav.gallery')}</NavLink>
           <NavLink to="/faq" className={({isActive})=>['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{t('nav.faq')}</NavLink>
           <NavLink to="/about" className={({isActive})=>['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{t('nav.about')}</NavLink>
+          <NavLink to="/partner" className={({isActive})=>['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{t('nav.partner')}</NavLink>
           <button className="btn" onClick={onOpenOffer}>{t('nav.quote')}</button>
         </nav>
 
@@ -91,16 +102,20 @@ export default function Header({ onOpenOffer, onOpenQuestion }){
         {mobileOpen && (
           <motion.div className="container mobile-drawer" initial={{height:0, opacity:0}} animate={{height:'auto', opacity:1}} exit={{height:0, opacity:0}}>
             <div className="drawer-card card">
-              <details><summary>▾ {t('nav.services')}</summary>
+              <details><summary>{t('nav.services')}</summary>
                 <div className="card p-6 mt-3">
-                  <Link className="row" to="/services" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.0.h')}</Link>
-                  <Link className="row mt-2" to="/services" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.1.h')}</Link>
-                  <Link className="row mt-2" to="/services" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.2.h')}</Link>
+                  <Link className="row" to="/modular-builds" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.0.items.0.0')}</Link>
+                  <Link className="row mt-2" to="/modular-houses" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.0.items.1.0')}</Link>
+                  <Link className="row mt-2" to="/steel-houses" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.0.items.2.0')}</Link>
+                  <Link className="row mt-2" to="/delivery" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.1.items.0.0')}</Link>
+                  <Link className="row mt-2" to="/logistics" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.1.items.1.0')}</Link>
+                  <Link className="row mt-2" to="/interiors" onClick={()=>setMobileOpen(false)}><span>•</span> {t('services.categories.2.items.0.0')}</Link>                           
                 </div>
               </details>
               <Link className="row mt-2" to="/gallery" onClick={()=>setMobileOpen(false)}>{t('nav.gallery')}</Link>
               <Link className="row" to="/faq" onClick={()=>setMobileOpen(false)}>{t('nav.faq')}</Link>
               <Link className="row" to="/about" onClick={()=>setMobileOpen(false)}>{t('nav.about')}</Link>
+              <Link className="row" to="/partner" onClick={()=>setMobileOpen(false)}>{t('nav.partner')}</Link>
               <button className="btn" style={{width:'100%',marginTop:8}} onClick={()=>{ setMobileOpen(false); onOpenOffer?.() }}>{t('nav.quote')}</button>
             </div>
           </motion.div>

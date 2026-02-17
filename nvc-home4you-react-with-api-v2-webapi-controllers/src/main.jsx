@@ -1,13 +1,20 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
+import ConsentBanner from './components/ConsentBanner.jsx'
+import GtmPageviewListener from './GtmPageviewListener.jsx'
 import './index.css'
+import { HelmetProvider } from 'react-helmet-async'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <HashRouter>
+     <HelmetProvider>
+    <BrowserRouter>
+      <GtmPageviewListener />
       <App />
-    </HashRouter>
+    </BrowserRouter>
+    <ConsentBanner />
+    </HelmetProvider>
   </React.StrictMode>
 )

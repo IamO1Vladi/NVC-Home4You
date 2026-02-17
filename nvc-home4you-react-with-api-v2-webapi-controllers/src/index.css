@@ -150,7 +150,30 @@ section{padding:48px 0}
 
 .modal-portal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:60}
 .backdrop{position:absolute;inset:0;background:#0009}
-.modal-card{position:relative;z-index:1;max-width:720px;width:calc(100% - 32px);background:#141820;border:1px solid #ffffff1a;border-radius:18px;padding:20px;color:#fff}
+.modal-card{
+  position:relative;
+  z-index:1;
+  max-width:720px;
+  width:calc(100% - 32px);
+
+  /* NEW: keep the card inside the viewport and make it scrollable */
+  max-height: min(640px, calc(100vh - 32px));
+  overflow-y:auto;
+  -webkit-overflow-scrolling: touch;
+
+  background:#141820;
+  border:1px solid #ffffff1a;
+  border-radius:18px;
+  padding:20px;
+  color:#fff;
+}
+@media (max-width: 640px){
+  .close-x{
+    top:6px;
+    right:6px;
+  }
+}
+
 .modal-card h3{margin:0 0 12px 0}
 .modal-card input,.modal-card textarea{
   width:100%;background:#0b0c10;border:1px solid #ffffff1a;border-radius:10px;color:#fff;padding:10px
@@ -188,7 +211,16 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 :root[data-theme='light'] body{ background: var(--night); color: var(--text); }
 :root[data-theme='light'] .card{ background:#ffffff; border-color: #00000016; }
 :root[data-theme='light'] header{ background:#ffffffd6; border-bottom-color:#00000016 }
-:root[data-theme='light'] .brand-logo{ background:#00000008; }
+/* Light mode: make the logo a solid brand pill so the house is visible */
+:root[data-theme='light'] .brand-logo{
+  background-image: linear-gradient(135deg, var(--brand-teal), var(--brand-blue));
+  box-shadow: 0 8px 18px rgba(15,23,42,.18); /* optional, just to match the rest of the UI */
+}
+
+/* Optional: make the icon a bit crisper in light mode */
+:root[data-theme='light'] .brand-logo svg{
+  opacity: 1;
+}
 :root[data-theme='light'] nav .link-btn{ color:#111827cc }
 :root[data-theme='light'] nav .link-btn:hover, :root[data-theme='light'] nav a:hover{ background:#00000008; color:#111827 }
 :root[data-theme='light'] nav .active{ background:#0000000d; color:#111827 }
@@ -458,3 +490,471 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 /* Optional: Prevent generic .btn rules from forcing large min-widths in header */
 .header-actions .btn { min-width: 0; }
 
+/* Floating Viber bubble in corner (mobile) */
+.viber-bubble{
+  position: fixed;
+  right: 16px;
+  bottom: 69px;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: #7360f2;              /* Viber purple */
+  color: #fff;
+  font-weight: 700;
+  font-size: 22px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  z-index: 90;
+  text-decoration: none;
+}
+
+/* show only on mobile */
+@media (min-width: 768px){
+  .viber-bubble{
+    display: none;
+  }
+}
+
+
+/* === ABOUT PAGE: hero, body & timeline extras === */
+
+
+/* Light theme for About */
+/* === ABOUT PAGE v2: hero, principles, calendar-style timeline === */
+
+/* HERO CARD */
+.about-hero-card{
+  position:relative;
+  overflow:hidden;
+  padding:24px;
+  border-radius:22px;
+  display:grid;
+  grid-template-columns:minmax(0,1.8fr) minmax(0,1.2fr);
+  gap:18px;
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(76,141,245,0.20), transparent 55%),
+    radial-gradient(120% 120% at 100% 0%, rgba(57,181,213,0.20), transparent 55%),
+    #141820ee;
+}
+
+.about-hero-card::before{
+  content:"";
+  position:absolute;
+  inset:-40%;
+  background:
+    radial-gradient(40% 40% at 15% 10%, rgba(255,255,255,0.08), transparent 60%),
+    conic-gradient(from 180deg, rgba(76,141,245,0.15), transparent 30%, rgba(57,181,213,0.18), transparent 70%);
+  opacity:.5;
+  mix-blend-mode:screen;
+  pointer-events:none;
+}
+
+.about-hero-main{
+  position:relative;
+  z-index:1;
+}
+
+.about-hero-eyebrow{
+  font-size:.8rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  opacity:.8;
+}
+
+.about-hero-title{
+  margin:4px 0 6px;
+  font-size:clamp(26px,4vw,36px);
+  font-weight:800;
+}
+
+.about-hero-lead{
+  margin:0;
+  margin-top:4px;
+  max-width:640px;
+  opacity:.9;
+}
+
+.about-hero-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:16px;
+}
+
+.about-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.6);
+  background:#0b0c10cc;
+  font-size:.8rem;
+}
+
+.about-badge-dot{
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  background:linear-gradient(90deg,var(--brand-teal),var(--brand-blue));
+}
+
+/* Hero side panel + stats */
+.about-hero-panel{
+  position:relative;
+  z-index:1;
+  border-radius:18px;
+  background:#020617ee;
+  border:1px solid rgba(148,163,184,.6);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:16px 16px 14px;
+  box-shadow:0 18px 48px rgba(0,0,0,.45);
+}
+
+.about-panel-label{
+  font-size:.8rem;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  opacity:.8;
+}
+
+.about-panel-list{
+  margin:8px 0 0 0;
+  padding-left:18px;
+  opacity:.9;
+}
+
+.about-hero-stats{
+  display:flex;
+  gap:10px;
+  margin-top:16px;
+}
+.about-hero-stats .stat-card{
+  flex:1;
+}
+
+/* BODY GRID (mission + principles) */
+.about-body-grid{
+  display:grid;
+  grid-template-columns:minmax(0,2fr) minmax(0,1.4fr);
+  gap:16px;
+}
+
+.about-principles{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+.about-pill-list{
+  margin:8px 0 0 0;
+  padding:0;
+  list-style:none;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.about-pill-item{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);
+  background:#0b0c10;
+  font-size:.85rem;
+}
+
+.about-pill-icon{
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,var(--brand-teal),var(--brand-blue));
+  color:#fff;
+}
+
+.about-pill-text{
+  white-space:nowrap;
+}
+
+/* TIMELINE SECTION: calendar-like strip of years + detail card */
+.about-timeline-section{
+  margin-top:32px;
+}
+
+.about-timeline-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.about-timeline-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+/* Reuse time-badge styling for status labels */
+.time-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:.7rem;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+.time-badge.is-past{
+  background:color-mix(in srgb,#16a34a 40%,#0b0c10);
+  color:#bbf7d0;
+}
+.time-badge.is-future{
+  background:color-mix(in srgb,#4f46e5 40%,#0b0c10);
+  color:#e0e7ff;
+}
+
+/* Year strip (calendar row) */
+.about-year-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:16px;
+}
+
+.about-year-chip{
+  border-radius:999px;
+  padding:6px 12px;
+  border:1px solid #ffffff1a;
+  background:rgba(129,140,248,.7);
+  color:inherit;
+  font-size:.8rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:background .18s ease, color .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.about-year-chip.is-active{
+  background:linear-gradient(90deg,var(--brand-teal),var(--brand-blue));
+  border-color:transparent;
+  color:#fff;
+  box-shadow:0 0 0 1px rgba(15,23,42,.7),0 10px 24px rgba(0,0,0,.4);
+}
+.about-year-chip.is-future:not(.is-active){
+  border-color:rgba(129,140,248,.7);
+}
+
+/* Active year detail card */
+.about-year-detail{
+  margin-top:14px;
+  border-radius:18px;
+  padding:16px 18px 18px;
+}
+
+.about-year-detail-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.about-year-detail-year{
+  font-size:.9rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  opacity:.85;
+}
+.about-year-detail-title{
+  margin-top:6px;
+  font-size:1.1rem;
+  font-weight:800;
+}
+.about-year-detail-desc{
+  margin:8px 0 0 0;
+  opacity:.9;
+}
+
+/* Responsive tweaks */
+@media (max-width: 900px){
+  .about-hero-card{
+    grid-template-columns:1fr;
+    padding:18px;
+  }
+  .about-body-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (max-width: 768px){
+  .about-hero-panel{
+    order:-1;
+  }
+}
+
+/* Light theme adjustments for About */
+:root[data-theme='light'] .about-hero-card{
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(76,141,245,0.12), transparent 55%),
+    radial-gradient(120% 120% at 100% 0%, rgba(57,181,213,0.12), transparent 55%),
+    #ffffff;
+}
+:root[data-theme='light'] .about-hero-card::before{ opacity:.35; }
+:root[data-theme='light'] .about-badge{
+  background:#f9fafb;
+  border-color:#00000026;
+  color:#111827;
+}
+:root[data-theme='light'] .about-hero-panel{
+  background:#ffffff;
+  border-color:#00000026;
+}
+:root[data-theme='light'] .about-pill-item{
+  background:#f9fafb;
+  border-color:#00000016;
+  color:#111827;
+}
+:root[data-theme='light'] .time-badge.is-past{
+  background:#dcfce7;
+  color:#166534;
+}
+:root[data-theme='light'] .time-badge.is-future{
+  background:#e0e7ff;
+  color:#312e81;
+}
+
+
+/* Rich text formatting inside Lightbox */
+.lb-richtext{
+  line-height: 1.55;
+}
+
+.lb-richtext p{
+  margin: 0 0 10px 0;
+}
+
+.lb-richtext ul,
+.lb-richtext ol{
+  margin: 8px 0 10px;
+  padding-left: 18px;
+}
+
+.lb-richtext li{
+  margin: 4px 0;
+}
+
+.lb-richtext a{
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.lb-richtext strong{ font-weight: 800; }
+.lb-richtext em{ font-style: italic; }
+
+/* Optional: if QuickBase includes headings */
+.lb-richtext h1,
+.lb-richtext h2,
+.lb-richtext h3{
+  margin: 10px 0 8px;
+}
+/* FAQ Pro: label for "All" mode items */
+.faqp-qwrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.faqp-tag{
+  display:inline-flex;
+  align-items:center;
+  height:24px;
+  padding:0 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.04em;
+  border:1px solid #ffffff1a;
+  background:#ffffff10;
+  opacity:.92;
+}
+
+:root[data-theme='light'] .faqp-tag{
+  border-color:#00000016;
+  background:#00000008;
+}
+
+/* FAQ Pro — question row supports an optional category tag (desktop) */
+.faqp-qwrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.faqp-qtext{
+  min-width:0;
+}
+
+/* Small “category tag” shown next to the question (ONLY useful in All mode) */
+.faqp-tag{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  height:22px;
+  padding:0 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.02em;
+  border:1px solid #ffffff1a;
+  background:#0b0c10;
+  color:#e5e7ebcc;
+}
+
+/* Mobile dropdown (hidden on desktop) */
+.faqp-selectWrap{ display:none; }
+.faqp-select{
+  width:100%;
+  height:40px;
+  border-radius:12px;
+  padding:0 12px;
+  background:#0b0c10;
+  border:1px solid #ffffff1a;
+  color:#fff;
+  font-weight:700;
+}
+.faqp-select:focus-visible{ outline:none; box-shadow: var(--ring); }
+
+/* Light theme */
+:root[data-theme='light'] .faqp-tag{
+  background:#fff;
+  border-color:#00000016;
+  color:#111827;
+}
+:root[data-theme='light'] .faqp-select{
+  background:#fff;
+  border-color:#00000016;
+  color:#111827;
+}
+
+/* MOBILE: dropdown instead of segmented + hide the tag/subhead next to the question */
+@media (max-width: 640px){
+  .faqp-top{ flex-direction:column; align-items:stretch; gap:10px; }
+  .faqp-top .segmented{ display:none; }
+  .faqp-selectWrap{ display:block; }
+
+  .faqp-search{ width:100%; }
+  .faqp-search input{ width:100%; min-width:0; }
+
+  /* Hide category subheads/tags next to questions on mobile (your request) */
+  .faqp-tag{ display:none !important; }
+}

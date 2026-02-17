@@ -32,13 +32,13 @@ export default function Steps(){
 
           <div className="card p-6 mt-6" aria-live="polite">
             <div style={{fontSize:12, letterSpacing:'.12em', opacity:.7, textTransform:'uppercase'}}>
-              Step <span>{active+1}</span> of <span>{STEPS.length}</span>
+            
             </div>
             <div className="mt-2" style={{fontSize:20, fontWeight:700}}>
               <span className="grad-text">{STEPS[active].t}</span>
             </div>
             <p className="mt-2" style={{opacity:.9}}>
-              {STEPS[active].d} We outline responsibilities, milestones, and decision points.
+              {STEPS[active].longD}
             </p>
           </div>
         </div>

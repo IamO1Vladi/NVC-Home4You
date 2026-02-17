@@ -1,0 +1,79 @@
+:root[data-theme='dark']{
+  --hs-border:#ffffff1a; --hs-card:#131723; --hs-ink:#e5e7eb; --hs-glow:#4f46e5;
+}
+:root[data-theme='light']{
+  --hs-border:#00000016; --hs-card:#ffffff; --hs-ink:#111827; --hs-glow:#4338ca;
+}
+
+.hs{ width:min(var(--hs-size), 100%); margin-inline:auto; }
+.hs-frame{
+  perspective:1200px;
+  border-radius:20px; border:1px solid var(--hs-border);
+  background: linear-gradient(180deg, #00000008, transparent);
+  box-shadow: 0 24px 48px rgba(0,0,0,.12);
+  overflow:hidden;
+}
+.hs-tilt{ transform-style:preserve-3d; transition: transform .25s ease; }
+
+.hs-viewport{
+  position:relative; aspect-ratio: 16 / 10; overflow:hidden; border-radius:20px; background:#e5e7eb;
+  /* soft panel glow */
+  box-shadow: inset 0 0 0 1px var(--hs-border),
+              inset 0 120px 200px -120px color-mix(in srgb, var(--hs-glow) 18%, transparent);
+}
+
+/* Shots */
+.hs-shot{ position:absolute; inset:0; opacity:0; transition: opacity .7s ease; }
+.hs-shot.is-active{ opacity:1; }
+.hs-shot img{
+  width:100%; height:100%; object-fit:cover; background:#e5e7eb;
+  /* Ken Burns variants via nth-child */
+  animation: kbA 7.4s ease-in-out forwards;
+}
+.hs-shot:nth-child(2).is-active img{ animation-name: kbB; }
+.hs-shot:nth-child(3).is-active img{ animation-name: kbC; }
+.hs-shot:nth-child(4).is-active img{ animation-name: kbD; }
+.hs-shot:nth-child(5).is-active img{ animation-name: kbE; }
+
+/* Ken Burns pans */
+@keyframes kbA { from{ transform:scale(1.07) translateX(-1%) translateY(0);} to{ transform:scale(1.16) translateX(2%) translateY(-2%);} }
+@keyframes kbB { from{ transform:scale(1.08) translateX(1%)  translateY(-1%);} to{ transform:scale(1.17) translateX(-2%) translateY(2%);} }
+@keyframes kbC { from{ transform:scale(1.06) translateX(0)   translateY(1%);}  to{ transform:scale(1.15) translateX(2%)  translateY(0);} }
+@keyframes kbD { from{ transform:scale(1.08) translateX(-2%) translateY(2%);}  to{ transform:scale(1.17) translateX(1%)  translateY(-1%);} }
+@keyframes kbE { from{ transform:scale(1.10) translateX(1%)  translateY(1%);}  to{ transform:scale(1.20) translateX(-1%) translateY(-2%);} }
+
+/* Edge shimmer */
+.hs-sheen{
+  position:absolute; inset:-40% -60%;
+  background: conic-gradient(from 0deg, transparent 0 60%, #ffffff80 65%, transparent 70%);
+  animation: sheen 4.6s linear infinite;
+  pointer-events:none; mix-blend-mode: screen; opacity:.25;
+}
+@keyframes sheen{ to { transform: rotate(1turn); } }
+
+/* UI */
+.hs-ui{ position:absolute; left:10px; right:10px; bottom:10px; display:grid; grid-template-columns: 1fr auto; gap:8px; }
+.hs-dots{ display:flex; gap:6px; align-items:center; }
+.hs-dot{ width:10px; height:10px; border-radius:999px; border:1px solid var(--hs-border); background:transparent; }
+.hs-dot.is-active{ background: currentColor; }
+.hs-progress{ height:4px; border-radius:999px; background:#00000018; overflow:hidden; border:1px solid var(--hs-border); }
+.hs-progress span{ display:block; height:100%; width:0; background:linear-gradient(90deg, #10b981, #4f46e5); animation: fill var(--hs-interval) linear forwards; }
+@keyframes fill{ to { width:100%; } }
+
+/* Mobile */
+@media (max-width: 960px){
+  .hs-viewport{ aspect-ratio: 16 / 11; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .hs-tilt{ transition:none; transform:none !important; }
+  .hs-shot img{ animation:none !important; transform:none !important; }
+  .hs-sheen{ animation: none; opacity:.08; }
+  .hs-progress span{ animation:none; width:100%; }
+}
+
+/* Make the link fill the frame so the whole image is clickable */
+.hs-shot a { position:absolute; inset:0; display:block; }
+.hs-shot a img { width:100%; height:100%; object-fit:cover; }
+

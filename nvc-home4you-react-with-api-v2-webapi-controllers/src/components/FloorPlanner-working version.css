@@ -1,0 +1,209 @@
+/* FloorPlanner.css — v4 */
+
+@media print {
+  /* Print only the 2D canvas card in a clean way */
+  header, nav, .fp-panel, .fp-topbar, .fp-help, .fp-canvas-head, .fp-3d-wrap, .fp-3d { display: none !important; }
+  .fp-grid { display: block !important; }
+  .fp-canvas { box-shadow: none !important; border: none !important; }
+  .fp-svg { height: auto !important; width: 100% !important; }
+  .fp-svg-wrap { border: none !important; }
+}
+
+.fp-page{
+  padding: 14px;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.fp-topbar{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fp-title{
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.fp-sub{
+  opacity: .75;
+  margin-top: 2px;
+}
+
+.fp-top-actions{
+  display:flex;
+  gap: 8px;
+  align-items:center;
+  flex-wrap: wrap;
+}
+
+.fp-grid{
+  display:grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 12px;
+  align-items:start;
+}
+
+.fp-grid.is-panel-closed{
+  grid-template-columns: 1fr;
+}
+
+.fp-panel{
+  position: sticky;
+  top: 12px;
+  height: calc(100vh - 24px);
+  overflow:auto;
+}
+
+.fp-grid.is-panel-closed .fp-panel{
+  display:none;
+}
+
+.fp-section + .fp-section{
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #ffffff14;
+}
+
+.fp-h{
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.fp-label{
+  display:block;
+  font-size: 12px;
+  opacity: .75;
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.fp-toolrow{
+  display:flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fp-note{
+  font-size: 12px;
+  opacity: .75;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+.fp-objlist{
+  display:flex;
+  flex-direction:column;
+  gap: 12px;
+}
+
+.fp-objtitle{
+  font-size: 12px;
+  opacity: .7;
+  margin-bottom: 6px;
+}
+
+.fp-obj{
+  width: 100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  border: 1px solid #ffffff14;
+  background: #0b1220;
+  color: #e5e7eb;
+  cursor:pointer;
+}
+
+.fp-obj:hover{
+  border-color: #ffffff2a;
+}
+
+.fp-obj.is-on{
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.18);
+}
+
+.fp-dot{
+  width: 10px; height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg,#60a5fa,#a78bfa);
+  flex: 0 0 auto;
+}
+
+.fp-muted{
+  opacity: .7;
+  font-size: 12px;
+}
+
+.fp-ins{
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+}
+
+.fp-canvas{
+  min-height: calc(100vh - 24px);
+}
+
+.fp-canvas-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+.fp-svg-wrap{
+  margin-top: 10px;
+  border-radius: 14px;
+  overflow:hidden;
+  border: 1px solid #ffffff14;
+  background: #0b1220;
+}
+
+.fp-svg{
+  width: 100%;
+  height: min(72vh, 820px);
+  display:block;
+  touch-action: none; /* prevent browser panning while drawing */
+}
+
+.fp-help{
+  font-size: 13px;
+  opacity: .8;
+}
+
+/* 3D preview */
+.fp-3d-wrap{
+  margin-top: 10px;
+}
+
+.fp-3d{
+  border-radius: 14px;
+  border: 1px solid #ffffff14;
+  overflow:hidden;
+  background: #0b1220;
+}
+
+.fp-3d-bar{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #ffffff14;
+}
+
+.fp-3d-bar input[type="range"]{
+  width: 100%;
+}
+
+.fp-3d-canvas{
+  width: 100%;
+  height: min(72vh, 820px);
+  display:block;
+}

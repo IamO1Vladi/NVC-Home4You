@@ -8,20 +8,50 @@ import Gallery from './components/Gallery.jsx'
 import FAQ from './components/FAQPro.jsx'
 import About from './components/About.jsx'
 import Modal from './components/Modal.jsx'
+import ModularBuilds from './components/ModularBuilds.jsx'
+import ModularHouses from './components/ModularHouses.jsx'
+import SteelHouses from './components/SteelHouses.jsx'
 import MobileDock from './components/MobileDock.jsx'
+import Interiors from './components/Interiors.jsx'
+import GliderServices from './components/GlideServices.jsx'
+import ServiceTiles from './components/ServiceTiles.jsx'
+import Delivery from './components/Delivery.jsx'
+import Logistics from './components/Logistics.jsx'
+import SEO from './components/SEO.jsx'
+import {LocalBusinessJSONLD} from './components/StructuredData.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { ModalActionsProvider } from './context/ModalActions.jsx'
 import { I18nProvider, useI18n } from './i18n/I18nContext.jsx'
+import Partner from './components/Partner.jsx'
+import FloorPlanner from './components/FloorPlanner.jsx'
+import InternalDoors from './components/InternalDoors.jsx'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '' // vite proxy handles '' in dev
 
 function Home({ onOpenOffer, onOpenQuestion }){
   const { t } = useI18n()
   return (
+
     <main>
+
+      <SEO
+        title="NVC Home4You - Контейнери за живеене, сглобяеми къщи и модулни къщи"
+        description="Контейнери за живеене, модулни и сглобяеми къщи на най-добра цена в България. Предлагаме готови и индивидуални решения с бърза доставка и пълно съдействие."
+        image="../public/logo3"
+        url="https://nvc-home4you.eu/"
+        hreflangs={[
+          { hrefLang:'bg', href:'https://nvc-home4you.eu/' },
+          { hrefLang:'en', href:'https://nvc-home4you.eu/' }
+        ]}
+      />
       <Hero onOpenOffer={onOpenOffer} onOpenQuestion={onOpenQuestion} />
+      <ServiceTiles/>
+      <GliderServices></GliderServices>
+
       <Steps />
       <WhyUs />
+
+      
       <section>
         <div className="container">
           <div className="mt-10 card p-10 center">
@@ -32,12 +62,17 @@ function Home({ onOpenOffer, onOpenQuestion }){
               <button className="btn ghost" onClick={onOpenQuestion}>{t('nav.askQuestion')}</button>
             </div>
             <div className="mt-6" style={{opacity:.8}}>
-              <div>📞 +359 88 123 4567</div>
-              <div>✉️ contact@nvc-home4you.com</div>
+              <div>📞 +359 89 245 6245</div>
+              <div>✉️ contact@nvc-home4you.eu</div>
             </div>
           </div>
         </div>
       </section>
+
+<LocalBusinessJSONLD
+ 
+/>
+
     </main>
   )
 }
@@ -126,6 +161,15 @@ function _App(){
         <Routes>
           <Route path="/" element={<Home onOpenOffer={()=>setOfferOpen(true)} onOpenQuestion={()=>setQuestionOpen(true)} />} />
           <Route path="/services" element={<Services />} />
+          <Route path="/modular-builds" element={<ModularBuilds />} />
+          <Route path="/modular-houses" element={<ModularHouses />} />
+          <Route path="/steel-houses" element={<SteelHouses />} />
+          <Route path="/interiors" element={<Interiors />} />
+          <Route path="/delivery" element={<Delivery />} />
+          <Route path="/logistics" element={<Logistics />} />
+          <Route path="/partner" element={<Partner />} />
+          <Route path="/planner" element={<FloorPlanner />} />
+          <Route path="/doors" element={<InternalDoors />} />
          <Route path="/gallery" element={
     <Gallery onRequestModel={(m) => {
       // normalize: accept id, modelId or modelID from API/lightbox
@@ -161,6 +205,14 @@ function _App(){
             <button className="btn" type="submit">{t('forms.send')}</button>
           </form>
         </Modal>
+
+      <a
+      href="viber://chat?number=%2B359892456245"
+      className="viber-bubble"
+      aria-label={t('viber.chatLabel')}
+    >
+      NVC
+    </a>
 
         <MobileDock />
         {toast.show && (
