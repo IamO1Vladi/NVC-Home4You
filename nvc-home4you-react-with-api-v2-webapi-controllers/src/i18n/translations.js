@@ -525,9 +525,100 @@ logistics: {
 
  
 
-}
+},
 
 //End of logisitcs
+
+
+// Start of planner
+
+planner: {
+  title: 'Floor plan builder',
+  subtitle: 'Area: {area} m² · Size: {w}×{d} m',
+
+  model: 'Model',
+  tools: 'Tools',
+  tool: {
+    room: 'Room',
+    wall: 'Wall',
+    door: 'Door',
+    window: 'Window',
+    select: 'Select',
+    pan: 'Pan',
+  },
+  tip: {
+    room: 'Drag to create a room.',
+    wall: 'Drag to draw an interior wall segment.',
+    door: 'Click a wall to place a door.',
+    window: 'Click an exterior wall to place a window.',
+    select: 'Select an element. Delete removes it.',
+    pan: 'Drag to pan. Wheel to zoom.',
+  },
+
+  roomSettings: 'Room settings',
+  type: 'Type',
+  floorFinish: 'Floor finish',
+  grid: 'Grid',
+
+  objects: 'Objects',
+  rooms: 'Rooms',
+  openings: 'Doors & windows',
+  walls: 'Walls',
+
+  inspector: 'Inspector',
+  delete: 'Delete',
+  clear: 'Clear',
+  exportPdf: 'Export PDF',
+
+  hidePanel: 'Hide panel',
+  showPanel: 'Show panel',
+
+  flipSwing: 'Flip swing',
+  flipHinge: 'Flip hinge',
+  outside: 'Outside',
+
+  plan: 'Plan',
+  units: 'Units: meters',
+  snap: 'Snap: {grid} m',
+  resetView: 'Reset',
+
+  captureOn: 'Canvas controls active — press Esc to release',
+  captureOff: 'Click the canvas to capture controls',
+  windowOnlyExterior: 'Windows can be placed only on exterior walls.',
+  locked: 'Locked',
+
+  unitCm: 'cm',
+  unitM: 'm',
+
+  models: {
+    c6x3: 'Container 6×3',
+    c7x3: 'Container 7×3',
+    c8x3: 'Container 8×3',
+    b37: 'Box house 37 m²',
+    b57: 'Box house 57 m²',
+    b73: 'Box house 73 m²',
+  },
+
+  roomTypes: {
+    living: 'Living',
+    bed: 'Bedroom',
+    kitchen: 'Kitchen',
+    bath: 'Bathroom',
+    office: 'Office',
+    storage: 'Storage',
+  },
+
+  finishes: {
+    wood: 'Wood',
+    laminate: 'Laminate',
+    spc: 'SPC',
+    tile: 'Tile',
+    pvc: 'PVC',
+    concrete: 'Concrete',
+  },
+}
+
+//end of planner
 
   },
   bg: {
@@ -1041,8 +1132,99 @@ logistics: {
 
 
 
-}
+},
 
 //End of Logistics
+
+//Start of planner
+
+planner: {
+  title: 'Проектиране на план',
+  subtitle: 'Площ: {area} м² · Размер: {w}×{d} м',
+
+  model: 'Модел',
+  tools: 'Инструменти',
+  tool: {
+    room: 'Стая',
+    wall: 'Стена',
+    door: 'Врата',
+    window: 'Прозорец',
+    select: 'Избор',
+    pan: 'Панорама',
+  },
+  tip: {
+    room: 'Плъзни, за да създадеш стая.',
+    wall: 'Плъзни, за да начертаеш вътрешна стена.',
+    door: 'Кликни върху стена, за да поставиш врата.',
+    window: 'Кликни върху външна стена, за да поставиш прозорец.',
+    select: 'Избери елемент. Delete го изтрива.',
+    pan: 'Плъзни за панорама. Колелото увеличава/намалява.',
+  },
+
+  roomSettings: 'Настройки на стая',
+  type: 'Тип',
+  floorFinish: 'Подова настилка',
+  grid: 'Мрежа',
+
+  objects: 'Обекти',
+  rooms: 'Стаи',
+  openings: 'Врати и прозорци',
+  walls: 'Стени',
+
+  inspector: 'Детайли',
+  delete: 'Изтрий',
+  clear: 'Изчисти',
+  exportPdf: 'Експорт PDF',
+
+  hidePanel: 'Скрий панела',
+  showPanel: 'Покажи панела',
+
+  flipSwing: 'Обърни отварянето',
+  flipHinge: 'Обърни пантите',
+  outside: 'Навън',
+
+  plan: 'План',
+  units: 'Единици: метри',
+  snap: 'Стъпка: {grid} м',
+  resetView: 'Нулирай',
+
+  captureOn: 'Контролите са активни — натисни Esc за освобождаване',
+  captureOff: 'Кликни върху платното, за да активираш контролите',
+  windowOnlyExterior: 'Прозорци могат да се поставят само на външни стени.',
+  locked: 'Заключено',
+
+  unitCm: 'см',
+  unitM: 'м',
+
+  models: {
+    c6x3: 'Контейнер 6×3',
+    c7x3: 'Контейнер 7×3',
+    c8x3: 'Контейнер 8×3',
+    b37: 'Къща „Бокс“ 37 м²',
+    b57: 'Къща „Бокс“ 57 м²',
+    b73: 'Къща „Бокс“ 73 м²',
+  },
+
+  roomTypes: {
+    living: 'Дневна',
+    bed: 'Спалня',
+    kitchen: 'Кухня',
+    bath: 'Баня',
+    office: 'Офис',
+    storage: 'Склад',
+  },
+
+  finishes: {
+    wood: 'Дърво',
+    laminate: 'Ламинат',
+    spc: 'SPC',
+    tile: 'Плочки',
+    pvc: 'PVC',
+    concrete: 'Бетон',
+  },
+}
+
+
+//End of planner
   }
 }

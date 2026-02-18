@@ -3,7 +3,6 @@ import { useI18n } from '../i18n/I18nContext.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import './InternalDoors.css'
 
-
 function useText() {
   const { t } = useI18n()
   return React.useCallback(
@@ -15,12 +14,35 @@ function useText() {
   )
 }
 
+function TypeTabs({ items, value, onChange, ariaLabel = 'Door type' }) {
+  return (
+    <div className="id-type-tabs" role="tablist" aria-label={ariaLabel}>
+      {items.map((it) => {
+        const active = it.key === value
+        return (
+          <button
+            key={it.key}
+            type="button"
+            className={['id-type-tab', active && 'is-active'].filter(Boolean).join(' ')}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(it.key)}
+          >
+            {it.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function ColorPicker({
   options,
   value,
   onChange,
   pillBg = 'rgba(255,255,255,.75)',
-  ariaLabel = 'Door colour',
+  ariaLabel = 'Finish',
+  position = 'bottom-right', // 'top-right' | 'bottom-right'
 }) {
   const refs = React.useRef([])
 
@@ -30,13 +52,12 @@ function ColorPicker({
     const nextKey = options[next]?.key
     if (!nextKey) return
     onChange(nextKey)
-    // focus after state update flush
     window.requestAnimationFrame(() => refs.current[next]?.focus())
   }
 
   return (
     <div
-      className="id-picker"
+      className={['id-picker', position === 'bottom-right' && 'is-bottom'].filter(Boolean).join(' ')}
       style={{ '--pill': pillBg }}
       role="radiogroup"
       aria-label={ariaLabel}
@@ -75,44 +96,136 @@ function ColorPicker({
 export default function InternalDoors() {
   const { openOffer, openQuestion } = useModalActions()
   const txt = useText()
-  const asset = (p) => `${import.meta.env.BASE_URL}${p}`
+  const asset = React.useCallback((p) => `${import.meta.env.BASE_URL}${p}`, [])
   const fallback = asset('modular-builds/card.svg')
 
-  const options = React.useMemo(
+  // TYPE 1: Standard doors (living room scene)
+  const standardOptions = React.useMemo(
     () => [
       {
         key: 'white',
         label: txt('internalDoors.colors.white', 'White'),
         swatch: '#D1D5DB',
         pillBg: 'rgba(255,255,255,.78)',
-        img: '../../public/internal-doors/door-white.png',
+        img: asset('internal-doors/door-white.png'),
       },
       {
         key: 'charcoal',
         label: txt('internalDoors.colors.charcoal', 'Charcoal'),
         swatch: '#4B5563',
         pillBg: 'rgba(31,41,55,.72)',
-        img: '../../public/internal-doors/door-charcoal.png',
+        img: asset('internal-doors/door-charcoal.png'),
       },
       {
         key: 'sage',
         label: txt('internalDoors.colors.sage', 'Sage'),
         swatch: '#A3B18A',
         pillBg: 'rgba(163,177,138,.70)',
-        img: '../../public/internal-doors/door-sage.png',
+        img: asset('internal-doors/door-sage.png'),
       },
+    ],
+    [txt, asset]
+  )
+
+  // TYPE 2: Decorative panels / concealed door scene
+  const panelOptions = React.useMemo(
+    () => [
+      {
+        key: 'panelLight',
+        label: txt('internalDoors.panels.light', 'Light'),
+        swatch: '#B8B1A6',
+        pillBg: 'rgba(255,255,255,.70)',
+        img: asset('internal-doors/panels-light.png'),
+      },
+      {
+        key: 'panelSmoked',
+        label: txt('internalDoors.panels.smoked', 'Smoked'),
+        swatch: '#6A6358',
+        pillBg: 'rgba(17,24,39,.62)',
+        img: asset('internal-doors/panels-mid.png'),
+      },
+      {
+        key: 'panelDark',
+        label: txt('internalDoors.panels.dark', 'Dark'),
+        swatch: '#1F1B14',
+        pillBg: 'rgba(17,24,39,.62)',
+        img: asset('internal-doors/panels-dark.png'),
+      },
+    ],
+    [txt, asset]
+  )
+
+  const typeItems = React.useMemo(
+    () => [
+      { key: 'standard', label: txt('internalDoors.types.standard', 'Standard doors') },
+      { key: 'panels', label: txt('internalDoors.types.panels', 'Decorative panels') },
     ],
     [txt]
   )
 
-  const [color, setColor] = React.useState(options[0]?.key || 'white')
-  const selected = options.find((o) => o.key === color) || options[0]
+  const typeCopy = React.useMemo(
+    () => ({
+      standard: {
+        desc: txt(
+          'internalDoors.types.standardDesc',
+          'Classic internal doors in curated painted finishes — ideal for bedrooms, bathrooms and offices.'
+        ),
+        features: [
+          txt('internalDoors.types.standardFeat1', 'Door leaf + frame (standard or concealed)'),
+          txt('internalDoors.types.standardFeat2', 'Solid / hollow core options'),
+          txt('internalDoors.types.standardFeat3', 'Hardware sets: hinges, handle, lock, seals'),
+        ],
+        tag: txt('internalDoors.types.standardTag', 'Standard door'),
+      },
+      panels: {
+        desc: txt(
+          'internalDoors.types.panelsDesc',
+          'Decorative wall panels with an integrated door — perfect for feature walls and hidden/flush openings.'
+        ),
+        features: [
+          txt('internalDoors.types.panelsFeat1', 'Wall panel system with integrated door leaf'),
+          txt('internalDoors.types.panelsFeat2', 'Flush / concealed frame options'),
+          txt('internalDoors.types.panelsFeat3', 'Matched finish across door + surrounding panels'),
+        ],
+        tag: txt('internalDoors.types.panelsTag', 'Decorative panels'),
+      },
+    }),
+    [txt]
+  )
 
-  // Fade-in on every image swap
+  // Door type state
+  const [typeKey, setTypeKey] = React.useState('standard')
+
+  // Keep a selected finish per type (so switching type keeps the last choice)
+  // Default panels to DARK so "switching type" goes straight to the dark scene.
+  const [finishByType, setFinishByType] = React.useState(() => ({
+    standard: standardOptions[0]?.key || 'white',
+    panels: panelOptions.find((o) => o.key === 'panelDark')?.key || panelOptions[0]?.key || 'panelDark',
+  }))
+
+  // In case options change and a key disappears, recover gracefully
+  React.useEffect(() => {
+    setFinishByType((prev) => {
+      const next = { ...prev }
+      if (!standardOptions.some((o) => o.key === next.standard)) next.standard = standardOptions[0]?.key || 'white'
+      if (!panelOptions.some((o) => o.key === next.panels))
+        next.panels = panelOptions.find((o) => o.key === 'panelDark')?.key || panelOptions[0]?.key || 'panelDark'
+      return next
+    })
+  }, [standardOptions, panelOptions])
+
+  const activeOptions = typeKey === 'standard' ? standardOptions : panelOptions
+  const activeFinishKey = finishByType[typeKey]
+  const selected = activeOptions.find((o) => o.key === activeFinishKey) || activeOptions[0]
+  const activeImg = selected?.img
+
+  const setActiveFinishKey = (k) => setFinishByType((prev) => ({ ...prev, [typeKey]: k }))
+
+  // Fade-in on every src swap (type or colour)
   const [loaded, setLoaded] = React.useState(true)
   React.useEffect(() => {
     setLoaded(false)
-  }, [color])
+  }, [activeImg])
 
   return (
     <main className="id">
@@ -124,7 +237,7 @@ export default function InternalDoors() {
             <p className="id-lead">
               {txt(
                 'internalDoors.lead',
-                'Modern, durable internal doors with curated finishes. Preview colour options instantly and request an offer.'
+                'Modern internal doors with curated finishes. Switch door type and preview colour presets instantly.'
               )}
             </p>
             <div className="row mt-6">
@@ -149,20 +262,63 @@ export default function InternalDoors() {
         </div>
       </section>
 
-      {/* COLOUR PREVIEW */}
+      {/* CONFIG + PREVIEW (Image LEFT, Info RIGHT) */}
       <section>
-        <div className="container">
+        <div className="container id-wide">
           <div className="id-pane">
-            <h2 className="id-h2">{txt('internalDoors.preview.h', 'Preview colours')}</h2>
-            <p className="id-muted">{txt('internalDoors.preview.p', 'Tap a swatch to change the door finish.')}</p>
+            <h2 className="id-h2">{txt('internalDoors.preview.h', 'Choose your door')}</h2>
+            <p className="id-muted">
+              {txt(
+                'internalDoors.preview.p2',
+                'Use the Door Type toggle to swap styles. Then use the swatches on the image to change the finish.'
+              )}
+            </p>
 
-            <div className="id-grid">
-              <div className="id-col">
-                <div className="id-sub">{txt('internalDoors.details.h', 'What’s included')}</div>
+            <div className="id-showcase" aria-label="Internal doors preview and configuration">
+              {/* LEFT: big image */}
+              <div className="id-showcase-media">
+                <div className="id-preview id-preview--tall" aria-label="Door preview">
+                  <img
+                    className={['id-preview-img', loaded && 'is-loaded'].filter(Boolean).join(' ')}
+                    src={activeImg}
+                    alt={txt('internalDoors.preview.alt', 'Internal door preview')}
+                    onLoad={() => setLoaded(true)}
+                    onError={(e) => {
+                      e.currentTarget.src = fallback
+                    }}
+                  />
+
+                  <div className="id-preview-tag">{typeCopy[typeKey]?.tag}</div>
+
+                  <ColorPicker
+                    options={activeOptions}
+                    value={activeFinishKey}
+                    onChange={setActiveFinishKey}
+                    pillBg={selected?.pillBg}
+                    ariaLabel={typeKey === 'standard' ? txt('internalDoors.preview.ariaDoor', 'Door colour') : txt('internalDoors.preview.ariaPanel', 'Panel finish')}
+                    position="bottom-right"
+                  />
+
+                  <div className="id-preview-badge">{selected?.label}</div>
+                </div>
+              </div>
+
+              {/* RIGHT: info + type selector */}
+              <div className="id-showcase-info">
+                <div className="id-sub">{txt('internalDoors.types.h', 'Door type')}</div>
+                <TypeTabs
+                  items={typeItems}
+                  value={typeKey}
+                  onChange={(k) => setTypeKey(k)}
+                  ariaLabel={txt('internalDoors.types.aria', 'Door type')}
+                />
+                <p className="id-type-desc">{typeCopy[typeKey]?.desc}</p>
+
+                <div className="id-sub mt-6">{txt('internalDoors.details.h', 'What’s included')}</div>
                 <ul className="id-list">
-                  <li>{txt('internalDoors.details.li1', 'Door leaf + frame (standard or concealed)')}</li>
-                  <li>{txt('internalDoors.details.li2', 'Hinges, handle set, lock, and seals')}</li>
-                  <li>{txt('internalDoors.details.li3', 'Finish packs: matte, satin, or wood textures')}</li>
+                  {(typeCopy[typeKey]?.features || []).map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
                 </ul>
 
                 <div className="id-sub mt-6">{txt('internalDoors.selected.h', 'Selected finish')}</div>
@@ -170,7 +326,9 @@ export default function InternalDoors() {
                   <span className="id-swatch" style={{ '--sw': selected?.swatch }} aria-hidden="true" />
                   <div>
                     <div className="id-selected-name">{selected?.label}</div>
-                    <div className="id-selected-meta">{txt('internalDoors.selected.meta', 'More colours available on request.')}</div>
+                    <div className="id-selected-meta">
+                      {txt('internalDoors.selected.meta', 'More colours available on request.')}
+                    </div>
                   </div>
                 </div>
 
@@ -179,32 +337,10 @@ export default function InternalDoors() {
                     {txt('internalDoors.cta', 'Request a doors quote')}
                   </button>
                 </div>
-              </div>
 
-              <div className="id-col">
-                <div className="id-preview" aria-label="Door preview">
-                  <img
-                    className={['id-preview-img', loaded && 'is-loaded'].filter(Boolean).join(' ')}
-                    src={selected?.img}
-                    alt={txt('internalDoors.preview.alt', 'Internal door preview')}
-                    onLoad={() => setLoaded(true)}
-                    onError={(e) => {
-                      e.currentTarget.src = fallback
-                    }}
-                  />
-
-                  <ColorPicker
-                    options={options}
-                    value={color}
-                    onChange={setColor}
-                    pillBg={selected?.pillBg}
-                    ariaLabel={txt('internalDoors.preview.aria', 'Door colour')}
-                  />
-
-                  <div className="id-preview-badge">{selected?.label}</div>
+                <div className="id-hint">
+                  {txt('internalDoors.hint2', 'Tip: Add more door types by introducing a new options array and extending typeItems/typeCopy.')}
                 </div>
-
-                <div className="id-hint">{txt('internalDoors.hint', 'Tip: Add more presets by extending the “options” array.')}</div>
               </div>
             </div>
           </div>

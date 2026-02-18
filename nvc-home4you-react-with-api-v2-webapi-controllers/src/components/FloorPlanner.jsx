@@ -50,8 +50,8 @@ const ROOM_TYPES = [
 ]
 
 const DEFAULT_DOOR_W_M = 0.9
-const DEFAULT_WINDOW_W_M = 1.8
-const DEFAULT_WINDOW_H_M = 0.96
+const DEFAULT_WINDOW_W_M = 0.96
+const DEFAULT_WINDOW_H_M = 1.8
 
 // -------------------------- Utilities ----------------------------------------
 const uid = () => Math.random().toString(36).slice(2, 10)
