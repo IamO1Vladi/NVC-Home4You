@@ -24,7 +24,7 @@ namespace Services
         {
             // 1) Houses — one query
             // Build select list: base fields + optional BG fields
-            var select = new List<int> { _env.F_HOUSE_RID, _env.F_HOUSE_TITLE, _env.F_HOUSE_PRICE, _env.F_HOUSE_DESC };
+            var select = new List<int> { _env.F_HOUSE_RID, _env.F_HOUSE_TITLE, _env.F_HOUSE_PRICE, _env.F_HOUSE_DESC, _env.F_HOUSE_CATEGORY };
             if (_env.F_HOUSE_TITLE_BG.HasValue) select.Add(_env.F_HOUSE_TITLE_BG.Value);
             if (_env.F_HOUSE_DESC_BG.HasValue) select.Add(_env.F_HOUSE_DESC_BG.Value);
 
@@ -55,6 +55,8 @@ namespace Services
                     string? titleBg = _env.F_HOUSE_TITLE_BG.HasValue ? rec.Get(_env.F_HOUSE_TITLE_BG.Value) : null;
                     string? descBg = _env.F_HOUSE_DESC_BG.HasValue ? rec.Get(_env.F_HOUSE_DESC_BG.Value) : null;
 
+                    string? category = rec.Get(_env.F_HOUSE_CATEGORY) ?? "";
+
                     decimal? price = null;
                     var priceStr = rec.Get(_env.F_HOUSE_PRICE);
                     if (decimal.TryParse(priceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var p))
@@ -69,6 +71,7 @@ namespace Services
                         DescriptionBg = string.IsNullOrWhiteSpace(descBg) ? null : descBg,
                         Price = price,
                         Currency = "EUR",
+                        Category = category,
                         Images = new List<string>()
                     });
                 }

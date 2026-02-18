@@ -1,24 +1,284 @@
 {
   "Files": [
     {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\_redirects",
+      "PackagePath": "staticwebassets"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\android-chrome-192x192.png",
+      "PackagePath": "staticwebassets\\android-chrome-192x192.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\android-chrome-512x512.png",
+      "PackagePath": "staticwebassets\\android-chrome-512x512.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\apple-touch-icon.png",
+      "PackagePath": "staticwebassets\\apple-touch-icon.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-3pwdzmHF.css",
+      "PackagePath": "staticwebassets\\assets\\index-3pwdzmHF.css"
+    },
+    {
       "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-B3XM3fMk.js",
       "PackagePath": "staticwebassets\\assets\\index-B3XM3fMk.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BHmOctiP.css",
+      "PackagePath": "staticwebassets\\assets\\index-BHmOctiP.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BIlxHmVJ.js",
+      "PackagePath": "staticwebassets\\assets\\index-BIlxHmVJ.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BMu_EM92.js",
+      "PackagePath": "staticwebassets\\assets\\index-BMu_EM92.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BN_Nmpdy.css",
+      "PackagePath": "staticwebassets\\assets\\index-BN_Nmpdy.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BSlDgEYG.js",
+      "PackagePath": "staticwebassets\\assets\\index-BSlDgEYG.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BTR-PeJe.css",
+      "PackagePath": "staticwebassets\\assets\\index-BTR-PeJe.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-B_CsMtix.js",
+      "PackagePath": "staticwebassets\\assets\\index-B_CsMtix.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BekoMzZv.js",
+      "PackagePath": "staticwebassets\\assets\\index-BekoMzZv.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-Bguqx7G8.js",
+      "PackagePath": "staticwebassets\\assets\\index-Bguqx7G8.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-BhnP1ua3.js",
+      "PackagePath": "staticwebassets\\assets\\index-BhnP1ua3.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-Bl8e1-Hb.js",
+      "PackagePath": "staticwebassets\\assets\\index-Bl8e1-Hb.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-C1eZizNy.css",
+      "PackagePath": "staticwebassets\\assets\\index-C1eZizNy.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-C3uC9M_P.js",
+      "PackagePath": "staticwebassets\\assets\\index-C3uC9M_P.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-CH1Yy_Yg.js",
+      "PackagePath": "staticwebassets\\assets\\index-CH1Yy_Yg.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-CMCDjHU_.js",
+      "PackagePath": "staticwebassets\\assets\\index-CMCDjHU_.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-CSt3KLiB.css",
+      "PackagePath": "staticwebassets\\assets\\index-CSt3KLiB.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-CXlsMZnK.css",
+      "PackagePath": "staticwebassets\\assets\\index-CXlsMZnK.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-CiV176HU.js",
+      "PackagePath": "staticwebassets\\assets\\index-CiV176HU.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-D60XtRZq.js",
+      "PackagePath": "staticwebassets\\assets\\index-D60XtRZq.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-DCYihZUp.js",
+      "PackagePath": "staticwebassets\\assets\\index-DCYihZUp.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-DJ2YEzrq.js",
+      "PackagePath": "staticwebassets\\assets\\index-DJ2YEzrq.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-DvCX2RmO.css",
+      "PackagePath": "staticwebassets\\assets\\index-DvCX2RmO.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-Dy0egxds.css",
+      "PackagePath": "staticwebassets\\assets\\index-Dy0egxds.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-G7azf8Pg.js",
+      "PackagePath": "staticwebassets\\assets\\index-G7azf8Pg.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-VUyRB2Zb.js",
+      "PackagePath": "staticwebassets\\assets\\index-VUyRB2Zb.js"
     },
     {
       "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-cWagNRJr.css",
       "PackagePath": "staticwebassets\\assets\\index-cWagNRJr.css"
     },
     {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-gtKdn9ve.css",
+      "PackagePath": "staticwebassets\\assets\\index-gtKdn9ve.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-h_U5Rlem.js",
+      "PackagePath": "staticwebassets\\assets\\index-h_U5Rlem.js"
+    },
+    {
       "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-jX_hS-tl.js",
       "PackagePath": "staticwebassets\\assets\\index-jX_hS-tl.js"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-pMZfo85H.css",
+      "PackagePath": "staticwebassets\\assets\\index-pMZfo85H.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\assets\\index-uscXEM37.css",
+      "PackagePath": "staticwebassets\\assets\\index-uscXEM37.css"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\favicon-16x16.png",
+      "PackagePath": "staticwebassets\\favicon-16x16.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\favicon-32x32-blackbg.png",
+      "PackagePath": "staticwebassets\\favicon-32x32-blackbg.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\favicon-32x32.png",
+      "PackagePath": "staticwebassets\\favicon-32x32.png"
     },
     {
       "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\favicon.ico",
       "PackagePath": "staticwebassets\\favicon.ico"
     },
     {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\concrete.png",
+      "PackagePath": "staticwebassets\\flooring\\concrete.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring\\concrete.png",
+      "PackagePath": "staticwebassets\\flooring\\flooring\\concrete.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring\\laminate.png",
+      "PackagePath": "staticwebassets\\flooring\\flooring\\laminate.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring\\pvc.png",
+      "PackagePath": "staticwebassets\\flooring\\flooring\\pvc.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring\\spc.png",
+      "PackagePath": "staticwebassets\\flooring\\flooring\\spc.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring\\tile.png",
+      "PackagePath": "staticwebassets\\flooring\\flooring\\tile.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring\\wood.png",
+      "PackagePath": "staticwebassets\\flooring\\flooring\\wood.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\flooring_textures.zip",
+      "PackagePath": "staticwebassets\\flooring\\flooring_textures.zip"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\laminate.png",
+      "PackagePath": "staticwebassets\\flooring\\laminate.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\pvc.png",
+      "PackagePath": "staticwebassets\\flooring\\pvc.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\spc.png",
+      "PackagePath": "staticwebassets\\flooring\\spc.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\tile.png",
+      "PackagePath": "staticwebassets\\flooring\\tile.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\flooring\\wood.png",
+      "PackagePath": "staticwebassets\\flooring\\wood.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\index.head.favicons-snippet.html",
+      "PackagePath": "staticwebassets\\index.head.favicons-snippet.html"
+    },
+    {
       "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\index.html",
       "PackagePath": "staticwebassets\\index.html"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\logo3.jpg",
+      "PackagePath": "staticwebassets\\logo3.jpg"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\card.svg",
+      "PackagePath": "staticwebassets\\modular-builds\\card.svg"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\hero.svg",
+      "PackagePath": "staticwebassets\\modular-builds\\hero.svg"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\modular-builds.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\modular-builds.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\Бокс къща.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\Бокс къща.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\Вила-Офис.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\Вила-Офис.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\Космически Капсули.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\Космически Капсули.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\Разгъваеми “Бокс” Къща.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\Разгъваеми “Бокс” Къща.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\Скосен покрив.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\Скосен покрив.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\modular-builds\\Стандартни контейнери.pdf",
+      "PackagePath": "staticwebassets\\modular-builds\\Стандартни контейнери.pdf"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\partner\\hero.png",
+      "PackagePath": "staticwebassets\\partner\\hero.png"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\robots.txt",
+      "PackagePath": "staticwebassets\\robots.txt"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\site.webmanifest",
+      "PackagePath": "staticwebassets\\site.webmanifest"
+    },
+    {
+      "Id": "D:\\NVCHome4Youfinalversion\\NVCV5\\api-dotnet\\wwwroot\\sitemap.xml",
+      "PackagePath": "staticwebassets\\sitemap.xml"
     },
     {
       "Id": "obj\\Release\\net8.0\\staticwebassets\\msbuild.api-dotnet.Microsoft.AspNetCore.StaticWebAssets.props",

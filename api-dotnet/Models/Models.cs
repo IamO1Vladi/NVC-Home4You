@@ -15,6 +15,7 @@ public class GalleryItem {
   public List<string> Images { get; set; } = new();
   public string? TitleBg { get; set; }
   public string? DescriptionBg { get; set; }
+  public string? Category {  get; set; }
 }
 
 // Quickbase shapes

@@ -69,7 +69,8 @@
 /* Palette overlay */
 .id-picker{
   position:absolute;
-  top:18px;
+  top:auto;
+  bottom: 18px;
   right:18px;
   display:flex;
   gap:12px;
