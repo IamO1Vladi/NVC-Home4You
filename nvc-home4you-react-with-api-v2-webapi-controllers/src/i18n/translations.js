@@ -534,7 +534,43 @@ logistics: {
 
 planner: {
   title: 'Floor plan builder',
-  subtitle: 'Area: {area} m² · Size: {w}×{d} m',
+  subtitle: '{area} {unitM}² · {w}×{d} {unitM}',
+
+  show: 'Show',
+  hide: 'Hide',
+  zoom: 'Zoom',
+  on: 'ON',
+  off: 'OFF',
+
+  undo: 'Undo',
+  redo: 'Redo',
+  hidePanel: 'Hide panel',
+  showPanel: 'Show panel',
+  clear: 'Clear',
+  exportPdf: 'Export PDF',
+  downloadLayout: 'Download layout',
+  loadLayout: 'Load layout',
+  loadLayoutError: 'Could not open that saved layout file.',
+
+  legend: 'Legend / How to use',
+  legendHint: 'Quick guide + shortcuts',
+  legendRoom: 'Drag to draw a room. Rooms cannot overlap; choose type and floor finish from the panel.',
+  legendWall: 'Drag to draw an interior wall segment (auto axis-aligned). Doors snap to any wall; windows snap to exterior walls only.',
+  legendOpenings: 'Click to place. Switch to Select to drag along the wall. Doors support Flip swing / Flip hinge in the Inspector.',
+  legendSelect: 'Click an object to inspect it. Drag rooms to move them (with snapping and no overlap). Drag doors/windows to reposition them.',
+  legendPan: 'Use the Pan tool to move around the view. Use the mouse wheel to zoom (+ / − also work).',
+  legendSnapTitle: 'Snapping & multi-place',
+  legendSnap: 'Grid snap: {grid}. Wall/room snap: {align}. Hold ALT to temporarily disable snapping. Hold SHIFT while moving a room to lock the axis. Multi-place: {multi}.',
+
+  keyAlt: 'Temporarily disables snapping while dragging',
+  keyShift: 'Locks the axis while moving rooms',
+  keyEsc: 'Releases canvas controls (click the canvas to activate them again)',
+  keyV: 'Select tool',
+  keyR: 'Room tool',
+  keyW: 'Wall tool',
+  keyD: 'Door tool',
+  keyN: 'Window tool',
+  keyP: 'Pan tool',
 
   model: 'Model',
   tools: 'Tools',
@@ -546,6 +582,10 @@ planner: {
     select: 'Select',
     pan: 'Pan',
   },
+
+  multiPlace: 'Multi-place',
+  multiPlaceHint: 'Keep the current tool active after each placement (walls / doors / windows / rooms).',
+
   tip: {
     room: 'Drag to create a room.',
     wall: 'Drag to draw an interior wall segment.',
@@ -559,33 +599,33 @@ planner: {
   type: 'Type',
   floorFinish: 'Floor finish',
   grid: 'Grid',
+  snapGrid: 'Grid snap',
+  snapAlign: 'Wall / room snap',
+  snapHint: 'ALT = temporarily disables snapping · SHIFT = locks the axis while moving rooms',
 
   objects: 'Objects',
   rooms: 'Rooms',
   openings: 'Doors & windows',
   walls: 'Walls',
+  locked: 'Locked',
 
   inspector: 'Inspector',
+  name: 'Name',
   delete: 'Delete',
-  clear: 'Clear',
-  exportPdf: 'Export PDF',
-
-  hidePanel: 'Hide panel',
-  showPanel: 'Show panel',
 
   flipSwing: 'Flip swing',
   flipHinge: 'Flip hinge',
+
   outside: 'Outside',
 
   plan: 'Plan',
   units: 'Units: meters',
-  snap: 'Snap: {grid} m',
+  snapStatus: 'Snap: grid {grid} · align {align} (ALT disables)',
   resetView: 'Reset',
 
   captureOn: 'Canvas controls active — press Esc to release',
   captureOff: 'Click the canvas to capture controls',
   windowOnlyExterior: 'Windows can be placed only on exterior walls.',
-  locked: 'Locked',
 
   unitCm: 'cm',
   unitM: 'm',
@@ -616,9 +656,168 @@ planner: {
     pvc: 'PVC',
     concrete: 'Concrete',
   },
-}
+},
 
 //end of planner
+
+//Start of internal doors
+
+common: {
+  close: 'Close',
+},
+
+internalDoors: {
+  title: 'Internal doors',
+  lead: 'Modern internal doors with curated finishes. Switch door type and preview colour presets instantly.',
+  heroBanner: { aria: 'Door features overview' },
+
+  hero: {
+    fire: {
+      h: 'Fire resistance',
+      p: 'Options with enhanced fire resistance are available depending on the configuration and the applicable certifications/classes.',
+    },
+    sound: {
+      h: 'Sound insulation',
+      p: 'The construction provides good sound insulation for more comfort at home and in the office.',
+    },
+    water: {
+      h: 'Water resistant',
+      p: 'The WPC material is water-resistant, making the doors suitable for rooms with higher humidity.',
+    },
+    coating: {
+      h: 'Coating options',
+      p: 'Available in different colours, decors and textures.',
+      aria: 'Example finishes',
+    },
+    kit: {
+      h: 'Complete set',
+      p: 'Delivered as a set with frame, fittings and trims.',
+      mediaAlt: 'Door frame, fittings and trims example',
+    },
+    wpc: {
+      h: 'WPC material',
+      p: 'Wood–polymer composite with high durability and long service life.',
+    },
+  },
+
+  types: {
+    h: 'Door type',
+    aria: 'Door type',
+
+    decorLines: 'Doors with decorative lines',
+    decorLinesDesc: 'Interior doors with decorative milling/lines — suitable for bedrooms, bathrooms and offices.',
+    decorLinesFeat1: 'Leaf + frame (standard or concealed)',
+    decorLinesFeat2: 'Solid / honeycomb / tubular chipboard (depending on model)',
+    decorLinesFeat3: 'Hardware set: hinges, handle, lock, seals',
+    decorLinesTag: 'Decorative lines',
+
+    wallpaper: 'Concealed (flush) doors',
+    wallpaperDesc: 'Concealed/flush doors — for invisible openings and a seamless wall finish.',
+    wallpaperFeat1: 'Concealed frame + leaf for wall finish',
+    wallpaperFeat2: 'Can be painted / wallpapered / microcement',
+    wallpaperFeat3: 'Minimal gaps and clean line',
+    wallpaperTag: 'Concealed door',
+
+    metalLines: 'Doors with metal lines',
+    metalLinesDesc: 'Interior doors with metal inlays/lines — a modern look for corridors and living rooms.',
+    metalLinesFeat1: 'Leaf with metal lines (depending on model)',
+    metalLinesFeat2: 'Various finishes and colours',
+    metalLinesFeat3: 'Compatible handles and locks of choice',
+    metalLinesTag: 'Metal lines',
+
+    glass: 'Doors with glass',
+    glassDesc: 'Interior doors with glass — more light between rooms without compromising the design.',
+    glassFeat1: 'Glass: clear / frosted / bronze / graphite (on request)',
+    glassFeat2: 'Different glass layouts available',
+    glassFeat3: 'Optional hardware set (handle, lock, trims)',
+    glassTag: 'Glass',
+  },
+
+  preview: {
+    h: 'Choose your door',
+    p2: 'Use the Door Type toggle to swap styles. Then use the swatches on the image to change the finish.',
+    alt: 'Internal door preview',
+    ariaDoor: 'Door colour',
+    ariaPanel: 'Panel finish',
+  },
+
+  colors: { white: 'White', charcoal: 'Charcoal', sage: 'Sage' },
+  panels: { light: 'Light', smoked: 'Smoked', dark: 'Dark' },
+
+  selected: { h: 'Selected finish', meta: 'More colours available on request.' },
+  details: { h: "What's included" },
+
+  hardware: {
+    h: 'Hardware & trims',
+    p: 'Choose a frame, handle, trims and lock. (Images are examples — replace them with your own.)',
+
+    frame: {
+      h: 'Frame',
+      hint: 'Frame size / width',
+      aria: 'Frame selection',
+      '70': '70 mm',
+      '90': '90 mm',
+      '100': '100 mm',
+      '120': '120 mm',
+      '140': '140 mm',
+      '160': '160 mm',
+      '180': '180 mm',
+    },
+
+    handle: {
+      h: 'Handle',
+      hint: 'Handle model',
+      aria: 'Handle selection',
+      h1: 'Handle 1',
+      h2: 'Handle 2',
+      h3: 'Handle 3',
+      h4: 'Handle 4',
+      h5: 'Handle 5',
+      h6: 'Handle 6',
+    },
+
+    trim: {
+      h: 'Trim models',
+      hint: 'Trim style (casing)',
+      aria: 'Trim selection',
+      p1: 'Trim 1',
+      p2: 'Trim 2',
+      p3: 'Trim 3',
+      p4: 'Trim 4',
+      p5: 'Trim 5',
+      p6: 'Trim 6',
+      p7: 'Trim 7',
+      p8: 'Trim 8',
+    },
+
+    lock: {
+      h: 'Lock',
+      hint: 'Lock type',
+      aria: 'Lock selection',
+      l1: 'Lock 1',
+      l2: 'Lock 2',
+      l3: 'Lock 3',
+      l4: 'Lock 4',
+    },
+
+    summaryAria: 'Selected options',
+    summary: { frame: 'Frame', handle: 'Handle', trim: 'Trim', lock: 'Lock' },
+
+    cta: 'Send enquiry with the selected options',
+  },
+
+  cta: 'Request a doors quote',
+  hint2: 'Tip: Add more colours by adding objects to the relevant options array (see comments in InternalDoors.jsx).',
+
+  why: {
+    h: 'Why source doors through us',
+    li1: 'Matched finishes across floors, panels, and furniture packs.',
+    li2: 'Lead time coordination with delivery & installation.',
+    li3: 'Clear specs: hinges, locks, fire rating, acoustics.',
+  },
+},
+
+//end of internal doors
 
   },
   bg: {
@@ -1140,7 +1339,43 @@ logistics: {
 
 planner: {
   title: 'Проектиране на план',
-  subtitle: 'Площ: {area} м² · Размер: {w}×{d} м',
+  subtitle: '{area} {unitM}² · {w}×{d} {unitM}',
+
+  show: 'Покажи',
+  hide: 'Скрий',
+  zoom: 'Мащаб',
+  on: 'ВКЛ.',
+  off: 'ИЗКЛ.',
+
+  undo: 'Отмени',
+  redo: 'Повтори',
+  hidePanel: 'Скрий панела',
+  showPanel: 'Покажи панела',
+  clear: 'Изчисти',
+  exportPdf: 'Експорт PDF',
+  downloadLayout: 'Изтегли плана',
+  loadLayout: 'Зареди план',
+  loadLayoutError: 'Запазеният файл не можа да бъде отворен.',
+
+  legend: 'Легенда / Как се използва',
+  legendHint: 'Кратко ръководство + клавишни комбинации',
+  legendRoom: 'Плъзни, за да начертаеш стая. Стаите не могат да се застъпват; избери тип и подова настилка от панела.',
+  legendWall: 'Плъзни, за да начертаеш вътрешна стена (автоматично по осите). Вратите се прихващат към всяка стена; прозорците — само към външни стени.',
+  legendOpenings: 'Кликни, за да поставиш. Превключи на „Избор“, за да плъзгаш по стената. Вратите поддържат „Обърни отварянето“ / „Обърни пантата“ в Инспектора.',
+  legendSelect: 'Кликни върху обект, за да го разгледаш. Плъзгай стаи за местене (с прихващане и без застъпване). Плъзгай врати/прозорци за препозициониране.',
+  legendPan: 'Използвай инструмента Пан, за да местиш изгледа. Използвай колелцето за мащабиране (+ / − също работят).',
+  legendSnapTitle: 'Прихващане и многократно поставяне',
+  legendSnap: 'Прихващане към мрежата: {grid}. Прихващане към стени/стаи: {align}. ALT временно изключва прихващането. SHIFT заключва оста при местене на стая. Многократно поставяне: {multi}.',
+
+  keyAlt: 'Временно изключва прихващането при плъзгане',
+  keyShift: 'Заключва оста при местене на стаи',
+  keyEsc: 'Освобождава управлението на платното (кликни върху платното, за да го активираш отново)',
+  keyV: 'Инструмент Избор',
+  keyR: 'Инструмент Стая',
+  keyW: 'Инструмент Стена',
+  keyD: 'Инструмент Врата',
+  keyN: 'Инструмент Прозорец',
+  keyP: 'Инструмент Пан',
 
   model: 'Модел',
   tools: 'Инструменти',
@@ -1150,48 +1385,52 @@ planner: {
     door: 'Врата',
     window: 'Прозорец',
     select: 'Избор',
-    pan: 'Панорама',
+    pan: 'Пан',
   },
+
+  multiPlace: 'Многократно поставяне',
+  multiPlaceHint: 'Оставя текущия инструмент активен след всяко поставяне (стени / врати / прозорци / стаи).',
+
   tip: {
     room: 'Плъзни, за да създадеш стая.',
     wall: 'Плъзни, за да начертаеш вътрешна стена.',
     door: 'Кликни върху стена, за да поставиш врата.',
     window: 'Кликни върху външна стена, за да поставиш прозорец.',
     select: 'Избери елемент. Delete го изтрива.',
-    pan: 'Плъзни за панорама. Колелото увеличава/намалява.',
+    pan: 'Плъзни, за да местиш изгледа. Колелцето променя мащаба.',
   },
 
-  roomSettings: 'Настройки на стая',
+  roomSettings: 'Настройки на стаята',
   type: 'Тип',
   floorFinish: 'Подова настилка',
   grid: 'Мрежа',
+  snapGrid: 'Прихващане към мрежата',
+  snapAlign: 'Прихващане към стени / стаи',
+  snapHint: 'ALT = временно изключва прихващането · SHIFT = заключва оста при местене на стаи',
 
   objects: 'Обекти',
   rooms: 'Стаи',
   openings: 'Врати и прозорци',
   walls: 'Стени',
+  locked: 'Заключено',
 
   inspector: 'Детайли',
+  name: 'Име',
   delete: 'Изтрий',
-  clear: 'Изчисти',
-  exportPdf: 'Експорт PDF',
-
-  hidePanel: 'Скрий панела',
-  showPanel: 'Покажи панела',
 
   flipSwing: 'Обърни отварянето',
-  flipHinge: 'Обърни пантите',
+  flipHinge: 'Обърни пантата',
+
   outside: 'Навън',
 
   plan: 'План',
   units: 'Единици: метри',
-  snap: 'Стъпка: {grid} м',
+  snapStatus: 'Прихващане: мрежа {grid} · подравняване {align} (ALT изключва)',
   resetView: 'Нулирай',
 
-  captureOn: 'Контролите са активни — натисни Esc за освобождаване',
+  captureOn: 'Контролите на платното са активни — натисни Esc за освобождаване',
   captureOff: 'Кликни върху платното, за да активираш контролите',
   windowOnlyExterior: 'Прозорци могат да се поставят само на външни стени.',
-  locked: 'Заключено',
 
   unitCm: 'см',
   unitM: 'м',
@@ -1222,9 +1461,168 @@ planner: {
     pvc: 'PVC',
     concrete: 'Бетон',
   },
-}
+},
 
 
 //End of planner
+
+//Start of internal doors
+
+common: {
+  close: 'Затвори',
+},
+
+internalDoors: {
+  title: 'Интериорни врати',
+  lead: 'Модерни интериорни врати с подбрани покрития. Сменете типа врата и визуализирайте цветовите варианти моментално.',
+  heroBanner: { aria: 'Преглед на характеристиките на вратите' },
+
+  hero: {
+    fire: {
+      h: 'Пожароустойчивост',
+      p: 'Предлагат се решения с повишена пожароустойчивост според конкретната конфигурация и наличните сертификати/класове.',
+    },
+    sound: {
+      h: 'Шумоизолация',
+      p: 'Конструкцията осигурява добра шумоизолация за повече комфорт у дома и в офиса.',
+    },
+    water: {
+      h: 'Водоустойчив',
+      p: 'WPC материалът е водоустойчив, което прави вратите подходящи и за помещения с по-висока влажност.',
+    },
+    coating: {
+      h: 'Опции за покритие',
+      p: 'Предлагат се в различни цветове и декори и текстури.',
+      aria: 'Примерни покрития',
+    },
+    kit: {
+      h: 'Комплектовка',
+      p: 'Доставят се в комплект с каса, обков и первази.',
+      mediaAlt: 'Пример за каса, обков и первази',
+    },
+    wpc: {
+      h: 'WPC материал',
+      p: 'Дървесно-полимерен композит с висока устойчивост и дълъг живот.',
+    },
+  },
+
+  types: {
+    h: 'Тип врата',
+    aria: 'Тип врата',
+
+    decorLines: 'Врати с декоративни линии',
+    decorLinesDesc: 'Интериорни врати с декоративни фрезовки/линии — подходящи за спални, бани и офиси.',
+    decorLinesFeat1: 'Крило + каса (стандартна или скрита)',
+    decorLinesFeat2: 'Плътно / пчелна пита / тръбно ПДЧ (спрямо модела)',
+    decorLinesFeat3: 'Окомплектовка: панти, дръжка, брава, уплътнения',
+    decorLinesTag: 'Декоративни линии',
+
+    wallpaper: 'Тапетни врати',
+    wallpaperDesc: 'Тапетни/скрити врати (flush) — за невидими отвори и завършена стена.',
+    wallpaperFeat1: 'Скрита каса + крило за стенен финиш',
+    wallpaperFeat2: 'Възможност за боядисване/тапет/микроцимент',
+    wallpaperFeat3: 'Минимални фуги и чиста линия',
+    wallpaperTag: 'Тапетна врата',
+
+    metalLines: 'Врати с метални линии',
+    metalLinesDesc: 'Интериорни врати с метални инкрустации/линии — модерна визия за коридори и дневни.',
+    metalLinesFeat1: 'Крило с метални линии (спрямо модела)',
+    metalLinesFeat2: 'Различни финиши и цветове',
+    metalLinesFeat3: 'Съвместими дръжки и брави по избор',
+    metalLinesTag: 'Метални линии',
+
+    glass: 'Врати със стъкло',
+    glassDesc: 'Интериорни врати със стъкло — повече светлина между помещенията, без компромис с дизайна.',
+    glassFeat1: 'Стъкло: прозрачно / мат / бронз / графит (по заявка)',
+    glassFeat2: 'Възможност за различни разпределения на стъклото',
+    glassFeat3: 'Окомплектовка по избор (дръжка, брава, первази)',
+    glassTag: 'Стъкло',
+  },
+
+  preview: {
+    h: 'Избери врата',
+    p2: 'Използвайте превключвателя „Тип врата“, за да смените стила. След това използвайте цветовите мостри върху изображението, за да промените финиша.',
+    alt: 'Визуализация на интериорна врата',
+    ariaDoor: 'Цвят на врата',
+    ariaPanel: 'Покритие на панела',
+  },
+
+  colors: { white: 'Бяло', charcoal: 'Антрацит', sage: 'Салвия' },
+  panels: { light: 'Светъл', smoked: 'Опушен', dark: 'Тъмен' },
+
+  selected: { h: 'Избран финиш', meta: 'Възможни са още цветове по запитване.' },
+  details: { h: 'Какво е включено' },
+
+  hardware: {
+    h: 'Окомплектовка',
+    p: 'Изберете каса, дръжка, первази и брава. (Снимките са примерни — заменете ги с вашите изображения.)',
+
+    frame: {
+      h: 'Каса',
+      hint: 'Размер / ширина на касата',
+      aria: 'Избор на каса',
+      '70': '70 мм',
+      '90': '90 мм',
+      '100': '100 мм',
+      '120': '120 мм',
+      '140': '140 мм',
+      '160': '160 мм',
+      '180': '180 мм',
+    },
+
+    handle: {
+      h: 'Дръжка',
+      hint: 'Модел на дръжката',
+      aria: 'Избор на дръжка',
+      h1: 'Дръжка 1',
+      h2: 'Дръжка 2',
+      h3: 'Дръжка 3',
+      h4: 'Дръжка 4',
+      h5: 'Дръжка 5',
+      h6: 'Дръжка 6',
+    },
+
+    trim: {
+      h: 'Перваз модели',
+      hint: 'Модел на перваза (обкантване)',
+      aria: 'Избор на перваз',
+      p1: 'Перваз 1',
+      p2: 'Перваз 2',
+      p3: 'Перваз 3',
+      p4: 'Перваз 4',
+      p5: 'Перваз 5',
+      p6: 'Перваз 6',
+      p7: 'Перваз 7',
+      p8: 'Перваз 8',
+    },
+
+    lock: {
+      h: 'Брава',
+      hint: 'Тип заключване',
+      aria: 'Избор на брава',
+      l1: 'Брава 1',
+      l2: 'Брава 2',
+      l3: 'Брава 3',
+      l4: 'Брава 4',
+    },
+
+    summaryAria: 'Избрани опции',
+    summary: { frame: 'Каса', handle: 'Дръжка', trim: 'Перваз', lock: 'Брава' },
+
+    cta: 'Изпрати запитване с избраните опции',
+  },
+
+  cta: 'Запитване за оферта за врати',
+  hint2: 'Съвет: Добавете още цветове като добавите обекти към съответния масив с опции (вижте коментарите в InternalDoors.jsx).',
+
+  why: {
+    h: 'Защо да поръчате врати чрез нас',
+    li1: 'Съгласувани финиши с подове, панели и мебелни пакети.',
+    li2: 'Координация на срокове с доставка и монтаж.',
+    li3: 'Ясна спецификация: панти, брави, пожароустойчивост, шумоизолация.',
+  },
+},
+
+//End of internal doors
   }
 }

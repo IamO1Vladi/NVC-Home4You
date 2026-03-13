@@ -15,6 +15,9 @@ export default function GlideServices(){
   const fallback = asset('modular-builds/card.svg')
 
   const slides = useMemo(() => ([
+    { key: 'steelHouse0', to: '/steel-houses',  title: t('nav.gliderService.steelHouse'), img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rdd/eg/vb' },
+    { key: 'steelHouse3', to: '/steel-houses',  title: t('nav.gliderService.steelHouse'), img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rde/eg/vb' },
+    { key: 'modularHouse0',     to: '/modular-houses', title: t('nav.gliderService.modularHouse'), img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rdf/eg/vb' },
     { key: 'steelHouse1', to: '/steel-houses',  title: t('nav.gliderService.steelHouse'), img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcf/eg/vb' },
     { key: 'steelHouse2', to: '/steel-houses',  title: t('nav.gliderService.steelHouse'), img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rm/eg/vb' },
     { key: 'modularHouse1',   to: '/modular-houses',    title: t('nav.gliderService.modularHouse'),   img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rb9/eg/vb' },

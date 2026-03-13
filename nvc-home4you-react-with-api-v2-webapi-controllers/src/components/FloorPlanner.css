@@ -1,7 +1,7 @@
 /* FloorPlanner.css */
 @media print {
   /* Print only the canvas card in a clean way */
-  header, nav, .fp-panel, .fp-topbar, .fp-help, .fp-canvas-head, .fp-canvas-hud { display: none !important; }
+  header, nav, .fp-panel, .fp-topbar, .fp-legend, .fp-help, .fp-canvas-head, .fp-canvas-hud { display: none !important; }
   .fp-grid { display: block !important; }
   .fp-canvas { box-shadow: none !important; border: none !important; }
   .fp-svg { height: auto !important; width: 100% !important; }
@@ -11,6 +11,14 @@
   padding: 14px;
   max-width: 1800px;
   margin: 0 auto;
+
+  /* Local theme tokens (legend) */
+  --fp-legend-surface: #0b1220;
+  --fp-legend-surface-soft: rgba(0,0,0,.35);
+  --fp-legend-border: #ffffff14;
+  --fp-legend-border-strong: #ffffff24;
+  --fp-legend-text: #e5e7eb;
+  --fp-legend-muted: rgba(229,231,235,.82);
 }
 
 .fp-topbar{
@@ -35,6 +43,140 @@
   display:flex;
   gap: 8px;
   align-items:center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 980px){
+  .fp-topbar{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fp-top-actions{
+    justify-content: flex-start;
+  }
+}
+
+.fp-legend{
+  margin-bottom: 12px;
+}
+
+.fp-legend-sum{
+  cursor: pointer;
+  list-style: none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+
+/* Remove default marker */
+.fp-legend-sum::-webkit-details-marker{ display:none; }
+
+.fp-legend-title{
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.fp-legend-hint{
+  font-size: 12px;
+  color: var(--fp-legend-muted);
+}
+
+.fp-legend-pill{
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--fp-legend-border-strong);
+  background: var(--fp-legend-surface-soft);
+  color: var(--fp-legend-text);
+  font-size: 12px;
+  font-weight: 800;
+  opacity: .95;
+}
+
+.fp-legend-grid{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1000px){
+  .fp-legend-grid{ grid-template-columns: 1fr; }
+}
+
+.fp-legend-item{
+  border: 1px solid var(--fp-legend-border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--fp-legend-surface);
+  color: var(--fp-legend-text);
+}
+
+.fp-legend-k{
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.fp-legend-v{
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--fp-legend-muted);
+  line-height: 1.35;
+}
+
+.fp-legend-keys{
+  margin-top: 12px;
+  display:flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fp-keyrow{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+.fp-key{
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--fp-legend-border-strong);
+  background: var(--fp-legend-surface-soft);
+  color: var(--fp-legend-text);
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.fp-keytext{
+  font-size: 12px;
+  color: var(--fp-legend-muted);
+}
+
+/* Light theme support for the legend (OS preference + common app toggles) */
+@media (prefers-color-scheme: light){
+  .fp-page{
+    --fp-legend-surface: #f8fafc;
+    --fp-legend-surface-soft: rgba(17,24,39,.06);
+    --fp-legend-border: rgba(17,24,39,.12);
+    --fp-legend-border-strong: rgba(17,24,39,.18);
+    --fp-legend-text: #111827;
+    --fp-legend-muted: rgba(17,24,39,.72);
+  }
+}
+
+:root[data-theme='light'] .fp-page,
+body[data-theme='light'] .fp-page,
+body.light .fp-page,
+.theme-light .fp-page{
+  --fp-legend-surface: #f8fafc;
+  --fp-legend-surface-soft: rgba(17,24,39,.06);
+  --fp-legend-border: rgba(17,24,39,.12);
+  --fp-legend-border-strong: rgba(17,24,39,.18);
+  --fp-legend-text: #111827;
+  --fp-legend-muted: rgba(17,24,39,.72);
 }
 
 .fp-grid{
@@ -84,11 +226,47 @@
   flex-wrap: wrap;
 }
 
+.fp-toolopts{
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ffffff12;
+}
+
+.fp-check{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 800;
+  user-select: none;
+}
+
+.fp-check input{
+  width: 18px;
+  height: 18px;
+  accent-color: #60a5fa;
+}
+
 .fp-note{
   font-size: 12px;
   opacity: .75;
   margin-top: 10px;
   line-height: 1.4;
+}
+
+.fp-input{
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #ffffff18;
+  background: #0b1220;
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.fp-input:focus{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.22);
+  border-color: rgba(96,165,250,.55);
 }
 
 /* Prettier select */

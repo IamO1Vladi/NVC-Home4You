@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nContext.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
@@ -12,14 +12,14 @@ export default function Partner(){
   const isBg = String(lang).toLowerCase().startsWith('bg')
 
   const heroSrc = asset('partner/hero.png')
+  const roadRef = useRef(null)
+  const stepRefs = useRef([])
 
   const title = isBg ? 'Стани наш партньор' : 'Become our partner'
   const lead = isBg
     ? 'Поръчайте 6+ контейнера и се възползвайте от специални цени с доставка до избран от вас обект. Разгледайте моделите в галерията.'
     : 'Order 6+ containers and take advantage of special prices with delivery to a location of your choice. View the models in our gallery.'
 
-  // ✅ Product tiles (each tile can use a DIFFERENT image URL)
-  // Replace the img values with your real URLs (QuickBase, CDN, etc.)
   const products = [
     {
       key: 'livable',
@@ -40,7 +40,7 @@ export default function Partner(){
     {
       key: 'capsules',
       title: isBg ? 'Капсули' : 'Capsules',
-      desc:  isBg ? 'Комбинация от технологии и комфорт.' : 'Combination of technology and comfort. ',
+      desc:  isBg ? 'Комбинация от технологии и комфорт.' : 'Combination of technology and comfort.',
       pos:   '50% 55%',
       img:   'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rc8/eg/vb',
       to:    '/gallery',
@@ -55,14 +55,174 @@ export default function Partner(){
     },
   ]
 
+  const roadIntro = {
+    kicker: isBg ? 'Партньорски процес' : 'Partner process',
+    title: isBg ? 'Ясен път от избора до доставката' : 'A clear road from selection to delivery',
+    lead: isBg
+      ? 'Процесът е подреден в ясни стъпки - от моделите и спецификациите до контрола, логистиката и следващите доставки.'
+      : 'The process is structured into clear stages - from model selection and specifications to quality control, logistics, and repeat deliveries.'
+  }
+
+  const roadSteps = [
+    {
+      key: 'config',
+      title: isBg ? 'Избор на модели и конфигурация' : 'Model selection and configuration',
+      text: isBg
+        ? 'Изпращате ни кодовете на моделите, а ние подреждаме количествата и конфигурацията според вашия проект.'
+        : 'You send the model codes, and we structure the quantities and configuration around your project.',
+      points: isBg
+        ? [
+            'Фиксираме размери, материали, покрития, цветове и аксесоари.',
+            'Консултираме ви за приложение, бюджет и технически изисквания.'
+          ]
+        : [
+            'We lock in sizes, materials, finishes, colors, and accessories.',
+            'We advise on application, budget, and technical requirements.'
+          ],
+      badge: isBg ? 'Каталог и конфигурация' : 'Catalog and configuration',
+      img: asset('partner/road/step-01.jpg'),
+      fallback: products[1].img,
+      alt: isBg ? 'Модулен модел за партньорска програма' : 'Modular unit used as a partner program example',
+      mediaNote: isBg ? 'Първо уточняваме точния модел и пакета.' : 'We start by fixing the exact model and package.'
+    },
+    {
+      key: 'production',
+      title: isBg ? 'Договор, производство и контрол' : 'Contract, production, and control',
+      text: isBg
+        ? 'След одобрение подготвяме договор и стартираме производството по финалните параметри.'
+        : 'After approval, we prepare the contract and launch production against the final parameters.',
+      points: isBg
+        ? [
+            'Получавате срокове, условия за плащане, гаранция и доставка.',
+            'Изпращаме известия за напредъка и снимки от ключовите етапи.'
+          ]
+        : [
+            'You receive deadlines, payment terms, warranty, and delivery conditions.',
+            'We send progress updates and photos from the key production stages.'
+          ],
+      badge: isBg ? 'Производство' : 'Production',
+      img: asset('partner/road/step-02.jpg'),
+      fallback: products[0].img,
+      alt: isBg ? 'Производствен етап на модулни решения' : 'Production stage for modular solutions',
+      mediaNote: isBg ? 'Контролът започва още по време на производството.' : 'Quality control starts during production itself.'
+    },
+    {
+      key: 'logistics',
+      title: isBg ? 'Проверки, спецификации и логистика' : 'Checks, specifications, and logistics',
+      text: isBg
+        ? 'Всеки продукт преминава проверки, а документацията се подготвя прецизно за безпроблемен внос.'
+        : 'Each product goes through checks while the documentation is prepared precisely for smooth import and delivery.',
+      points: isBg
+        ? [
+            'Предоставяме параметри, спецификации и съобразяване с местните изисквания.',
+            'Избираме маршрут с баланс между цена, транзитно време и сигурност.'
+          ]
+        : [
+            'We provide parameters, specifications, and alignment with local requirements.',
+            'We select the route by balancing cost, transit time, and reliability.'
+          ],
+      badge: isBg ? 'Документи и маршрути' : 'Documents and routing',
+      img: asset('partner/road/step-03.jpg'),
+      fallback: products[3].img,
+      alt: isBg ? 'Сертификати и документация' : 'Certificates and project documentation',
+      mediaNote: isBg ? 'Документите и маршрутът се настройват според пазара.' : 'Documents and routing are tuned to the target market.'
+    },
+    {
+      key: 'delivery',
+      title: isBg ? 'Доставка, проследяване и follow-up' : 'Delivery, tracking, and follow-up',
+      text: isBg
+        ? 'Следим пратката от експедицията до разтоварването и улесняваме следващи доставки по вече одобрени параметри.'
+        : 'We track the shipment from dispatch to unloading and make repeat deliveries easier under the already approved parameters.',
+      points: isBg
+        ? [
+            'Получавате сертификати, инструкции и списък с комплектация.',
+            'Съдействаме за резервни части, застраховка и повторни поръчки.'
+          ]
+        : [
+            'You receive certificates, instructions, and a packing list.',
+            'We support spare parts, insurance, and repeat ordering.'
+          ],
+      badge: isBg ? 'Доставка' : 'Delivery',
+      img: asset('partner/road/step-04.jpg'),
+      fallback: products[2].img,
+      alt: isBg ? 'Подготовка на товар за изпращане' : 'Shipment prepared for dispatch',
+      mediaNote: isBg ? 'Оставаме до вас и след първата доставка.' : 'We stay involved after the first delivery too.'
+    },
+  ]
+
+  useEffect(() => {
+    const root = roadRef.current
+    if (!root || typeof window === 'undefined') return
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) {
+      root.style.setProperty('--roadProgress', '1')
+      stepRefs.current.forEach((node) => node?.classList.add('is-visible'))
+      return undefined
+    }
+
+    let raf = 0
+    const updateProgress = () => {
+      const rect = root.getBoundingClientRect()
+      const viewport = window.innerHeight || document.documentElement.clientHeight || 1
+      const start = viewport * 0.82
+      const end = viewport * 0.18
+      const distance = rect.height + start - end
+      const travelled = start - rect.top
+      const progress = Math.max(0, Math.min(1, travelled / distance))
+      root.style.setProperty('--roadProgress', progress.toFixed(4))
+      raf = 0
+    }
+
+    const onScroll = () => {
+      if (raf) return
+      raf = window.requestAnimationFrame(updateProgress)
+    }
+
+    updateProgress()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const nodes = stepRefs.current.filter(Boolean)
+    if (!nodes.length) return undefined
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) {
+      nodes.forEach((node) => node.classList.add('is-visible'))
+      return undefined
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add('is-visible')
+        })
+      },
+      { threshold: 0.28, rootMargin: '0px 0px -8% 0px' }
+    )
+
+    nodes.forEach((node) => io.observe(node))
+    return () => io.disconnect()
+  }, [])
+
   return (
     <main className="partner-page">
       <SEO
-        title={isBg ? 'Стани наш партньор — NVC Home4You' : 'Partner with us — NVC Home4You'}
+        title={isBg ? 'Стани наш партньор - NVC Home4You' : 'Partner with us - NVC Home4You'}
         description={
           isBg
-            ? 'Партньорска програма: при 6+ контейнера предлагаме специални цени и доставка до локация по ваш избор. Разгледайте моделите в галерията.'
-            : 'Partner program: for 6+ containers we offer special pricing and delivery to a location of your choice. Browse models in the gallery.'
+            ? 'Партньорска програма: при 6+ контейнера предлагаме специални цени, ясен процес и доставка до локация по ваш избор.'
+            : 'Partner program: for 6+ containers we offer special pricing, a clear process, and delivery to a location of your choice.'
         }
         image="../public/logo3"
         url="https://nvc-home4you.eu/partner"
@@ -90,11 +250,8 @@ export default function Partner(){
             </div>
           </div>
 
-          {/* ✅ Product tiles */}
           <div className="ppr-products" aria-label={isBg ? 'Основни продукти' : 'Main products'}>
             {products.map((p) => {
-              // IMPORTANT: override the SAME CSS variable your tiles already use: --heroImg
-              // This is the change that actually makes each tile unique.
               const tileImg = p.img && String(p.img).trim() ? p.img : heroSrc
               const tileBg = `url("${tileImg}")`
 
@@ -105,7 +262,7 @@ export default function Partner(){
                   className="ppr-prod"
                   style={{
                     '--pos': p.pos || '50% 50%',
-                    '--heroImg': tileBg, // ✅ per-tile image
+                    '--heroImg': tileBg,
                   }}
                   aria-label={p.title}
                 >
@@ -114,14 +271,13 @@ export default function Partner(){
                     <div className="ppr-prod-kicker">{isBg ? 'Категория' : 'Category'}</div>
                     <div className="ppr-prod-title">{p.title}</div>
                     <div className="ppr-prod-desc">{p.desc}</div>
-                    <span className="ppr-prod-cta">{isBg ? 'Виж модели →' : 'View models →'}</span>
+                    <span className="ppr-prod-cta">{isBg ? 'Виж модели ->' : 'View models ->'}</span>
                   </div>
                 </Link>
               )
             })}
           </div>
 
-          {/* CTA row */}
           <div className="ppr-cta">
             <div className="ppr-cta-badge">6+</div>
             <div className="ppr-cta-copy">
@@ -151,6 +307,100 @@ export default function Partner(){
           </div>
         </div>
       </header>
+
+      {/* ROAD FLOW */}
+      <section className="ppr-roadflow" ref={roadRef} aria-labelledby="partner-road-title">
+        <div className="container">
+          <div className="ppr-roadflow-head">
+            <div className="ppr-roadflow-kicker">{roadIntro.kicker}</div>
+            <h2 className="ppr-roadflow-title" id="partner-road-title">{roadIntro.title}</h2>
+            <p className="ppr-roadflow-lead">{roadIntro.lead}</p>
+          </div>
+
+          <div className="ppr-roadflow-wrap">
+            <div className="ppr-road-backbone" aria-hidden="true">
+              <span className="ppr-road-backbone-track" />
+              <span className="ppr-road-backbone-fill" />
+              <span className="ppr-road-backbone-cap is-top" />
+              <span className="ppr-road-backbone-cap is-bottom" />
+            </div>
+
+            <div className="ppr-road-list">
+              {roadSteps.map((step, i) => {
+                const isLeft = i % 2 === 0
+                return (
+                  <article
+                    key={step.key}
+                    ref={(node) => { stepRefs.current[i] = node }}
+                    className={['ppr-road-step', isLeft ? 'is-left' : 'is-right'].join(' ')}
+                    style={{ '--stepDelay': `${i * 70}ms` }}
+                  >
+                    <div className="ppr-road-copyCol">
+                      <div className="ppr-road-copyCard">
+                        <div className="ppr-road-stepTop">
+                          <span className="ppr-road-stepNum">{String(i + 1).padStart(2, '0')}</span>
+                          <span className="ppr-road-stepBadge">{step.badge}</span>
+                        </div>
+                        <h3 className="ppr-road-stepTitle">{step.title}</h3>
+                        <p className="ppr-road-stepText">{step.text}</p>
+                        <ul className="ppr-road-stepList">
+                          {step.points.map((point) => (
+                            <li key={point}>{point}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="ppr-road-center" aria-hidden="true">
+                      <span className="ppr-road-node">{i + 1}</span>
+                    </div>
+
+                    <div className="ppr-road-mediaCol">
+                      <div className="ppr-road-mediaCard">
+                        <div className="ppr-road-mediaFrame">
+                          <img
+                            src={step.img}
+                            alt={step.alt}
+                            width="1400"
+                            height="1040"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => { e.currentTarget.src = step.fallback || heroSrc }}
+                          />
+                          <span className="ppr-road-mediaTag">{step.badge}</span>
+                        </div>
+                        <div className="ppr-road-mediaNote">{step.mediaNote}</div>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="ppr-road-cta">
+            <div>
+              <div className="ppr-road-ctaTitle">
+                {isBg ? 'Имате конкретен пазар, срок или държава?' : 'Do you have a specific market, deadline, or destination?'}
+              </div>
+              <p className="ppr-road-ctaText">
+                {isBg
+                  ? 'Настройваме документацията, производствения график и логистичната схема според продукта, количеството и пазара.'
+                  : 'We adapt the documentation, production schedule, and logistics chain to the product, quantity, and target market.'}
+              </p>
+            </div>
+
+            <div className="ppr-road-ctaActions">
+              <button className="btn" onClick={openOffer}>
+                {isBg ? 'Стартирай партньорски разговор' : 'Start partner discussion'}
+              </button>
+              <button className="btn ghost" onClick={openQuestion}>
+                {isBg ? 'Задай въпрос' : 'Ask a question'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   )
 }

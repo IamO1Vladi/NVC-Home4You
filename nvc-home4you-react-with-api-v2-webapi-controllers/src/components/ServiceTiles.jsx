@@ -44,7 +44,7 @@ export default function ServiceTiles(){
       title: t('nav.modularHouses'),
       desc: t('home.tiles.modularHouses.desc') || 'Permanent modular homes with flexible layouts and finishes.',
       icon: <IconHome />,
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rz/eg/vb',
+      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rdb/eg/vd',
     },
     {
       key: 'steelHouses',
@@ -52,7 +52,7 @@ export default function ServiceTiles(){
       title: t('nav.steelHouses'),
       desc: t('home.tiles.steelHouses.desc') || 'Light, strong steel-frame houses—smart on timelines and cost.',
       icon: <IconSteel />,
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rbz/eg/vb',
+      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rdc/eg/vb',
     },
     {
       key: 'interiors',
