@@ -1,0 +1,27 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
+
+# Vite cache
+**/.vite/
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Environment & secrets (never commit real keys)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local editor / agent config
+**/.claude/
+
+# Logs & OS cruft
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

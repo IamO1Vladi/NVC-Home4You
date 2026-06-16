@@ -2,6 +2,7 @@ import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import '../style/BoxHouseConfigurator.css'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
@@ -47,7 +48,7 @@ function ChoiceCard({ active, title, subtitle, image, onClick, badge, note }) {
     <button type="button" className={['bhc-card', active && 'is-active'].filter(Boolean).join(' ')} onClick={onClick}>
       {image ? (
         <div className="bhc-card-media">
-          <img src={image} alt="" loading="lazy" />
+          <img src={cdnImage(image, { width: 600 })} srcSet={cdnSrcSet(image, [300, 450, 600, 900])} sizes="(max-width: 700px) 45vw, 300px" alt="" loading="lazy" decoding="async" />
           {badge ? <span className="bhc-card-badge">{badge}</span> : null}
         </div>
       ) : null}
@@ -73,7 +74,7 @@ function MaterialPreviewCard({ title, image, label, swatch, subtitle }) {
     <div className="bhc-selection-card bhc-selection-card--material">
       <div className="bhc-selection-card-head">{title}</div>
       {showImage ? (
-        <img src={image} alt="" loading="lazy" onError={() => setFailed(true)} />
+        <img src={cdnImage(image, { width: 500 })} srcSet={cdnSrcSet(image, [250, 400, 500, 700])} sizes="(max-width: 700px) 45vw, 280px" alt="" loading="lazy" onError={() => setFailed(true)} />
       ) : (
         <div className="bhc-selection-card-placeholder" style={{ '--sw': swatch || '#d7dce4' }} aria-hidden="true" />
       )}
@@ -112,7 +113,7 @@ function ThumbChoiceButton({ active, label, image, swatch, onClick, hideLabel = 
       title={label}
     >
       <span className="bhc-thumb-btn-media">
-        {showImage ? <img src={image} alt="" loading="lazy" onError={() => setFailed(true)} /> : <span className="bhc-thumb-btn-fill" style={{ '--sw': swatch }} aria-hidden="true" />}
+        {showImage ? <img src={cdnImage(image, { width: 200 })} srcSet={cdnSrcSet(image, [120, 200, 300])} sizes="100px" alt="" loading="lazy" onError={() => setFailed(true)} /> : <span className="bhc-thumb-btn-fill" style={{ '--sw': swatch }} aria-hidden="true" />}
       </span>
       {!hideLabel ? <span className="bhc-thumb-btn-label">{label}</span> : null}
     </button>
@@ -152,7 +153,7 @@ function MobileOverviewTray({ title, image, children }) {
     <div className="bhc-mobile-tray bhc-mobile-only">
       <div className="bhc-mobile-tray-head">{title}</div>
       <div className={['bhc-mobile-tray-body', image && 'has-image'].filter(Boolean).join(' ')}>
-        {image ? <img className="bhc-mobile-tray-image" src={image} alt="" /> : null}
+        {image ? <img className="bhc-mobile-tray-image" src={cdnImage(image, { width: 500 })} srcSet={cdnSrcSet(image, [250, 400, 500, 700])} sizes="(max-width: 700px) 90vw, 400px" alt="" decoding="async" /> : null}
         <div className="bhc-mobile-tray-content">{children}</div>
       </div>
     </div>
@@ -172,7 +173,7 @@ function MobileMiniChoice({ title, image, label, subtitle, swatch }) {
     <div className="bhc-mobile-choice">
       <div className="bhc-mobile-choice-head">{title}</div>
       {showImage ? (
-        <img className="bhc-mobile-choice-image" src={image} alt="" loading="lazy" onError={() => setFailed(true)} />
+        <img className="bhc-mobile-choice-image" src={cdnImage(image, { width: 300 })} srcSet={cdnSrcSet(image, [160, 240, 300])} sizes="150px" alt="" loading="lazy" onError={() => setFailed(true)} />
       ) : (
         <div className="bhc-mobile-choice-image bhc-mobile-choice-image--swatch" style={{ '--sw': swatch || '#d7dce4' }} aria-hidden="true" />
       )}
@@ -242,7 +243,7 @@ function MobileDisclosure({ title, summary, children, defaultOpen = false }) {
 function MobileHeroPreview({ image, title, subtitle, chips = [] }) {
   return (
     <div className="bhc-mobile-hero-card">
-      {image ? <img className="bhc-mobile-hero-image" src={image} alt="" loading="lazy" /> : null}
+      {image ? <img className="bhc-mobile-hero-image" src={cdnImage(image, { width: 700 })} srcSet={cdnSrcSet(image, [360, 540, 700, 960])} sizes="(max-width: 700px) 100vw, 600px" alt="" loading="lazy" decoding="async" /> : null}
       <div className="bhc-mobile-hero-copy">
         <strong>{title}</strong>
         {subtitle ? <span>{subtitle}</span> : null}
@@ -256,7 +257,7 @@ function MobileHeroPreview({ image, title, subtitle, chips = [] }) {
   )
 }
 
-function SocketPlanStage({ image, markers = [], onAdd, interactive = false, className = '', emptyText = '' }) {
+function SocketPlanStage({ image, markers = [], onAdd, onRemove, interactive = false, className = '', emptyText = '' }) {
   function handleClick(event) {
     if (!interactive || !onAdd) return
     const rect = event.currentTarget.getBoundingClientRect()
@@ -264,6 +265,8 @@ function SocketPlanStage({ image, markers = [], onAdd, interactive = false, clas
     const y = ((event.clientY - rect.top) / rect.height) * 100
     onAdd({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
   }
+
+  const removable = interactive && Boolean(onRemove)
 
   return (
     <div className={['bhc-socket-stage', interactive && 'is-interactive', className].filter(Boolean).join(' ')}>
@@ -273,9 +276,15 @@ function SocketPlanStage({ image, markers = [], onAdd, interactive = false, clas
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
       >
-        {image ? <img src={image} alt="" /> : null}
+        {image ? <img src={cdnImage(image, { width: 1000 })} srcSet={cdnSrcSet(image, [500, 750, 1000, 1400])} sizes="(max-width: 900px) 90vw, 600px" alt="" decoding="async" /> : null}
         {markers.map((marker, index) => (
-          <span key={marker.id || `marker-${index}`} className="bhc-socket-dot" style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>
+          <span
+            key={marker.id || `marker-${index}`}
+            className={['bhc-socket-dot', removable && 'is-removable'].filter(Boolean).join(' ')}
+            style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+            onClick={removable ? (e) => { e.stopPropagation(); onRemove(marker.id) } : undefined}
+            title={marker.description || undefined}
+          >
             {index + 1}
           </span>
         ))}
@@ -294,6 +303,8 @@ function WindowPlanStage({ image, markers = [], onAdd, onRemove, interactive = f
     onAdd({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) })
   }
 
+  const removable = interactive && Boolean(onRemove)
+
   return (
     <div className={['bhc-socket-stage bhc-window-stage', interactive && 'is-interactive', className].filter(Boolean).join(' ')}>
       <div
@@ -302,14 +313,14 @@ function WindowPlanStage({ image, markers = [], onAdd, onRemove, interactive = f
         role={interactive ? 'button' : undefined}
         tabIndex={interactive ? 0 : undefined}
       >
-        {image ? <img src={image} alt="" /> : null}
+        {image ? <img src={cdnImage(image, { width: 1000 })} srcSet={cdnSrcSet(image, [500, 750, 1000, 1400])} sizes="(max-width: 900px) 90vw, 600px" alt="" decoding="async" /> : null}
         {markers.map((marker, index) => (
           <span
             key={marker.id || `window-${index}`}
-            className={['bhc-window-dot', marker.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}
+            className={['bhc-window-dot', marker.isPanoramic && 'is-panoramic', removable && 'is-removable'].filter(Boolean).join(' ')}
             style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
-            onClick={(e) => { if (interactive && onRemove) { e.stopPropagation(); onRemove(marker.id) } }}
-            title={marker.isPanoramic ? '✕ remove' : '✕ remove'}
+            onClick={removable ? (e) => { e.stopPropagation(); onRemove(marker.id) } : undefined}
+            title={removable ? '✕' : undefined}
           >
             {marker.isPanoramic ? 'P' : index + 1}
           </span>
@@ -389,6 +400,10 @@ export default function BoxHouseConfiguratorPage({ content }) {
     windowCount: t.labels?.windowCount || (isBg ? 'Поставени прозорци' : 'Windows placed'),
     windowExtrasLabel: t.labels?.windowExtrasLabel || (isBg ? 'Допълнителна цена прозорци' : 'Window extras'),
     addWindowHint: t.labels?.addWindowHint || (isBg ? 'Кликнете върху плана, за да добавите прозорец. Кликнете маркер, за да го премахнете.' : 'Click the floor plan to add a window. Click a marker to remove it.'),
+    windowSizeNote: t.labels?.windowSizeNote || (isBg ? 'Избраният размер важи за всички прозорци в къщата. Надстройте отделни прозорци до панорамни / френски по-долу (+€300 за брой).' : 'The selected size applies to every window in the house. Upgrade single windows to panoramic / French below (+€300 each).'),
+    forAllWindows: t.labels?.forAllWindows || (isBg ? 'за всички прозорци' : 'for all windows'),
+    windowSizeIncluded: t.labels?.windowSizeIncluded || (isBg ? 'стандартен размер, всички прозорци' : 'standard size, all windows'),
+    panoramicUpgrades: t.labels?.panoramicUpgrades || (isBg ? 'Панорамни / френски надстройки' : 'Panoramic / French upgrades'),
     heating: t.labels?.heating || (isBg ? 'Долна изолация + зонално отопление' : 'Bottom insulation + zone heating'),
     heatingPrice: t.labels?.heatingPrice || (isBg ? 'Пакет отопление' : 'Heating package'),
     area: t.labels?.area || (isBg ? 'Площ' : 'Area'),
@@ -396,7 +411,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     dimensionsFolded: t.labels?.dimensionsFolded || (isBg ? 'Размер сгъната' : 'Folded size'),
     totalKnown: t.labels?.totalKnown || (isBg ? 'Известна обща стойност' : 'Known total'),
     pricingFootnote: t.labels?.pricingFootnote || (isBg ? 'Окабеляване за контакти и индивидуални ел. работи остават за офериране след преглед.' : 'Socket routing and custom electrical work stay as quote-on-review items.'),
-    socketsHint: t.labels?.socketsHint || (isBg ? 'Кликнете върху избрания план, за да поставите контактни точки.' : 'Click on the selected floor plan to place socket points.'),
+    socketsHint: t.labels?.socketsHint || (isBg ? 'Кликнете върху плана, за да добавите контакт. Кликнете маркер, за да го премахнете.' : 'Click the floor plan to add a socket. Click a marker to remove it.'),
     socketCount: t.labels?.socketCount || (isBg ? 'Брой контакти' : 'Socket count'),
     socketNotes: t.labels?.socketNotes || (isBg ? 'Бележки за контактите' : 'Socket notes'),
     socketNotesPlaceholder: t.labels?.socketNotesPlaceholder || (isBg ? 'Пример: повече контакти в кухненската зона, ТВ стена, два външни контакта на терасата' : 'Example: more sockets in kitchen work zone, TV wall, two exterior sockets on terrace'),
@@ -408,6 +423,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     copied: t.labels?.copied || (isBg ? 'Конфигурацията е копирана.' : 'Configuration copied to clipboard.'),
     copyFailed: t.labels?.copyFailed || (isBg ? 'Копирането не беше успешно.' : 'Clipboard copy failed.'),
     electricalScheme: t.labels?.electricalScheme || (isBg ? 'Електрическа схема' : 'Electrical scheme'),
+    windowScheme: t.labels?.windowScheme || (isBg ? 'Схема на прозорците' : 'Window scheme'),
     finishBoard: t.labels?.finishBoard || (isBg ? 'Финиши и бележки' : 'Finishes and notes'),
     priceBreakdown: t.labels?.priceBreakdown || (isBg ? 'Разбивка на цената' : 'Price breakdown'),
     internalWalls: t.labels?.internalWalls || (isBg ? 'Вътрешни стени' : 'Internal walls'),
@@ -661,9 +677,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
   const knownBasePrice = config.variant === 'balcony' ? selectedModel?.balconyPrice || 0 : selectedModel?.basePrice || 0
   const heatingPrice = config.heating ? (selectedModel?.area || 0) * catalog.pricing.heatingPerM2 : 0
   const WINDOW_SIZE_PRICES = { '1000': 0, '1200': 500, '1400': 800 }
+  const WINDOW_SIZE_DIMENSIONS = { '1000': '1000×950', '1200': '1200×950', '1400': '1400×950' }
   const windowSizeExtra = WINDOW_SIZE_PRICES[config.windowSize] || 0
+  const windowSizeDimension = WINDOW_SIZE_DIMENSIONS[config.windowSize] || WINDOW_SIZE_DIMENSIONS['1000']
   const panoramicWindowCount = (config.windows || []).filter((w) => w.isPanoramic).length
-  const windowExtrasPrice = windowSizeExtra + panoramicWindowCount * 300
+  const panoramicUpgradePrice = panoramicWindowCount * 300
+  const windowExtrasPrice = windowSizeExtra + panoramicUpgradePrice
+  const windowSizeSummaryValue = windowSizeExtra
+    ? `${windowSizeDimension} mm · +${euro(windowSizeExtra, locale)} ${labels.forAllWindows}`
+    : `${windowSizeDimension} mm · ${labels.windowSizeIncluded}`
   const insideDoorPrice = Number(config.insideDoorCount || 0) * catalog.pricing.insideDoorPerDoor
   const knownTotal = knownBasePrice + interiorPanelsPrice + heatingPrice + windowExtrasPrice + insideDoorPrice
 
@@ -886,6 +908,13 @@ export default function BoxHouseConfiguratorPage({ content }) {
     }))
   }
 
+  function removeSocketMarker(id) {
+    setConfig((prev) => ({
+      ...prev,
+      sockets: prev.sockets.filter((s) => s.id !== id),
+    }))
+  }
+
   function addWindowMarker(point) {
     setConfig((prev) => ({
       ...prev,
@@ -950,7 +979,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
       [labels.internalWalls, interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'],
       [labels.insideDoorPrice, insideDoorPrice ? euro(insideDoorPrice, locale) : '-'],
       [labels.heatingPrice, config.heating ? euro(heatingPrice, locale) : '-'],
-      [labels.windowExtrasLabel, windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'],
+      [`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`, windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included],
+      ...(panoramicWindowCount ? [[`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`, euro(panoramicUpgradePrice, locale)]] : []),
       [labels.totalKnown, euro(knownTotal, locale)],
     ]
 
@@ -981,6 +1011,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
     const socketLegendHtml = socketMarkerItems.length
       ? socketMarkerItems.map((item) => `<span class="chip chip-dark">${escapeHtml(`${item.label}${item.description ? ` — ${item.description}` : ''} • ${item.coords}`)}</span>`).join('')
       : `<div class="empty-note">${escapeHtml(labels.noSockets)}</div>`
+
+    const windowDots = (config.windows || [])
+      .map((win, index) => `<span class="dot dot-win${win.isPanoramic ? ' pano' : ''}" style="left:${win.x}%;top:${win.y}%">${win.isPanoramic ? 'P' : index + 1}</span>`)
+      .join('')
+
+    const windowSizeChip = `<span class="chip chip-dark">${escapeHtml(`${labels.windowSize}: ${windowSizeDimension} mm${windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}`)}</span>`
+    const windowLegendHtml = windowMarkerItems.length
+      ? windowSizeChip + windowMarkerItems.map((item) => `<span class="chip chip-dark">${escapeHtml(`${item.label}${item.isPanoramic ? ' · P' : ''} • ${item.coords}`)}</span>`).join('')
+      : windowSizeChip + `<div class="empty-note">${escapeHtml(labels.noWindows)}</div>`
 
     const referenceCards = [
       { title: labels.outsidePanels, image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || ''), caption: selectedExteriorFinish?.label || '-', swatch: selectedExteriorFinish?.swatch },
@@ -1038,6 +1077,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
     .plan-canvas{position:relative;width:100%;max-width:760px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
     .plan-canvas img{width:100%;height:auto;display:block;background:#fff}
     .dot{position:absolute;transform:translate(-50%,-50%);min-width:26px;height:26px;padding:0 8px;border-radius:999px;display:grid;place-items:center;background:#111827;color:#fff;font-size:12px;font-weight:900;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+    .dot-win{background:#14b8a6}
+    .dot-win.pano{background:linear-gradient(90deg,#14b8a6,#3b82f6)}
     .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
     .chip{display:inline-flex;align-items:center;border-radius:999px;padding:8px 12px;background:#eff6ff;color:#1d4ed8;font-weight:800;font-size:12px}
     .chip-dark{background:#111827;color:#fff}
@@ -1078,6 +1119,20 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
     <div class="overview">
       <div class="thumb span-2">
+        <div class="thumb-head">${escapeHtml(labels.windowScheme)}</div>
+        <div class="plan-shell">
+          <div class="plan-canvas">
+            <img src="${asset(selectedPlan?.image || '')}" alt="" />
+            ${windowDots}
+          </div>
+        </div>
+        <div style="padding:14px 14px 16px">
+          <div class="chips">${windowLegendHtml}</div>
+          ${config.windowNotes ? `<div class="note"><div class="note-k">${escapeHtml(labels.windowNotesLabel)}</div><div class="note-v">${multilineHtml(config.windowNotes)}</div></div>` : ''}
+        </div>
+      </div>
+
+      <div class="thumb span-2">
         <div class="thumb-head">${escapeHtml(labels.electricalScheme)}</div>
         <div class="plan-shell">
           <div class="plan-canvas">
@@ -1112,7 +1167,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <span class="chip">${escapeHtml(`${labels.heating}: ${config.heating ? euro(heatingPrice, locale) : noText}`)}</span>
           <span class="chip">${escapeHtml(`${labels.windowOpenings}: ${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount} panoramic)` : ''}${windowExtrasPrice ? ` — ${euro(windowExtrasPrice, locale)}` : ''}`)}</span>
         </div>
-        ${config.windowNotes ? `<div class="note"><div class="note-k">${escapeHtml(labels.windowNotesLabel)}</div><div class="note-v">${multilineHtml(config.windowNotes)}</div></div>` : ''}
         ${referenceCardsHtml ? `<div class="ref-grid">${referenceCardsHtml}</div>` : ''}
       </div>
 
@@ -1191,7 +1245,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <SummaryRow label={labels.dimensionsOpen} value={selectedModel?.dimensionsOpen || '-'} />
             <SummaryRow label={labels.dimensionsFolded} value={selectedModel?.dimensionsFolded || '-'} />
           </div>
-          <img className="bhc-reference" src={asset(selectedModelOverviewImage)} alt="" />
+          <img className="bhc-reference" src={cdnImage(asset(selectedModelOverviewImage), { width: 900 })} srcSet={cdnSrcSet(asset(selectedModelOverviewImage), [450, 700, 900, 1200])} sizes="(max-width: 900px) 90vw, 560px" alt="" decoding="async" />
         </div>
       </div>
     )
@@ -1218,7 +1272,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
         <div className="bhc-side-panel" ref={(node) => { previewRefs.current.planPreview = node }}>
           <div className="bhc-section-title">{labels.plan}</div>
           <div className="bhc-plan-stage">
-            <img src={asset(selectedPlan?.image || '')} alt="" />
+            <img src={cdnImage(asset(selectedPlan?.image || ''), { width: 900 })} srcSet={cdnSrcSet(asset(selectedPlan?.image || ''), [450, 700, 900, 1200])} sizes="(max-width: 900px) 90vw, 560px" alt="" decoding="async" />
           </div>
           <div className="bhc-hint">{hints.layout}</div>
         </div>
@@ -1369,6 +1423,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button type="button" className={['bhc-toggle', config.windowSize === '1200' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1200')}>{labels.windowSize1200}</button>
                 <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
               </div>
+              <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
               <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
               {(config.windows || []).length > 0 ? (
                 <div className="bhc-window-list">
@@ -1388,7 +1443,22 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
                 <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
               </div>
-              <div className="bhc-inline-price">{labels.windowExtrasLabel}: {windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'}</div>
+              <div className="bhc-window-price-box">
+                <div className="bhc-window-price-row">
+                  <span>{labels.windowSize} · {windowSizeDimension} mm <em>({labels.forAllWindows})</em></span>
+                  <span>{windowSizeExtra ? `+${euro(windowSizeExtra, locale)}` : labels.windowSizeIncluded}</span>
+                </div>
+                {panoramicWindowCount ? (
+                  <div className="bhc-window-price-row">
+                    <span>{labels.panoramicUpgrades} · {panoramicWindowCount}×€300</span>
+                    <span>+{euro(panoramicUpgradePrice, locale)}</span>
+                  </div>
+                ) : null}
+                <div className="bhc-window-price-row bhc-window-price-row--total">
+                  <span>{labels.windowExtrasLabel}</span>
+                  <span>{windowExtrasPrice ? euro(windowExtrasPrice, locale) : '—'}</span>
+                </div>
+              </div>
               <textarea value={config.windowNotes} onChange={(e) => setField('windowNotes', e.target.value)} placeholder={labels.windowNotesPlaceholder} rows={3} />
             </div>
 
@@ -1404,7 +1474,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-side-panel bhc-side-panel--sticky">
             <div className="bhc-section-title">{labels.overview}</div>
             <div className="bhc-preview-stage bhc-preview-stage--house" ref={(node) => { previewRefs.current.housePreview = node }}>
-              <img src={asset(selectedModelHeroImage)} alt="" />
+              <img src={cdnImage(asset(selectedModelHeroImage), { width: 1000 })} srcSet={cdnSrcSet(asset(selectedModelHeroImage), [500, 750, 1000, 1400])} sizes="(max-width: 900px) 90vw, 600px" alt="" decoding="async" />
               <div className="bhc-preview-tags">
                 <span className="bhc-chip">{selectedExteriorFinish?.label || '-'}</span>
                 <span className="bhc-chip">{selectedWindowStyle?.label || '-'}</span>
@@ -1433,6 +1503,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               {config.variant === 'balcony' ? <SummaryRow label={labels.deckingColor} value={selectedDeckingColor?.label || '-'} /> : null}
               <SummaryRow label={labels.steelFrameColor} value={selectedSteelFrameColor?.label || '-'} />
               <SummaryRow label={labels.windowOpenings} value={`${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount}P)` : ''}`} />
+              <SummaryRow label={labels.windowSize} value={windowSizeSummaryValue} />
               <SummaryRow label={labels.windowExtrasLabel} value={windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'} />
               <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
             </div>
@@ -1725,7 +1796,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
         <div className="bhc-side-panel bhc-side-panel--full">
           <div className="bhc-section-title">{labels.sockets}</div>
           <div className="bhc-hint">{labels.socketsHint}</div>
-          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} onAdd={addSocketMarker} interactive emptyText={labels.noSockets} />
+          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} onAdd={addSocketMarker} onRemove={removeSocketMarker} interactive emptyText={labels.noSockets} />
         </div>
         <div className="bhc-side-panel">
           <div className="bhc-detail-list">
@@ -1733,30 +1804,27 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <SummaryRow label={labels.layout} value={`${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` - ${selectedPlan.subtitle}` : ''}`} />
           </div>
           {config.sockets.length > 0 ? (
-            <div className="bhc-socket-desc-list">
+            <div className="bhc-window-list bhc-socket-list">
               <div className="bhc-subhead">{labels.socketDescHint}</div>
               {config.sockets.map((socket, index) => (
-                <div key={socket.id} className="bhc-socket-desc-row">
-                  <span className="bhc-socket-desc-num">{index + 1}</span>
+                <div key={socket.id} className="bhc-window-row bhc-socket-row">
+                  <span className="bhc-window-num bhc-socket-num">{index + 1}</span>
                   <input
+                    className="bhc-socket-desc-input"
                     type="text"
-                    placeholder={isBg ? `Контакт ${index + 1} — описание…` : `Socket ${index + 1} — description…`}
+                    placeholder={isBg ? `Контакт ${index + 1} — за какво ще се ползва?` : `Socket ${index + 1} — what's it for?`}
                     value={socket.description || ''}
                     onChange={(e) => updateSocketDescription(socket.id, e.target.value)}
                   />
+                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={isBg ? 'Премахни контакт' : 'Remove socket'}>✕</button>
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : <div className="bhc-small-note">{labels.noSockets}</div>}
           <textarea value={config.socketNotes} onChange={(e) => setField('socketNotes', e.target.value)} placeholder={labels.socketNotesPlaceholder} rows={4} />
           <div className="bhc-action-row bhc-action-row--stack">
             <button className="btn ghost" type="button" onClick={() => setField('sockets', [])}>{actions.clearSockets}</button>
             <button className="btn ghost" type="button" onClick={() => setField('sockets', config.sockets.slice(0, -1))}>{actions.removeLastSocket}</button>
-          </div>
-          <div className="bhc-chip-cloud">
-            {socketMarkerItems.length ? socketMarkerItems.map((item) => (
-              <span key={item.id} className="bhc-mini-chip">{item.label}{item.description ? ` — ${item.description}` : ''} • {item.coords}</span>
-            )) : <div className="bhc-small-note">{labels.noSockets}</div>}
           </div>
           <div className="bhc-hint">{hints.sockets}</div>
         </div>
@@ -1780,7 +1848,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     return (
       <div className="bhc-summary-stage">
         <div className="bhc-summary-hero">
-          <img src={asset(selectedModelHeroImage)} alt="" />
+          <img src={cdnImage(asset(selectedModelHeroImage), { width: 1000 })} srcSet={cdnSrcSet(asset(selectedModelHeroImage), [500, 750, 1000, 1400])} sizes="(max-width: 900px) 90vw, 600px" alt="" decoding="async" />
           <div className="bhc-summary-hero-copy">
             <div className="bhc-section-title">{labels.summary}</div>
             <h2>{selectedModel?.label} - {config.variant === 'balcony' ? labels.balcony : labels.standard}</h2>
@@ -1824,6 +1892,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
               <SummaryRow label={labels.heating} value={config.heating ? `${yesText} (${euro(heatingPrice, locale)})` : noText} />
               <SummaryRow label={labels.windowOpenings} value={`${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount} panoramic)` : ''}`} />
+              <SummaryRow label={labels.windowSize} value={windowSizeSummaryValue} />
               <SummaryRow label={labels.windowExtrasLabel} value={windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'} />
               <SummaryRow label={labels.socketCount} value={String(config.sockets.length)} />
               <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
@@ -1832,6 +1901,23 @@ export default function BoxHouseConfiguratorPage({ content }) {
           </div>
 
           <div className="bhc-summary-board">
+            <div className="bhc-side-panel bhc-side-panel--span-2">
+              <div className="bhc-section-title">{labels.windowScheme}</div>
+              <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
+              <div className="bhc-chip-cloud">
+                <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
+                {windowMarkerItems.length ? windowMarkerItems.map((item) => (
+                  <span key={item.id} className="bhc-mini-chip">{item.label}{item.isPanoramic ? ' · P' : ''} • {item.coords}</span>
+                )) : <div className="bhc-small-note">{labels.noWindows}</div>}
+              </div>
+              {config.windowNotes ? (
+                <div className="bhc-note-box">
+                  <div className="bhc-note-title">{labels.windowNotesLabel}</div>
+                  <div>{config.windowNotes}</div>
+                </div>
+              ) : null}
+            </div>
+
             <div className="bhc-side-panel bhc-side-panel--span-2">
               <div className="bhc-section-title">{labels.electricalScheme}</div>
               <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} className="bhc-socket-stage--summary" emptyText={labels.noSockets} />
@@ -1851,14 +1937,14 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <div className="bhc-side-panel bhc-summary-choice-panel">
               <div className="bhc-section-title">{labels.bathroom}</div>
               <div className="bhc-summary-choice-card">
-                <img className="bhc-reference" src={asset(selectedBathroom?.image || '')} alt="" />
+                <img className="bhc-reference" src={cdnImage(asset(selectedBathroom?.image || ''), { width: 700 })} srcSet={cdnSrcSet(asset(selectedBathroom?.image || ''), [350, 525, 700, 1000])} sizes="(max-width: 900px) 90vw, 460px" alt="" decoding="async" />
                 <div className="bhc-choice-caption"><strong>{selectedBathroom?.label || '-'}</strong><span>{selectedBathroom?.subtitle || labels.bathroom}</span></div>
               </div>
             </div>
             <div className="bhc-side-panel bhc-summary-choice-panel">
               <div className="bhc-section-title">{labels.kitchen}</div>
               <div className="bhc-summary-choice-card">
-                <img className="bhc-reference" src={asset(selectedKitchen?.image || '')} alt="" />
+                <img className="bhc-reference" src={cdnImage(asset(selectedKitchen?.image || ''), { width: 700 })} srcSet={cdnSrcSet(asset(selectedKitchen?.image || ''), [350, 525, 700, 1000])} sizes="(max-width: 900px) 90vw, 460px" alt="" decoding="async" />
                 <div className="bhc-choice-caption"><strong>{selectedKitchen?.label || '-'}</strong><span>{selectedKitchen?.subtitle || labels.kitchen}</span></div>
               </div>
             </div>
@@ -1910,6 +1996,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                   <span key={label} className="bhc-mini-chip">{label}</span>
                 )) : <span className="bhc-mini-chip">{labels.kitchenExtras}: -</span>}
                 <span className="bhc-mini-chip">{labels.heating}: {config.heating ? euro(heatingPrice, locale) : noText}</span>
+                <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
                 <span className="bhc-mini-chip">{labels.windowOpenings}: {(config.windows || []).length}{panoramicWindowCount ? ` (${panoramicWindowCount}P)` : ''}{windowExtrasPrice ? ` — ${euro(windowExtrasPrice, locale)}` : ''}</span>
               </div>
               {config.windowNotes ? (
@@ -1940,7 +2027,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'} />
                 <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
                 <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
-                <SummaryRow label={labels.windowExtrasLabel} value={windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'} />
+                <SummaryRow label={`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`} value={windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included} />
+                {panoramicWindowCount ? <SummaryRow label={`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`} value={euro(panoramicUpgradePrice, locale)} /> : null}
                 <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
               </div>
               <div className="bhc-small-note">{labels.pricingFootnote}</div>
@@ -1971,7 +2059,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <ul className="bhc-bullets">
                 {(t.included || []).map((item) => <li key={item}>{item}</li>)}
               </ul>
-              <img className="bhc-reference" src={asset(catalog.references.specs)} alt="" />
+              <img className="bhc-reference" src={cdnImage(asset(catalog.references.specs), { width: 900 })} srcSet={cdnSrcSet(asset(catalog.references.specs), [450, 700, 900, 1200])} sizes="(max-width: 900px) 90vw, 560px" alt="" decoding="async" />
             </div>
           </div>
         </section>
@@ -1994,7 +2082,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <ul className="bhc-bullets">
               {(t.included || []).map((item) => <li key={item}>{item}</li>)}
             </ul>
-            <img className="bhc-reference" src={asset(catalog.references.specs)} alt="" />
+            <img className="bhc-reference" src={cdnImage(asset(catalog.references.specs), { width: 900 })} srcSet={cdnSrcSet(asset(catalog.references.specs), [450, 700, 900, 1200])} sizes="(max-width: 900px) 90vw, 560px" alt="" decoding="async" />
           </MobileDisclosure>
         </div>
       </section>
@@ -2089,7 +2177,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
           defaultOpen
         >
           <div className="bhc-plan-stage">
-            <img src={asset(selectedPlan?.image || '')} alt="" />
+            <img src={cdnImage(asset(selectedPlan?.image || ''), { width: 900 })} srcSet={cdnSrcSet(asset(selectedPlan?.image || ''), [450, 700, 900, 1200])} sizes="(max-width: 900px) 90vw, 560px" alt="" decoding="async" />
           </div>
         </MobileDisclosure>
 
@@ -2256,6 +2344,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button type="button" className={['bhc-toggle', config.windowSize === '1200' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1200')}>{labels.windowSize1200}</button>
                 <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
               </div>
+              <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
               <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
               {(config.windows || []).length > 0 ? (
                 <div className="bhc-window-list">
@@ -2275,7 +2364,22 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
                 <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
               </div>
-              <div className="bhc-inline-price">{labels.windowExtrasLabel}: {windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'}</div>
+              <div className="bhc-window-price-box">
+                <div className="bhc-window-price-row">
+                  <span>{labels.windowSize} · {windowSizeDimension} mm <em>({labels.forAllWindows})</em></span>
+                  <span>{windowSizeExtra ? `+${euro(windowSizeExtra, locale)}` : labels.windowSizeIncluded}</span>
+                </div>
+                {panoramicWindowCount ? (
+                  <div className="bhc-window-price-row">
+                    <span>{labels.panoramicUpgrades} · {panoramicWindowCount}×€300</span>
+                    <span>+{euro(panoramicUpgradePrice, locale)}</span>
+                  </div>
+                ) : null}
+                <div className="bhc-window-price-row bhc-window-price-row--total">
+                  <span>{labels.windowExtrasLabel}</span>
+                  <span>{windowExtrasPrice ? euro(windowExtrasPrice, locale) : '—'}</span>
+                </div>
+              </div>
               <textarea value={config.windowNotes} onChange={(e) => setField('windowNotes', e.target.value)} placeholder={labels.windowNotesPlaceholder} rows={3} />
             </div>
 
@@ -2514,35 +2618,32 @@ export default function BoxHouseConfiguratorPage({ content }) {
         <div className="bhc-side-panel bhc-side-panel--full">
           <div className="bhc-section-title">{labels.sockets}</div>
           <div className="bhc-hint">{labels.socketsHint}</div>
-          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} onAdd={addSocketMarker} interactive emptyText={labels.noSockets} />
+          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} onAdd={addSocketMarker} onRemove={removeSocketMarker} interactive emptyText={labels.noSockets} />
         </div>
 
         <div className="bhc-side-panel">
           {config.sockets.length > 0 ? (
-            <div className="bhc-socket-desc-list">
+            <div className="bhc-window-list bhc-socket-list">
               <div className="bhc-subhead">{labels.socketDescHint}</div>
               {config.sockets.map((socket, index) => (
-                <div key={socket.id} className="bhc-socket-desc-row">
-                  <span className="bhc-socket-desc-num">{index + 1}</span>
+                <div key={socket.id} className="bhc-window-row bhc-socket-row">
+                  <span className="bhc-window-num bhc-socket-num">{index + 1}</span>
                   <input
+                    className="bhc-socket-desc-input"
                     type="text"
-                    placeholder={isBg ? `Контакт ${index + 1} — описание…` : `Socket ${index + 1} — description…`}
+                    placeholder={isBg ? `Контакт ${index + 1} — за какво ще се ползва?` : `Socket ${index + 1} — what's it for?`}
                     value={socket.description || ''}
                     onChange={(e) => updateSocketDescription(socket.id, e.target.value)}
                   />
+                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={isBg ? 'Премахни контакт' : 'Remove socket'}>✕</button>
                 </div>
               ))}
             </div>
-          ) : null}
+          ) : <div className="bhc-small-note">{labels.noSockets}</div>}
           <textarea value={config.socketNotes} onChange={(e) => setField('socketNotes', e.target.value)} placeholder={labels.socketNotesPlaceholder} rows={4} />
           <div className="bhc-action-row bhc-action-row--stack">
             <button className="btn ghost" type="button" onClick={() => setField('sockets', [])}>{actions.clearSockets}</button>
             <button className="btn ghost" type="button" onClick={() => setField('sockets', config.sockets.slice(0, -1))}>{actions.removeLastSocket}</button>
-          </div>
-          <div className="bhc-chip-cloud">
-            {socketMarkerItems.length ? socketMarkerItems.map((item) => (
-              <span key={item.id} className="bhc-mini-chip">{item.label}{item.description ? ` — ${item.description}` : ''} • {item.coords}</span>
-            )) : <div className="bhc-small-note">{labels.noSockets}</div>}
           </div>
         </div>
       </div>
@@ -2566,7 +2667,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     const summaryTabs = [
       { key: 'overview', label: isBg ? 'Преглед' : 'Overview' },
       { key: 'visuals', label: isBg ? 'Визуализации' : 'Visuals' },
-      { key: 'sockets', label: isBg ? 'Контакти' : 'Sockets' },
+      { key: 'sockets', label: locale === 'bg' ? 'Схеми' : locale === 'el' ? 'Σχέδια' : 'Schemes' },
       { key: 'price', label: isBg ? 'Цена' : 'Price' },
     ]
 
@@ -2624,7 +2725,21 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
         {mobileSummarySection === 'sockets' ? (
           <div className="bhc-side-panel">
-            <div className="bhc-section-title">{labels.electricalScheme}</div>
+            <div className="bhc-section-title">{labels.windowScheme}</div>
+            <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
+            <div className="bhc-chip-cloud">
+              <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
+              {windowMarkerItems.length ? windowMarkerItems.map((item) => (
+                <span key={item.id} className="bhc-mini-chip">{item.label}{item.isPanoramic ? ' · P' : ''} • {item.coords}</span>
+              )) : <div className="bhc-small-note">{labels.noWindows}</div>}
+            </div>
+            {config.windowNotes ? (
+              <div className="bhc-note-box">
+                <div className="bhc-note-title">{labels.windowNotesLabel}</div>
+                <div>{config.windowNotes}</div>
+              </div>
+            ) : null}
+            <div className="bhc-section-title bhc-scheme-divider">{labels.electricalScheme}</div>
             <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} className="bhc-socket-stage--summary" emptyText={labels.noSockets} />
             <div className="bhc-chip-cloud">
               {socketMarkerItems.length ? socketMarkerItems.map((item) => (
@@ -2648,7 +2763,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'} />
               <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
               <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
-              <SummaryRow label={labels.windowExtrasLabel} value={windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'} />
+              <SummaryRow label={`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`} value={windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included} />
+              {panoramicWindowCount ? <SummaryRow label={`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`} value={euro(panoramicUpgradePrice, locale)} /> : null}
               <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
             </div>
             <div className="bhc-small-note">{labels.pricingFootnote}</div>
