@@ -5,6 +5,7 @@ export default {
     servicesSummary: 'Τα Προϊόντα & οι Υπηρεσίες μας',
     nav: {
       gallery: 'Γκαλερί',
+      cases: 'Έργα',
       faq: 'Συχνές ερωτήσεις',
       about: 'Σχετικά',
       partner: 'Συνεργάτης',

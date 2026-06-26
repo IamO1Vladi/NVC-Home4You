@@ -392,6 +392,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
     windowSize1200: t.labels?.windowSize1200 || (isBg ? '1200×950 (+€500)' : '1200×950 (+€500)'),
     windowSize1400: t.labels?.windowSize1400 || (isBg ? '1400×950 (+€800)' : '1400×950 (+€800)'),
     windowPanoramic: t.labels?.windowPanoramic || (isBg ? 'Панорамен / Френски (+€300)' : 'Panoramic / French (+€300)'),
+    makePanoramic: t.labels?.makePanoramic || (isBg ? 'Кликни за панорамен (+€300)' : 'Click to make panoramic (+€300)'),
+    panoramicActive: t.labels?.panoramicActive || (isBg ? 'Панорамен ✓ (+€300)' : 'Panoramic ✓ (+€300)'),
     windowMarker: t.labels?.windowMarker || (isBg ? 'Прозорец' : 'Window'),
     windowNotes: t.labels?.windowNotes || (isBg ? 'Бележки за прозорците' : 'Window notes'),
     windowNotesPlaceholder: t.labels?.windowNotesPlaceholder || (isBg ? 'Пример: допълнителни прозорци в спалнята, панорамни към терасата' : 'Example: extra windows on bedroom side, panoramic towards terrace'),
@@ -399,7 +401,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     noWindows: t.labels?.noWindows || (isBg ? 'Няма поставени прозорци. Кликнете върху плана, за да добавите.' : 'No windows placed yet. Click the floor plan to add.'),
     windowCount: t.labels?.windowCount || (isBg ? 'Поставени прозорци' : 'Windows placed'),
     windowExtrasLabel: t.labels?.windowExtrasLabel || (isBg ? 'Допълнителна цена прозорци' : 'Window extras'),
-    addWindowHint: t.labels?.addWindowHint || (isBg ? 'Кликнете върху плана, за да добавите прозорец. Кликнете маркер, за да го премахнете.' : 'Click the floor plan to add a window. Click a marker to remove it.'),
+    addWindowHint: t.labels?.addWindowHint || (isBg ? 'Кликнете върху плана, за да добавите прозорец. Кликнете маркер, за да го премахнете. После използвайте „Кликни за панорамен“ за всеки прозорец, който искате панорамен / френски.' : 'Click the floor plan to add a window. Click a marker to remove it. Then use “Click to make panoramic” on any window you want as panoramic / French.'),
     windowSizeNote: t.labels?.windowSizeNote || (isBg ? 'Избраният размер важи за всички прозорци в къщата. Надстройте отделни прозорци до панорамни / френски по-долу (+€300 за брой).' : 'The selected size applies to every window in the house. Upgrade single windows to panoramic / French below (+€300 each).'),
     forAllWindows: t.labels?.forAllWindows || (isBg ? 'за всички прозорци' : 'for all windows'),
     windowSizeIncluded: t.labels?.windowSizeIncluded || (isBg ? 'стандартен размер, всички прозорци' : 'standard size, all windows'),
@@ -1424,15 +1426,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
               </div>
               <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
-              <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
+              <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
               {(config.windows || []).length > 0 ? (
                 <div className="bhc-window-list">
                   {(config.windows || []).map((win, index) => (
                     <div key={win.id} className="bhc-window-row">
                       <span className={['bhc-window-num', win.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
                       <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
-                      <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)}>
-                        {labels.windowPanoramic}
+                      <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)} title={win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}>
+                        {win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}
                       </button>
                       <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
                     </div>
@@ -1903,7 +1905,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-summary-board">
             <div className="bhc-side-panel bhc-side-panel--span-2">
               <div className="bhc-section-title">{labels.windowScheme}</div>
-              <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
+              <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
               <div className="bhc-chip-cloud">
                 <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
                 {windowMarkerItems.length ? windowMarkerItems.map((item) => (
@@ -2345,15 +2347,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
               </div>
               <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
-              <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
+              <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
               {(config.windows || []).length > 0 ? (
                 <div className="bhc-window-list">
                   {(config.windows || []).map((win, index) => (
                     <div key={win.id} className="bhc-window-row">
                       <span className={['bhc-window-num', win.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
                       <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
-                      <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)}>
-                        {labels.windowPanoramic}
+                      <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)} title={win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}>
+                        {win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}
                       </button>
                       <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
                     </div>
@@ -2726,7 +2728,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
         {mobileSummarySection === 'sockets' ? (
           <div className="bhc-side-panel">
             <div className="bhc-section-title">{labels.windowScheme}</div>
-            <WindowPlanStage image={asset(selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
+            <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
             <div className="bhc-chip-cloud">
               <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
               {windowMarkerItems.length ? windowMarkerItems.map((item) => (

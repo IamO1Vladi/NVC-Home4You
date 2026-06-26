@@ -494,6 +494,17 @@
   background: #111827;
   border: 2px solid #fff;
   box-shadow: 0 6px 16px rgba(0,0,0,.18);
+  z-index: 2;
+}
+
+.bhc-socket-dot.is-removable {
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.bhc-socket-dot.is-removable:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+  background: #ef4444;
 }
 
 .bhc-summary-hero {
@@ -1600,7 +1611,11 @@
   z-index: 2;
 }
 
-.bhc-window-dot:hover {
+.bhc-window-dot.is-removable {
+  cursor: pointer;
+}
+
+.bhc-window-dot.is-removable:hover {
   transform: translate(-50%, -50%) scale(1.18);
   background: #ef4444;
 }
@@ -1611,7 +1626,7 @@
   font-size: 11px;
 }
 
-.bhc-window-dot.is-panoramic:hover {
+.bhc-window-dot.is-panoramic.is-removable:hover {
   background: #ef4444;
 }
 
@@ -1695,35 +1710,94 @@
   color: #ef4444;
 }
 
-/* ===== Socket descriptions ===== */
-.bhc-socket-desc-list {
-  display: grid;
+/* ===== Window size note + price breakdown ===== */
+.bhc-window-size-note {
+  display: flex;
   gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(59,130,246,.28);
+  background: linear-gradient(135deg, rgba(20,184,166,.08), rgba(59,130,246,.10));
+  color: var(--bhc-ink, #0f172a);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.bhc-window-size-note::before {
+  content: '📐';
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.bhc-window-price-box {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-soft);
+}
+
+.bhc-window-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--bhc-muted);
+}
+
+.bhc-window-price-row span:last-child {
+  font-weight: 800;
+  color: var(--bhc-ink, #0f172a);
+  white-space: nowrap;
+}
+
+.bhc-window-price-row em {
+  font-style: normal;
+  opacity: .8;
+}
+
+.bhc-window-price-row--total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--bhc-border);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--bhc-ink, #0f172a);
+}
+
+.bhc-window-price-row--total span:last-child {
+  font-size: 15px;
+  background: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Divider between the window scheme and electrical scheme in the summary */
+.bhc-scheme-divider {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--bhc-border);
+}
+
+/* ===== Socket rows (mirrors the window list UI) ===== */
+.bhc-socket-list {
   margin-top: 12px;
 }
 
-.bhc-socket-desc-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.bhc-socket-desc-num {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  color: #fff;
+.bhc-socket-row .bhc-socket-num {
   background: #111827;
-  flex: none;
 }
 
-.bhc-socket-desc-row input {
+.bhc-socket-desc-input {
   flex: 1;
-  margin-top: 0;
+  min-width: 0;
+  margin-top: 0 !important;
 }
 
 /* ===== Offer CTA ===== */

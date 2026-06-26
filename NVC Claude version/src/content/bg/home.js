@@ -5,6 +5,7 @@ export default {
     servicesSummary: 'Нашите услуги',
     nav: {
       gallery: 'Галерия',
+      cases: 'Казуси',
       faq: 'Въпроси',
       about: 'За нас',
       partner: 'Партньор',

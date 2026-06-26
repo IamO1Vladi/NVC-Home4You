@@ -1,8 +1,5 @@
-# robots.txt for nvc-home4you.eu
-# Allow crawling of the site; block internal APIs and Swagger if present.
 User-agent: *
 Allow: /
-Disallow: /api/
-Disallow: /swagger/
 
 Sitemap: https://nvc-home4you.eu/sitemap.xml
+Sitemap: https://nvc-home4you.eu/sitemap-gallery.xml

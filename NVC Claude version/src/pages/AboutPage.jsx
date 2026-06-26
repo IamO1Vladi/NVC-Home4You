@@ -233,19 +233,6 @@ export default function AboutPage({locale, content}) {
               </m.div>
             )}
           </section>
-
-          {/* FOOTER */}
-          <footer
-            style={{
-              borderTop: '1px solid #ffffff1a',
-              color: '#cbd5e1',
-              textAlign: 'center',
-              padding: '18px 0',
-              marginTop: 24,
-            }}
-          >
-            © <span>{year}</span> NVC Home4You — {content.brand.motto}
-          </footer>
         </div>
       </section>
     </main>

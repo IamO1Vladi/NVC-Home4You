@@ -19,6 +19,7 @@
 
 # Local editor / agent config
 **/.claude/
+**/.vs/
 
 # Logs & OS cruft
 *.log

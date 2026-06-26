@@ -1,0 +1,31 @@
+{
+  "name": "nvc-home4you-react",
+  "private": true,
+  "version": "0.0.3",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "preinstall": "node -e \"const v=process.versions.node.split('.').map(Number);if(v[0]<18){console.error('Node >=18 required. Current:',process.version);process.exit(1)}\""
+  },
+  "dependencies": {
+    "baseline-browser-mapping": "^2.10.14",
+    "dompurify": "^3.3.1",
+    "framer-motion": "^11.2.6",
+    "leaflet": "^1.9.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-helmet-async": "^2.0.5",
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^6.26.2",
+    "sitemap": "^8.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.8"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

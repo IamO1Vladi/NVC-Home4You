@@ -70,8 +70,9 @@ export default function SEO({
       {description && <meta name="twitter:description" content={description} />}
       <meta name="twitter:image" content={ogImage} />
 
-      {/* Canonical + hreflang */}
-      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+      {/* Canonical + hreflang. Skip canonical on noindex pages (e.g. 404) so we don't
+          assert a canonical URL for a page we're telling crawlers to drop. */}
+      {!noindex && canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
       {hreflangs.map((h) => (
         <link key={h.hrefLang} rel="alternate" hrefLang={h.hrefLang} href={h.href} />
       ))}

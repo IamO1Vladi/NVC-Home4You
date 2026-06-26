@@ -5,180 +5,336 @@
     <loc>https://nvc-home4you.eu/bg</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/modulni-postroiki</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/modulni-postroiki" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/modular-builds" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/domikes-kataskeves" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/modular-builds" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/modular-builds</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/modulni-postroiki" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/modular-builds" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/domikes-kataskeves" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/modular-builds" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/domikes-kataskeves</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/modulni-postroiki" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/modular-builds" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/domikes-kataskeves" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/modular-builds" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/modulni-kysthi</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/modulni-kysthi" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/modular-houses" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/domika-spitia" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/modular-houses" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/modular-houses</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/modulni-kysthi" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/modular-houses" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/domika-spitia" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/modular-houses" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/domika-spitia</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/modulni-kysthi" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/modular-houses" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/domika-spitia" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/modular-houses" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/sglobqemi-kyshti</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/sglobqemi-kyshti" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/steel-houses" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/metallika-spitia" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/steel-houses" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/steel-houses</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/sglobqemi-kyshti" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/steel-houses" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/metallika-spitia" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/steel-houses" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/metallika-spitia</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/sglobqemi-kyshti" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/steel-houses" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/metallika-spitia" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/steel-houses" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/galeriq</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/galeriq" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/gallery" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/gkaleri" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/gallery" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/gallery</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/galeriq" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/gallery" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/gkaleri" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/gallery" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/gkaleri</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/galeriq" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/gallery" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/gkaleri" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/gallery" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/chesto-zadavani-vyprosi</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/chesto-zadavani-vyprosi" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/faq" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/syxnes-erotiseis" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/faq" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/faq</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/chesto-zadavani-vyprosi" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/faq" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/syxnes-erotiseis" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/faq" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/syxnes-erotiseis</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/chesto-zadavani-vyprosi" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/faq" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/syxnes-erotiseis" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/faq" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/za-nas</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/za-nas" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/about" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/sxetika-me-emas" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/about" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/about</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/za-nas" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/about" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/sxetika-me-emas" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/about" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/sxetika-me-emas</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/za-nas" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/about" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/sxetika-me-emas" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/about" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/vytreshni-remonti</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/vytreshni-remonti" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/interiors" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/esoterikoi-xoroi" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/interiors" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/interiors</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/vytreshni-remonti" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/interiors" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/esoterikoi-xoroi" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/interiors" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/esoterikoi-xoroi</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/vytreshni-remonti" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/interiors" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/esoterikoi-xoroi" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/interiors" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/dostavka-do-vratata</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/dostavka-do-vratata" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/delivery" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/paradosi-sto-spiti" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/delivery" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/delivery</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/dostavka-do-vratata" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/delivery" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/paradosi-sto-spiti" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/delivery" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/paradosi-sto-spiti</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/dostavka-do-vratata" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/delivery" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/paradosi-sto-spiti" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/delivery" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/mejdunarodna-logistika</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/mejdunarodna-logistika" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/logistics" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/diethnis-efodiastiki" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/logistics" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/logistics</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/mejdunarodna-logistika" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/logistics" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/diethnis-efodiastiki" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/logistics" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/diethnis-efodiastiki</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/mejdunarodna-logistika" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/logistics" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/diethnis-efodiastiki" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/logistics" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/stani-partnjor</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/stani-partnjor" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/partner" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/ginete-synergatis" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/partner" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/partner</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/stani-partnjor" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/partner" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/ginete-synergatis" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/partner" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/ginete-synergatis</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/stani-partnjor" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/partner" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/ginete-synergatis" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/partner" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/planirane-na-razpredelenie</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/planirane-na-razpredelenie" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/floor-planner" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/sxediasmos-katopsis" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/floor-planner" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/floor-planner</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/planirane-na-razpredelenie" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/floor-planner" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/sxediasmos-katopsis" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/floor-planner" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/sxediasmos-katopsis</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/planirane-na-razpredelenie" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/floor-planner" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/sxediasmos-katopsis" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/floor-planner" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/interiorni-vrati</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/interiorni-vrati" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/internal-doors" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/esoterikes-portes" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/internal-doors" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/internal-doors</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/interiorni-vrati" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/internal-doors" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/esoterikes-portes" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/internal-doors" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/esoterikes-portes</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/interiorni-vrati" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/internal-doors" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/esoterikes-portes" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/internal-doors" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/kazusi-i-otzivi</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/kazusi-i-otzivi" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/cases" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/erga-kai-kritikes" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/cases" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/cases</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/kazusi-i-otzivi" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/cases" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/erga-kai-kritikes" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/cases" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/erga-kai-kritikes</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/kazusi-i-otzivi" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/cases" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/erga-kai-kritikes" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/cases" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/bg/konfigurator-box-kyshti</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/konfigurator-box-kyshti" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/box-house-configurator" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/diamorfotis-box-spitiou" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/box-house-configurator" />
   </url>
   <url>
     <loc>https://nvc-home4you.eu/en/box-house-configurator</loc>
     <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/konfigurator-box-kyshti" />
     <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/box-house-configurator" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/diamorfotis-box-spitiou" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/box-house-configurator" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/diamorfotis-box-spitiou</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/konfigurator-box-kyshti" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/box-house-configurator" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/diamorfotis-box-spitiou" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/box-house-configurator" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/privacy-and-cookies" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/aporrito-kai-cookies" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/privacy-and-cookies" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/en/privacy-and-cookies</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/privacy-and-cookies" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/aporrito-kai-cookies" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/privacy-and-cookies" />
+  </url>
+  <url>
+    <loc>https://nvc-home4you.eu/el/aporrito-kai-cookies</loc>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://nvc-home4you.eu/en/privacy-and-cookies" />
+    <xhtml:link rel="alternate" hreflang="el" href="https://nvc-home4you.eu/el/aporrito-kai-cookies" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nvc-home4you.eu/en/privacy-and-cookies" />
   </url>
 </urlset>

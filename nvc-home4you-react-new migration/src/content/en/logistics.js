@@ -1,0 +1,107 @@
+export default {
+  seo: {
+    title: 'International logistics from Asia to Europe | NVC Home4You',
+    description:
+      'International logistics from China, Vietnam, and Thailand to Europe, North America, and South America. Sea, air, rail, and combined transport with customs coordination.',
+    url: 'https://nvc-home4you.eu/en/logistics',
+  },
+  breadcrumbs: [
+    { name: 'Home', url: 'https://nvc-home4you.eu/en' },
+    { name: 'Logistics', url: 'https://nvc-home4you.eu/en/logistics' },
+  ],
+  hero: {
+    title: 'International logistics',
+    lead:
+      'EXW/FOB → DAP/DDP from China, Vietnam, and Thailand to Europe, North America, and South America. Sea (LCL/FCL), air, rail, and combined transport with customs coordination.',
+    button: 'Contact us',
+    image: {
+      src: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+    },
+  },
+  process: {
+    segmentMs: 1500,
+    lead: 'We structure the full flow - from route planning and Incoterms to arrival, tracking, and final handover.',
+    replay: 'Replay',
+    steps: [
+      {
+        key: 'plan',
+        heading: 'Route and trade terms',
+        body: 'We define origin, destination, cargo profile, and Incoterms to select the right transport setup.',
+        meta: 'EXW / FOB / DAP / DDP',
+      },
+      {
+        key: 'book',
+        heading: 'Booking and preparation',
+        body: 'We plan sea, air, rail, or combined routing based on timeline, budget, and shipment size.',
+        meta: 'LCL / FCL / Express',
+      },
+      {
+        key: 'docs',
+        heading: 'Documents and loading',
+        body: 'We prepare shipping documents and coordinate loading so the cargo departs without avoidable delay.',
+        meta: 'Documentation and compliance',
+      },
+      {
+        key: 'transit',
+        heading: 'Transit and tracking',
+        body: 'We monitor the route and keep visibility on milestones, changes, and indicative delivery windows.',
+        meta: 'Shipment tracking',
+      },
+      {
+        key: 'arrival',
+        heading: 'Arrival and final handover',
+        body: 'We coordinate port, customs, and final inland stages through to the delivery point.',
+        meta: 'Import and delivery',
+      },
+    ],
+    windows: {
+      chips: [
+        'Sea to Western Europe: ~30–35 days',
+        'Sea to Eastern Europe: ~40–45 days',
+      ],
+      sub: 'Actual transit depends on the port pair, seasonality, congestion, and local formalities.',
+    },
+  },
+  map: {
+    note: 'Indicative sea windows to the EU: Western Europe ~30–35 days, Eastern Europe ~40–45 days; actual transit depends on the port, season, and customs handling.',
+    world: {
+      modeLabel: 'Mode:',
+      modeSea: 'Sea',
+      modeAir: 'Air',
+      modeRail: 'Rail',
+      seaDestinationLabel: 'Port destination:',
+      airDestinationLabel: 'Airport:',
+      railDestinationLabel: 'Rail hub:',
+      legendLabel: 'Origins',
+      legendShanghai: 'Shanghai',
+      legendHoChiMinh: 'Ho Chi Minh',
+      legendLaemChabang: 'Laem Chabang',
+    },
+  },
+  tiles: [
+    {
+      id: 'sea',
+      title: 'Sea freight (LCL/FCL)',
+      desc: 'Containers and groupage to and from major ports. Best value per volume when longer transit is acceptable.',
+      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rv/eg/vb',
+    },
+    {
+      id: 'air',
+      title: 'Air freight',
+      desc: 'The fastest option for urgent shipments, samples, and time-sensitive cargo.',
+      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rbq/eg/vb',
+    },
+    {
+      id: 'rail',
+      title: 'Rail freight',
+      desc: 'A balance of cost and speed across Eurasian corridors, suitable for palletized and regular flows.',
+      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rx/eg/vb',
+    },
+    {
+      id: 'multi',
+      title: 'Combined routing',
+      desc: 'A mix of sea, air, rail, and road legs for tighter control over budget and schedule.',
+      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+    },
+  ],
+}

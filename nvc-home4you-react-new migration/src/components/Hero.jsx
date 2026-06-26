@@ -1,0 +1,71 @@
+import React from 'react'
+import { motion } from 'framer-motion'
+import HeroShowcase from './HeroShowcase.jsx'
+import { paths } from '../routes/paths.js'
+
+export default function Hero({ locale = 'en', content, onOpenOffer, onOpenQuestion }) {
+  if (!content) return null
+
+  const slides = (content.showcase?.slides || []).map((slide) => ({
+    ...slide,
+    to: slide.pathKey ? (paths[slide.pathKey]?.[locale] || '/') : slide.to,
+  }))
+
+  return (
+    <section className="hero">
+      <div className="container">
+        <div className="hero-grid">
+          <div>
+            <motion.h1
+              style={{ fontSize: 'clamp(32px,5vw,70px)', lineHeight: 1.05, margin: 0 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: String(content.title || '')
+                    .replace('<g>', '<span class="grad-text">')
+                    .replace('</g>', '</span>'),
+                }}
+              />
+            </motion.h1>
+
+            <motion.p
+              className="mt-5"
+              style={{ maxWidth: 640, color: 'var(--muted)' }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05, duration: 0.5 }}
+            >
+              {content.lead}
+            </motion.p>
+
+            <div className="row mt-6">
+              <motion.button className="btn" onClick={onOpenOffer} whileTap={{ scale: 0.98 }}>
+                {content.primaryCta}
+              </motion.button>
+              <motion.button className="btn ghost" onClick={onOpenQuestion} whileTap={{ scale: 0.98 }}>
+                {content.secondaryCta}
+              </motion.button>
+            </div>
+
+            <div className="mt-4" style={{ opacity: 0.7 }}>{content.motto}</div>
+          </div>
+
+          <div>
+            <div className="hero-visual">
+              <HeroShowcase
+                slides={slides}
+                durationMs={5600}
+                size={560}
+                openLabel={content.showcase?.openLabel}
+                slidesLabel={content.showcase?.slidesLabel}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}

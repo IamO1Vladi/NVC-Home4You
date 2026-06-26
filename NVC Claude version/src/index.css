@@ -76,6 +76,16 @@ header{
   backdrop-filter:blur(10px);
   background:#141820b3;border-bottom:1px solid rgba(255,255,255,.1);
 }
+/* The rule above targets the bare `header` type, so in-page hero banners
+   (e.g. <header class="arx-hero">) accidentally inherit z-index:50 + backdrop-filter
+   and become a stacking context equal to the real nav header. Being later in the DOM,
+   they then paint over the nav's dropdown menu. Only the site nav header lives outside
+   <main>; neutralize the inheritance for every hero header inside it. */
+main header{
+  z-index:auto;
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
 .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
 .brand{display:flex;align-items:center;gap:12px;font-weight:900}
 .brand-logo{width:36px;height:36px;border-radius:8px;background:#ffffff12;display:flex;align-items:center;justify-content:center}

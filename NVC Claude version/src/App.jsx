@@ -4,6 +4,7 @@ import { LazyMotion, domAnimation } from 'framer-motion'
 import Header from './components/Header.jsx'
 import Modal from './components/Modal.jsx'
 import MobileDock from './components/MobileDock.jsx'
+import SiteFooter from './components/SiteFooter.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { ModalActionsProvider } from './context/ModalActions.jsx'
 import { I18nProvider, useI18n } from './i18n/I18nContext.jsx'
@@ -75,6 +76,15 @@ const ElCasesRoute = lazy(() => import('./routes/el/ElCasesRoute.jsx'))
 const ElGalleryRoute = lazy(() => import('./routes/el/ElGalleryRoute.jsx'))
 const ElBoxHouseConfiguratorRoute = lazy(() => import('./routes/el/ElBoxHouseConfiguratorRoute.jsx'))
 
+const EnPrivacyRoute = lazy(() => import('./routes/en/EnPrivacyRoute.jsx'))
+const BgPrivacyRoute = lazy(() => import('./routes/bg/BgPrivacyRoute.jsx'))
+const ElPrivacyRoute = lazy(() => import('./routes/el/ElPrivacyRoute.jsx'))
+
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'))
+
+// Hidden internal tools (not linked, not in the sitemap, noindex).
+const FactorySheetPage = lazy(() => import('./pages/FactorySheetPage.jsx'))
+
 function LocalePathGate({ children }) {
   const location = useLocation()
   const { lang, setLang } = useI18n()
@@ -99,6 +109,9 @@ function AppShell() {
   const currentLocale = getLocaleFromPath(location.pathname) || fallbackLocale
   const ui = getHomeContent(currentLocale)
 
+  // Internal tools render full-screen without the marketing header/footer/widgets.
+  const isInternal = location.pathname.startsWith('/internal/')
+
   const [offerOpen, setOfferOpen] = useState(false)
   const [questionOpen, setQuestionOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState(null)
@@ -112,10 +125,12 @@ function AppShell() {
   const trackRequestQuote = useCallback((payload) => {
     if (typeof window === 'undefined') return
     window.dataLayer = window.dataLayer || []
+    // Push the API catalogue id (contentId), not the Quickbase model id, to stay consistent
+    // with the Meta Pixel. Empty when the item has no catalogue id.
     window.dataLayer.push({
       event: 'request_quote_success',
       form_type: 'offer',
-      model_id: payload.modelId || '',
+      content_id: payload.catalogId || '',
     })
 
    if (typeof window.fbq === 'function') {
@@ -125,7 +140,8 @@ function AppShell() {
       form_type: 'offer',
     }
 
-    const contentId = payload.catalogId || payload.modelId
+    // Only the API catalogue id (contentId) may reach Meta — never the Quickbase model id.
+    const contentId = payload.catalogId
     if (contentId) {
       metaPayload.content_ids = [String(contentId)]
       metaPayload.content_type = 'product'
@@ -222,7 +238,7 @@ function AppShell() {
             const routeSeo = getRouteSeo(location.pathname, currentLocale)
             return routeSeo ? <SEO {...routeSeo} /> : null
           })()}
-          <Header locale={currentLocale} content={ui.header} onLanguageChange={handleLanguageChange} onOpenOffer={() => setOfferOpen(true)} />
+          {!isInternal && <Header locale={currentLocale} content={ui.header} onLanguageChange={handleLanguageChange} onOpenOffer={() => setOfferOpen(true)} />}
 
           <Suspense fallback={<div className="page-loading" />}>
             <Routes>
@@ -323,8 +339,21 @@ function AppShell() {
               <Route path={paths.faq.bg} element={<BgFaqRoute />} />
               <Route path={paths.about.en} element={<EnAboutRoute />} />
               <Route path={paths.about.bg} element={<BgAboutRoute />} />
+
+              <Route path={paths.privacy.en} element={<EnPrivacyRoute />} />
+              <Route path={paths.privacy.bg} element={<BgPrivacyRoute />} />
+              <Route path={paths.privacy.el} element={<ElPrivacyRoute />} />
+
+              {/* Hidden internal tool: factory order sheet (unlisted, noindex, password-gated). */}
+              <Route path="/internal/factory-sheet" element={<FactorySheetPage />} />
+
+              {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
+                  blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
+
+          {!isInternal && <SiteFooter locale={currentLocale} />}
 
           <Modal open={offerOpen} onClose={() => setOfferOpen(false)} title={ui.forms.offer.title} closeLabel={ui.common.close}>
             <form className="grid" style={{ gap: 10 }} onSubmit={submitOffer}>
@@ -346,9 +375,9 @@ function AppShell() {
             </form>
           </Modal>
 
-          <a href="viber://chat?number=%2B359892456245" className="viber-bubble" aria-label={ui.common.viberChatLabel}>NVC</a>
+          {!isInternal && <a href="viber://chat?number=%2B359892456245" className="viber-bubble" aria-label={ui.common.viberChatLabel}>NVC</a>}
 
-          <MobileDock content={ui.home.mobileDock} />
+          {!isInternal && <MobileDock content={ui.home.mobileDock} />}
           {toast.show && (
             <div
               style={{

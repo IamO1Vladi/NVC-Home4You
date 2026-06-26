@@ -5,6 +5,7 @@ export default {
     servicesSummary: 'Our Products & Services',
     nav: {
       gallery: 'Gallery',
+      cases: 'Cases',
       faq: 'FAQ',
       about: 'About Us',
       partner: 'Partner',

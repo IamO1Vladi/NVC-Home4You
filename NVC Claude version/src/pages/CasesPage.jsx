@@ -51,21 +51,6 @@ function initials(value = '') {
     .join('') || 'NVC'
 }
 
-function formatDate(value, locale) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  try {
-    return new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(date)
-  } catch {
-    return ''
-  }
-}
-
 function normalizeCategory(value) {
   const raw = String(value || '').trim()
   const lower = raw.toLowerCase()
@@ -193,7 +178,6 @@ function Stars({ value = 0, className = '' }) {
 export default function CasesPage({ content }) {
   const { openOffer, openQuestion } = useModalActions()
   const copy = content.copy
-  const locale = content.locale || 'en-GB'
   const API_BASE = import.meta.env.VITE_API_BASE || ''
 
   const [loading, setLoading] = useState(true)
@@ -432,21 +416,38 @@ export default function CasesPage({ content }) {
               {filteredCases.map((item) => (
                 <article className="card cs-case-card" key={item.id}>
                   {item.imageUrl ? (
-                    <button
-                      type="button"
-                      className="cs-case-media cs-case-media-btn"
-                      onClick={() => openCaseGallery(item, 0)}
-                    >
-                      <img src={cdnImage(item.imageUrl, { width: 800 })} srcSet={cdnSrcSet(item.imageUrl, [400, 600, 800, 1200])} sizes="(max-width: 900px) 100vw, 420px" alt={item.product || item.companyName || copy.casesTitle} loading="lazy" decoding="async" />
-                      {item.images.length > 1 ? <span className="cs-case-media-count">+{item.images.length - 1}</span> : null}
-                    </button>
+                    <div className="cs-case-gallery">
+                      <button
+                        type="button"
+                        className="cs-case-media cs-case-media-btn"
+                        onClick={() => openCaseGallery(item, 0)}
+                      >
+                        <img src={cdnImage(item.imageUrl, { width: 800 })} srcSet={cdnSrcSet(item.imageUrl, [400, 600, 800, 1200])} sizes="(max-width: 900px) 100vw, 420px" alt={item.product || item.companyName || copy.casesTitle} loading="lazy" decoding="async" />
+                      </button>
+
+                      {item.images.length > 1 ? (
+                        <div className="cs-case-thumbs" aria-label={copy.photosLabel}>
+                          {item.images.map((image, idx) => (
+                            <button
+                              type="button"
+                              key={`${item.id}-thumb-${idx}`}
+                              className="cs-case-thumb"
+                              onClick={() => openCaseGallery(item, idx)}
+                              aria-label={`${copy.photosLabel} ${idx + 1}`}
+                            >
+                              <img src={cdnImage(image, { width: 200 })} srcSet={cdnSrcSet(image, [120, 200, 320])} sizes="84px" alt="" loading="lazy" decoding="async" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   ) : null}
 
                   <div className="p-6">
                     <div className="cs-case-top">
                       <div>
                         <div className="cs-case-title">{item.companyName || item.buyerName || '—'}</div>
-                        {item.companyType ? <div className="cs-muted">{item.companyType}</div> : null}
+                        {item.companyName && item.companyType ? <div className="cs-muted">{item.companyType}</div> : null}
                       </div>
                       {item.featured ? <span className="cs-badge">{copy.featured}</span> : null}
                     </div>
@@ -463,7 +464,7 @@ export default function CasesPage({ content }) {
                           <div className="cs-meta-label">{copy.labels.buyer}</div>
                           <div className="cs-meta-value">
                             {item.buyerName || item.companyName}
-                            {item.buyerRole ? <span className="cs-inline-note"> · {item.buyerRole}</span> : null}
+                            {item.companyName && item.buyerRole ? <span className="cs-inline-note"> · {item.buyerRole}</span> : null}
                           </div>
                         </div>
                       ) : null}
@@ -569,27 +570,23 @@ export default function CasesPage({ content }) {
                       </div>
                     </div>
 
-                    <div className="cs-chip-row mt-3">
-                      <span className="cs-chip">{copy.labels.approved}</span>
-                      {review.product ? <span className="cs-chip">{copy.labels.purchased}: {review.product}</span> : null}
-                    </div>
+                    {review.product ? (
+                      <div className="cs-chip-row mt-3">
+                        <span className="cs-chip">{copy.labels.purchased}: {review.product}</span>
+                      </div>
+                    ) : null}
 
                     {review.text ? <p className="cs-body-copy mt-4">{review.text}</p> : null}
-                    <div className="cs-muted mt-3">
-                      {[review.location, formatDate(review.createdAt, locale)].filter(Boolean).join(' · ')}
-                    </div>
+                    {review.location ? <div className="cs-muted mt-3">{review.location}</div> : null}
                   </article>
                 ))
-              ) : (
-                <div className="cs-empty-review">{copy.noReviewsCard}</div>
-              )}
+              ) : null}
             </div>
           </div>
 
           <aside className="card p-6 cs-form-card">
             <h3 className="cs-h3">{copy.formTitle}</h3>
             <p className="cs-muted mt-2">{copy.formLead}</p>
-            <div className="cs-form-note">{copy.moderation}</div>
 
             <form className="cs-form mt-6" onSubmit={handleSubmit}>
               <input

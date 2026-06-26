@@ -9,9 +9,11 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
   const { theme, setTheme } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const menuRef = useRef(null)
   const toolsRef = useRef(null)
+  const aboutRef = useRef(null)
 
   const currentLocale = getLocaleFromPath(location.pathname) || locale
   const pathFor = (key) => paths[key]?.[currentLocale] || '/'
@@ -37,18 +39,28 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
   const planningLabel = content?.nav?.plannerGroup || (currentLocale === 'bg' ? 'Планиране' : 'Planning')
   const isPlanningActive = planningItems.some((item) => item.to === location.pathname)
 
+  // "About Us" groups the company page and the Cases page so the top nav stays uncluttered.
+  const aboutLabel = content?.nav?.about || (currentLocale === 'bg' ? 'За нас' : 'About Us')
+  const aboutItems = [
+    { key: 'about', label: aboutLabel, to: pathFor('about') },
+    { key: 'cases', label: content?.nav?.cases || (currentLocale === 'bg' ? 'Казуси' : 'Cases'), to: pathFor('cases') },
+  ]
+  const isAboutActive = aboutItems.some((item) => item.to === location.pathname)
+
   useEffect(() => {
     function onDoc(e) {
       const inServicesMenu = menuRef.current && menuRef.current.contains(e.target)
       const inPlanningMenu = toolsRef.current && toolsRef.current.contains(e.target)
-      if ((menuOpen || toolsOpen) && !inServicesMenu && !inPlanningMenu) {
+      const inAboutMenu = aboutRef.current && aboutRef.current.contains(e.target)
+      if ((menuOpen || toolsOpen || aboutOpen) && !inServicesMenu && !inPlanningMenu && !inAboutMenu) {
         setMenuOpen(false)
         setToolsOpen(false)
+        setAboutOpen(false)
       }
     }
     document.addEventListener('click', onDoc)
     return () => document.removeEventListener('click', onDoc)
-  }, [menuOpen, toolsOpen])
+  }, [menuOpen, toolsOpen, aboutOpen])
 
   if (!content) return null
 
@@ -75,6 +87,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
                 e.stopPropagation()
                 setMenuOpen((v) => !v)
                 setToolsOpen(false)
+                setAboutOpen(false)
               }}
             >
               {content.servicesSummary} ▾
@@ -109,7 +122,49 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
 
           <NavLink to={pathFor('gallery')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.gallery}</NavLink>
           <NavLink to={pathFor('faq')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.faq}</NavLink>
-          <NavLink to={pathFor('about')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.about}</NavLink>
+
+          <div className="menu" ref={aboutRef}>
+            <button
+              className={['link-btn', isAboutActive && 'active'].filter(Boolean).join(' ')}
+              aria-haspopup="menu"
+              aria-expanded={aboutOpen}
+              onClick={(e) => {
+                e.stopPropagation()
+                setAboutOpen((v) => !v)
+                setMenuOpen(false)
+                setToolsOpen(false)
+              }}
+            >
+              {aboutLabel} ▾
+            </button>
+            <AnimatePresence>
+              {aboutOpen && (
+                <m.div
+                  className="menu-panel"
+                  style={{ width: 'min(320px, 90vw)' }}
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+                >
+                  <div className="grid" style={{ gap: 8 }}>
+                    {aboutItems.map((item) => (
+                      <Link
+                        key={item.key}
+                        to={item.to}
+                        className={['link-btn', location.pathname === item.to && 'active'].filter(Boolean).join(' ')}
+                        onClick={() => setAboutOpen(false)}
+                        style={{ textAlign: 'left' }}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <NavLink to={pathFor('partner')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.partner}</NavLink>
 
           {planningItems.length > 1 ? (
@@ -122,6 +177,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
                   e.stopPropagation()
                   setToolsOpen((v) => !v)
                   setMenuOpen(false)
+                  setAboutOpen(false)
                 }}
               >
                 {planningLabel} ▾
@@ -162,7 +218,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
           <button className="btn" onClick={onOpenOffer}>{content.nav.quote}</button>
         </nav>
 
-        <div className="row header-actions" style={{ gap: 8 }}>
+        <div className="row header-actions" style={{ gap: 8 }} data-nosnippet>
           <div className="card p-4" style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 12 }}>
             <label className="visually-hidden" htmlFor="themeSelect">{content.theme.label}</label>
             <select
@@ -204,6 +260,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
           <m.div className="container mobile-drawer" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
             <div className="drawer-card card">
               <Link className="row mt-2" to={pathFor('gallery')} onClick={() => setMobileOpen(false)}>{content.nav.gallery}</Link>
+              <Link className="row" to={pathFor('cases')} onClick={() => setMobileOpen(false)}>{content.nav.cases || 'Cases'}</Link>
               <Link className="row" to={pathFor('faq')} onClick={() => setMobileOpen(false)}>{content.nav.faq}</Link>
               <Link className="row" to={pathFor('about')} onClick={() => setMobileOpen(false)}>{content.nav.about}</Link>
               <Link className="row" to={pathFor('partner')} onClick={() => setMobileOpen(false)}>{content.nav.partner}</Link>

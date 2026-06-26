@@ -90,6 +90,25 @@ if (File.Exists(manifestPath))
         seoManifest = new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase);
 }
 
+// Valid SPA routes that are NOT in the SEO manifest, so we don't mistake them for 404s:
+// the language-less redirect aliases handled client-side by <Navigate> in App.jsx, and the
+// dynamic gallery detail pages (/<locale>/gallery/<item>). Keep in sync with src/App.jsx.
+var bareRedirects = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "/modular-builds", "/modular-houses", "/faq", "/about", "/steel-houses", "/gallery",
+};
+var galleryPrefixes = new[] { "/bg/galeriq/", "/en/gallery/", "/el/gkaleri/" };
+
+bool IsKnownSpaRoute(string p)
+{
+    if (p == "/") return true;
+    if (seoManifest.ContainsKey(p)) return true;
+    if (bareRedirects.Contains(p)) return true;
+    foreach (var prefix in galleryPrefixes)
+        if (p.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return true;
+    return false;
+}
+
 app.MapFallback(async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
@@ -101,12 +120,37 @@ app.MapFallback(async context =>
         path = path.TrimEnd('/');
 
     var html = indexHtml;
+    var start = html.IndexOf(seoStart, StringComparison.Ordinal);
+    var end = html.IndexOf(seoEnd, StringComparison.Ordinal);
+
+    // Hidden internal tools (e.g. /internal/factory-sheet): serve the SPA shell with a
+    // 200 and a noindex tag so direct links / refresh work, while keeping them out of
+    // search results. They are not linked anywhere and are password-gated in the SPA.
+    if (path.StartsWith("/internal/", StringComparison.OrdinalIgnoreCase))
+    {
+        const string internalTags =
+            "<title>NVC internal</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";
+        if (start >= 0 && end > start)
+            html = html[..(start + seoStart.Length)] + "\n    " + internalTags + "\n    " + html[end..];
+        await context.Response.WriteAsync(html);
+        return;
+    }
+
     if (seoManifest.TryGetValue(path, out var tags))
     {
-        var start = html.IndexOf(seoStart, StringComparison.Ordinal);
-        var end = html.IndexOf(seoEnd, StringComparison.Ordinal);
         if (start >= 0 && end > start)
             html = html[..(start + seoStart.Length)] + "\n    " + tags + "\n    " + html[end..];
+    }
+    else if (!IsKnownSpaRoute(path))
+    {
+        // Unknown URL: return a real HTTP 404 instead of a soft 404 (HTTP 200 + blank shell),
+        // and mark the shell noindex so crawlers that don't run JS won't index it. React still
+        // renders the localized NotFound page into the same shell for users.
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        const string notFoundTags =
+            "<title>Page not found | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" />";
+        if (start >= 0 && end > start)
+            html = html[..(start + seoStart.Length)] + "\n    " + notFoundTags + "\n    " + html[end..];
     }
 
     await context.Response.WriteAsync(html);

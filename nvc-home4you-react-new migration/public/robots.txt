@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nvc-home4you.eu/sitemap.xml

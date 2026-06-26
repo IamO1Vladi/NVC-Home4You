@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using Models;
 
 namespace Services
@@ -13,25 +14,52 @@ namespace Services
     {
         private readonly QuickbaseClient _qb;
         private readonly EnvConfig _env;
+        private readonly IMemoryCache _cache;
 
-        public GalleryService(QuickbaseClient qb, EnvConfig env)
+        private const string CacheKey = "gallery:list:v2";
+        private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
+
+        // Max number of image queries (one per house) to run against Quickbase concurrently.
+        private const int ImageFetchConcurrency = 6;
+
+        public GalleryService(QuickbaseClient qb, EnvConfig env, IMemoryCache cache)
         {
             _qb = qb;
             _env = env;
+            _cache = cache;
         }
 
-        public async Task<IEnumerable<GalleryItem>> GetAsync(CancellationToken ct = default)
+        public async Task<IReadOnlyList<GalleryItem>> GetAsync(CancellationToken ct = default)
         {
-            // 1) Houses — one query
-            // Build select list: base fields + optional BG fields
-            var select = new List<int> { _env.F_HOUSE_RID, _env.F_HOUSE_TITLE, _env.F_HOUSE_PRICE, _env.F_HOUSE_DESC, _env.F_HOUSE_CATEGORY };
+            if (_cache.TryGetValue(CacheKey, out IReadOnlyList<GalleryItem>? cached) && cached is not null)
+                return cached;
+
+            var items = await LoadAsync(ct);
+            _cache.Set(CacheKey, items, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = CacheTtl
+            });
+            return items;
+        }
+
+        private async Task<IReadOnlyList<GalleryItem>> LoadAsync(CancellationToken ct)
+        {
+            // 1) Houses â€” one query
+            // Build select list: base fields + optional localized + catalogue fields
+            var select = new List<int>
+            {
+                _env.F_HOUSE_RID, _env.F_HOUSE_TITLE, _env.F_HOUSE_PRICE, _env.F_HOUSE_DESC, _env.F_HOUSE_CATEGORY
+            };
             if (_env.F_HOUSE_TITLE_BG.HasValue) select.Add(_env.F_HOUSE_TITLE_BG.Value);
             if (_env.F_HOUSE_DESC_BG.HasValue) select.Add(_env.F_HOUSE_DESC_BG.Value);
+            if (_env.F_HOUSE_TITLE_EL.HasValue) select.Add(_env.F_HOUSE_TITLE_EL.Value);
+            if (_env.F_HOUSE_DESC_EL.HasValue) select.Add(_env.F_HOUSE_DESC_EL.Value);
+            if (_env.F_HOUSE_CATALOG_ID.HasValue) select.Add(_env.F_HOUSE_CATALOG_ID.Value);
 
             var qHouses = new
             {
                 from = _env.TableHouses,
-                select = select.ToArray(),
+                select = select.Distinct().ToArray(),
                 where = "",
                 sortBy = new[] { new { fieldId = _env.F_HOUSE_TITLE, order = "ASC" } }
             };
@@ -39,7 +67,6 @@ namespace Services
             var houses = await _qb.QueryAsync(qHouses, ct);
 
             var items = new List<GalleryItem>();
-            var ids = new List<long>();
 
             if (houses?.data != null)
             {
@@ -47,13 +74,15 @@ namespace Services
                 {
                     var idStr = rec.Get(_env.F_HOUSE_RID);
                     if (!long.TryParse(idStr, out var id)) continue;
-                    ids.Add(id);
 
                     var title = rec.Get(_env.F_HOUSE_TITLE) ?? "";
                     var desc = rec.Get(_env.F_HOUSE_DESC) ?? "";
 
                     string? titleBg = _env.F_HOUSE_TITLE_BG.HasValue ? rec.Get(_env.F_HOUSE_TITLE_BG.Value) : null;
                     string? descBg = _env.F_HOUSE_DESC_BG.HasValue ? rec.Get(_env.F_HOUSE_DESC_BG.Value) : null;
+                    string? titleEl = _env.F_HOUSE_TITLE_EL.HasValue ? rec.Get(_env.F_HOUSE_TITLE_EL.Value) : null;
+                    string? descEl = _env.F_HOUSE_DESC_EL.HasValue ? rec.Get(_env.F_HOUSE_DESC_EL.Value) : null;
+                    string? catalogId = _env.F_HOUSE_CATALOG_ID.HasValue ? rec.Get(_env.F_HOUSE_CATALOG_ID.Value) : null;
 
                     string? category = rec.Get(_env.F_HOUSE_CATEGORY) ?? "";
 
@@ -69,6 +98,9 @@ namespace Services
                         Description = desc,
                         TitleBg = string.IsNullOrWhiteSpace(titleBg) ? null : titleBg,
                         DescriptionBg = string.IsNullOrWhiteSpace(descBg) ? null : descBg,
+                        TitleEl = string.IsNullOrWhiteSpace(titleEl) ? null : titleEl,
+                        DescriptionEl = string.IsNullOrWhiteSpace(descEl) ? null : descEl,
+                        CatalogId = string.IsNullOrWhiteSpace(catalogId) ? null : catalogId.Trim(),
                         Price = price,
                         Currency = "EUR",
                         Category = category,
@@ -79,95 +111,12 @@ namespace Services
 
             if (items.Count == 0) return items;
 
-            // 2) Images — ONE QUERY PER HOUSE (explicitly as you requested)
+            // 2) Images â€” batched. One query per chunk of houses instead of one query per house.
+            var imagesByParent = await LoadImagesAsync(items.Select(i => i.Id).ToList(), ct);
+
             foreach (var it in items)
             {
-                var where = "{" + _env.F_IMG_PARENT + ".EX.'" + it.Id + "'}";
-                var qImg = new
-                {
-                    from = _env.TableImages,
-                    // Only the fields we actually use:
-                    // - attachment JSON (F_IMG_FILE)
-                    // - optional text URL fallback (F_IMG_URL)
-                    select = new[] { _env.F_IMG_FILE, _env.F_IMG_URL },
-                    where
-                };
-
-                var imgs = await _qb.QueryAsync(qImg, ct);
-                if (imgs?.data == null || imgs.data.Count == 0) continue;
-
-                var urls = new List<String>();
-
-                foreach (var rec in imgs.data)
-                {
-                    string? finalUrl = null;
-
-                    // Attachment-first: we only need to split value.url and read versions[0].fileName
-                    var attachJson = rec.Get(_env.F_IMG_FILE);
-                    if (!string.IsNullOrWhiteSpace(attachJson))
-                    {
-                        try
-                        {
-                            using var doc = JsonDocument.Parse(attachJson);
-                            var root = doc.RootElement;
-
-                            // value.url -> "/files/{dbid}/{rid}/{fid}/{version}"
-                            string? valueUrl = null;
-                            if (root.TryGetProperty("url", out var urlProp) &&
-                                urlProp.ValueKind == JsonValueKind.String)
-                            {
-                                valueUrl = urlProp.GetString();
-                            }
-
-                            // versions[0].fileName
-                            string? fileName = null;
-                            if (root.TryGetProperty("versions", out var vers) &&
-                                vers.ValueKind == JsonValueKind.Array &&
-                                vers.GetArrayLength() > 0)
-                            {
-                                var v0 = vers[0];
-                                if (v0.TryGetProperty("fileName", out var fn) &&
-                                    fn.ValueKind == JsonValueKind.String)
-                                {
-                                    fileName = fn.GetString();
-                                }
-                            }
-
-                            // If we have "/files/dbid/rid/fid/version" we can split it and build the "up" URL
-                            var up = BuildUpUrlFromFilesPath(valueUrl, fileName);
-                            if (!string.IsNullOrWhiteSpace(up)) finalUrl = up;
-                            // If not, fallback to the /files link itself (still works with open-access)
-                            if (string.IsNullOrWhiteSpace(finalUrl) && !string.IsNullOrWhiteSpace(valueUrl))
-                            {
-                                if (!string.IsNullOrWhiteSpace(_env.Realm))
-                                    finalUrl = "https://" + _env.Realm + valueUrl;
-                            }
-                        }
-                        catch
-                        {
-                            // ignore JSON parse errors
-                        }
-                    }
-
-                    // Fallback: Text URL field if absolute
-                    if (string.IsNullOrWhiteSpace(finalUrl))
-                    {
-                        var textUrl = rec.Get(_env.F_IMG_URL);
-                        if (!string.IsNullOrWhiteSpace(textUrl) &&
-                           (textUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                            textUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
-                        {
-                            finalUrl = textUrl;
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(finalUrl))
-                    {
-                        urls.Add(finalUrl);
-                    }
-                }
-
-                if (urls.Count > 0)
+                if (imagesByParent.TryGetValue(it.Id, out var urls) && urls.Count > 0)
                 {
                     it.Images = urls;
                     it.CoverUrl = urls[0];
@@ -178,7 +127,127 @@ namespace Services
         }
 
         /// <summary>
-        /// Build "up" style public URL using only the string parts, as you requested:
+        /// Fetches every image for the given house ids. Uses one query per house (the exact, proven
+        /// per-parent filter â€” no reading the parent field back) but runs them in parallel with a
+        /// small concurrency cap, so we keep the latency win over the old sequential loop.
+        /// </summary>
+        private async Task<Dictionary<long, List<string>>> LoadImagesAsync(IReadOnlyList<long> ids, CancellationToken ct)
+        {
+            using var gate = new SemaphoreSlim(ImageFetchConcurrency);
+
+            async Task<(long Id, List<string> Urls)> FetchOneAsync(long id)
+            {
+                await gate.WaitAsync(ct);
+                try
+                {
+                    var where = "{" + _env.F_IMG_PARENT + ".EX.'" + id + "'}";
+                    var qImg = new
+                    {
+                        from = _env.TableImages,
+                        select = new[] { _env.F_IMG_FILE, _env.F_IMG_URL },
+                        where
+                    };
+
+                    var imgs = await _qb.QueryAsync(qImg, ct);
+
+                    var urls = new List<string>();
+                    if (imgs?.data != null)
+                    {
+                        foreach (var rec in imgs.data)
+                        {
+                            var url = ExtractImageUrl(rec);
+                            if (!string.IsNullOrWhiteSpace(url)) urls.Add(url);
+                        }
+                    }
+                    return (id, urls);
+                }
+                finally
+                {
+                    gate.Release();
+                }
+            }
+
+            var results = await Task.WhenAll(ids.Select(FetchOneAsync));
+
+            var byParent = new Dictionary<long, List<string>>();
+            foreach (var (id, urls) in results)
+            {
+                if (urls.Count > 0) byParent[id] = urls;
+            }
+            return byParent;
+        }
+
+        /// <summary>
+        /// Resolves a single image record to a public URL: attachment-first (built as an "up" URL),
+        /// then the /files link, then an absolute text URL fallback.
+        /// </summary>
+        private string? ExtractImageUrl(QbRec rec)
+        {
+            string? finalUrl = null;
+
+            // Attachment-first: we only need to split value.url and read versions[0].fileName
+            var attachJson = rec.Get(_env.F_IMG_FILE);
+            if (!string.IsNullOrWhiteSpace(attachJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(attachJson);
+                    var root = doc.RootElement;
+
+                    // value.url -> "/files/{dbid}/{rid}/{fid}/{version}"
+                    string? valueUrl = null;
+                    if (root.TryGetProperty("url", out var urlProp) &&
+                        urlProp.ValueKind == JsonValueKind.String)
+                    {
+                        valueUrl = urlProp.GetString();
+                    }
+
+                    // versions[0].fileName
+                    string? fileName = null;
+                    if (root.TryGetProperty("versions", out var vers) &&
+                        vers.ValueKind == JsonValueKind.Array &&
+                        vers.GetArrayLength() > 0)
+                    {
+                        var v0 = vers[0];
+                        if (v0.TryGetProperty("fileName", out var fn) &&
+                            fn.ValueKind == JsonValueKind.String)
+                        {
+                            fileName = fn.GetString();
+                        }
+                    }
+
+                    var up = BuildUpUrlFromFilesPath(valueUrl, fileName);
+                    if (!string.IsNullOrWhiteSpace(up)) finalUrl = up;
+
+                    if (string.IsNullOrWhiteSpace(finalUrl) && !string.IsNullOrWhiteSpace(valueUrl))
+                    {
+                        if (!string.IsNullOrWhiteSpace(_env.Realm))
+                            finalUrl = "https://" + _env.Realm + valueUrl;
+                    }
+                }
+                catch
+                {
+                    // ignore JSON parse errors
+                }
+            }
+
+            // Fallback: Text URL field if absolute
+            if (string.IsNullOrWhiteSpace(finalUrl))
+            {
+                var textUrl = rec.Get(_env.F_IMG_URL);
+                if (!string.IsNullOrWhiteSpace(textUrl) &&
+                   (textUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                    textUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                {
+                    finalUrl = textUrl;
+                }
+            }
+
+            return finalUrl;
+        }
+
+        /// <summary>
+        /// Build "up" style public URL using only the string parts:
         ///   https://{realm}/up/{dbid}/a/r{rid}/e{fid}/v{version}/{fileName}
         /// We parse value.url = "/files/{dbid}/{rid}/{fid}/{version}" and append fileName.
         /// </summary>

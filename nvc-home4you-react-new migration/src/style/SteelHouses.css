@@ -1,0 +1,104 @@
+:root[data-theme='dark']{
+  --sh-bg: #0f1115;
+  --sh-hero: color-mix(in srgb, #4f46e5 8%, #0f1115);
+  --sh-card: #151923;
+  --sh-border: #ffffff1a;
+  --sh-muted: #9ca3af;
+  --sh-ink: #e5e7eb;
+}
+:root[data-theme='light']{
+  --sh-bg: #f6f7f9;
+  --sh-hero: #eef2ff;
+  --sh-card: #ffffff;
+  --sh-border: #00000016;
+  --sh-muted: #374151;
+  --sh-ink: #111827;
+}
+
+.sh-page{ background: var(--sh-bg); }
+
+/* HERO */
+.sh-hero{ background: var(--sh-hero); border-bottom:1px solid var(--sh-border); }
+.sh-hero-grid{ display:grid; grid-template-columns: 1.35fr .65fr; gap:24px; padding: clamp(28px, 4vw, 56px) 0; align-items: start; }
+.sh-title{ margin:0 0 .2em; font-weight:800; font-size: clamp(28px, 5vw, 44px); letter-spacing:.2px; }
+.sh-lead{ margin:0; opacity:.9; font-size: clamp(16px, 1.9vw, 18px); }
+
+.sh-spec-band{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-top:16px; }
+.sh-spec{ background: color-mix(in srgb, #ffffff14, var(--sh-hero)); border:1px dashed var(--sh-border); border-radius:12px; padding:10px 12px; }
+.sh-spec-h{ font-size:.8rem; font-weight:800; opacity:.75; }
+.sh-spec-v{ font-size:1.05rem; font-weight:800; }
+
+.sh-card{
+  background: var(--sh-card); color: var(--sh-ink);
+  border: 1px solid var(--sh-border); border-radius:16px; padding:16px 18px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.10); margin-top: 6px;
+  position: sticky; top: 86px;
+}
+.sh-card-h{ font-weight:800; margin-bottom:8px; }
+.sh-card-list{ margin:0 0 10px; padding-left:18px; opacity:.9; }
+
+/* STEPS */
+.sh-steps{ padding: 18px 0 10px; }
+.sh-steps-h{ font-weight:800; margin-bottom:10px; }
+.sh-steps-row{ display:flex; flex-wrap:wrap; gap:14px 18px; margin:0; padding:0; list-style:none; }
+.sh-steps-row li{ position:relative; padding-left:18px; }
+.sh-step-dot{ position:absolute; left:0; top:.45em; width:10px; height:10px; border-radius:999px; background: currentColor; opacity:.35; }
+
+/* LOGISTICS */
+.sh-logi{ background: linear-gradient(180deg, color-mix(in srgb, #10b981 8%, var(--sh-bg)), var(--sh-bg)); border-top:1px solid var(--sh-border); }
+.sh-logi-grid{ display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; padding: 18px 0; align-items:center; }
+.sh-logi-h{ font-weight:800; margin:0 0 6px; }
+.sh-logi-p{ margin:0 0 6px; opacity:.9; }
+.sh-logi-list{ margin:0; padding-left:18px; color: var(--sh-muted); }
+.sh-logi-cta{ display:flex; justify-content:flex-end; }
+
+/* SLIDER */
+.sh-gallery-h{ font-weight:800; margin: 16px 0 10px; }
+.sh-slider{ position:relative; }
+.sh-strip{
+  display:grid; grid-auto-flow: column; grid-auto-columns: 100%;
+  overflow-x:auto; scroll-snap-type: x mandatory; scroll-behavior:smooth; border-radius:16px;
+  border:1px solid var(--sh-border); background: #0b0b0b08;
+}
+.sh-slide{ scroll-snap-align: start; margin:0; }
+.sh-slide img{ display:block; width:100%; height:auto; aspect-ratio: 16/9; object-fit: contain; background:#e5e7eb; }
+
+.sh-slider-ctrls{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  margin-top:8px;
+}
+.sh-arrow{
+  border:1px solid var(--sh-border); background: var(--sh-card); border-radius:10px;
+  width:40px; height:40px; font-size:20px; line-height:1; cursor:pointer;
+}
+.sh-arrow:disabled{ opacity:.4; cursor:not-allowed; }
+
+.sh-dots{ display:flex; gap:6px; }
+.sh-dot{
+  width:10px; height:10px; border-radius:999px; border:1px solid var(--sh-border); background: transparent; cursor:pointer;
+}
+.sh-dot.is-active{ background: currentColor; }
+
+.sh-count{
+  position:absolute; right:10px; bottom:10px;
+  font-weight:700; font-size:.9rem; padding:4px 8px; border-radius:999px;
+  background: color-mix(in srgb, #00000055, #ffffff11); color: #fff;
+}
+
+/* ACCESSIBILITY: hide-only helper if project doesn’t have it */
+.visually-hidden{ position:absolute !important; height:1px; width:1px; overflow:hidden; clip: rect(1px, 1px, 1px, 1px); white-space:nowrap; }
+
+/* Responsive */
+@media (max-width: 960px){
+  .sh-hero-grid{ grid-template-columns: 1fr; }
+  .sh-logi-grid{ grid-template-columns: 1fr; }
+  .sh-logi-cta{ justify-content:flex-start; }
+  .sh-spec-band{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (prefers-reduced-motion: reduce){
+  .sh-strip{ scroll-behavior: auto; }
+}
+
+@media (min-width: 960px){
+  .sh-slide img{ display:block; width:100%; height:auto; aspect-ratio: 16/9; object-fit: scale-down; background:#e5e7eb; }
+}

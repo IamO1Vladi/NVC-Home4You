@@ -52,6 +52,16 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "Controllers.CasesPageController",
+    "Method": "Get",
+    "RelativePath": "api/cases-page",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "Controllers.FilesController",
     "Method": "Get",
     "RelativePath": "api/files/{table}/{rid}/{fid}/{version}",
@@ -80,6 +90,32 @@
         "IsRequired": true
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Controllers.ReviewsController",
+    "Method": "Post",
+    "RelativePath": "api/reviews",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "Models.ReviewDto",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "Controllers.SitemapController",
+    "Method": "GallerySitemap",
+    "RelativePath": "sitemap-gallery.xml",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   }
 ]
