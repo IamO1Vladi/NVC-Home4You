@@ -15,15 +15,17 @@ public class CasesPageService
     private readonly QuickbaseApi _qb;
     private readonly EnvConfig _env;
     private readonly IMemoryCache _cache;
+    private readonly ReviewService _reviews;
 
     private const string CacheKey = "cases-page:v1";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
-    public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache)
+    public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache, ReviewService reviews)
     {
         _qb = qb;
         _env = env;
         _cache = cache;
+        _reviews = reviews;
     }
 
     public async Task<CasesPageResponse> GetAsync(CancellationToken ct)
@@ -60,7 +62,7 @@ public class CasesPageService
 
         var relatedImages = await LoadCaseImagesAsync(publicCaseIds, ct);
         var cases = MapCases(rawCases, relatedImages);
-        var reviews = await LoadApprovedReviewsAsync(ct);
+        var reviews = await _reviews.GetApprovedReviewsAsync(ct);
         var clients = BuildClients(cases);
 
         return new CasesPageResponse
@@ -115,62 +117,6 @@ public class CasesPageService
         }
 
         return fields.Where(fid => fid > 0).ToArray();
-    }
-
-    private async Task<List<PublicReviewDto>> LoadApprovedReviewsAsync(CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(_env.TableReviews))
-            return new List<PublicReviewDto>();
-
-        var fields = new HashSet<int>
-        {
-            _env.F_REVIEW_RID,
-            _env.F_REVIEW_NAME,
-            _env.F_REVIEW_COMPANY,
-            _env.F_REVIEW_PRODUCT,
-            _env.F_REVIEW_LOCATION,
-            _env.F_REVIEW_RATING,
-            _env.F_REVIEW_COMMENT,
-            _env.F_REVIEW_STATUS,
-        };
-
-        if (_env.F_REVIEW_CREATED.HasValue)
-            fields.Add(_env.F_REVIEW_CREATED.Value);
-
-        var sortField = _env.F_REVIEW_CREATED ?? _env.F_REVIEW_RID;
-        var rows = await _qb.QueryAsync(_env.TableReviews, fields,"", sortField, "DESC", ct);
-
-        var list = new List<PublicReviewDto>();
-        var approved = string.IsNullOrWhiteSpace(_env.ReviewApprovedValue)
-            ? "approved"
-            : _env.ReviewApprovedValue;
-
-        foreach (var row in rows.data ?? new List<QbRec>())
-        {
-            var status = (Get(row, _env.F_REVIEW_STATUS) ?? string.Empty).Trim();
-            if (!status.Equals(approved, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var item = new PublicReviewDto
-            {
-                Id = Get(row, _env.F_REVIEW_RID) ?? Guid.NewGuid().ToString("N"),
-                Status = status,
-                Name = Get(row, _env.F_REVIEW_NAME) ?? string.Empty,
-                Company = Get(row, _env.F_REVIEW_COMPANY),
-                Product = Get(row, _env.F_REVIEW_PRODUCT),
-                Location = Get(row, _env.F_REVIEW_LOCATION),
-                Comment = Get(row, _env.F_REVIEW_COMMENT),
-                Rating = ToDouble(Get(row, _env.F_REVIEW_RATING)),
-                CreatedAt = NormalizeDate(Get(row, _env.F_REVIEW_CREATED))
-            };
-
-            if (string.IsNullOrWhiteSpace(item.Name) && string.IsNullOrWhiteSpace(item.Comment))
-                continue;
-
-            list.Add(item);
-        }
-
-        return list;
     }
 
     private async Task<Dictionary<long, List<string>>> LoadCaseImagesAsync(
@@ -888,34 +834,6 @@ public class CasesPageService
         if (DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
         {
             return dto.UtcDateTime.Year.ToString(CultureInfo.InvariantCulture);
-        }
-
-        return value;
-    }
-
-    private static string? NormalizeDate(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        if (long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var epoch) &&
-            epoch > 100000000000)
-        {
-            try
-            {
-                return DateTimeOffset
-                    .FromUnixTimeMilliseconds(epoch)
-                    .UtcDateTime
-                    .ToString("O", CultureInfo.InvariantCulture);
-            }
-            catch
-            {
-            }
-        }
-
-        if (DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
-        {
-            return dto.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
         }
 
         return value;

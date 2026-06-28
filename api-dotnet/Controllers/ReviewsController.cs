@@ -18,6 +18,20 @@ public class ReviewsController : ControllerBase
         _svc = svc;
     }
 
+    // Lightweight social-proof feed for the homepage: top approved reviews plus the
+    // aggregate rating/count. Kept separate from /api/cases-page so the homepage doesn't
+    // download the full cases + image payload just to show a few testimonials.
+    [HttpGet("featured")]
+    public async Task<IActionResult> Featured([FromQuery] int take, CancellationToken ct)
+    {
+        if (take <= 0) take = 3;
+        if (take > 12) take = 12;
+
+        var dto = await _svc.GetFeaturedAsync(take, ct);
+        Response.Headers["Cache-Control"] = "public, max-age=120";
+        return Ok(dto);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] ReviewDto? dto, CancellationToken ct)
     {

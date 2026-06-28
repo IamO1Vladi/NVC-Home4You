@@ -76,6 +76,12 @@ public class PublicReviewDto {
   public string? CreatedAt { get; set; }
 }
 
+public class FeaturedReviewsResponse {
+  public double AverageRating { get; set; }
+  public int TotalCount { get; set; }
+  public List<PublicReviewDto> Items { get; set; } = new();
+}
+
 public class QbValue
 {
     public JsonElement value { get; set; }

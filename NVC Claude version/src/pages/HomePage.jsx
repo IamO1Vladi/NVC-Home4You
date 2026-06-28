@@ -4,6 +4,7 @@ import Steps from '../components/Steps.jsx'
 import WhyUs from '../components/WhyUs.jsx'
 import GlideServices from '../components/GlideServices.jsx'
 import ServiceTiles from '../components/ServiceTiles.jsx'
+import Testimonials from '../components/Testimonials.jsx'
 import { LocalBusinessJSONLD } from '../components/StructuredData.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 
@@ -20,6 +21,7 @@ export default function HomePage({ locale = 'en', bundle }) {
       <GlideServices locale={locale} content={content.glideServices} />
       <Steps content={content.steps} />
       <WhyUs content={content.whyUs} />
+      <Testimonials locale={locale} content={content.testimonials} />
 
       <section>
         <div className="container">

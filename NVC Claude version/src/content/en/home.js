@@ -199,6 +199,16 @@ export default {
       description: 'Get a no-obligation quote or ask us anything. We respond within 24 hours.',
       primaryCta: 'Get a Quote',
     },
+    testimonials: {
+      take: 3,
+      heading: 'What our customers say',
+      subheading: 'Verified reviews from homeowners across Europe.',
+      aggregateAria: 'Average customer rating',
+      countLabel: '{count} verified reviews',
+      verified: 'Verified',
+      customerFallback: 'Customer',
+      ctaLabel: 'Read all reviews →',
+    },
     finalCta: {
       title: 'Ready to start your project?',
       desc: 'Get a no-obligation quote or ask us anything. We respond within 24 hours.',
