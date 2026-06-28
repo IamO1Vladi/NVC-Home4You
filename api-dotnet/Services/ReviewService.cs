@@ -90,9 +90,20 @@ public class ReviewService
     /// </summary>
     public async Task<FeaturedReviewsResponse> GetFeaturedAsync(int take, CancellationToken ct)
     {
-        if (take <= 0) take = 3;
-
         var approved = await GetApprovedReviewsAsync(ct);
+        return BuildFeatured(approved, take);
+    }
+
+    /// <summary>
+    /// Pure projection of the approved set into the homepage feed: the aggregate average
+    /// (rounded to one decimal, ignoring unrated entries), the total approved count, and the
+    /// top <paramref name="take"/> items. Kept side-effect free so it can be unit tested
+    /// without Quickbase.
+    /// </summary>
+    public static FeaturedReviewsResponse BuildFeatured(IReadOnlyList<PublicReviewDto> approved, int take)
+    {
+        if (approved is null) approved = Array.Empty<PublicReviewDto>();
+        if (take <= 0) take = 3;
 
         var rated = approved
             .Where(r => r.Rating > 0)

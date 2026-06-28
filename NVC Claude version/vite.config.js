@@ -11,5 +11,12 @@ export default defineConfig({
       '/api': 'http://localhost:5178',
       '/swagger': 'http://localhost:5178'
     }
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+    css: false,
+    include: ['src/**/*.{test,spec}.{js,jsx}']
   }
 })
