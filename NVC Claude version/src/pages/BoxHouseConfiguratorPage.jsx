@@ -6,6 +6,16 @@ import { cdnImage, cdnSrcSet } from '../lib/img.js'
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
+// Which accordion section opens first when a step is shown on mobile.
+const MOBILE_DEFAULT_SECTION = {
+  model: 'model',
+  layout: 'layout',
+  exterior: 'panels',
+  interior: 'panels',
+  sockets: 'place',
+  summary: 'overview',
+}
+
 function escapeHtml(value = '') {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -201,28 +211,6 @@ function OptionTile({ active, title, subtitle, onClick, swatch, badge }) {
 }
 
 
-function MobileTabBar({ items, value, onChange }) {
-  return (
-    <div className="bhc-mobile-tabbar" role="tablist">
-      {items.map((item) => {
-        const active = item.key === value
-        return (
-          <button
-            key={item.key}
-            type="button"
-            className={['bhc-mobile-tab', active && 'is-active'].filter(Boolean).join(' ')}
-            onClick={() => onChange(item.key)}
-            role="tab"
-            aria-selected={active}
-          >
-            {item.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 function MobileDisclosure({ title, summary, children, defaultOpen = false }) {
   const [open, setOpen] = React.useState(defaultOpen)
 
@@ -240,19 +228,76 @@ function MobileDisclosure({ title, summary, children, defaultOpen = false }) {
   )
 }
 
-function MobileHeroPreview({ image, title, subtitle, chips = [] }) {
+function MobileHeroPreview({ image, title, subtitle, chips = [], contain = false }) {
   return (
     <div className="bhc-mobile-hero-card">
-      {image ? <img className="bhc-mobile-hero-image" src={cdnImage(image, { width: 700 })} srcSet={cdnSrcSet(image, [360, 540, 700, 960])} sizes="(max-width: 700px) 100vw, 600px" alt="" loading="lazy" decoding="async" /> : null}
+      {image ? <img className={['bhc-mobile-hero-image', contain && 'bhc-mobile-hero-image--contain'].filter(Boolean).join(' ')} src={cdnImage(image, { width: 700 })} srcSet={cdnSrcSet(image, [360, 540, 700, 960])} sizes="(max-width: 700px) 100vw, 600px" alt="" loading="lazy" decoding="async" /> : null}
       <div className="bhc-mobile-hero-copy">
         <strong>{title}</strong>
         {subtitle ? <span>{subtitle}</span> : null}
         {chips.length ? (
           <div className="bhc-mobile-chip-row">
-            {chips.map((chip) => <span key={chip} className="bhc-mini-chip">{chip}</span>)}
+            {chips.filter(Boolean).map((chip) => <span key={chip} className="bhc-mini-chip">{chip}</span>)}
           </div>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// Compact progress header for the mobile wizard (replaces the wide desktop step rail).
+function MobileStepper({ steps, activeIndex, onGo, stepWord }) {
+  return (
+    <div className="bhc-mstepper">
+      <div className="bhc-mstepper-top">
+        <span className="bhc-mstepper-count">{stepWord} {activeIndex + 1} / {steps.length}</span>
+        <span className="bhc-mstepper-name">{steps[activeIndex]?.label}</span>
+      </div>
+      <div className="bhc-mstepper-track" role="tablist" aria-label="Configurator steps">
+        {steps.map((step, index) => (
+          <button
+            key={step.key}
+            type="button"
+            className={['bhc-mstepper-seg', index === activeIndex && 'is-active', index < activeIndex && 'is-done'].filter(Boolean).join(' ')}
+            onClick={() => onGo(index)}
+            role="tab"
+            aria-selected={index === activeIndex}
+            aria-label={`${stepWord} ${index + 1}: ${step.label}`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Accordion decision row. Collapsed it shows the current pick (thumb/swatch + value);
+// expanded it reveals the options. Controlled so only one section is open at a time.
+function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badge, children }) {
+  const open = openId === id
+  const [failed, setFailed] = React.useState(false)
+
+  React.useEffect(() => {
+    setFailed(false)
+  }, [thumb])
+
+  const showThumb = Boolean(thumb) && !failed
+
+  return (
+    <div className={['bhc-msection', open && 'is-open'].filter(Boolean).join(' ')}>
+      <button type="button" className="bhc-msection-head" onClick={() => onToggle(id)} aria-expanded={open}>
+        {showThumb ? (
+          <img className="bhc-msection-thumb" src={cdnImage(thumb, { width: 160 })} alt="" loading="lazy" onError={() => setFailed(true)} />
+        ) : swatch ? (
+          <span className="bhc-msection-thumb bhc-msection-thumb--swatch" style={{ '--sw': swatch }} aria-hidden="true" />
+        ) : null}
+        <span className="bhc-msection-copy">
+          <span className="bhc-msection-title">{title}</span>
+          {value ? <span className="bhc-msection-value">{value}</span> : null}
+        </span>
+        {badge ? <span className="bhc-msection-badge">{badge}</span> : null}
+        <span className="bhc-msection-chevron" aria-hidden="true" />
+      </button>
+      {open ? <div className="bhc-msection-body">{children}</div> : null}
     </div>
   )
 }
@@ -530,9 +575,13 @@ export default function BoxHouseConfiguratorPage({ content }) {
     if (typeof window === 'undefined' || !window.matchMedia) return false
     return window.matchMedia('(max-width: 860px)').matches
   })
-  const [mobileExteriorSection, setMobileExteriorSection] = React.useState('finish')
-  const [mobileInteriorSection, setMobileInteriorSection] = React.useState('finish')
-  const [mobileSummarySection, setMobileSummarySection] = React.useState('overview')
+  const [openSection, setOpenSection] = React.useState('model')
+
+  const toggleSection = React.useCallback((id) => {
+    setOpenSection((current) => (current === id ? null : id))
+  }, [])
+
+  const stepWord = isBg ? 'Стъпка' : locale === 'el' ? 'Βήμα' : 'Step'
 
 
   const scrollToPreview = React.useCallback((key) => {
@@ -560,10 +609,16 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   React.useEffect(() => {
     if (!isMobileShell) return
-    if (stepIndex === 2) setMobileExteriorSection('finish')
-    if (stepIndex === 3) setMobileInteriorSection('finish')
-    if (stepIndex === 5) setMobileSummarySection('overview')
+    setOpenSection(MOBILE_DEFAULT_SECTION[STEP_KEYS[stepIndex]] || null)
   }, [isMobileShell, stepIndex])
+
+  // On the configurator page the generic global mobile quote dock is replaced by the
+  // in-page sticky price/nav bar, so hide the dock while this page is mounted.
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    document.body.classList.add('bhc-config-active')
+    return () => document.body.classList.remove('bhc-config-active')
+  }, [])
 
   const stepMeta = t.steps || STEP_KEYS.map((key) => ({ key, label: key }))
 
@@ -2123,13 +2178,45 @@ export default function BoxHouseConfiguratorPage({ content }) {
           image={asset(selectedModelHeroImage)}
           title={selectedModel?.label || '-'}
           subtitle={config.variant === 'balcony' ? labels.balcony : labels.standard}
-          chips={[euro(knownBasePrice, locale)]}
+          chips={[`${labels.area}: ${selectedModel?.area} m²`, euro(knownBasePrice, locale)]}
         />
 
-        <MobileDisclosure
+        <MobileSection
+          id="model"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.model}
+          value={`${selectedModel?.label || '-'} · ${selectedModel?.area} m²`}
+          thumb={asset(selectedModelHeroImage)}
+        >
+          <div className="bhc-card-grid bhc-card-grid--compact">
+            {catalog.models.map((model) => {
+              const modelImage = config.variant === 'balcony'
+                ? (model.balconyHeroImage || model.heroImage)
+                : (model.standardHeroImage || model.heroImage)
+
+              return (
+                <ChoiceCard
+                  key={model.key}
+                  active={config.model === model.key}
+                  title={model.label}
+                  subtitle={`${labels.area}: ${model.area} m²`}
+                  image={asset(modelImage)}
+                  badge={euro(config.variant === 'balcony' ? model.balconyPrice : model.basePrice, locale)}
+                  onClick={() => setField('model', model.key)}
+                />
+              )
+            })}
+          </div>
+        </MobileSection>
+
+        <MobileSection
+          id="variant"
+          openId={openSection}
+          onToggle={toggleSection}
           title={labels.variant}
-          summary={`${config.variant === 'balcony' ? labels.balcony : labels.standard} · ${euro(knownBasePrice, locale)}`}
-          defaultOpen
+          value={config.variant === 'balcony' ? labels.balcony : labels.standard}
+          badge={euro(knownBasePrice, locale)}
         >
           <div className="bhc-toggle-row">
             <button type="button" className={['bhc-toggle', config.variant === 'standard' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('variant', 'standard')}>
@@ -2144,28 +2231,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <SummaryRow label={labels.dimensionsOpen} value={selectedModel?.dimensionsOpen || '-'} />
             <SummaryRow label={labels.dimensionsFolded} value={selectedModel?.dimensionsFolded || '-'} />
           </div>
-        </MobileDisclosure>
-
-        <div className="bhc-section-title">{labels.model}</div>
-        <div className="bhc-card-grid bhc-card-grid--compact">
-          {catalog.models.map((model) => {
-            const modelImage = config.variant === 'balcony'
-              ? (model.balconyHeroImage || model.heroImage)
-              : (model.standardHeroImage || model.heroImage)
-
-            return (
-              <ChoiceCard
-                key={model.key}
-                active={config.model === model.key}
-                title={model.label}
-                subtitle={`${labels.area}: ${model.area} m²`}
-                image={asset(modelImage)}
-                badge={euro(config.variant === 'balcony' ? model.balconyPrice : model.basePrice, locale)}
-                onClick={() => setField('model', model.key)}
-              />
-            )
-          })}
-        </div>
+        </MobileSection>
       </div>
     )
   }
@@ -2173,69 +2239,39 @@ export default function BoxHouseConfiguratorPage({ content }) {
   function renderLayoutStepMobile() {
     return (
       <div className="bhc-mobile-shell">
-        <MobileDisclosure
-          title={labels.plan}
-          summary={`${selectedPlan?.label || '-'}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`}
-          defaultOpen
-        >
-          <div className="bhc-plan-stage">
-            <img src={cdnImage(asset(selectedPlan?.image || ''), { width: 900 })} srcSet={cdnSrcSet(asset(selectedPlan?.image || ''), [450, 700, 900, 1200])} sizes="(max-width: 900px) 90vw, 560px" alt="" decoding="async" />
-          </div>
-        </MobileDisclosure>
+        <MobileHeroPreview
+          image={asset(selectedPlan?.image || '')}
+          title={selectedPlan?.label || '-'}
+          subtitle={selectedPlan?.subtitle || labels.layout}
+          contain
+        />
 
-        <div className="bhc-section-title">{labels.layout}</div>
-        <div className="bhc-card-grid bhc-card-grid--compact">
-          {planChoices.map((plan) => (
-            <ChoiceCard
-              key={plan.key}
-              active={config.plan === plan.key}
-              title={plan.label}
-              subtitle={plan.subtitle}
-              image={asset(plan.image)}
-              onClick={() => setField('plan', plan.key)}
-            />
-          ))}
-        </div>
+        <MobileSection
+          id="layout"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.layout}
+          value={`${selectedPlan?.label || '-'}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`}
+          thumb={asset(selectedPlan?.image || '')}
+        >
+          <div className="bhc-card-grid bhc-card-grid--compact">
+            {planChoices.map((plan) => (
+              <ChoiceCard
+                key={plan.key}
+                active={config.plan === plan.key}
+                title={plan.label}
+                subtitle={plan.subtitle}
+                image={asset(plan.image)}
+                onClick={() => setField('plan', plan.key)}
+              />
+            ))}
+          </div>
+        </MobileSection>
       </div>
     )
   }
 
   function renderExteriorStepMobile() {
-    const exteriorPreviewCards = [
-      {
-        key: 'outsidePanels',
-        title: labels.outsidePanels,
-        image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.previewImage || selectedExteriorFinish?.referenceImage || ''),
-        label: selectedExteriorFinish?.label || '-',
-        swatch: selectedExteriorFinish?.swatch,
-      },
-      {
-        key: 'windowStyle',
-        title: labels.windowStyle,
-        image: asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.previewImage || selectedWindowStyle?.referenceImage || ''),
-        label: selectedWindowStyle?.label || '-',
-      },
-      {
-        key: 'exteriorDoor',
-        title: labels.exteriorDoor,
-        image: asset(selectedDoor?.thumbImage || selectedDoor?.previewImage || selectedDoor?.referenceImage || ''),
-        label: selectedDoor?.label || '-',
-      },
-      ...(config.variant === 'balcony' ? [{
-        key: 'deckingColor',
-        title: labels.deckingColor,
-        image: asset(selectedDeckingColor?.thumbImage || selectedDeckingColor?.previewImage || selectedDeckingColor?.referenceImage || ''),
-        label: selectedDeckingColor?.label || '-',
-        swatch: selectedDeckingColor?.swatch,
-      }] : []),
-    ]
-
-    const exteriorTabs = [
-      { key: 'finish', label: isBg ? 'Финиши' : 'Finishes' },
-      { key: 'openings', label: isBg ? 'Отвори' : 'Openings' },
-      { key: 'upgrades', label: isBg ? 'Ъпгрейди' : 'Upgrades' },
-    ]
-
     const previewChips = [selectedExteriorFinish?.label || '-', selectedWindowStyle?.label || '-', selectedDoor?.label || '-']
     if (config.variant === 'balcony') previewChips.push(selectedDeckingColor?.label || '-')
 
@@ -2243,217 +2279,183 @@ export default function BoxHouseConfiguratorPage({ content }) {
       <div className="bhc-mobile-shell">
         <MobileHeroPreview image={asset(selectedModelHeroImage)} title={selectedModel?.label || '-'} subtitle={config.variant === 'balcony' ? labels.balcony : labels.standard} chips={previewChips} />
 
-        <MobileDisclosure title={labels.overview} summary={previewChips.join(' · ')}>
-          <div className="bhc-mobile-tray-grid">
-            {exteriorPreviewCards.map((card) => (
-              <MobileMiniChoice key={card.key} title={card.title} image={card.image} label={card.label} swatch={card.swatch} />
+        <MobileSection
+          id="panels"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.outsidePanels}
+          value={selectedExteriorFinish?.label || '-'}
+          thumb={asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || '')}
+          swatch={selectedExteriorFinish?.swatch}
+        >
+          <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--wide">
+            {exteriorFinishOptions.map((item) => (
+              <ThumbChoiceButton
+                key={item.key}
+                active={config.exteriorFinish === item.key}
+                label={item.label}
+                image={asset(item.thumbImage || item.referenceImage || '')}
+                swatch={item.swatch}
+                onClick={() => setField('exteriorFinish', item.key)}
+              />
             ))}
           </div>
-          <div className="bhc-mobile-mini-list">
-            <div><strong>{labels.basePrice}:</strong> {euro(knownBasePrice, locale)}</div>
-            <div><strong>{labels.steelFrameColor}:</strong> {selectedSteelFrameColor?.label || '-'}</div>
-            <div><strong>{labels.heating}:</strong> {config.heating ? euro(heatingPrice, locale) : noText}</div>
+        </MobileSection>
+
+        <MobileSection
+          id="windowStyle"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.windowStyle}
+          value={selectedWindowStyle?.label || '-'}
+          thumb={asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.referenceImage || '')}
+        >
+          <div className="bhc-code-grid">
+            {catalog.windowStyleOptions.map((item) => (
+              <OptionTile key={item.key} active={config.windowStyle === item.key} title={item.label} onClick={() => setField('windowStyle', item.key)} />
+            ))}
           </div>
-        </MobileDisclosure>
+        </MobileSection>
 
-        <MobileTabBar items={exteriorTabs} value={mobileExteriorSection} onChange={setMobileExteriorSection} />
+        <MobileSection
+          id="exteriorDoor"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.exteriorDoor}
+          value={selectedDoor?.label || '-'}
+          thumb={asset(selectedDoor?.thumbImage || selectedDoor?.referenceImage || '')}
+        >
+          <div className="bhc-code-grid">
+            {catalog.exteriorDoorOptions.map((item) => (
+              <OptionTile key={item.key} active={config.exteriorDoor === item.key} title={item.label} onClick={() => setField('exteriorDoor', item.key)} />
+            ))}
+          </div>
+        </MobileSection>
 
-        {mobileExteriorSection === 'finish' ? (
-          <div className="bhc-stack">
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.steelFrameColor}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                {catalog.steelFrameColorOptions.map((item) => (
-                  <SwatchButton
-                    key={item.key}
-                    active={config.steelFrameColor === item.key}
-                    label={item.label}
-                    swatch={item.swatch}
-                    onClick={() => setField('steelFrameColor', item.key)}
-                  />
-                ))}
-              </div>
+        <MobileSection
+          id="frame"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.frame}
+          value={selectedFrame?.label || '-'}
+        >
+          <div className="bhc-option-list">
+            {catalog.windowFrameOptions.map((item) => (
+              <ChoiceCard key={item.key} active={config.windowFrame === item.key} title={item.label} subtitle={item.note} onClick={() => setField('windowFrame', item.key)} />
+            ))}
+          </div>
+        </MobileSection>
+
+        <MobileSection
+          id="steelColor"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.steelFrameColor}
+          value={selectedSteelFrameColor?.label || '-'}
+          swatch={selectedSteelFrameColor?.swatch}
+        >
+          <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+            {catalog.steelFrameColorOptions.map((item) => (
+              <SwatchButton
+                key={item.key}
+                active={config.steelFrameColor === item.key}
+                label={item.label}
+                swatch={item.swatch}
+                onClick={() => setField('steelFrameColor', item.key)}
+              />
+            ))}
+          </div>
+        </MobileSection>
+
+        {config.variant === 'balcony' ? (
+          <MobileSection
+            id="decking"
+            openId={openSection}
+            onToggle={toggleSection}
+            title={labels.deckingColor}
+            value={selectedDeckingColor?.label || '-'}
+            swatch={selectedDeckingColor?.swatch}
+          >
+            <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+              {catalog.deckingColorOptions.map((item) => (
+                <SwatchButton key={item.key} active={config.deckingColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('deckingColor', item.key)} />
+              ))}
             </div>
+          </MobileSection>
+        ) : null}
 
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.outsidePanels}</div>
-              <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--wide">
-                {exteriorFinishOptions.map((item) => (
-                  <ThumbChoiceButton
-                    key={item.key}
-                    active={config.exteriorFinish === item.key}
-                    label={item.label}
-                    image={asset(item.thumbImage || item.referenceImage || '')}
-                    swatch={item.swatch}
-                    onClick={() => setField('exteriorFinish', item.key)}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {config.variant === 'balcony' ? (
-              <div className="bhc-side-panel">
-                <div className="bhc-section-title">{labels.deckingColor}</div>
-                <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                  {catalog.deckingColorOptions.map((item) => (
-                    <SwatchButton key={item.key} active={config.deckingColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('deckingColor', item.key)} />
-                  ))}
+        <MobileSection
+          id="windows"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.windowOpenings}
+          value={`${(config.windows || []).length} · ${windowSizeDimension} mm${windowExtrasPrice ? ` · +${euro(windowExtrasPrice, locale)}` : ''}`}
+        >
+          <div className="bhc-hint">{labels.addWindowHint}</div>
+          <div className="bhc-subhead">{labels.windowSize}</div>
+          <div className="bhc-toggle-row bhc-toggle-row--3">
+            <button type="button" className={['bhc-toggle', config.windowSize === '1000' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1000')}>{labels.windowSize1000}</button>
+            <button type="button" className={['bhc-toggle', config.windowSize === '1200' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1200')}>{labels.windowSize1200}</button>
+            <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
+          </div>
+          <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
+          <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
+          {(config.windows || []).length > 0 ? (
+            <div className="bhc-window-list">
+              {(config.windows || []).map((win, index) => (
+                <div key={win.id} className="bhc-window-row">
+                  <span className={['bhc-window-num', win.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
+                  <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
+                  <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)} title={win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}>
+                    {win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}
+                  </button>
+                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
                 </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="bhc-action-row bhc-action-row--stack">
+            <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
+            <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
+          </div>
+          <div className="bhc-window-price-box">
+            <div className="bhc-window-price-row">
+              <span>{labels.windowSize} · {windowSizeDimension} mm <em>({labels.forAllWindows})</em></span>
+              <span>{windowSizeExtra ? `+${euro(windowSizeExtra, locale)}` : labels.windowSizeIncluded}</span>
+            </div>
+            {panoramicWindowCount ? (
+              <div className="bhc-window-price-row">
+                <span>{labels.panoramicUpgrades} · {panoramicWindowCount}×€300</span>
+                <span>+{euro(panoramicUpgradePrice, locale)}</span>
               </div>
             ) : null}
-          </div>
-        ) : null}
-
-        {mobileExteriorSection === 'openings' ? (
-          <div className="bhc-stack">
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.frame}</div>
-              <div className="bhc-option-list">
-                {catalog.windowFrameOptions.map((item) => (
-                  <ChoiceCard key={item.key} active={config.windowFrame === item.key} title={item.label} subtitle={item.note} onClick={() => setField('windowFrame', item.key)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.windowStyle}</div>
-              <div className="bhc-code-grid">
-                {catalog.windowStyleOptions.map((item) => (
-                  <OptionTile key={item.key} active={config.windowStyle === item.key} title={item.label} onClick={() => setField('windowStyle', item.key)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.exteriorDoor}</div>
-              <div className="bhc-code-grid">
-                {catalog.exteriorDoorOptions.map((item) => (
-                  <OptionTile key={item.key} active={config.exteriorDoor === item.key} title={item.label} onClick={() => setField('exteriorDoor', item.key)} />
-                ))}
-              </div>
+            <div className="bhc-window-price-row bhc-window-price-row--total">
+              <span>{labels.windowExtrasLabel}</span>
+              <span>{windowExtrasPrice ? euro(windowExtrasPrice, locale) : '—'}</span>
             </div>
           </div>
-        ) : null}
+          <textarea value={config.windowNotes} onChange={(e) => setField('windowNotes', e.target.value)} placeholder={labels.windowNotesPlaceholder} rows={3} />
+        </MobileSection>
 
-        {mobileExteriorSection === 'upgrades' ? (
-          <div className="bhc-stack">
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.windowOpenings}</div>
-              <div className="bhc-hint">{labels.addWindowHint}</div>
-              <div className="bhc-subhead">{labels.windowSize}</div>
-              <div className="bhc-toggle-row bhc-toggle-row--3">
-                <button type="button" className={['bhc-toggle', config.windowSize === '1000' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1000')}>{labels.windowSize1000}</button>
-                <button type="button" className={['bhc-toggle', config.windowSize === '1200' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1200')}>{labels.windowSize1200}</button>
-                <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
-              </div>
-              <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
-              <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
-              {(config.windows || []).length > 0 ? (
-                <div className="bhc-window-list">
-                  {(config.windows || []).map((win, index) => (
-                    <div key={win.id} className="bhc-window-row">
-                      <span className={['bhc-window-num', win.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
-                      <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
-                      <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)} title={win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}>
-                        {win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}
-                      </button>
-                      <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <div className="bhc-action-row bhc-action-row--stack">
-                <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
-                <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
-              </div>
-              <div className="bhc-window-price-box">
-                <div className="bhc-window-price-row">
-                  <span>{labels.windowSize} · {windowSizeDimension} mm <em>({labels.forAllWindows})</em></span>
-                  <span>{windowSizeExtra ? `+${euro(windowSizeExtra, locale)}` : labels.windowSizeIncluded}</span>
-                </div>
-                {panoramicWindowCount ? (
-                  <div className="bhc-window-price-row">
-                    <span>{labels.panoramicUpgrades} · {panoramicWindowCount}×€300</span>
-                    <span>+{euro(panoramicUpgradePrice, locale)}</span>
-                  </div>
-                ) : null}
-                <div className="bhc-window-price-row bhc-window-price-row--total">
-                  <span>{labels.windowExtrasLabel}</span>
-                  <span>{windowExtrasPrice ? euro(windowExtrasPrice, locale) : '—'}</span>
-                </div>
-              </div>
-              <textarea value={config.windowNotes} onChange={(e) => setField('windowNotes', e.target.value)} placeholder={labels.windowNotesPlaceholder} rows={3} />
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.heating}</div>
-              <label className="bhc-check">
-                <input type="checkbox" checked={config.heating} onChange={(e) => setField('heating', e.target.checked)} />
-                <span>{labels.heating}</span>
-              </label>
-              <div className="bhc-inline-price">{labels.heatingPrice}: {euro(catalog.pricing.heatingPerM2 * (selectedModel?.area || 0), locale)}</div>
-              <div className="bhc-hint">{hints.exterior}</div>
-            </div>
-          </div>
-        ) : null}
+        <MobileSection
+          id="heating"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.heating}
+          value={config.heating ? `${yesText} · ${euro(heatingPrice, locale)}` : noText}
+        >
+          <label className="bhc-check">
+            <input type="checkbox" checked={config.heating} onChange={(e) => setField('heating', e.target.checked)} />
+            <span>{labels.heating}</span>
+          </label>
+          <div className="bhc-inline-price">{labels.heatingPrice}: {euro(catalog.pricing.heatingPerM2 * (selectedModel?.area || 0), locale)}</div>
+          <div className="bhc-hint">{hints.exterior}</div>
+        </MobileSection>
       </div>
     )
   }
 
   function renderInteriorStepMobile() {
-    const interiorPreviewCards = [
-      {
-        key: 'bathroom',
-        title: labels.bathroom,
-        image: asset(selectedBathroom?.image || ''),
-        label: selectedBathroom?.label || '-',
-        subtitle: selectedBathroom?.subtitle || labels.bathroom,
-      },
-      {
-        key: 'kitchen',
-        title: labels.kitchen,
-        image: asset(selectedKitchen?.image || ''),
-        label: selectedKitchen?.label || '-',
-        subtitle: selectedKitchen?.subtitle || labels.kitchen,
-      },
-      {
-        key: 'floorFinish',
-        title: labels.floorFinish,
-        image: asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || ''),
-        label: optionDisplay(selectedFloorOption),
-        subtitle: optionSummary(selectedFloorOption),
-        swatch: selectedFloorOption?.swatch,
-      },
-      {
-        key: 'kitchenBench',
-        title: labels.kitchenBench,
-        image: asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || ''),
-        label: optionDisplay(selectedKitchenBench),
-        subtitle: optionSummary(selectedKitchenBench),
-        swatch: selectedKitchenBench?.swatch,
-      },
-      {
-        key: 'interiorPanels',
-        title: labels.interiorPanels,
-        image: asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || ''),
-        label: selectedInteriorPanels?.label || labels.defaultWhitePanels,
-        swatch: selectedInteriorPanels?.swatch,
-      },
-      {
-        key: 'insideDoorStyle',
-        title: labels.insideDoorStyle,
-        image: asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || ''),
-        label: selectedInsideDoorStyle?.label || '-',
-        subtitle: `${config.insideDoorCount || 0}`,
-      },
-    ]
-
-    const interiorTabs = [
-      { key: 'finish', label: isBg ? 'Финиши' : 'Finishes' },
-      { key: 'rooms', label: isBg ? 'Баня и кухня' : 'Bath & kitchen' },
-      { key: 'doors', label: isBg ? 'Врати' : 'Doors' },
-    ]
-
     return (
       <div className="bhc-mobile-shell">
         <MobileHeroPreview
@@ -2463,145 +2465,163 @@ export default function BoxHouseConfiguratorPage({ content }) {
           chips={[selectedBathroom?.label || '-', selectedKitchen?.label || '-']}
         />
 
-        <MobileDisclosure title={labels.overview} summary={`${selectedInteriorPanels?.label || labels.defaultWhitePanels} · ${euro(knownTotal, locale)}`}>
-          <div className="bhc-mobile-tray-grid">
-            {interiorPreviewCards.map((card) => (
-              <MobileMiniChoice key={card.key} title={card.title} image={card.image} label={card.label} subtitle={card.subtitle} swatch={card.swatch} />
+        <MobileSection
+          id="panels"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.interiorPanels}
+          value={`${selectedInteriorPanels?.label || labels.defaultWhitePanels}${interiorPanelsPrice ? ` · ${euro(interiorPanelsPrice, locale)}` : ''}`}
+          thumb={asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || '')}
+          swatch={selectedInteriorPanels?.swatch}
+        >
+          <div className="bhc-toggle-row bhc-toggle-row--3">
+            <button type="button" className={['bhc-toggle', config.interiorPanelMode === 'white' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('interiorPanelMode', 'white')}>
+              {labels.defaultWhitePanels}
+            </button>
+            <button type="button" className={['bhc-toggle', config.interiorPanelMode === 'coloured' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('interiorPanelMode', 'coloured')}>
+              {labels.colouredPanels}
+            </button>
+            <button type="button" className={['bhc-toggle', config.interiorPanelMode === 'uv' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('interiorPanelMode', 'uv')}>
+              {labels.uvPanels}
+            </button>
+          </div>
+          {config.interiorPanelMode === 'coloured' ? (
+            <>
+              <div className="bhc-subhead">{labels.interiorPanelColour}</div>
+              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+                {catalog.interiorPanelColorOptions.map((item) => (
+                  <SwatchButton key={item.key} active={config.interiorPanelColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('interiorPanelColor', item.key)} />
+                ))}
+              </div>
+            </>
+          ) : null}
+          {config.interiorPanelMode === 'uv' ? (
+            <>
+              <div className="bhc-subhead">{labels.uvPanel}</div>
+              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+                {catalog.uvPanelOptions.map((item) => (
+                  <SwatchButton key={item.key} active={config.uvPanel === item.key} label={optionDisplay(item)} swatch={item.swatch} onClick={() => setField('uvPanel', item.key)} />
+                ))}
+              </div>
+            </>
+          ) : null}
+          <div className="bhc-inline-price">{labels.internalWalls}: {interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}</div>
+        </MobileSection>
+
+        <MobileSection
+          id="floor"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.floorFinish}
+          value={optionDisplay(selectedFloorOption)}
+          thumb={asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || '')}
+          swatch={selectedFloorOption?.swatch}
+        >
+          <div className="bhc-section-title">{labels.floorFamily}</div>
+          <div className="bhc-toggle-row bhc-toggle-row--3">
+            {!config.heating ? (
+              <>
+                <button type="button" className={['bhc-toggle', activeFloorFamily === 'spc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'spc')}>SPC</button>
+                <button type="button" className={['bhc-toggle', activeFloorFamily === 'pvc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'pvc')}>PVC</button>
+              </>
+            ) : null}
+            {config.heating ? <button type="button" className="bhc-toggle is-active" disabled>Carbon Crystal</button> : null}
+          </div>
+          {config.heating ? <div className="bhc-small-note">{isBg ? 'При избрано отопление Carbon Crystal остава единствената подова опция.' : 'With heating selected, Carbon Crystal remains the only floor option.'}</div> : null}
+          <div className="bhc-subhead">{labels.floorFinish}</div>
+          <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+            {activeFloorOptions.map((item) => (
+              <SwatchButton key={item.key} active={activeFloorSelection === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || selectedFloorOption?.swatch || '#cbd5e1'} onClick={() => setField(activeFloorField, item.key)} />
             ))}
           </div>
-          <div className="bhc-mobile-mini-list">
-            <div><strong>{labels.interiorPanels}:</strong> {selectedInteriorPanels?.label || labels.defaultWhitePanels}</div>
-            <div><strong>{labels.insideDoorStyle}:</strong> {selectedInsideDoorStyle?.label || '-'} · {config.insideDoorCount || 0}</div>
-            <div><strong>{labels.internalWalls}:</strong> {interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}</div>
+        </MobileSection>
+
+        <MobileSection
+          id="bench"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.kitchenBench}
+          value={optionDisplay(selectedKitchenBench)}
+          thumb={asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || '')}
+          swatch={selectedKitchenBench?.swatch}
+        >
+          <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+            {catalog.kitchenBenchOptions.map((item) => (
+              <SwatchButton key={item.key} active={config.kitchenBench === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || selectedKitchenBench?.swatch || '#cbd5e1'} onClick={() => setField('kitchenBench', item.key)} />
+            ))}
           </div>
-        </MobileDisclosure>
+        </MobileSection>
 
-        <MobileTabBar items={interiorTabs} value={mobileInteriorSection} onChange={setMobileInteriorSection} />
-
-        {mobileInteriorSection === 'finish' ? (
-          <div className="bhc-stack">
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.interiorPanels}</div>
-              <div className="bhc-toggle-row bhc-toggle-row--3">
-                <button type="button" className={['bhc-toggle', config.interiorPanelMode === 'white' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('interiorPanelMode', 'white')}>
-                  {labels.defaultWhitePanels}
-                </button>
-                <button type="button" className={['bhc-toggle', config.interiorPanelMode === 'coloured' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('interiorPanelMode', 'coloured')}>
-                  {labels.colouredPanels}
-                </button>
-                <button type="button" className={['bhc-toggle', config.interiorPanelMode === 'uv' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('interiorPanelMode', 'uv')}>
-                  {labels.uvPanels}
-                </button>
-              </div>
-              {config.interiorPanelMode === 'coloured' ? (
-                <>
-                  <div className="bhc-subhead">{labels.interiorPanelColour}</div>
-                  <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                    {catalog.interiorPanelColorOptions.map((item) => (
-                      <SwatchButton key={item.key} active={config.interiorPanelColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('interiorPanelColor', item.key)} />
-                    ))}
-                  </div>
-                </>
-              ) : null}
-              {config.interiorPanelMode === 'uv' ? (
-                <>
-                  <div className="bhc-subhead">{labels.uvPanel}</div>
-                  <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                    {catalog.uvPanelOptions.map((item) => (
-                      <SwatchButton key={item.key} active={config.uvPanel === item.key} label={optionDisplay(item)} swatch={item.swatch} onClick={() => setField('uvPanel', item.key)} />
-                    ))}
-                  </div>
-                </>
-              ) : null}
-              <div className="bhc-inline-price">{labels.internalWalls}: {interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}</div>
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.floorFamily}</div>
-              <div className="bhc-toggle-row bhc-toggle-row--3">
-                {!config.heating ? (
-                  <>
-                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'spc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'spc')}>SPC</button>
-                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'pvc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'pvc')}>PVC</button>
-                  </>
-                ) : null}
-                {config.heating ? <button type="button" className="bhc-toggle is-active" disabled>Carbon Crystal</button> : null}
-              </div>
-              {config.heating ? <div className="bhc-small-note">{isBg ? 'При избрано отопление Carbon Crystal остава единствената подова опция.' : 'With heating selected, Carbon Crystal remains the only floor option.'}</div> : null}
-              <div className="bhc-subhead">{labels.floorFinish}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                {activeFloorOptions.map((item) => (
-                  <SwatchButton key={item.key} active={activeFloorSelection === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || selectedFloorOption?.swatch || '#cbd5e1'} onClick={() => setField(activeFloorField, item.key)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.kitchenBench}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                {catalog.kitchenBenchOptions.map((item) => (
-                  <SwatchButton key={item.key} active={config.kitchenBench === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || selectedKitchenBench?.swatch || '#cbd5e1'} onClick={() => setField('kitchenBench', item.key)} />
-                ))}
-              </div>
-            </div>
+        <MobileSection
+          id="bathroom"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.bathroom}
+          value={selectedBathroom?.label || '-'}
+          thumb={asset(selectedBathroom?.image || '')}
+        >
+          <div className="bhc-card-grid bhc-card-grid--compact">
+            {catalog.bathroomOptions.map((item) => (
+              <ChoiceCard key={item.key} active={config.bathroom === item.key} title={item.label} image={asset(item.image)} onClick={() => setField('bathroom', item.key)} />
+            ))}
           </div>
-        ) : null}
+        </MobileSection>
 
-        {mobileInteriorSection === 'rooms' ? (
-          <div className="bhc-stack">
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.bathroom}</div>
-              <div className="bhc-card-grid bhc-card-grid--compact">
-                {catalog.bathroomOptions.map((item) => (
-                  <ChoiceCard key={item.key} active={config.bathroom === item.key} title={item.label} image={asset(item.image)} onClick={() => setField('bathroom', item.key)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.kitchen}</div>
-              <div className="bhc-card-grid bhc-card-grid--compact">
-                {catalog.kitchenOptions.map((item) => (
-                  <ChoiceCard key={item.key} active={config.kitchen === item.key} title={item.label} image={asset(item.image)} onClick={() => setField('kitchen', item.key)} />
-                ))}
-              </div>
-            </div>
-
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.kitchenExtras}</div>
-              <div className="bhc-pill-grid">
-                {catalog.kitchenExtraOptions.map((item) => (
-                  <button key={item.key} type="button" className={['bhc-pill', config.kitchenExtras[item.key] && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleKitchenExtra(item.key)}>
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <MobileSection
+          id="kitchen"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.kitchen}
+          value={selectedKitchen?.label || '-'}
+          thumb={asset(selectedKitchen?.image || '')}
+        >
+          <div className="bhc-card-grid bhc-card-grid--compact">
+            {catalog.kitchenOptions.map((item) => (
+              <ChoiceCard key={item.key} active={config.kitchen === item.key} title={item.label} image={asset(item.image)} onClick={() => setField('kitchen', item.key)} />
+            ))}
           </div>
-        ) : null}
+        </MobileSection>
 
-        {mobileInteriorSection === 'doors' ? (
-          <div className="bhc-stack">
-            <div className="bhc-side-panel">
-              <div className="bhc-section-title">{labels.insideDoors}</div>
-              <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--wide">
-                {catalog.insideDoorStyleOptions.map((item) => (
-                  <ThumbChoiceButton
-                    key={item.key}
-                    active={config.insideDoorStyle === item.key}
-                    label={item.label}
-                    image={asset(item.thumbImage || item.referenceImage || '')}
-                    onClick={() => setField('insideDoorStyle', item.key)}
-                  />
-                ))}
-              </div>
-              <div className="bhc-number-grid">
-                <NumberField label={labels.insideDoorCount} value={config.insideDoorCount} onChange={(value) => setField('insideDoorCount', value)} max={24} />
-              </div>
-              <div className="bhc-inline-price">{labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : '-'}</div>
-            </div>
+        <MobileSection
+          id="extras"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.kitchenExtras}
+          value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'}
+        >
+          <div className="bhc-pill-grid">
+            {catalog.kitchenExtraOptions.map((item) => (
+              <button key={item.key} type="button" className={['bhc-pill', config.kitchenExtras[item.key] && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleKitchenExtra(item.key)}>
+                {item.label}
+              </button>
+            ))}
           </div>
-        ) : null}
+        </MobileSection>
+
+        <MobileSection
+          id="doors"
+          openId={openSection}
+          onToggle={toggleSection}
+          title={labels.insideDoors}
+          value={`${selectedInsideDoorStyle?.label || '-'} · ${config.insideDoorCount || 0}${insideDoorPrice ? ` · ${euro(insideDoorPrice, locale)}` : ''}`}
+          thumb={asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || '')}
+        >
+          <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--wide">
+            {catalog.insideDoorStyleOptions.map((item) => (
+              <ThumbChoiceButton
+                key={item.key}
+                active={config.insideDoorStyle === item.key}
+                label={item.label}
+                image={asset(item.thumbImage || item.referenceImage || '')}
+                onClick={() => setField('insideDoorStyle', item.key)}
+              />
+            ))}
+          </div>
+          <div className="bhc-number-grid">
+            <NumberField label={labels.insideDoorCount} value={config.insideDoorCount} onChange={(value) => setField('insideDoorCount', value)} max={24} />
+          </div>
+          <div className="bhc-inline-price">{labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : '-'}</div>
+        </MobileSection>
       </div>
     )
   }
@@ -2609,16 +2629,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
   function renderSocketsStepMobile() {
     return (
       <div className="bhc-mobile-shell">
-        <MobileDisclosure title={labels.electricalScheme} summary={`${labels.socketCount}: ${config.sockets.length}`} defaultOpen>
-          <div className="bhc-mobile-mini-list">
-            <div><strong>{labels.layout}:</strong> {selectedPlan?.label || '-'}{selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}</div>
-            <div><strong>{labels.socketCount}:</strong> {String(config.sockets.length)}</div>
-            {config.socketNotes ? <div><strong>{labels.socketNotesLabel}:</strong> {config.socketNotes}</div> : null}
-          </div>
-        </MobileDisclosure>
-
         <div className="bhc-side-panel bhc-side-panel--full">
-          <div className="bhc-section-title">{labels.sockets}</div>
+          <div className="bhc-msocket-head">
+            <div className="bhc-section-title">{labels.sockets}</div>
+            <span className="bhc-msocket-count">{labels.socketCount}: {config.sockets.length}</span>
+          </div>
           <div className="bhc-hint">{labels.socketsHint}</div>
           <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} onAdd={addSocketMarker} onRemove={removeSocketMarker} interactive emptyText={labels.noSockets} />
         </div>
@@ -2666,13 +2681,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
       { key: 'kitchen', title: labels.kitchen, image: asset(selectedKitchen?.image || ''), caption: selectedKitchen?.label || '-' },
     ].filter((item) => item.image || item.swatch)
 
-    const summaryTabs = [
-      { key: 'overview', label: isBg ? 'Преглед' : 'Overview' },
-      { key: 'visuals', label: isBg ? 'Визуализации' : 'Visuals' },
-      { key: 'sockets', label: locale === 'bg' ? 'Схеми' : locale === 'el' ? 'Σχέδια' : 'Schemes' },
-      { key: 'price', label: isBg ? 'Цена' : 'Price' },
-    ]
-
     return (
       <div className="bhc-mobile-shell">
         <MobileHeroPreview
@@ -2682,96 +2690,80 @@ export default function BoxHouseConfiguratorPage({ content }) {
           chips={[euro(knownTotal, locale)]}
         />
 
-        <div className="bhc-offer-cta bhc-offer-cta--mobile">
-          <button className="btn bhc-offer-btn" type="button" onClick={handleOpenOffer}>{actions.offer}</button>
-        </div>
         <div className="bhc-mobile-action-grid">
           <button className="btn ghost" type="button" onClick={exportPdf}>{actions.export}</button>
           <button className="btn ghost" type="button" onClick={copySummary}>{actions.copy}</button>
           <button className="btn ghost" type="button" onClick={handleOpenQuestion}>{actions.question}</button>
         </div>
 
-        <MobileTabBar items={summaryTabs} value={mobileSummarySection} onChange={setMobileSummarySection} />
-
-        {mobileSummarySection === 'overview' ? (
-          <div className="bhc-side-panel">
-            <div className="bhc-section-title">{labels.summary}</div>
-            <div className="bhc-detail-list">
-              <SummaryRow label={labels.model} value={selectedModel?.label || '-'} />
-              <SummaryRow label={labels.variant} value={config.variant === 'balcony' ? labels.balcony : labels.standard} />
-              <SummaryRow label={labels.layout} value={`${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`} />
-              <SummaryRow label={labels.frame} value={selectedFrame?.label || '-'} />
-              <SummaryRow label={labels.windowStyle} value={selectedWindowStyle?.label || '-'} />
-              <SummaryRow label={labels.exteriorDoor} value={selectedDoor?.label || '-'} />
-              <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinish?.label || '-'} />
-              {config.variant === 'balcony' ? <SummaryRow label={labels.deckingColor} value={selectedDeckingColor?.label || '-'} /> : null}
-              <SummaryRow label={labels.interiorPanels} value={selectedInteriorPanels?.label || labels.defaultWhitePanels} />
-              <SummaryRow label={labels.floorFinish} value={optionSummary(selectedFloorOption)} />
-              <SummaryRow label={labels.kitchenBench} value={optionSummary(selectedKitchenBench)} />
-              <SummaryRow label={labels.kitchenExtras} value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'} />
-              <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
-            </div>
+        <MobileSection id="overview" openId={openSection} onToggle={toggleSection} title={labels.summary} value={euro(knownTotal, locale)}>
+          <div className="bhc-detail-list">
+            <SummaryRow label={labels.model} value={selectedModel?.label || '-'} />
+            <SummaryRow label={labels.variant} value={config.variant === 'balcony' ? labels.balcony : labels.standard} />
+            <SummaryRow label={labels.layout} value={`${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`} />
+            <SummaryRow label={labels.frame} value={selectedFrame?.label || '-'} />
+            <SummaryRow label={labels.windowStyle} value={selectedWindowStyle?.label || '-'} />
+            <SummaryRow label={labels.exteriorDoor} value={selectedDoor?.label || '-'} />
+            <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinish?.label || '-'} />
+            {config.variant === 'balcony' ? <SummaryRow label={labels.deckingColor} value={selectedDeckingColor?.label || '-'} /> : null}
+            <SummaryRow label={labels.interiorPanels} value={selectedInteriorPanels?.label || labels.defaultWhitePanels} />
+            <SummaryRow label={labels.floorFinish} value={optionSummary(selectedFloorOption)} />
+            <SummaryRow label={labels.kitchenBench} value={optionSummary(selectedKitchenBench)} />
+            <SummaryRow label={labels.kitchenExtras} value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'} />
+            <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
           </div>
-        ) : null}
+        </MobileSection>
 
-        {mobileSummarySection === 'visuals' ? (
-          <div className="bhc-side-panel">
-            <div className="bhc-section-title">{labels.referenceBoards}</div>
-            <div className="bhc-reference-board-grid">
-              {finishPreviewCards.map((item) => (
-                <MaterialPreviewCard key={`${item.key}-${item.caption}`} title={item.title} image={item.image} label={item.caption} swatch={item.swatch} />
-              ))}
-            </div>
+        <MobileSection id="visuals" openId={openSection} onToggle={toggleSection} title={labels.referenceBoards} value={`${finishPreviewCards.length}`}>
+          <div className="bhc-reference-board-grid">
+            {finishPreviewCards.map((item) => (
+              <MaterialPreviewCard key={`${item.key}-${item.caption}`} title={item.title} image={item.image} label={item.caption} swatch={item.swatch} />
+            ))}
           </div>
-        ) : null}
+        </MobileSection>
 
-        {mobileSummarySection === 'sockets' ? (
-          <div className="bhc-side-panel">
-            <div className="bhc-section-title">{labels.windowScheme}</div>
-            <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
-            <div className="bhc-chip-cloud">
-              <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
-              {windowMarkerItems.length ? windowMarkerItems.map((item) => (
-                <span key={item.id} className="bhc-mini-chip">{item.label}{item.isPanoramic ? ' · P' : ''} • {item.coords}</span>
-              )) : <div className="bhc-small-note">{labels.noWindows}</div>}
-            </div>
-            {config.windowNotes ? (
-              <div className="bhc-note-box">
-                <div className="bhc-note-title">{labels.windowNotesLabel}</div>
-                <div>{config.windowNotes}</div>
-              </div>
-            ) : null}
-            <div className="bhc-section-title bhc-scheme-divider">{labels.electricalScheme}</div>
-            <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} className="bhc-socket-stage--summary" emptyText={labels.noSockets} />
-            <div className="bhc-chip-cloud">
-              {socketMarkerItems.length ? socketMarkerItems.map((item) => (
-                <span key={item.id} className="bhc-mini-chip">{item.label}{item.description ? ` — ${item.description}` : ''} • {item.coords}</span>
-              )) : <div className="bhc-small-note">{labels.noSockets}</div>}
-            </div>
-            {config.socketNotes ? (
-              <div className="bhc-note-box">
-                <div className="bhc-note-title">{labels.socketNotesLabel}</div>
-                <div>{config.socketNotes}</div>
-              </div>
-            ) : null}
+        <MobileSection id="schemes" openId={openSection} onToggle={toggleSection} title={locale === 'bg' ? 'Схеми' : locale === 'el' ? 'Σχέδια' : 'Schemes'} value={`${(config.windows || []).length} · ${config.sockets.length}`}>
+          <div className="bhc-section-title">{labels.windowScheme}</div>
+          <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} className="bhc-socket-stage--summary bhc-window-stage--summary" emptyText={labels.noWindows} />
+          <div className="bhc-chip-cloud">
+            <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
+            {windowMarkerItems.length ? windowMarkerItems.map((item) => (
+              <span key={item.id} className="bhc-mini-chip">{item.label}{item.isPanoramic ? ' · P' : ''} • {item.coords}</span>
+            )) : <div className="bhc-small-note">{labels.noWindows}</div>}
           </div>
-        ) : null}
+          {config.windowNotes ? (
+            <div className="bhc-note-box">
+              <div className="bhc-note-title">{labels.windowNotesLabel}</div>
+              <div>{config.windowNotes}</div>
+            </div>
+          ) : null}
+          <div className="bhc-section-title bhc-scheme-divider">{labels.electricalScheme}</div>
+          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} className="bhc-socket-stage--summary" emptyText={labels.noSockets} />
+          <div className="bhc-chip-cloud">
+            {socketMarkerItems.length ? socketMarkerItems.map((item) => (
+              <span key={item.id} className="bhc-mini-chip">{item.label}{item.description ? ` — ${item.description}` : ''} • {item.coords}</span>
+            )) : <div className="bhc-small-note">{labels.noSockets}</div>}
+          </div>
+          {config.socketNotes ? (
+            <div className="bhc-note-box">
+              <div className="bhc-note-title">{labels.socketNotesLabel}</div>
+              <div>{config.socketNotes}</div>
+            </div>
+          ) : null}
+        </MobileSection>
 
-        {mobileSummarySection === 'price' ? (
-          <div className="bhc-side-panel">
-            <div className="bhc-section-title">{labels.priceBreakdown}</div>
-            <div className="bhc-detail-list">
-              <SummaryRow label={labels.basePrice} value={euro(knownBasePrice, locale)} />
-              <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'} />
-              <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
-              <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
-              <SummaryRow label={`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`} value={windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included} />
-              {panoramicWindowCount ? <SummaryRow label={`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`} value={euro(panoramicUpgradePrice, locale)} /> : null}
-              <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
-            </div>
-            <div className="bhc-small-note">{labels.pricingFootnote}</div>
+        <MobileSection id="price" openId={openSection} onToggle={toggleSection} title={labels.priceBreakdown} value={euro(knownTotal, locale)} badge={euro(knownTotal, locale)}>
+          <div className="bhc-detail-list">
+            <SummaryRow label={labels.basePrice} value={euro(knownBasePrice, locale)} />
+            <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'} />
+            <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
+            <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
+            <SummaryRow label={`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`} value={windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included} />
+            {panoramicWindowCount ? <SummaryRow label={`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`} value={euro(panoramicUpgradePrice, locale)} /> : null}
+            <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
           </div>
-        ) : null}
+          <div className="bhc-small-note">{labels.pricingFootnote}</div>
+        </MobileSection>
       </div>
     )
   }
@@ -2796,32 +2788,69 @@ export default function BoxHouseConfiguratorPage({ content }) {
       }[stepKey]
 
   return (
-    <main className="bhc-page">
+    <main className={['bhc-page', isMobileShell && 'bhc-page--mobile'].filter(Boolean).join(' ')}>
       {renderHeroSection()}
 
       <section>
         <div className="container">
-          <StepRail steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} />
+          {isMobileShell ? (
+            <MobileStepper steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} stepWord={stepWord} />
+          ) : (
+            <StepRail steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} />
+          )}
 
           <div className="bhc-stage">
-            {renderStageHead()}
+            {!isMobileShell ? renderStageHead() : null}
 
             {stepBody}
 
-            <div className="bhc-bottom-bar">
-              <div className="bhc-status">{status || '\u00A0'}</div>
-              <div className="bhc-action-row">
-                <button className="btn ghost" type="button" onClick={() => setStepIndex((prev) => Math.max(0, prev - 1))} disabled={stepIndex === 0}>{actions.back}</button>
-                {stepIndex < STEP_KEYS.length - 1 ? (
-                  <button className="btn" type="button" onClick={() => setStepIndex((prev) => Math.min(STEP_KEYS.length - 1, prev + 1))}>{actions.next}</button>
-                ) : (
-                  <button className="btn" type="button" onClick={exportPdf}>{actions.export}</button>
-                )}
+            {!isMobileShell ? (
+              <div className="bhc-bottom-bar">
+                <div className="bhc-status">{status || '\u00A0'}</div>
+                <div className="bhc-action-row">
+                  <button className="btn ghost" type="button" onClick={() => setStepIndex((prev) => Math.max(0, prev - 1))} disabled={stepIndex === 0}>{actions.back}</button>
+                  {stepIndex < STEP_KEYS.length - 1 ? (
+                    <button className="btn" type="button" onClick={() => setStepIndex((prev) => Math.min(STEP_KEYS.length - 1, prev + 1))}>{actions.next}</button>
+                  ) : (
+                    <button className="btn" type="button" onClick={exportPdf}>{actions.export}</button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
       </section>
+
+      {isMobileShell ? (
+        <div className="bhc-mnav">
+          {status ? <div className="bhc-mnav-status">{status}</div> : null}
+          <div className="bhc-mnav-inner">
+            <div className="bhc-mnav-price">
+              <span className="bhc-mnav-price-label">{labels.totalKnown}</span>
+              <span className="bhc-mnav-price-value">{euro(knownTotal, locale)}</span>
+            </div>
+            <div className="bhc-mnav-actions">
+              <button
+                className="btn ghost bhc-mnav-back"
+                type="button"
+                onClick={() => setStepIndex((prev) => Math.max(0, prev - 1))}
+                disabled={stepIndex === 0}
+              >
+                {actions.back}
+              </button>
+              {stepIndex < STEP_KEYS.length - 1 ? (
+                <button className="btn bhc-mnav-next" type="button" onClick={() => setStepIndex((prev) => Math.min(STEP_KEYS.length - 1, prev + 1))}>
+                  {actions.next}
+                </button>
+              ) : (
+                <button className="btn bhc-mnav-next bhc-offer-btn" type="button" onClick={handleOpenOffer}>
+                  {actions.offer}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

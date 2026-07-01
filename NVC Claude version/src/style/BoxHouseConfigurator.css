@@ -1868,3 +1868,257 @@
     padding: 5px 10px;
   }
 }
+
+/* =====================================================================
+   V12 — Mobile wizard redesign
+   Sticky progress + accordion decisions + sticky price/nav bar.
+   Scoped to the mobile shell so the desktop layout is untouched.
+   ===================================================================== */
+
+/* On the configurator, the generic global quote dock is replaced by the
+   contextual in-page price/nav bar (added via body.bhc-config-active in JS). */
+body.bhc-config-active .mobile-dock { display: none !important; }
+@media (max-width: 767px) {
+  body.bhc-config-active { padding-bottom: 0 !important; }
+  /* Lift the floating Viber bubble clear of the in-page nav bar. */
+  body.bhc-config-active .viber-bubble { bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+/* Let the last decisions scroll clear of the fixed bottom nav bar. */
+.bhc-page--mobile .bhc-stage {
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+}
+
+/* ----- Compact progress stepper (replaces the wide step rail) ----- */
+.bhc-mstepper {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--bhc-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bhc-surface) 92%, transparent);
+  box-shadow: 0 14px 36px rgba(0,0,0,.08);
+}
+.bhc-mstepper-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bhc-mstepper-count {
+  font-size: 12px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: var(--bhc-muted);
+  white-space: nowrap;
+}
+.bhc-mstepper-name {
+  font-weight: 900;
+  font-size: 16px;
+  text-align: right;
+  line-height: 1.2;
+}
+.bhc-mstepper-track {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.bhc-mstepper-seg {
+  height: 6px;
+  border: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--bhc-soft);
+  cursor: pointer;
+  transition: background .2s ease;
+}
+.bhc-mstepper-seg.is-done { background: color-mix(in srgb, var(--brand-blue) 55%, var(--bhc-border)); }
+.bhc-mstepper-seg.is-active { background-image: linear-gradient(90deg, var(--brand-teal), var(--brand-blue)); }
+
+/* ----- Accordion decision sections ----- */
+.bhc-msection {
+  border: 1px solid var(--bhc-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bhc-surface) 92%, transparent);
+  box-shadow: 0 14px 36px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+.bhc-msection.is-open {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-blue) 26%, transparent), 0 18px 48px rgba(0,0,0,.10);
+}
+.bhc-msection-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 64px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bhc-msection-thumb {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-soft);
+}
+.bhc-msection-thumb--swatch { background: var(--sw, #d7dce4); }
+.bhc-msection-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.bhc-msection-title {
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: var(--bhc-muted);
+}
+.bhc-msection-value {
+  font-weight: 800;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bhc-msection-badge {
+  flex: none;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
+  white-space: nowrap;
+}
+.bhc-msection-chevron {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-right: 2px solid var(--bhc-muted);
+  border-bottom: 2px solid var(--bhc-muted);
+  transform: rotate(45deg);
+  transition: transform .2s ease;
+}
+.bhc-msection.is-open .bhc-msection-chevron { transform: rotate(-135deg); }
+.bhc-msection-body {
+  padding: 6px 14px 16px;
+  border-top: 1px solid var(--bhc-border);
+  display: grid;
+  gap: 12px;
+}
+.bhc-msection-body > :first-child { margin-top: 0; }
+
+/* Sockets step header row */
+.bhc-msocket-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bhc-msocket-count {
+  flex: none;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--bhc-soft);
+  border: 1px solid var(--bhc-border);
+  white-space: nowrap;
+}
+
+/* Floor-plan previews show the whole plan rather than cropping it. */
+.bhc-mobile-hero-image--contain {
+  object-fit: contain;
+  background: #fff;
+}
+
+/* ----- Sticky bottom price + navigation bar ----- */
+.bhc-mnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bhc-surface) 96%, transparent);
+  border-top: 1px solid var(--bhc-border);
+  backdrop-filter: blur(12px) saturate(140%);
+  box-shadow: 0 -10px 30px rgba(0,0,0,.16);
+}
+.bhc-mnav-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.bhc-mnav-price {
+  flex: none;
+  display: grid;
+  gap: 2px;
+}
+.bhc-mnav-price-label {
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--bhc-muted);
+}
+.bhc-mnav-price-value {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.bhc-mnav-actions {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.bhc-mnav-back {
+  flex: none;
+  min-height: 48px;
+}
+.bhc-mnav-next {
+  flex: 1;
+  max-width: 220px;
+  min-height: 48px;
+  justify-content: center;
+  font-weight: 900;
+}
+.bhc-mnav-next:not(.bhc-offer-btn) {
+  background-image: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
+  color: #fff;
+  border: none;
+}
+.bhc-mnav-status {
+  max-width: 900px;
+  margin: 0 auto 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--bhc-soft);
+  border: 1px solid var(--bhc-border);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 380px) {
+  .bhc-mnav-price-value { font-size: 16px; }
+  .bhc-mnav-back { padding-left: 12px; padding-right: 12px; }
+}
