@@ -2015,9 +2015,16 @@ body.bhc-config-active .mobile-dock { display: none !important; }
   padding: 6px 14px 16px;
   border-top: 1px solid var(--bhc-border);
   display: grid;
+  /* Pin the single column to the container width (minmax(0,1fr)) so a wide,
+     non-wrapping child — e.g. the long "standard size, all windows" price
+     value in BG/EL — can't blow the column out past the viewport. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .bhc-msection-body > :first-child { margin-top: 0; }
+/* Long localized price labels/values should wrap instead of forcing overflow. */
+.bhc-msection-body .bhc-window-price-row { flex-wrap: wrap; }
+.bhc-msection-body .bhc-window-price-row span:last-child { white-space: normal; }
 
 /* Sockets step header row */
 .bhc-msocket-head {
@@ -2064,7 +2071,8 @@ body.bhc-config-active .mobile-dock { display: none !important; }
   margin: 0 auto;
 }
 .bhc-mnav-price {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   display: grid;
   gap: 2px;
 }
@@ -2074,11 +2082,18 @@ body.bhc-config-active .mobile-dock { display: none !important; }
   text-transform: uppercase;
   font-weight: 800;
   color: var(--bhc-muted);
+  /* Long localized labels (e.g. BG "ИЗВЕСТНА ОБЩА СТОЙНОСТ") truncate rather
+     than pushing the Back/Next buttons off narrow screens. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .bhc-mnav-price-value {
   font-size: 18px;
   font-weight: 900;
   line-height: 1;
+  white-space: nowrap;
   background: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
   -webkit-background-clip: text;
   background-clip: text;
