@@ -1,0 +1,54 @@
+NVC HOME4YOU — IMPROVEMENTS & IDEAS TRACKER
+============================================
+(kept up to date as we work; [ ] = todo, [x] = done, [~] = in progress)
+
+RECENTLY DONE
+-------------
+[x] Mobile-first redesign of the Box House configurator
+    (progress stepper, live preview hero, one-decision accordions, sticky price/nav bar)
+[x] Fix: window-size selector overflow on mobile in BG/EL (long "standard size" label)
+[x] Fix: configurator summary prefilled into the offer/question modal message again
+    (sessionStorage prefill now read by App.jsx; scoped to the configurator page only)
+[x] Homepage testimonials / social proof near CTAs (+ xUnit & Vitest test suites)
+[x] Pin vite to ^7 so npm ci works without --legacy-peer-deps
+
+HIGH PRIORITY — MEASURE & CONVERT
+---------------------------------
+[ ] 1. Funnel analytics events (do this first — makes everything else measurable)
+       - generate_lead on offer submit (model + estimated total)
+       - configurator_start / configurator_step / configurator_complete
+       - question submit, PDF export, copy summary
+[ ] 2. Save & resume / shareable configuration (design agreed, phase 1 = frontend only)
+       - Auto-save config to localStorage + "Continue where you left off?" banner
+       - "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
+       - Attach the share link to the offer text that lands in Quickbase
+       - Phase 2 (later, needs storage + email infra): short links + "email me my config"
+[ ] 3. Popular presets / quick-start bundles in the configurator
+       (3-4 ready-made configurations to pick and tweak; fights choice overload)
+[ ] 4. Speed-to-lead follow-up
+       - Instant autoresponder email to the lead with their config PDF (needs email infra)
+       - WhatsApp click-to-chat button next to Viber
+[ ] 5. Financing / total-cost calculator
+       (monthly payment estimate; clear "included vs quote-on-review" breakdown)
+
+COMPOUNDING BETS
+----------------
+[ ] 6. Content/SEO engine: blog + guides + location pages
+       ("prefab house price Bulgaria", permits, timelines, choosing land, ...)
+[ ] 7. Trust & proof: case studies with real timelines/photos, "homes delivered" counter,
+       warranty/certifications page, embedded Google reviews
+[ ] 8. PWA: add service worker (vite-plugin-pwa) -> installable, fast repeat visits
+       (site.webmanifest already exists)
+
+FOUNDATION / POLISH
+-------------------
+[ ]  9. Performance pass: Lighthouse / Core Web Vitals, image optimization, preconnect
+[ ] 10. Accessibility audit (EU Accessibility Act applies since June 2025)
+[ ] 11. Translation completeness audit for Greek (added recently; check gaps/fallbacks)
+[ ] 12. Dev hygiene: stop tracking api-dotnet bin/ and obj/ build artifacts in git
+        (they add noise to every commit; add to .gitignore + git rm --cached)
+[ ] 13. Upgrade path for @vitejs/plugin-react (v6 supports vite 8) — only when needed
+
+SETUP REMINDERS
+---------------
+[ ] Run `gh auth login` once (GitHub CLI is installed) so PRs can be opened directly
