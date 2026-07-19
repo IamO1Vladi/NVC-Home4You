@@ -13,6 +13,7 @@ import { paths, getLocaleFromPath, getLocalizedPath } from './routes/paths.js'
 import { getHomeContent } from './content/home/index.js'
 import SEO from './components/SEO.jsx'
 import { getRouteSeo } from './seo/routeMeta.js'
+import { readConfiguratorPrefill } from './lib/configPrefill.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -115,7 +116,21 @@ function AppShell() {
   const [offerOpen, setOfferOpen] = useState(false)
   const [questionOpen, setQuestionOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState(null)
+  const [offerPrefill, setOfferPrefill] = useState('')
+  const [questionPrefill, setQuestionPrefill] = useState('')
   const [toast, setToast] = useState({ show: false, kind: 'success', text: '' })
+
+  // The configurator stores its summary in sessionStorage right before calling
+  // openOffer/openQuestion; prefill the modal message with it (configurator page only).
+  const openOfferModal = useCallback(() => {
+    setOfferPrefill(readConfiguratorPrefill(window.location.pathname)?.offerText || '')
+    setOfferOpen(true)
+  }, [])
+
+  const openQuestionModal = useCallback(() => {
+    setQuestionPrefill(readConfiguratorPrefill(window.location.pathname)?.questionText || '')
+    setQuestionOpen(true)
+  }, [])
 
   const showToast = useCallback((kind, text) => {
     setToast({ show: true, kind, text })
@@ -232,13 +247,13 @@ function AppShell() {
 
   return (
     <div>
-      <ModalActionsProvider onOpenOffer={() => setOfferOpen(true)} onOpenQuestion={() => setQuestionOpen(true)}>
+      <ModalActionsProvider onOpenOffer={openOfferModal} onOpenQuestion={openQuestionModal}>
         <LocalePathGate>
           {(() => {
             const routeSeo = getRouteSeo(location.pathname, currentLocale)
             return routeSeo ? <SEO {...routeSeo} /> : null
           })()}
-          {!isInternal && <Header locale={currentLocale} content={ui.header} onLanguageChange={handleLanguageChange} onOpenOffer={() => setOfferOpen(true)} />}
+          {!isInternal && <Header locale={currentLocale} content={ui.header} onLanguageChange={handleLanguageChange} onOpenOffer={openOfferModal} />}
 
           <Suspense fallback={<div className="page-loading" />}>
             <Routes>
@@ -302,7 +317,7 @@ function AppShell() {
         const title = m?.title ?? m?.name ?? ''
         const catalogId = m?.catalogId ? String(m.catalogId) : ''
         if (id) setSelectedModel({ id, title, catalogId })
-        setOfferOpen(true)
+        openOfferModal()
       }}
     />
   }
@@ -316,7 +331,7 @@ function AppShell() {
         const title = m?.title ?? m?.name ?? ''
         const catalogId = m?.catalogId ? String(m.catalogId) : ''
         if (id) setSelectedModel({ id, title, catalogId })
-        setOfferOpen(true)
+        openOfferModal()
       }}
     />
   }
@@ -330,7 +345,7 @@ function AppShell() {
         const title = m?.title ?? m?.name ?? ''
         const catalogId = m?.catalogId ? String(m.catalogId) : ''
         if (id) setSelectedModel({ id, title, catalogId })
-        setOfferOpen(true)
+        openOfferModal()
       }}
     />
   }
@@ -360,7 +375,9 @@ function AppShell() {
               <input name="name" required placeholder={ui.forms.offer.fields.name} autoComplete="name" />
               <input name="email" type="email" required placeholder={ui.forms.offer.fields.email} autoComplete="email" />
               <input name="phone" placeholder={ui.forms.offer.fields.phone} autoComplete="tel" />
-              <textarea name="project" rows="4" required placeholder={ui.forms.offer.fields.project} />
+              {/* Keyed by prefill: forces a remount so defaultValue re-applies even when the
+                  exit animation kept the previous modal DOM alive across a quick reopen. */}
+              <textarea key={offerPrefill || 'blank'} name="project" rows={offerPrefill ? 8 : 4} required placeholder={ui.forms.offer.fields.project} defaultValue={offerPrefill} />
               <input type="hidden" name="modelId" value={selectedModel?.id || ''} />
               <button className="btn" type="submit">{ui.forms.offer.submit}</button>
             </form>
@@ -370,7 +387,7 @@ function AppShell() {
             <form className="grid" style={{ gap: 10 }} onSubmit={submitQuestion}>
               <input name="name" required placeholder={ui.forms.question.fields.name} autoComplete="name" />
               <input name="email" type="email" required placeholder={ui.forms.question.fields.email} autoComplete="email" />
-              <textarea name="question" rows="4" required placeholder={ui.forms.question.fields.question} />
+              <textarea key={questionPrefill || 'blank'} name="question" rows={questionPrefill ? 8 : 4} required placeholder={ui.forms.question.fields.question} defaultValue={questionPrefill} />
               <button className="btn" type="submit">{ui.forms.question.submit}</button>
             </form>
           </Modal>

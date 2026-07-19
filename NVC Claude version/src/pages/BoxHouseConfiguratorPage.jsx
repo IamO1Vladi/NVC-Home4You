@@ -3,6 +3,7 @@ import { useModalActions } from '../context/ModalActions.jsx'
 import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import '../style/BoxHouseConfigurator.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
@@ -844,20 +845,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }), [isBg, selectedModel?.key, summaryLines])
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    try {
-      window.sessionStorage.setItem('nvc_box_config_prefill_v1', JSON.stringify(modalPrefill))
-    } catch {
-      // ignore storage limitations
-    }
+    writeConfiguratorPrefill(modalPrefill)
   }, [modalPrefill])
 
   const handleOpenOffer = React.useCallback(() => {
-    try {
-      window.sessionStorage.setItem('nvc_box_config_prefill_v1', JSON.stringify(modalPrefill))
-    } catch {
-      // ignore storage limitations
-    }
+    writeConfiguratorPrefill(modalPrefill)
     try {
       if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(summaryLines)
     } catch {
@@ -867,11 +859,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }, [modalPrefill, openOffer, summaryLines])
 
   const handleOpenQuestion = React.useCallback(() => {
-    try {
-      window.sessionStorage.setItem('nvc_box_config_prefill_v1', JSON.stringify(modalPrefill))
-    } catch {
-      // ignore storage limitations
-    }
+    writeConfiguratorPrefill(modalPrefill)
     try {
       if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(summaryLines)
     } catch {
