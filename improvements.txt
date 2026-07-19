@@ -14,10 +14,12 @@ RECENTLY DONE
 
 HIGH PRIORITY — MEASURE & CONVERT
 ---------------------------------
-[ ] 1. Funnel analytics events (do this first — makes everything else measurable)
-       - generate_lead on offer submit (model + estimated total)
+[~] 1. Funnel analytics events (code done on feature/funnel-analytics-events branch)
+       - request_quote_success enriched: lead_source, model_label, lead_value + EUR currency
+         (also passed to the Meta Pixel Lead event as value/currency)
        - configurator_start / configurator_step / configurator_complete
-       - question submit, PDF export, copy summary
+       - ask_question_success, configurator_pdf_export, configurator_copy_summary
+       - REMAINING: merge branch, deploy, then GTM container setup (see checklist from chat)
 [ ] 2. Save & resume / shareable configuration (design agreed, phase 1 = frontend only)
        - Auto-save config to localStorage + "Continue where you left off?" banner
        - "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
