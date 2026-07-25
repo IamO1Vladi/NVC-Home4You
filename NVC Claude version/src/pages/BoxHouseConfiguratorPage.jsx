@@ -928,14 +928,28 @@ export default function BoxHouseConfiguratorPage({ content }) {
     yesText,
   ])
 
-  const modalPrefill = React.useMemo(() => ({
-    source: 'box-configurator',
-    sourcePath: typeof window !== 'undefined' ? window.location.pathname : '',
-    modelId: selectedModel?.key || '',
-    offerText: summaryLines,
-    questionText: `${isBg ? 'Въпрос за следната конфигурация на Бокс къща:' : 'Question about the following box house configuration:'}\n\n${summaryLines}`,
-    updatedAt: Date.now(),
-  }), [isBg, selectedModel?.key, summaryLines])
+  const modalPrefill = React.useMemo(() => {
+    // Append a shareable link so the exact configuration lands in Quickbase with
+    // the lead — the team can open it in one click instead of rebuilding it.
+    const shareUrl = buildShareUrl(config, {
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      pathname: typeof window !== 'undefined' ? window.location.pathname : '',
+    })
+    const shareLabel = isBg
+      ? 'Отвори тази конфигурация'
+      : locale === 'el'
+      ? 'Άνοιξε αυτή τη διαμόρφωση'
+      : 'Open this configuration'
+    const offerText = `${summaryLines}\n\n${shareLabel}:\n${shareUrl}`
+    return {
+      source: 'box-configurator',
+      sourcePath: typeof window !== 'undefined' ? window.location.pathname : '',
+      modelId: selectedModel?.key || '',
+      offerText,
+      questionText: `${isBg ? 'Въпрос за следната конфигурация на Бокс къща:' : 'Question about the following box house configuration:'}\n\n${offerText}`,
+      updatedAt: Date.now(),
+    }
+  }, [isBg, locale, config, selectedModel?.key, summaryLines])
 
   React.useEffect(() => {
     writeConfiguratorPrefill(modalPrefill)
