@@ -5,6 +5,7 @@ import '../style/BoxHouseConfigurator.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
+import { buildShareUrl, readSharedConfigFromHash } from '../lib/configShare.js'
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
@@ -471,6 +472,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
     overview: t.labels?.overview || (isBg ? 'Преглед' : 'Overview'),
     copied: t.labels?.copied || (isBg ? 'Конфигурацията е копирана.' : 'Configuration copied to clipboard.'),
     copyFailed: t.labels?.copyFailed || (isBg ? 'Копирането не беше успешно.' : 'Clipboard copy failed.'),
+    linkCopied: t.labels?.linkCopied || (isBg ? 'Връзката към конфигурацията е копирана.' : 'Configuration link copied to clipboard.'),
+    linkShared: t.labels?.linkShared || (isBg ? 'Връзката е споделена.' : 'Link shared.'),
+    linkFailed: t.labels?.linkFailed || (isBg ? 'Създаването на връзка не беше успешно.' : 'Could not create the share link.'),
     electricalScheme: t.labels?.electricalScheme || (isBg ? 'Електрическа схема' : 'Electrical scheme'),
     windowScheme: t.labels?.windowScheme || (isBg ? 'Схема на прозорците' : 'Window scheme'),
     finishBoard: t.labels?.finishBoard || (isBg ? 'Финиши и бележки' : 'Finishes and notes'),
@@ -502,6 +506,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     next: t.actions?.next || (isBg ? 'Напред' : 'Next'),
     reset: t.actions?.reset || (isBg ? 'Ново начало' : 'Start over'),
     copy: t.actions?.copy || (isBg ? 'Копирай обобщението' : 'Copy summary'),
+    shareLink: t.actions?.shareLink || (isBg ? 'Копирай връзка' : 'Copy link'),
     export: t.actions?.export || (isBg ? 'Експорт PDF' : 'Export PDF'),
     offer: t.actions?.offer || (isBg ? 'Поискай оферта' : 'Request an offer'),
     question: t.actions?.question || (isBg ? 'Задай въпрос' : 'Ask a question'),
@@ -572,12 +577,35 @@ export default function BoxHouseConfiguratorPage({ content }) {
     socketNotes: '',
   })
 
+  // A shared link (#cfg=...) carries an exact configuration; read it once at
+  // mount. It takes precedence over both the pristine default and any saved
+  // config, so opening someone's shared link shows their configuration.
+  const sharedFromUrl = React.useMemo(
+    () => (typeof window === 'undefined' ? null : readSharedConfigFromHash(window.location.hash)),
+    []
+  )
+
+  // Overlay an incoming (shared/saved) config onto a fresh default so any keys
+  // missing from an older/partial payload fall back to sensible values.
+  const mergeIntoDefaults = (incoming) => {
+    const base = buildDefaultConfig()
+    if (!incoming) return base
+    return {
+      ...base,
+      ...incoming,
+      kitchenExtras: { ...base.kitchenExtras, ...(incoming.kitchenExtras || {}) },
+    }
+  }
+
   const [stepIndex, setStepIndex] = React.useState(0)
   const [status, setStatus] = React.useState('')
-  const [config, setConfig] = React.useState(() => buildDefaultConfig())
+  const [config, setConfig] = React.useState(() => mergeIntoDefaults(sharedFromUrl))
   // Read any previously auto-saved configuration once, at mount, before the
-  // auto-save effect below can overwrite it. Drives the resume banner.
-  const [resumeCandidate, setResumeCandidate] = React.useState(() => loadSavedConfig())
+  // auto-save effect below can overwrite it. Drives the resume banner — but a
+  // shared link wins, so the banner is suppressed when one is present.
+  const [resumeCandidate, setResumeCandidate] = React.useState(() =>
+    sharedFromUrl ? null : loadSavedConfig()
+  )
 
   // Debounced auto-save of the in-progress configuration. Skipped while the
   // resume banner is still pending so we don't clobber the saved config the
@@ -607,6 +635,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
       setResumeCandidate(null)
     }
   }, [config, stepIndex, resumeCandidate])
+
+  // Once a shared config has seeded the initial state, strip #cfg from the URL:
+  // further edits are auto-saved to localStorage, so a reload should resume the
+  // (possibly edited) session rather than snap back to the original shared link.
+  React.useEffect(() => {
+    if (!sharedFromUrl) return
+    if (typeof window === 'undefined' || !window.history?.replaceState) return
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  }, [sharedFromUrl])
 
   const handleResumeSaved = React.useCallback(() => {
     if (!resumeCandidate) return
@@ -961,6 +998,31 @@ export default function BoxHouseConfiguratorPage({ content }) {
       setStatus(labels.copied)
     } catch {
       setStatus(labels.copyFailed)
+    }
+  }
+
+  async function shareConfigLink() {
+    if (typeof window === 'undefined') return
+    const url = buildShareUrl(config, {
+      origin: window.location.origin,
+      pathname: window.location.pathname,
+    })
+    // On mobile, prefer the native share sheet when the browser supports it.
+    if (isMobileShell && typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: t.title || 'NVC Home4You', url })
+        setStatus(labels.linkShared)
+        return
+      } catch (err) {
+        if (err && err.name === 'AbortError') return // visitor dismissed the sheet
+        // any other failure falls through to the clipboard path
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setStatus(labels.linkCopied)
+    } catch {
+      setStatus(labels.linkFailed)
     }
   }
 
@@ -1934,6 +1996,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <div className="bhc-summary-actions">
               <button className="btn ghost" type="button" onClick={exportPdf}>{actions.export}</button>
               <button className="btn ghost" type="button" onClick={copySummary}>{actions.copy}</button>
+              <button className="btn ghost" type="button" onClick={shareConfigLink}>{actions.shareLink}</button>
               <button className="btn ghost" type="button" onClick={handleOpenQuestion}>{actions.question}</button>
             </div>
             <div className="bhc-small-note">{labels.exportHint}</div>
