@@ -589,6 +589,25 @@ export default function BoxHouseConfiguratorPage({ content }) {
     return () => window.clearTimeout(id)
   }, [config, stepIndex, resumeCandidate])
 
+  // If the visitor ignores the resume banner and just starts configuring, treat
+  // that as an implicit "keep editing": dismiss the banner so auto-save re-arms
+  // and persists their new work. We compare against the mount-time references
+  // rather than a boolean "have I run" flag because StrictMode double-invokes
+  // effects with identical references — a reference compare correctly reports
+  // "no real change" on that second invocation. (Resume/start-fresh clear
+  // resumeCandidate first, so this is a no-op on those paths.)
+  const initialConfigRef = React.useRef(null)
+  React.useEffect(() => {
+    if (initialConfigRef.current === null) {
+      initialConfigRef.current = { config, stepIndex }
+      return
+    }
+    const { config: config0, stepIndex: stepIndex0 } = initialConfigRef.current
+    if (resumeCandidate && (config !== config0 || stepIndex !== stepIndex0)) {
+      setResumeCandidate(null)
+    }
+  }, [config, stepIndex, resumeCandidate])
+
   const handleResumeSaved = React.useCallback(() => {
     if (!resumeCandidate) return
     setConfig((prev) => ({
