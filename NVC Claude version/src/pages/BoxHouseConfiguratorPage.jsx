@@ -4,6 +4,7 @@ import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfigurat
 import '../style/BoxHouseConfigurator.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
+import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
@@ -532,9 +533,10 @@ export default function BoxHouseConfiguratorPage({ content }) {
   const initialExteriorFamily = catalog.exteriorFinishGroups[0]?.key || 'steel'
   const initialExteriorFinish = catalog.exteriorFinishGroups[0]?.options?.[0]?.key || ''
 
-  const [stepIndex, setStepIndex] = React.useState(0)
-  const [status, setStatus] = React.useState('')
-  const [config, setConfig] = React.useState({
+  // Canonical pristine configuration. Kept as one factory so the initial state,
+  // resetAll() and the resume-banner "is this meaningful progress?" check all
+  // share a single definition instead of separate copies drifting apart.
+  const buildDefaultConfig = () => ({
     model: initialModel?.key || '37',
     variant: 'standard',
     plan: initialPlan,
@@ -569,6 +571,41 @@ export default function BoxHouseConfiguratorPage({ content }) {
     sockets: [],
     socketNotes: '',
   })
+
+  const [stepIndex, setStepIndex] = React.useState(0)
+  const [status, setStatus] = React.useState('')
+  const [config, setConfig] = React.useState(() => buildDefaultConfig())
+  // Read any previously auto-saved configuration once, at mount, before the
+  // auto-save effect below can overwrite it. Drives the resume banner.
+  const [resumeCandidate, setResumeCandidate] = React.useState(() => loadSavedConfig())
+
+  // Debounced auto-save of the in-progress configuration. Skipped while the
+  // resume banner is still pending so we don't clobber the saved config the
+  // visitor hasn't decided on yet.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    if (resumeCandidate) return undefined
+    const id = window.setTimeout(() => saveConfig(config, stepIndex), 400)
+    return () => window.clearTimeout(id)
+  }, [config, stepIndex, resumeCandidate])
+
+  const handleResumeSaved = React.useCallback(() => {
+    if (!resumeCandidate) return
+    setConfig((prev) => ({
+      ...prev,
+      ...resumeCandidate.config,
+      // Backfill nested/added keys from defaults so an older saved shape can't
+      // leave a sub-object partially undefined.
+      kitchenExtras: { ...prev.kitchenExtras, ...(resumeCandidate.config.kitchenExtras || {}) },
+    }))
+    setStepIndex(Number.isInteger(resumeCandidate.stepIndex) ? resumeCandidate.stepIndex : 0)
+    setResumeCandidate(null)
+  }, [resumeCandidate])
+
+  const handleStartFresh = React.useCallback(() => {
+    clearSavedConfig()
+    setResumeCandidate(null)
+  }, [])
 
   const previewRefs = React.useRef({})
   const previewTimerRef = React.useRef(null)
@@ -892,39 +929,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }
 
   function resetAll() {
-    setConfig({
-      model: initialModel?.key || '37',
-      variant: 'standard',
-      plan: initialPlan,
-      windowFrame: catalog.windowFrameOptions[0]?.key || 'pvc',
-      steelFrameColor: catalog.steelFrameColorOptions[0]?.key || 'black',
-      windowStyle: catalog.windowStyleOptions[0]?.key || 'broken-bridge',
-      exteriorDoor: catalog.exteriorDoorOptions[0]?.key || 'titanium-alloy-door',
-      exteriorFinishFamily: initialExteriorFamily,
-      exteriorFinish: initialExteriorFinish,
-      deckingColor: catalog.deckingColorOptions[0]?.key || 'red-pine',
-      heating: false,
-      windowSize: '1000',
-      windows: [],
-      windowNotes: '',
-      interiorPanelMode: 'white',
-      interiorPanelColor: catalog.interiorPanelColorOptions[0]?.key || 'panel-red',
-      uvPanel: catalog.uvPanelOptions[0]?.key || 'uv-001',
-      floorFamily: 'spc',
-      spcFloor: catalog.spcFloorOptions[0]?.key || 'spc-7005',
-      pvcFloor: catalog.pvcFloorOptions[0]?.key || 'pvc-001',
-      carbonCrystalFloor: catalog.carbonCrystalOptions[0]?.key || 'carbon-gf005',
-      bathroom: catalog.bathroomOptions[0]?.key || 'E1',
-      kitchen: catalog.kitchenOptions[0]?.key || 'F1',
-      kitchenBench: catalog.kitchenBenchOptions[0]?.key || 'yl-4003',
-      kitchenExtras: { furnace: false, washingMachine: false, dishwasherCabinet: false },
-      insideDoorStyle: catalog.insideDoorStyleOptions[0]?.key || 'inside-01',
-      insideDoorCount: 0,
-      sockets: [],
-      socketNotes: '',
-    })
+    setConfig(buildDefaultConfig())
     setStepIndex(0)
     setStatus('')
+    clearSavedConfig()
+    setResumeCandidate(null)
   }
 
   async function copySummary() {
@@ -2775,9 +2784,56 @@ export default function BoxHouseConfiguratorPage({ content }) {
         summary: renderSummaryStep(),
       }[stepKey]
 
+  const resumeText = {
+    title: isBg
+      ? 'Да продължим откъдето спряхте?'
+      : locale === 'el'
+      ? 'Συνέχεια από εκεί που σταματήσατε;'
+      : 'Continue where you left off?',
+    body: isBg
+      ? 'Запазихме конфигурацията, върху която работехте в този браузър.'
+      : locale === 'el'
+      ? 'Αποθηκεύσαμε τη διαμόρφωση στην οποία εργαζόσασταν σε αυτό το πρόγραμμα περιήγησης.'
+      : 'We saved the configuration you were working on in this browser.',
+    resume: isBg ? 'Продължи' : locale === 'el' ? 'Συνέχεια' : 'Continue',
+    fresh: isBg ? 'Започни отначало' : locale === 'el' ? 'Ξεκινήστε από την αρχή' : 'Start fresh',
+  }
+
+  // Only surface the resume banner when the saved config is real progress
+  // (past the first step, or diverged from the pristine defaults) so a fresh
+  // visitor who never touched anything isn't nagged.
+  let showResumeBanner = false
+  if (resumeCandidate) {
+    if ((resumeCandidate.stepIndex || 0) > 0) {
+      showResumeBanner = true
+    } else {
+      try {
+        showResumeBanner =
+          JSON.stringify(resumeCandidate.config) !== JSON.stringify(buildDefaultConfig())
+      } catch {
+        showResumeBanner = true
+      }
+    }
+  }
+
   return (
     <main className={['bhc-page', isMobileShell && 'bhc-page--mobile'].filter(Boolean).join(' ')}>
       {renderHeroSection()}
+
+      {showResumeBanner ? (
+        <div className="container bhc-resume-wrap">
+          <div className="bhc-resume" role="region" aria-label={resumeText.title}>
+            <div className="bhc-resume-copy">
+              <span className="bhc-resume-title">{resumeText.title}</span>
+              <span className="bhc-resume-body">{resumeText.body}</span>
+            </div>
+            <div className="bhc-resume-actions">
+              <button className="btn" type="button" onClick={handleResumeSaved}>{resumeText.resume}</button>
+              <button className="btn ghost" type="button" onClick={handleStartFresh}>{resumeText.fresh}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section>
         <div className="container">

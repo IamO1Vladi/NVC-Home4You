@@ -2137,3 +2137,50 @@ body.bhc-config-active .mobile-dock { display: none !important; }
   .bhc-mnav-price-value { font-size: 16px; }
   .bhc-mnav-back { padding-left: 12px; padding-right: 12px; }
 }
+
+/* "Continue where you left off?" resume banner */
+.bhc-resume-wrap {
+  margin-top: 16px;
+}
+
+.bhc-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue) 30%, var(--bhc-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--brand-blue) 6%, var(--bhc-surface));
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+.bhc-resume-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bhc-resume-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.bhc-resume-body {
+  color: var(--bhc-muted);
+  font-size: 13.5px;
+}
+
+.bhc-resume-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .bhc-resume { flex-direction: column; align-items: stretch; }
+  .bhc-resume-actions { justify-content: stretch; }
+  .bhc-resume-actions .btn { flex: 1; }
+}
