@@ -14,6 +14,7 @@ import { getHomeContent } from './content/home/index.js'
 import SEO from './components/SEO.jsx'
 import { getRouteSeo } from './seo/routeMeta.js'
 import { readConfiguratorPrefill } from './lib/configPrefill.js'
+import { trackEvent } from './lib/analytics.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -116,21 +117,25 @@ function AppShell() {
   const [offerOpen, setOfferOpen] = useState(false)
   const [questionOpen, setQuestionOpen] = useState(false)
   const [selectedModel, setSelectedModel] = useState(null)
-  const [offerPrefill, setOfferPrefill] = useState('')
-  const [questionPrefill, setQuestionPrefill] = useState('')
+  const [offerPrefillData, setOfferPrefillData] = useState(null)
+  const [questionPrefillData, setQuestionPrefillData] = useState(null)
   const [toast, setToast] = useState({ show: false, kind: 'success', text: '' })
 
   // The configurator stores its summary in sessionStorage right before calling
   // openOffer/openQuestion; prefill the modal message with it (configurator page only).
+  // The full object is kept so submit handlers can attach model/total to analytics.
   const openOfferModal = useCallback(() => {
-    setOfferPrefill(readConfiguratorPrefill(window.location.pathname)?.offerText || '')
+    setOfferPrefillData(readConfiguratorPrefill(window.location.pathname))
     setOfferOpen(true)
   }, [])
 
   const openQuestionModal = useCallback(() => {
-    setQuestionPrefill(readConfiguratorPrefill(window.location.pathname)?.questionText || '')
+    setQuestionPrefillData(readConfiguratorPrefill(window.location.pathname))
     setQuestionOpen(true)
   }, [])
+
+  const offerPrefill = offerPrefillData?.offerText || ''
+  const questionPrefill = questionPrefillData?.questionText || ''
 
   const showToast = useCallback((kind, text) => {
     setToast({ show: true, kind, text })
@@ -139,13 +144,15 @@ function AppShell() {
 
   const trackRequestQuote = useCallback((payload) => {
     if (typeof window === 'undefined') return
-    window.dataLayer = window.dataLayer || []
+    const leadValue = Number(payload.leadValue) || 0
     // Push the API catalogue id (contentId), not the Quickbase model id, to stay consistent
     // with the Meta Pixel. Empty when the item has no catalogue id.
-    window.dataLayer.push({
-      event: 'request_quote_success',
+    trackEvent('request_quote_success', {
       form_type: 'offer',
       content_id: payload.catalogId || '',
+      lead_source: payload.leadSource || 'site',
+      model_label: payload.modelLabel || '',
+      ...(leadValue ? { lead_value: leadValue, currency: 'EUR' } : {}),
     })
 
    if (typeof window.fbq === 'function') {
@@ -160,6 +167,10 @@ function AppShell() {
     if (contentId) {
       metaPayload.content_ids = [String(contentId)]
       metaPayload.content_type = 'product'
+    }
+    if (leadValue) {
+      metaPayload.value = leadValue
+      metaPayload.currency = 'EUR'
     }
 
     window.fbq('track', 'Lead', metaPayload)
@@ -199,10 +210,16 @@ function AppShell() {
       return
     }
 
-    trackRequestQuote({ ...payload, catalogId: selectedModel?.catalogId || '' })
+    trackRequestQuote({
+      ...payload,
+      catalogId: selectedModel?.catalogId || '',
+      leadSource: offerPrefillData?.source || 'site',
+      modelLabel: offerPrefillData?.modelLabel || '',
+      leadValue: offerPrefillData?.knownTotal || 0,
+    })
     showToast('success', ui.common.toast.offerSuccess)
     setOfferOpen(false)
-  }, [showToast, trackRequestQuote, selectedModel, ui.common.toast.offerError, ui.common.toast.offerSuccess])
+  }, [showToast, trackRequestQuote, selectedModel, offerPrefillData, ui.common.toast.offerError, ui.common.toast.offerSuccess])
 
   const submitQuestion = useCallback(async (e) => {
     e.preventDefault()
@@ -233,9 +250,14 @@ function AppShell() {
       return
     }
 
+    trackEvent('ask_question_success', {
+      form_type: 'question',
+      lead_source: questionPrefillData?.source || 'site',
+      model_label: questionPrefillData?.modelLabel || '',
+    })
     showToast('success', ui.common.toast.questionSuccess)
     setQuestionOpen(false)
-  }, [showToast, ui.common.toast.questionError, ui.common.toast.questionSuccess])
+  }, [showToast, questionPrefillData, ui.common.toast.questionError, ui.common.toast.questionSuccess])
 
   const homeRedirect = paths.home[currentLocale] || paths.home.en
   const modularBuildsRedirect = paths.modularBuilds[currentLocale] || paths.modularBuilds.en

@@ -4,6 +4,7 @@ import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfigurat
 import '../style/BoxHouseConfigurator.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
+import { trackEvent } from '../lib/analytics.js'
 import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
 import { buildShareUrl, readSharedConfigFromHash } from '../lib/configShare.js'
 
@@ -945,15 +946,52 @@ export default function BoxHouseConfiguratorPage({ content }) {
       source: 'box-configurator',
       sourcePath: typeof window !== 'undefined' ? window.location.pathname : '',
       modelId: selectedModel?.key || '',
+      // Kept for the funnel analytics: App.jsx reads modelLabel/knownTotal off the
+      // prefill to enrich request_quote_success with model_label and lead_value.
+      modelLabel: selectedModel?.label || '',
+      knownTotal,
       offerText,
       questionText: `${isBg ? 'Въпрос за следната конфигурация на Бокс къща:' : 'Question about the following box house configuration:'}\n\n${offerText}`,
       updatedAt: Date.now(),
     }
-  }, [isBg, locale, config, selectedModel?.key, summaryLines])
+  }, [isBg, locale, config, knownTotal, selectedModel?.key, selectedModel?.label, summaryLines])
 
   React.useEffect(() => {
     writeConfiguratorPrefill(modalPrefill)
   }, [modalPrefill])
+
+  // ---- Funnel analytics -------------------------------------------------
+  // start = first real interaction (config change or step navigation), once
+  // per visit; step = every step arrival; complete = first arrival at summary.
+  const trackStartedRef = React.useRef(false)
+  const trackCompleteRef = React.useRef(false)
+  const trackPrevStepRef = React.useRef(0)
+
+  const markConfiguratorStarted = React.useCallback(() => {
+    if (trackStartedRef.current) return
+    trackStartedRef.current = true
+    trackEvent('configurator_start', { model_label: selectedModel?.label || '' })
+  }, [selectedModel?.label])
+
+  React.useEffect(() => {
+    if (trackPrevStepRef.current === stepIndex) return
+    trackPrevStepRef.current = stepIndex
+    markConfiguratorStarted()
+    const key = STEP_KEYS[stepIndex]
+    trackEvent('configurator_step', {
+      step_index: stepIndex + 1,
+      step_key: key,
+      step_name: stepMeta[stepIndex]?.label || key,
+    })
+    if (key === 'summary' && !trackCompleteRef.current) {
+      trackCompleteRef.current = true
+      trackEvent('configurator_complete', {
+        model_label: selectedModel?.label || '',
+        lead_value: knownTotal,
+        currency: 'EUR',
+      })
+    }
+  }, [stepIndex, stepMeta, markConfiguratorStarted, selectedModel?.label, knownTotal])
 
   const handleOpenOffer = React.useCallback(() => {
     writeConfiguratorPrefill(modalPrefill)
@@ -976,6 +1014,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }, [modalPrefill, openQuestion, summaryLines])
 
   function setField(field, value) {
+    markConfiguratorStarted()
     setConfig((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -989,6 +1028,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }
 
   function toggleKitchenExtra(key) {
+    markConfiguratorStarted()
     setConfig((prev) => ({
       ...prev,
       kitchenExtras: {
@@ -1010,6 +1050,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
     try {
       await navigator.clipboard.writeText(summaryLines)
       setStatus(labels.copied)
+      trackEvent('configurator_copy_summary', {
+        model_label: selectedModel?.label || '',
+        lead_value: knownTotal,
+        currency: 'EUR',
+      })
     } catch {
       setStatus(labels.copyFailed)
     }
@@ -1041,6 +1086,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }
 
   function addSocketMarker(point) {
+    markConfiguratorStarted()
     setConfig((prev) => ({
       ...prev,
       sockets: [
@@ -1065,6 +1111,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }
 
   function addWindowMarker(point) {
+    markConfiguratorStarted()
     setConfig((prev) => ({
       ...prev,
       windows: [
@@ -1350,6 +1397,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
     popup.document.close()
     popup.focus()
     setStatus(labels.pdfOpened)
+    trackEvent('configurator_pdf_export', {
+      model_label: selectedModel?.label || '',
+      lead_value: knownTotal,
+      currency: 'EUR',
+    })
   }
 
   function renderModelStep() {
