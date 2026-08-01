@@ -6,6 +6,15 @@ public record OfferDto(string Name, string Email, string? Phone, string Project,
 public record QuestionDto(string Name, string Email, string Question);
 public record ReviewDto(string Name, string? Company, string Email, string? Location, string? Product, string Comment, int Rating);
 
+// "Save & resume" Phase 2 — short shareable configurator links.
+// Config is stored as-is (opaque JSON) so the backend never needs the configurator schema.
+public record SaveConfigRequest(JsonElement Config, string? ModelLabel, string? Locale, string? ReturnPath, string? Email);
+public record SaveConfigResponse(string Code, string Url);
+public record SavedConfigDto(JsonElement Config, string? ModelLabel, string? Locale);
+
+// Phase 2b — "email me my config": stores the config (to get a short link) and emails it.
+public record EmailConfigRequest(JsonElement Config, string Email, string? ModelLabel, string? Locale, string? ReturnPath);
+
 public class GalleryItem {
   public long Id { get; set; }
   public string Title { get; set; } = "";

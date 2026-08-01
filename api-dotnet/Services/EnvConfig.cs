@@ -112,6 +112,40 @@ public class EnvConfig
     public string ReviewApprovedValue => (_cfg["QB_REVIEW_APPROVED"] ?? "approved").Trim();
     public string ReviewPendingValue => (_cfg["QB_REVIEW_PENDING"] ?? "pending").Trim();
 
+    // Saved configurator links ("Save & resume" Phase 2). A Quickbase table that maps
+    // a short share code to a serialized configurator config so /c/{code} can resolve
+    // it. Leave QB_TABLE_SAVED_CONFIGS unset to disable the feature (endpoints 503).
+    public string TableSavedConfigs => _cfg["QB_TABLE_SAVED_CONFIGS"] ?? "";
+    public bool SavedConfigsConfigured => !string.IsNullOrWhiteSpace(TableSavedConfigs);
+
+    public int F_SAVEDCFG_RID    => GetInt("FID_SAVEDCFG_RID", 3);
+    public int F_SAVEDCFG_CODE   => GetInt("FID_SAVEDCFG_CODE", 6);
+    public int F_SAVEDCFG_JSON   => GetInt("FID_SAVEDCFG_JSON", 7);
+    public int F_SAVEDCFG_MODEL  => GetInt("FID_SAVEDCFG_MODEL", 8);
+    public int F_SAVEDCFG_LOCALE => GetInt("FID_SAVEDCFG_LOCALE", 9);
+    public int F_SAVEDCFG_PATH   => GetInt("FID_SAVEDCFG_PATH", 10);
+    // Optional fields — opt-in via env var. When FID_SAVEDCFG_EMAIL is unset the
+    // recipient's address is emailed but NOT stored (avoids writing a field that may
+    // not exist on the table, and keeps stored PII to a minimum). Set it to the
+    // Email field's id if you want the address saved alongside the config.
+    public int? F_SAVEDCFG_EMAIL => GetOptionalInt("FID_SAVEDCFG_EMAIL");
+    public int? F_SAVEDCFG_HITS  => GetOptionalInt("FID_SAVEDCFG_HITS");
+
+    // SMTP for the Phase 2b "email me my config" flow. Defaults target Microsoft 365
+    // (smtp.office365.com:587, STARTTLS). Leave SMTP_USER/SMTP_PASSWORD unset to
+    // disable the feature (endpoint 503s; the frontend hides the email option).
+    public string SmtpHost => (_cfg["SMTP_HOST"] ?? "smtp.office365.com").Trim();
+    public int SmtpPort => GetInt("SMTP_PORT", 587);
+    public string SmtpUser => (_cfg["SMTP_USER"] ?? "").Trim();
+    public string SmtpPassword => _cfg["SMTP_PASSWORD"] ?? "";
+    public string SmtpFrom => (_cfg["SMTP_FROM"] ?? _cfg["SMTP_USER"] ?? "").Trim();
+    public string SmtpFromName => (_cfg["SMTP_FROM_NAME"] ?? "NVC Home4You").Trim();
+    public bool EmailConfigured =>
+        !string.IsNullOrWhiteSpace(SmtpHost) &&
+        !string.IsNullOrWhiteSpace(SmtpUser) &&
+        !string.IsNullOrWhiteSpace(SmtpPassword) &&
+        !string.IsNullOrWhiteSpace(SmtpFrom);
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 
