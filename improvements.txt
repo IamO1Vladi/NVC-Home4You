@@ -19,12 +19,13 @@ HIGH PRIORITY — MEASURE & CONVERT
          (also passed to the Meta Pixel Lead event as value/currency)
        - configurator_start / configurator_step / configurator_complete
        - ask_question_success, configurator_pdf_export, configurator_copy_summary
-       - GTM container GTM-MSJR4ZGP tags configured; verify in GTM Preview once deployed
+       - GTM container GTM-MSJR4ZGP tags configured and deployed live
 [x] 2. Save & resume / shareable configuration (Phases 1 & 2 shipped, PRs #2/#3)
        [x] Auto-save config to localStorage + "Continue where you left off?" banner
        [x] "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
        [x] Attach the share link to the offer text that lands in Quickbase
-       [x] Phase 2 — short links (/c/{code}, Quickbase-backed) + "email me my config" (M365 SMTP)
+       [x] Phase 2 — short links (/c/{code}, Quickbase-backed) + "email me my config"
+           (live; email sends via Microsoft Graph / OAuth — M365 SMTP basic auth is disabled)
 [ ] 3. Popular presets / quick-start bundles in the configurator
        (3-4 ready-made configurations to pick and tweak; fights choice overload)
 [ ] 4. Speed-to-lead follow-up
@@ -48,9 +49,9 @@ FOUNDATION / POLISH
 [ ] 10. Accessibility audit (EU Accessibility Act applies since June 2025)
 [ ] 11. Translation completeness audit for Greek (added recently; check gaps/fallbacks)
 [x] 12. Dev hygiene: stop tracking api-dotnet bin/ and obj/ build artifacts in git
-        (done via git rm --cached; .gitignore already covered them. On feature/homepage-testimonials, pending merge to master)
+        (done via git rm --cached; .gitignore already covered them. Merged to master.)
 [ ] 13. Upgrade path for @vitejs/plugin-react (v6 supports vite 8) — only when needed
 
 SETUP REMINDERS
 ---------------
-[ ] Run `gh auth login` once (GitHub CLI is installed) so PRs can be opened directly
+[x] Run `gh auth login` once (GitHub CLI is installed) so PRs can be opened directly
