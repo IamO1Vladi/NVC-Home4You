@@ -1,5 +1,8 @@
+using System;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Models;
 using Services;
 
@@ -11,11 +14,13 @@ public class ConfigEmailController : ControllerBase
 {
     private readonly SavedConfigService _saved;
     private readonly EmailService _email;
+    private readonly ILogger<ConfigEmailController> _logger;
 
-    public ConfigEmailController(SavedConfigService saved, EmailService email)
+    public ConfigEmailController(SavedConfigService saved, EmailService email, ILogger<ConfigEmailController> logger)
     {
         _saved = saved;
         _email = email;
+        _logger = logger;
     }
 
     // Save the config behind a short link, then email that link to the visitor.
@@ -40,13 +45,29 @@ public class ConfigEmailController : ControllerBase
         {
             await _email.SendConfigLinkAsync(req.Email, url, req.ModelLabel, req.Locale, ct);
         }
-        catch
+        catch (Exception ex)
         {
-            // The config was saved (link is valid); only delivery failed.
-            return StatusCode(StatusCodes.Status502BadGateway, new { error = "send_failed" });
+            // The config was saved (link is valid); only delivery failed. Surface the
+            // underlying transport error (SMTP/Graph) so mail-config issues are diagnosable.
+            var detail = Flatten(ex);
+            _logger.LogError(ex, "config-email send failed: {Detail}", detail);
+            return StatusCode(StatusCodes.Status502BadGateway, new { error = "send_failed", detail });
         }
 
         return Ok(new { ok = true });
+    }
+
+    // Concatenates the message of an exception and its inner exceptions — the real
+    // SMTP/Graph error usually lives in an inner exception.
+    private static string Flatten(Exception ex)
+    {
+        var sb = new StringBuilder();
+        for (Exception? e = ex; e is not null; e = e.InnerException)
+        {
+            if (sb.Length > 0) sb.Append(" | ");
+            sb.Append(e.Message);
+        }
+        return sb.ToString();
     }
 
     private static bool IsValidEmail(string email)

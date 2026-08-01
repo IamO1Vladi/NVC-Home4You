@@ -140,11 +140,29 @@ public class EnvConfig
     public string SmtpPassword => _cfg["SMTP_PASSWORD"] ?? "";
     public string SmtpFrom => (_cfg["SMTP_FROM"] ?? _cfg["SMTP_USER"] ?? "").Trim();
     public string SmtpFromName => (_cfg["SMTP_FROM_NAME"] ?? "NVC Home4You").Trim();
-    public bool EmailConfigured =>
+    public bool SmtpConfigured =>
         !string.IsNullOrWhiteSpace(SmtpHost) &&
         !string.IsNullOrWhiteSpace(SmtpUser) &&
         !string.IsNullOrWhiteSpace(SmtpPassword) &&
         !string.IsNullOrWhiteSpace(SmtpFrom);
+
+    // Microsoft Graph (OAuth2 client-credentials) transport — preferred over SMTP,
+    // whose Basic Auth Microsoft 365 has deprecated. When these are set, email is
+    // sent via Graph /sendMail instead of SMTP. Needs an Azure AD app registration
+    // with the application permission Mail.Send (admin-consented).
+    public string GraphTenantId => (_cfg["GRAPH_TENANT_ID"] ?? "").Trim();
+    public string GraphClientId => (_cfg["GRAPH_CLIENT_ID"] ?? "").Trim();
+    public string GraphClientSecret => _cfg["GRAPH_CLIENT_SECRET"] ?? "";
+    // Mailbox to send as (UPN/email). Falls back to SMTP_FROM / SMTP_USER.
+    public string GraphSender => (_cfg["GRAPH_SENDER"] ?? _cfg["SMTP_FROM"] ?? _cfg["SMTP_USER"] ?? "").Trim();
+    public bool GraphConfigured =>
+        !string.IsNullOrWhiteSpace(GraphTenantId) &&
+        !string.IsNullOrWhiteSpace(GraphClientId) &&
+        !string.IsNullOrWhiteSpace(GraphClientSecret) &&
+        !string.IsNullOrWhiteSpace(GraphSender);
+
+    // Email works if either transport is configured (Graph preferred).
+    public bool EmailConfigured => GraphConfigured || SmtpConfigured;
 
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
