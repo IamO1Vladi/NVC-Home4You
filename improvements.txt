@@ -14,17 +14,17 @@ RECENTLY DONE
 
 HIGH PRIORITY — MEASURE & CONVERT
 ---------------------------------
-[~] 1. Funnel analytics events (code done on feature/funnel-analytics-events branch)
+[x] 1. Funnel analytics events (merged to master, PR #1)
        - request_quote_success enriched: lead_source, model_label, lead_value + EUR currency
          (also passed to the Meta Pixel Lead event as value/currency)
        - configurator_start / configurator_step / configurator_complete
        - ask_question_success, configurator_pdf_export, configurator_copy_summary
-       - REMAINING: merge branch, deploy, then GTM container setup (see checklist from chat)
-[~] 2. Save & resume / shareable configuration (Phase 1 shipped on feature/save-resume-config)
+       - GTM container GTM-MSJR4ZGP tags configured; verify in GTM Preview once deployed
+[x] 2. Save & resume / shareable configuration (Phases 1 & 2 shipped, PRs #2/#3)
        [x] Auto-save config to localStorage + "Continue where you left off?" banner
        [x] "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
        [x] Attach the share link to the offer text that lands in Quickbase
-       [ ] Phase 2 (later, needs storage + email infra): short links + "email me my config"
+       [x] Phase 2 — short links (/c/{code}, Quickbase-backed) + "email me my config" (M365 SMTP)
 [ ] 3. Popular presets / quick-start bundles in the configurator
        (3-4 ready-made configurations to pick and tweak; fights choice overload)
 [ ] 4. Speed-to-lead follow-up
