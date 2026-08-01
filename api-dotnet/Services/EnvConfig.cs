@@ -124,9 +124,12 @@ public class EnvConfig
     public int F_SAVEDCFG_MODEL  => GetInt("FID_SAVEDCFG_MODEL", 8);
     public int F_SAVEDCFG_LOCALE => GetInt("FID_SAVEDCFG_LOCALE", 9);
     public int F_SAVEDCFG_PATH   => GetInt("FID_SAVEDCFG_PATH", 10);
-    // Optional fields — used by the Phase 2b "email me my config" flow when present.
-    public int? F_SAVEDCFG_EMAIL => GetOptionalInt("FID_SAVEDCFG_EMAIL", 11);
-    public int? F_SAVEDCFG_HITS  => GetOptionalInt("FID_SAVEDCFG_HITS", 12);
+    // Optional fields — opt-in via env var. When FID_SAVEDCFG_EMAIL is unset the
+    // recipient's address is emailed but NOT stored (avoids writing a field that may
+    // not exist on the table, and keeps stored PII to a minimum). Set it to the
+    // Email field's id if you want the address saved alongside the config.
+    public int? F_SAVEDCFG_EMAIL => GetOptionalInt("FID_SAVEDCFG_EMAIL");
+    public int? F_SAVEDCFG_HITS  => GetOptionalInt("FID_SAVEDCFG_HITS");
 
     // SMTP for the Phase 2b "email me my config" flow. Defaults target Microsoft 365
     // (smtp.office365.com:587, STARTTLS). Leave SMTP_USER/SMTP_PASSWORD unset to
