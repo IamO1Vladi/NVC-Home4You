@@ -6,7 +6,9 @@ import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { trackEvent } from '../lib/analytics.js'
 import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
-import { buildShareUrl, readSharedConfigFromHash } from '../lib/configShare.js'
+import { buildShareUrl, readSharedConfigFromHash, readShortCodeFromSearch, createShortLink, resolveShortLink } from '../lib/configShare.js'
+
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
@@ -586,6 +588,13 @@ export default function BoxHouseConfiguratorPage({ content }) {
     []
   )
 
+  // A short share link (/c/{code} → ?c=code) references a server-stored config we
+  // must fetch. Capture the code once at mount; the effect below hydrates from it.
+  const shortCodeFromUrl = React.useMemo(
+    () => (typeof window === 'undefined' ? null : readShortCodeFromSearch(window.location.search)),
+    []
+  )
+
   // Overlay an incoming (shared/saved) config onto a fresh default so any keys
   // missing from an older/partial payload fall back to sensible values.
   const mergeIntoDefaults = (incoming) => {
@@ -605,7 +614,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   // auto-save effect below can overwrite it. Drives the resume banner — but a
   // shared link wins, so the banner is suppressed when one is present.
   const [resumeCandidate, setResumeCandidate] = React.useState(() =>
-    sharedFromUrl ? null : loadSavedConfig()
+    (sharedFromUrl || shortCodeFromUrl) ? null : loadSavedConfig()
   )
 
   // Debounced auto-save of the in-progress configuration. Skipped while the
@@ -645,6 +654,25 @@ export default function BoxHouseConfiguratorPage({ content }) {
     if (typeof window === 'undefined' || !window.history?.replaceState) return
     window.history.replaceState(null, '', window.location.pathname + window.location.search)
   }, [sharedFromUrl])
+
+  // Hydrate from a short share link (?c=code): fetch the stored config, overlay it,
+  // then strip ?c from the URL so a reload resumes the (possibly edited) session
+  // rather than snapping back to the original link. If the fetch fails (unknown
+  // code / API down) we simply leave the fresh default in place.
+  React.useEffect(() => {
+    if (!shortCodeFromUrl) return undefined
+    let cancelled = false
+    resolveShortLink(shortCodeFromUrl, { apiBase: API_BASE }).then((incoming) => {
+      if (cancelled) return
+      if (incoming) setConfig(mergeIntoDefaults(incoming))
+      if (typeof window !== 'undefined' && window.history?.replaceState) {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('c')
+        window.history.replaceState(null, '', url.pathname + url.search + url.hash)
+      }
+    })
+    return () => { cancelled = true }
+  }, [shortCodeFromUrl])
 
   const handleResumeSaved = React.useCallback(() => {
     if (!resumeCandidate) return
@@ -1062,7 +1090,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   async function shareConfigLink() {
     if (typeof window === 'undefined') return
-    const url = buildShareUrl(config, {
+    // Prefer a short server-side link; fall back to the self-contained #cfg= hash
+    // link when the API is unavailable / disabled so sharing always works offline.
+    const shortUrl = await createShortLink(config, {
+      apiBase: API_BASE,
+      returnPath: window.location.pathname,
+      modelLabel: selectedModel?.label || '',
+      locale,
+    })
+    const url = shortUrl || buildShareUrl(config, {
       origin: window.location.origin,
       pathname: window.location.pathname,
     })

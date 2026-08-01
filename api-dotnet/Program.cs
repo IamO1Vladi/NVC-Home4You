@@ -30,6 +30,7 @@ builder.Services.AddScoped<Services.GalleryService>();
 builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
 builder.Services.AddScoped<Services.ReviewService>();
+builder.Services.AddScoped<Services.SavedConfigService>();
 
 var app = builder.Build();
 
@@ -66,6 +67,22 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.MapControllers();
+
+// --- Short "save & resume" share links (/c/{code}) -----------------------------------
+// A shared configurator link is minted as /c/{code}. Resolve the code to the localized
+// configurator path it was saved from and 302 there with ?c={code}; the SPA reads the
+// query param and fetches the full config from /api/config-link/{code} to hydrate.
+// Falls back to the site root when the code is unknown.
+app.MapGet("/c/{code}", async (string code, Services.SavedConfigService svc, CancellationToken ct) =>
+{
+    if (!svc.IsConfigured) return Results.Redirect("/");
+    var returnPath = await svc.GetReturnPathAsync(code, ct);
+    if (string.IsNullOrWhiteSpace(returnPath) || !returnPath.StartsWith('/'))
+        return Results.Redirect("/");
+
+    var sep = returnPath.Contains('?') ? '&' : '?';
+    return Results.Redirect($"{returnPath}{sep}c={Uri.EscapeDataString(code)}");
+});
 
 // --- Server-side SEO tag injection for SPA routes ------------------------------------
 // The HTML shell (index.html) is identical for every route, so per-route <title>,

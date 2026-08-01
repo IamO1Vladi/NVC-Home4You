@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   SHARE_HASH_KEY,
   encodeConfig,
   decodeConfig,
   buildShareUrl,
   readSharedConfigFromHash,
+  readShortCodeFromSearch,
+  createShortLink,
+  resolveShortLink,
 } from './configShare.js'
 
 const sample = {
@@ -57,5 +60,77 @@ describe('configShare', () => {
   it('rejects a non-object payload (array/primitive)', () => {
     expect(decodeConfig(encodeConfig([1, 2, 3]))).toBeNull()
     expect(decodeConfig(encodeConfig('just a string'))).toBeNull()
+  })
+})
+
+describe('configShare short links', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('reads a valid short code from a query string', () => {
+    expect(readShortCodeFromSearch('?c=Ab3xK9pQ')).toBe('Ab3xK9pQ')
+    expect(readShortCodeFromSearch('?foo=1&c=abcd1234&bar=2')).toBe('abcd1234')
+  })
+
+  it('rejects missing or malformed short codes', () => {
+    expect(readShortCodeFromSearch('')).toBeNull()
+    expect(readShortCodeFromSearch('?x=1')).toBeNull()
+    expect(readShortCodeFromSearch('?c=has space')).toBeNull()
+    expect(readShortCodeFromSearch('?c=too$hort!')).toBeNull()
+    expect(readShortCodeFromSearch('?c=ab')).toBeNull() // below min length
+  })
+
+  it('createShortLink posts the config and returns the server url', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ code: 'Ab3xK9pQ', url: 'https://nvc-home4you.eu/c/Ab3xK9pQ' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const url = await createShortLink(sample, {
+      apiBase: '',
+      returnPath: '/en/box-house-configurator',
+      modelLabel: 'Box 52',
+      locale: 'en',
+    })
+
+    expect(url).toBe('https://nvc-home4you.eu/c/Ab3xK9pQ')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [endpoint, opts] = fetchMock.mock.calls[0]
+    expect(endpoint).toBe('/api/config-link')
+    expect(opts.method).toBe('POST')
+    const body = JSON.parse(opts.body)
+    expect(body.config).toEqual(sample)
+    expect(body.returnPath).toBe('/en/box-house-configurator')
+    expect(body.modelLabel).toBe('Box 52')
+    expect(body.locale).toBe('en')
+  })
+
+  it('createShortLink returns null when the API fails, so callers can fall back', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+    expect(await createShortLink(sample, {})).toBeNull()
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+    expect(await createShortLink(sample, {})).toBeNull()
+  })
+
+  it('resolveShortLink returns the stored config object', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ config: sample, modelLabel: 'Box 52', locale: 'en' }),
+    }))
+    expect(await resolveShortLink('Ab3xK9pQ', { apiBase: '' })).toEqual(sample)
+  })
+
+  it('resolveShortLink returns null on 404 / network error / bad payload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+    expect(await resolveShortLink('missing', {})).toBeNull()
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+    expect(await resolveShortLink('Ab3xK9pQ', {})).toBeNull()
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ config: [1, 2, 3] }) }))
+    expect(await resolveShortLink('Ab3xK9pQ', {})).toBeNull()
   })
 })

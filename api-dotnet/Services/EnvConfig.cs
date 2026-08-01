@@ -112,6 +112,22 @@ public class EnvConfig
     public string ReviewApprovedValue => (_cfg["QB_REVIEW_APPROVED"] ?? "approved").Trim();
     public string ReviewPendingValue => (_cfg["QB_REVIEW_PENDING"] ?? "pending").Trim();
 
+    // Saved configurator links ("Save & resume" Phase 2). A Quickbase table that maps
+    // a short share code to a serialized configurator config so /c/{code} can resolve
+    // it. Leave QB_TABLE_SAVED_CONFIGS unset to disable the feature (endpoints 503).
+    public string TableSavedConfigs => _cfg["QB_TABLE_SAVED_CONFIGS"] ?? "";
+    public bool SavedConfigsConfigured => !string.IsNullOrWhiteSpace(TableSavedConfigs);
+
+    public int F_SAVEDCFG_RID    => GetInt("FID_SAVEDCFG_RID", 3);
+    public int F_SAVEDCFG_CODE   => GetInt("FID_SAVEDCFG_CODE", 6);
+    public int F_SAVEDCFG_JSON   => GetInt("FID_SAVEDCFG_JSON", 7);
+    public int F_SAVEDCFG_MODEL  => GetInt("FID_SAVEDCFG_MODEL", 8);
+    public int F_SAVEDCFG_LOCALE => GetInt("FID_SAVEDCFG_LOCALE", 9);
+    public int F_SAVEDCFG_PATH   => GetInt("FID_SAVEDCFG_PATH", 10);
+    // Optional fields — used by the Phase 2b "email me my config" flow when present.
+    public int? F_SAVEDCFG_EMAIL => GetOptionalInt("FID_SAVEDCFG_EMAIL", 11);
+    public int? F_SAVEDCFG_HITS  => GetOptionalInt("FID_SAVEDCFG_HITS", 12);
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 
