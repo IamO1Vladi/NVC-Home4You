@@ -2,8 +2,8 @@ using System.Text.Json;
 
 namespace Models;
 
-public record OfferDto(string Name, string Email, string? Phone, string Project, string? ModelId);
-public record QuestionDto(string Name, string Email, string Question);
+public record OfferDto(string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null);
+public record QuestionDto(string Name, string Email, string Question, string? Locale = null);
 public record ReviewDto(string Name, string? Company, string Email, string? Location, string? Product, string Comment, int Rating);
 
 // "Save & resume" Phase 2 — short shareable configurator links.

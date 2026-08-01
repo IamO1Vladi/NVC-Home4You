@@ -6,8 +6,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Services;
 
@@ -18,11 +20,13 @@ public class EmailService
 {
     private readonly EnvConfig _env;
     private readonly IHttpClientFactory _httpFactory;
+    private readonly ILogger<EmailService> _logger;
 
-    public EmailService(EnvConfig env, IHttpClientFactory httpFactory)
+    public EmailService(EnvConfig env, IHttpClientFactory httpFactory, ILogger<EmailService> logger)
     {
         _env = env;
         _httpFactory = httpFactory;
+        _logger = logger;
     }
 
     public bool IsConfigured => _env.EmailConfigured;
@@ -30,11 +34,35 @@ public class EmailService
     public async Task SendConfigLinkAsync(string toEmail, string shortUrl, string? modelLabel, string? locale, CancellationToken ct = default)
     {
         var (subject, html) = BuildMessage(shortUrl, modelLabel, locale);
-        if (_env.GraphConfigured)
-            await SendViaGraphAsync(toEmail, subject, html, ct);
-        else
-            await SendViaSmtpAsync(toEmail, subject, html, ct);
+        await SendAsync(toEmail, subject, html, ct);
     }
+
+    // Best-effort lead autoresponder: confirms receipt to the lead and echoes what they
+    // submitted (which already carries the config link). Never throws — a mail failure
+    // must not affect lead capture.
+    public async Task<bool> TrySendLeadAutoresponderAsync(string? toEmail, string name, bool isOffer, string details, string? locale, CancellationToken ct = default)
+    {
+        if (!IsConfigured || string.IsNullOrWhiteSpace(toEmail)) return false;
+        try
+        {
+            var (subject, html) = BuildAutoresponder(name, isOffer, details, locale);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            await SendAsync(toEmail, subject, html, timeout.Token);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Lead autoresponder failed for {Email}", toEmail);
+            return false;
+        }
+    }
+
+    // Picks the configured transport (Graph preferred, SMTP fallback).
+    private Task SendAsync(string toEmail, string subject, string html, CancellationToken ct) =>
+        _env.GraphConfigured
+            ? SendViaGraphAsync(toEmail, subject, html, ct)
+            : SendViaSmtpAsync(toEmail, subject, html, ct);
 
     private async Task SendViaSmtpAsync(string toEmail, string subject, string html, CancellationToken ct)
     {
@@ -168,5 +196,70 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1
 </div>";
 
         return (subject, html);
+    }
+
+    // Localized "we received your request/question" acknowledgement, echoing what the
+    // lead submitted (their config summary + link).
+    private (string subject, string html) BuildAutoresponder(string name, bool isOffer, string details, string? locale)
+    {
+        var loc = (locale ?? "en").Trim().ToLowerInvariant();
+        var safeName = System.Net.WebUtility.HtmlEncode((name ?? "").Trim());
+        var detailsHtml = LinkifyEncoded(details ?? "");
+
+        string subject, greeting, intro, detailsHeading, signoff;
+        switch (loc)
+        {
+            case "bg":
+                subject = isOffer ? "Получихме вашата заявка — NVC Home4You" : "Получихме вашия въпрос — NVC Home4You";
+                greeting = string.IsNullOrEmpty(safeName) ? "Здравейте," : $"Здравейте, {safeName},";
+                intro = isOffer
+                    ? "Благодарим ви, че се свързахте с NVC Home4You. Получихме вашата заявка и наш екип ще се свърже с вас възможно най-скоро."
+                    : "Благодарим ви, че се свързахте с NVC Home4You. Получихме вашия въпрос и наш екип ще се свърже с вас възможно най-скоро.";
+                detailsHeading = "Ето копие на изпратеното от вас:";
+                signoff = "— Екипът на NVC Home4You";
+                break;
+            case "el":
+                subject = isOffer ? "Λάβαμε το αίτημά σας — NVC Home4You" : "Λάβαμε την ερώτησή σας — NVC Home4You";
+                greeting = string.IsNullOrEmpty(safeName) ? "Γεια σας," : $"Γεια σας, {safeName},";
+                intro = isOffer
+                    ? "Σας ευχαριστούμε που επικοινωνήσατε με την NVC Home4You. Λάβαμε το αίτημά σας και η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα."
+                    : "Σας ευχαριστούμε που επικοινωνήσατε με την NVC Home4You. Λάβαμε την ερώτησή σας και η ομάδα μας θα επικοινωνήσει μαζί σας σύντομα.";
+                detailsHeading = "Ορίστε ένα αντίγραφο αυτού που μας στείλατε:";
+                signoff = "— Η ομάδα της NVC Home4You";
+                break;
+            default:
+                subject = isOffer ? "We've received your request — NVC Home4You" : "We've received your question — NVC Home4You";
+                greeting = string.IsNullOrEmpty(safeName) ? "Hi," : $"Hi {safeName},";
+                intro = isOffer
+                    ? "Thanks for reaching out to NVC Home4You. We've received your request and a member of our team will get back to you shortly."
+                    : "Thanks for reaching out to NVC Home4You. We've received your question and a member of our team will get back to you shortly.";
+                detailsHeading = "Here's a copy of what you sent us:";
+                signoff = "— The NVC Home4You team";
+                break;
+        }
+
+        var detailsBlock = string.IsNullOrWhiteSpace(details)
+            ? ""
+            : $@"<p style=""font-size:13px;color:#555;margin-top:22px"">{detailsHeading}</p>
+  <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>";
+
+        var html =
+$@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.6;max-width:560px"">
+  <p>{greeting}</p>
+  <p>{intro}</p>
+  {detailsBlock}
+  <p style=""font-size:13px;color:#555;margin-top:22px"">{signoff}</p>
+  <hr style=""border:none;border-top:1px solid #eee;margin:24px 0"" />
+  <p style=""font-size:12px;color:#888"">NVC Home4You · nvc-home4you.eu</p>
+</div>";
+
+        return (subject, html);
+    }
+
+    // HTML-encodes text and turns bare http(s) URLs into clickable links.
+    private static string LinkifyEncoded(string text)
+    {
+        var encoded = System.Net.WebUtility.HtmlEncode(text);
+        return Regex.Replace(encoded, @"https?://[^\s<]+", m => $@"<a href=""{m.Value}"">{m.Value}</a>");
     }
 }

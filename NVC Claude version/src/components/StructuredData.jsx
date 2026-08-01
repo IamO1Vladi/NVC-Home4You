@@ -4,7 +4,7 @@ export function LocalBusinessJSONLD({
   name = 'NVC Home4You',
   url = 'https://nvc-home4you.eu/',
   image = 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcy/eg/vb',
-  telephone = '+359892456245',
+  telephone = '+359879355269',
   email = 'contact@nvc-home4you.eu',
   address = {
     streetAddress: 'Marikostinovo',

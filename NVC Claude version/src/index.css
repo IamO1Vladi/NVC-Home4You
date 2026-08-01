@@ -513,29 +513,61 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 /* Optional: Prevent generic .btn rules from forcing large min-widths in header */
 .header-actions .btn { min-width: 0; }
 
-/* Floating Viber bubble in corner (mobile) */
-.viber-bubble{
+/* Floating contact launcher in corner (mobile): one bubble that expands to
+   WhatsApp + Viber so the corner stays uncluttered. */
+.contact-dock{
   position: fixed;
   right: 16px;
   bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.contact-launcher{
   width: 52px;
   height: 52px;
   border-radius: 999px;
-  background: #7360f2;              /* Viber purple */
+  border: none;
+  background: #1f2937;
   color: #fff;
-  font-weight: 700;
-  font-size: 22px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 8px 20px rgba(0,0,0,.25);
-  z-index: 90;
-  text-decoration: none;
+  cursor: pointer;
 }
+.contact-action{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 15px 0 13px;
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(0,0,0,.22);
+  /* Collapsed by default; revealed when the dock is open. */
+  opacity: 0;
+  transform: translateY(8px) scale(.96);
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.contact-dock.is-open .contact-action{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.contact-action--whatsapp{ background: #25d366; }
+.contact-action--viber{ background: #7360f2; }
+.contact-action__label{ white-space: nowrap; }
 
-/* show only on mobile */
+/* show only on mobile, like the previous single bubble */
 @media (min-width: 768px){
-  .viber-bubble{
+  .contact-dock{
     display: none;
   }
 }
