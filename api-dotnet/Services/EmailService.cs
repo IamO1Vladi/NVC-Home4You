@@ -1,25 +1,43 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Net.Mail;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Services;
 
-// Sends the "email me my configuration" message over SMTP. Defaults target
-// Microsoft 365 (smtp.office365.com:587, STARTTLS). Uses the built-in
-// System.Net.Mail client so no extra dependency is needed.
+// Sends the "email me my configuration" message. Prefers Microsoft Graph /sendMail
+// (OAuth2 client credentials) when configured — Microsoft 365 has deprecated SMTP
+// Basic Auth — and otherwise falls back to SMTP via System.Net.Mail.
 public class EmailService
 {
     private readonly EnvConfig _env;
-    public EmailService(EnvConfig env) { _env = env; }
+    private readonly IHttpClientFactory _httpFactory;
+
+    public EmailService(EnvConfig env, IHttpClientFactory httpFactory)
+    {
+        _env = env;
+        _httpFactory = httpFactory;
+    }
 
     public bool IsConfigured => _env.EmailConfigured;
 
     public async Task SendConfigLinkAsync(string toEmail, string shortUrl, string? modelLabel, string? locale, CancellationToken ct = default)
     {
         var (subject, html) = BuildMessage(shortUrl, modelLabel, locale);
+        if (_env.GraphConfigured)
+            await SendViaGraphAsync(toEmail, subject, html, ct);
+        else
+            await SendViaSmtpAsync(toEmail, subject, html, ct);
+    }
 
+    private async Task SendViaSmtpAsync(string toEmail, string subject, string html, CancellationToken ct)
+    {
         using var message = new MailMessage
         {
             From = new MailAddress(_env.SmtpFrom, _env.SmtpFromName),
@@ -37,6 +55,67 @@ public class EmailService
         };
 
         await client.SendMailAsync(message, ct);
+    }
+
+    // Sends via Graph POST /users/{sender}/sendMail using an app-only access token.
+    // The sender is fixed by the URL path, so the app needs Mail.Send (application).
+    private async Task SendViaGraphAsync(string toEmail, string subject, string html, CancellationToken ct)
+    {
+        var token = await GetGraphTokenAsync(ct);
+
+        var payload = new
+        {
+            message = new
+            {
+                subject,
+                body = new { contentType = "HTML", content = html },
+                toRecipients = new[] { new { emailAddress = new { address = toEmail } } },
+            },
+            saveToSentItems = false,
+        };
+
+        var http = _httpFactory.CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}/sendMail")
+        {
+            Content = JsonContent.Create(payload),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException($"Graph sendMail failed: {(int)response.StatusCode} {body}");
+        }
+    }
+
+    private async Task<string> GetGraphTokenAsync(CancellationToken ct)
+    {
+        var http = _httpFactory.CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"https://login.microsoftonline.com/{Uri.EscapeDataString(_env.GraphTenantId)}/oauth2/v2.0/token")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["client_id"] = _env.GraphClientId,
+                ["client_secret"] = _env.GraphClientSecret,
+                ["scope"] = "https://graph.microsoft.com/.default",
+                ["grant_type"] = "client_credentials",
+            }),
+        };
+
+        using var response = await http.SendAsync(request, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Graph token request failed: {(int)response.StatusCode} {body}");
+
+        using var doc = JsonDocument.Parse(body);
+        if (doc.RootElement.TryGetProperty("access_token", out var tokenEl) && tokenEl.GetString() is { Length: > 0 } token)
+            return token;
+        throw new InvalidOperationException("Graph token response did not contain an access_token.");
     }
 
     // Minimal localized transactional email. Kept plain and inline-styled so it
