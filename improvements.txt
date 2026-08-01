@@ -20,11 +20,11 @@ HIGH PRIORITY — MEASURE & CONVERT
        - configurator_start / configurator_step / configurator_complete
        - ask_question_success, configurator_pdf_export, configurator_copy_summary
        - REMAINING: merge branch, deploy, then GTM container setup (see checklist from chat)
-[ ] 2. Save & resume / shareable configuration (design agreed, phase 1 = frontend only)
-       - Auto-save config to localStorage + "Continue where you left off?" banner
-       - "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
-       - Attach the share link to the offer text that lands in Quickbase
-       - Phase 2 (later, needs storage + email infra): short links + "email me my config"
+[~] 2. Save & resume / shareable configuration (Phase 1 shipped on feature/save-resume-config)
+       [x] Auto-save config to localStorage + "Continue where you left off?" banner
+       [x] "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
+       [x] Attach the share link to the offer text that lands in Quickbase
+       [ ] Phase 2 (later, needs storage + email infra): short links + "email me my config"
 [ ] 3. Popular presets / quick-start bundles in the configurator
        (3-4 ready-made configurations to pick and tweak; fights choice overload)
 [ ] 4. Speed-to-lead follow-up
@@ -47,8 +47,8 @@ FOUNDATION / POLISH
 [ ]  9. Performance pass: Lighthouse / Core Web Vitals, image optimization, preconnect
 [ ] 10. Accessibility audit (EU Accessibility Act applies since June 2025)
 [ ] 11. Translation completeness audit for Greek (added recently; check gaps/fallbacks)
-[ ] 12. Dev hygiene: stop tracking api-dotnet bin/ and obj/ build artifacts in git
-        (they add noise to every commit; add to .gitignore + git rm --cached)
+[x] 12. Dev hygiene: stop tracking api-dotnet bin/ and obj/ build artifacts in git
+        (done via git rm --cached; .gitignore already covered them. On feature/homepage-testimonials, pending merge to master)
 [ ] 13. Upgrade path for @vitejs/plugin-react (v6 supports vite 8) — only when needed
 
 SETUP REMINDERS

@@ -5,6 +5,8 @@ import '../style/BoxHouseConfigurator.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { trackEvent } from '../lib/analytics.js'
+import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
+import { buildShareUrl, readSharedConfigFromHash } from '../lib/configShare.js'
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
@@ -471,6 +473,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
     overview: t.labels?.overview || (isBg ? 'Преглед' : 'Overview'),
     copied: t.labels?.copied || (isBg ? 'Конфигурацията е копирана.' : 'Configuration copied to clipboard.'),
     copyFailed: t.labels?.copyFailed || (isBg ? 'Копирането не беше успешно.' : 'Clipboard copy failed.'),
+    linkCopied: t.labels?.linkCopied || (isBg ? 'Връзката към конфигурацията е копирана.' : 'Configuration link copied to clipboard.'),
+    linkShared: t.labels?.linkShared || (isBg ? 'Връзката е споделена.' : 'Link shared.'),
+    linkFailed: t.labels?.linkFailed || (isBg ? 'Създаването на връзка не беше успешно.' : 'Could not create the share link.'),
     electricalScheme: t.labels?.electricalScheme || (isBg ? 'Електрическа схема' : 'Electrical scheme'),
     windowScheme: t.labels?.windowScheme || (isBg ? 'Схема на прозорците' : 'Window scheme'),
     finishBoard: t.labels?.finishBoard || (isBg ? 'Финиши и бележки' : 'Finishes and notes'),
@@ -502,6 +507,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     next: t.actions?.next || (isBg ? 'Напред' : 'Next'),
     reset: t.actions?.reset || (isBg ? 'Ново начало' : 'Start over'),
     copy: t.actions?.copy || (isBg ? 'Копирай обобщението' : 'Copy summary'),
+    shareLink: t.actions?.shareLink || (isBg ? 'Копирай връзка' : 'Copy link'),
     export: t.actions?.export || (isBg ? 'Експорт PDF' : 'Export PDF'),
     offer: t.actions?.offer || (isBg ? 'Поискай оферта' : 'Request an offer'),
     question: t.actions?.question || (isBg ? 'Задай въпрос' : 'Ask a question'),
@@ -533,9 +539,10 @@ export default function BoxHouseConfiguratorPage({ content }) {
   const initialExteriorFamily = catalog.exteriorFinishGroups[0]?.key || 'steel'
   const initialExteriorFinish = catalog.exteriorFinishGroups[0]?.options?.[0]?.key || ''
 
-  const [stepIndex, setStepIndex] = React.useState(0)
-  const [status, setStatus] = React.useState('')
-  const [config, setConfig] = React.useState({
+  // Canonical pristine configuration. Kept as one factory so the initial state,
+  // resetAll() and the resume-banner "is this meaningful progress?" check all
+  // share a single definition instead of separate copies drifting apart.
+  const buildDefaultConfig = () => ({
     model: initialModel?.key || '37',
     variant: 'standard',
     plan: initialPlan,
@@ -570,6 +577,92 @@ export default function BoxHouseConfiguratorPage({ content }) {
     sockets: [],
     socketNotes: '',
   })
+
+  // A shared link (#cfg=...) carries an exact configuration; read it once at
+  // mount. It takes precedence over both the pristine default and any saved
+  // config, so opening someone's shared link shows their configuration.
+  const sharedFromUrl = React.useMemo(
+    () => (typeof window === 'undefined' ? null : readSharedConfigFromHash(window.location.hash)),
+    []
+  )
+
+  // Overlay an incoming (shared/saved) config onto a fresh default so any keys
+  // missing from an older/partial payload fall back to sensible values.
+  const mergeIntoDefaults = (incoming) => {
+    const base = buildDefaultConfig()
+    if (!incoming) return base
+    return {
+      ...base,
+      ...incoming,
+      kitchenExtras: { ...base.kitchenExtras, ...(incoming.kitchenExtras || {}) },
+    }
+  }
+
+  const [stepIndex, setStepIndex] = React.useState(0)
+  const [status, setStatus] = React.useState('')
+  const [config, setConfig] = React.useState(() => mergeIntoDefaults(sharedFromUrl))
+  // Read any previously auto-saved configuration once, at mount, before the
+  // auto-save effect below can overwrite it. Drives the resume banner — but a
+  // shared link wins, so the banner is suppressed when one is present.
+  const [resumeCandidate, setResumeCandidate] = React.useState(() =>
+    sharedFromUrl ? null : loadSavedConfig()
+  )
+
+  // Debounced auto-save of the in-progress configuration. Skipped while the
+  // resume banner is still pending so we don't clobber the saved config the
+  // visitor hasn't decided on yet.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    if (resumeCandidate) return undefined
+    const id = window.setTimeout(() => saveConfig(config, stepIndex), 400)
+    return () => window.clearTimeout(id)
+  }, [config, stepIndex, resumeCandidate])
+
+  // If the visitor ignores the resume banner and just starts configuring, treat
+  // that as an implicit "keep editing": dismiss the banner so auto-save re-arms
+  // and persists their new work. We compare against the mount-time references
+  // rather than a boolean "have I run" flag because StrictMode double-invokes
+  // effects with identical references — a reference compare correctly reports
+  // "no real change" on that second invocation. (Resume/start-fresh clear
+  // resumeCandidate first, so this is a no-op on those paths.)
+  const initialConfigRef = React.useRef(null)
+  React.useEffect(() => {
+    if (initialConfigRef.current === null) {
+      initialConfigRef.current = { config, stepIndex }
+      return
+    }
+    const { config: config0, stepIndex: stepIndex0 } = initialConfigRef.current
+    if (resumeCandidate && (config !== config0 || stepIndex !== stepIndex0)) {
+      setResumeCandidate(null)
+    }
+  }, [config, stepIndex, resumeCandidate])
+
+  // Once a shared config has seeded the initial state, strip #cfg from the URL:
+  // further edits are auto-saved to localStorage, so a reload should resume the
+  // (possibly edited) session rather than snap back to the original shared link.
+  React.useEffect(() => {
+    if (!sharedFromUrl) return
+    if (typeof window === 'undefined' || !window.history?.replaceState) return
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+  }, [sharedFromUrl])
+
+  const handleResumeSaved = React.useCallback(() => {
+    if (!resumeCandidate) return
+    setConfig((prev) => ({
+      ...prev,
+      ...resumeCandidate.config,
+      // Backfill nested/added keys from defaults so an older saved shape can't
+      // leave a sub-object partially undefined.
+      kitchenExtras: { ...prev.kitchenExtras, ...(resumeCandidate.config.kitchenExtras || {}) },
+    }))
+    setStepIndex(Number.isInteger(resumeCandidate.stepIndex) ? resumeCandidate.stepIndex : 0)
+    setResumeCandidate(null)
+  }, [resumeCandidate])
+
+  const handleStartFresh = React.useCallback(() => {
+    clearSavedConfig()
+    setResumeCandidate(null)
+  }, [])
 
   const previewRefs = React.useRef({})
   const previewTimerRef = React.useRef(null)
@@ -836,16 +929,32 @@ export default function BoxHouseConfiguratorPage({ content }) {
     yesText,
   ])
 
-  const modalPrefill = React.useMemo(() => ({
-    source: 'box-configurator',
-    sourcePath: typeof window !== 'undefined' ? window.location.pathname : '',
-    modelId: selectedModel?.key || '',
-    modelLabel: selectedModel?.label || '',
-    knownTotal,
-    offerText: summaryLines,
-    questionText: `${isBg ? 'Въпрос за следната конфигурация на Бокс къща:' : 'Question about the following box house configuration:'}\n\n${summaryLines}`,
-    updatedAt: Date.now(),
-  }), [isBg, knownTotal, selectedModel?.key, selectedModel?.label, summaryLines])
+  const modalPrefill = React.useMemo(() => {
+    // Append a shareable link so the exact configuration lands in Quickbase with
+    // the lead — the team can open it in one click instead of rebuilding it.
+    const shareUrl = buildShareUrl(config, {
+      origin: typeof window !== 'undefined' ? window.location.origin : '',
+      pathname: typeof window !== 'undefined' ? window.location.pathname : '',
+    })
+    const shareLabel = isBg
+      ? 'Отвори тази конфигурация'
+      : locale === 'el'
+      ? 'Άνοιξε αυτή τη διαμόρφωση'
+      : 'Open this configuration'
+    const offerText = `${summaryLines}\n\n${shareLabel}:\n${shareUrl}`
+    return {
+      source: 'box-configurator',
+      sourcePath: typeof window !== 'undefined' ? window.location.pathname : '',
+      modelId: selectedModel?.key || '',
+      // Kept for the funnel analytics: App.jsx reads modelLabel/knownTotal off the
+      // prefill to enrich request_quote_success with model_label and lead_value.
+      modelLabel: selectedModel?.label || '',
+      knownTotal,
+      offerText,
+      questionText: `${isBg ? 'Въпрос за следната конфигурация на Бокс къща:' : 'Question about the following box house configuration:'}\n\n${offerText}`,
+      updatedAt: Date.now(),
+    }
+  }, [isBg, locale, config, knownTotal, selectedModel?.key, selectedModel?.label, summaryLines])
 
   React.useEffect(() => {
     writeConfiguratorPrefill(modalPrefill)
@@ -930,39 +1039,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }
 
   function resetAll() {
-    setConfig({
-      model: initialModel?.key || '37',
-      variant: 'standard',
-      plan: initialPlan,
-      windowFrame: catalog.windowFrameOptions[0]?.key || 'pvc',
-      steelFrameColor: catalog.steelFrameColorOptions[0]?.key || 'black',
-      windowStyle: catalog.windowStyleOptions[0]?.key || 'broken-bridge',
-      exteriorDoor: catalog.exteriorDoorOptions[0]?.key || 'titanium-alloy-door',
-      exteriorFinishFamily: initialExteriorFamily,
-      exteriorFinish: initialExteriorFinish,
-      deckingColor: catalog.deckingColorOptions[0]?.key || 'red-pine',
-      heating: false,
-      windowSize: '1000',
-      windows: [],
-      windowNotes: '',
-      interiorPanelMode: 'white',
-      interiorPanelColor: catalog.interiorPanelColorOptions[0]?.key || 'panel-red',
-      uvPanel: catalog.uvPanelOptions[0]?.key || 'uv-001',
-      floorFamily: 'spc',
-      spcFloor: catalog.spcFloorOptions[0]?.key || 'spc-7005',
-      pvcFloor: catalog.pvcFloorOptions[0]?.key || 'pvc-001',
-      carbonCrystalFloor: catalog.carbonCrystalOptions[0]?.key || 'carbon-gf005',
-      bathroom: catalog.bathroomOptions[0]?.key || 'E1',
-      kitchen: catalog.kitchenOptions[0]?.key || 'F1',
-      kitchenBench: catalog.kitchenBenchOptions[0]?.key || 'yl-4003',
-      kitchenExtras: { furnace: false, washingMachine: false, dishwasherCabinet: false },
-      insideDoorStyle: catalog.insideDoorStyleOptions[0]?.key || 'inside-01',
-      insideDoorCount: 0,
-      sockets: [],
-      socketNotes: '',
-    })
+    setConfig(buildDefaultConfig())
     setStepIndex(0)
     setStatus('')
+    clearSavedConfig()
+    setResumeCandidate(null)
   }
 
   async function copySummary() {
@@ -976,6 +1057,31 @@ export default function BoxHouseConfiguratorPage({ content }) {
       })
     } catch {
       setStatus(labels.copyFailed)
+    }
+  }
+
+  async function shareConfigLink() {
+    if (typeof window === 'undefined') return
+    const url = buildShareUrl(config, {
+      origin: window.location.origin,
+      pathname: window.location.pathname,
+    })
+    // On mobile, prefer the native share sheet when the browser supports it.
+    if (isMobileShell && typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: t.title || 'NVC Home4You', url })
+        setStatus(labels.linkShared)
+        return
+      } catch (err) {
+        if (err && err.name === 'AbortError') return // visitor dismissed the sheet
+        // any other failure falls through to the clipboard path
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setStatus(labels.linkCopied)
+    } catch {
+      setStatus(labels.linkFailed)
     }
   }
 
@@ -1956,6 +2062,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <div className="bhc-summary-actions">
               <button className="btn ghost" type="button" onClick={exportPdf}>{actions.export}</button>
               <button className="btn ghost" type="button" onClick={copySummary}>{actions.copy}</button>
+              <button className="btn ghost" type="button" onClick={shareConfigLink}>{actions.shareLink}</button>
               <button className="btn ghost" type="button" onClick={handleOpenQuestion}>{actions.question}</button>
             </div>
             <div className="bhc-small-note">{labels.exportHint}</div>
@@ -2825,9 +2932,56 @@ export default function BoxHouseConfiguratorPage({ content }) {
         summary: renderSummaryStep(),
       }[stepKey]
 
+  const resumeText = {
+    title: isBg
+      ? 'Да продължим откъдето спряхте?'
+      : locale === 'el'
+      ? 'Συνέχεια από εκεί που σταματήσατε;'
+      : 'Continue where you left off?',
+    body: isBg
+      ? 'Запазихме конфигурацията, върху която работехте в този браузър.'
+      : locale === 'el'
+      ? 'Αποθηκεύσαμε τη διαμόρφωση στην οποία εργαζόσασταν σε αυτό το πρόγραμμα περιήγησης.'
+      : 'We saved the configuration you were working on in this browser.',
+    resume: isBg ? 'Продължи' : locale === 'el' ? 'Συνέχεια' : 'Continue',
+    fresh: isBg ? 'Започни отначало' : locale === 'el' ? 'Ξεκινήστε από την αρχή' : 'Start fresh',
+  }
+
+  // Only surface the resume banner when the saved config is real progress
+  // (past the first step, or diverged from the pristine defaults) so a fresh
+  // visitor who never touched anything isn't nagged.
+  let showResumeBanner = false
+  if (resumeCandidate) {
+    if ((resumeCandidate.stepIndex || 0) > 0) {
+      showResumeBanner = true
+    } else {
+      try {
+        showResumeBanner =
+          JSON.stringify(resumeCandidate.config) !== JSON.stringify(buildDefaultConfig())
+      } catch {
+        showResumeBanner = true
+      }
+    }
+  }
+
   return (
     <main className={['bhc-page', isMobileShell && 'bhc-page--mobile'].filter(Boolean).join(' ')}>
       {renderHeroSection()}
+
+      {showResumeBanner ? (
+        <div className="container bhc-resume-wrap">
+          <div className="bhc-resume" role="region" aria-label={resumeText.title}>
+            <div className="bhc-resume-copy">
+              <span className="bhc-resume-title">{resumeText.title}</span>
+              <span className="bhc-resume-body">{resumeText.body}</span>
+            </div>
+            <div className="bhc-resume-actions">
+              <button className="btn" type="button" onClick={handleResumeSaved}>{resumeText.resume}</button>
+              <button className="btn ghost" type="button" onClick={handleStartFresh}>{resumeText.fresh}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section>
         <div className="container">
