@@ -128,6 +128,21 @@ public class EnvConfig
     public int? F_SAVEDCFG_EMAIL => GetOptionalInt("FID_SAVEDCFG_EMAIL", 11);
     public int? F_SAVEDCFG_HITS  => GetOptionalInt("FID_SAVEDCFG_HITS", 12);
 
+    // SMTP for the Phase 2b "email me my config" flow. Defaults target Microsoft 365
+    // (smtp.office365.com:587, STARTTLS). Leave SMTP_USER/SMTP_PASSWORD unset to
+    // disable the feature (endpoint 503s; the frontend hides the email option).
+    public string SmtpHost => (_cfg["SMTP_HOST"] ?? "smtp.office365.com").Trim();
+    public int SmtpPort => GetInt("SMTP_PORT", 587);
+    public string SmtpUser => (_cfg["SMTP_USER"] ?? "").Trim();
+    public string SmtpPassword => _cfg["SMTP_PASSWORD"] ?? "";
+    public string SmtpFrom => (_cfg["SMTP_FROM"] ?? _cfg["SMTP_USER"] ?? "").Trim();
+    public string SmtpFromName => (_cfg["SMTP_FROM_NAME"] ?? "NVC Home4You").Trim();
+    public bool EmailConfigured =>
+        !string.IsNullOrWhiteSpace(SmtpHost) &&
+        !string.IsNullOrWhiteSpace(SmtpUser) &&
+        !string.IsNullOrWhiteSpace(SmtpPassword) &&
+        !string.IsNullOrWhiteSpace(SmtpFrom);
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 

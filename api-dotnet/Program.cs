@@ -31,6 +31,7 @@ builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
 builder.Services.AddScoped<Services.ReviewService>();
 builder.Services.AddScoped<Services.SavedConfigService>();
+builder.Services.AddScoped<Services.EmailService>();
 
 var app = builder.Build();
 

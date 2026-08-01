@@ -102,3 +102,25 @@ export async function resolveShortLink(code, { apiBase = '' } = {}) {
     return null
   }
 }
+
+// Basic email shape check for client-side UX (the server validates authoritatively).
+export function isLikelyEmail(email) {
+  return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+}
+
+// Phase 2b: asks the server to save the config and email its short link to the
+// visitor. Returns true on success, false otherwise (feature disabled, bad email,
+// or delivery failure) so the UI can show a friendly message.
+export async function emailMyConfig(config, email, { apiBase = '', modelLabel = '', locale = '', returnPath = '' } = {}) {
+  if (typeof fetch !== 'function' || !config || !isLikelyEmail(email)) return false
+  try {
+    const res = await fetch(`${apiBase}/api/config-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config, email: email.trim(), modelLabel, locale, returnPath }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}

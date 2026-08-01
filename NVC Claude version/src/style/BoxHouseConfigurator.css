@@ -549,6 +549,32 @@
   margin-top: 18px;
 }
 
+/* "Email me my config" row */
+.bhc-email-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.bhc-email-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-soft);
+  color: inherit;
+  font-size: 14px;
+}
+.bhc-email-input::placeholder { color: var(--bhc-muted); }
+.bhc-email-row .btn { flex: 0 0 auto; }
+.bhc-email-status {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.bhc-email-status--ok { color: #22c55e; }
+.bhc-email-status--err { color: #ef4444; }
+
 .bhc-summary-grid {
   grid-template-columns: minmax(0, .95fr) minmax(320px, 1.05fr);
   margin-top: 18px;

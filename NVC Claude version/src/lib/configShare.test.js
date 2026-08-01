@@ -8,6 +8,8 @@ import {
   readShortCodeFromSearch,
   createShortLink,
   resolveShortLink,
+  isLikelyEmail,
+  emailMyConfig,
 } from './configShare.js'
 
 const sample = {
@@ -132,5 +134,54 @@ describe('configShare short links', () => {
 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ config: [1, 2, 3] }) }))
     expect(await resolveShortLink('Ab3xK9pQ', {})).toBeNull()
+  })
+})
+
+describe('configShare email', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('validates email shape', () => {
+    expect(isLikelyEmail('a@b.co')).toBe(true)
+    expect(isLikelyEmail('  name.surname@example.eu  ')).toBe(true)
+    expect(isLikelyEmail('nope')).toBe(false)
+    expect(isLikelyEmail('a@b')).toBe(false)
+    expect(isLikelyEmail('a b@c.com')).toBe(false)
+    expect(isLikelyEmail('')).toBe(false)
+    expect(isLikelyEmail(null)).toBe(false)
+  })
+
+  it('emailMyConfig posts config + email and returns true on success', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const ok = await emailMyConfig(sample, '  Me@Example.com ', {
+      apiBase: '', modelLabel: 'Box 52', locale: 'bg', returnPath: '/bg/konfigurator-box-kyshti',
+    })
+
+    expect(ok).toBe(true)
+    const [endpoint, opts] = fetchMock.mock.calls[0]
+    expect(endpoint).toBe('/api/config-email')
+    const body = JSON.parse(opts.body)
+    expect(body.email).toBe('Me@Example.com') // trimmed
+    expect(body.config).toEqual(sample)
+    expect(body.locale).toBe('bg')
+    expect(body.returnPath).toBe('/bg/konfigurator-box-kyshti')
+  })
+
+  it('emailMyConfig short-circuits invalid email without calling the API', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await emailMyConfig(sample, 'not-an-email', {})).toBe(false)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('emailMyConfig returns false when the API fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+    expect(await emailMyConfig(sample, 'me@example.com', {})).toBe(false)
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+    expect(await emailMyConfig(sample, 'me@example.com', {})).toBe(false)
   })
 })
