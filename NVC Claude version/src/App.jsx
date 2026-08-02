@@ -4,6 +4,7 @@ import { LazyMotion, domAnimation } from 'framer-motion'
 import Header from './components/Header.jsx'
 import Modal from './components/Modal.jsx'
 import MobileDock from './components/MobileDock.jsx'
+import ContactDock from './components/ContactDock.jsx'
 import SiteFooter from './components/SiteFooter.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { ModalActionsProvider } from './context/ModalActions.jsx'
@@ -195,6 +196,7 @@ function AppShell() {
       phone: fd.get('phone') || '',
       project: fd.get('project') || '',
       modelId: fd.get('modelId') || '',
+      locale: currentLocale,
     }
     if (!payload.name || !payload.email) return
 
@@ -219,7 +221,7 @@ function AppShell() {
     })
     showToast('success', ui.common.toast.offerSuccess)
     setOfferOpen(false)
-  }, [showToast, trackRequestQuote, selectedModel, offerPrefillData, ui.common.toast.offerError, ui.common.toast.offerSuccess])
+  }, [showToast, trackRequestQuote, selectedModel, offerPrefillData, currentLocale, ui.common.toast.offerError, ui.common.toast.offerSuccess])
 
   const submitQuestion = useCallback(async (e) => {
     e.preventDefault()
@@ -228,6 +230,7 @@ function AppShell() {
       name: fd.get('name') || '',
       email: fd.get('email') || '',
       question: fd.get('question') || '',
+      locale: currentLocale,
     }
     if (!payload.name || !payload.email) return
 
@@ -257,7 +260,7 @@ function AppShell() {
     })
     showToast('success', ui.common.toast.questionSuccess)
     setQuestionOpen(false)
-  }, [showToast, questionPrefillData, ui.common.toast.questionError, ui.common.toast.questionSuccess])
+  }, [showToast, questionPrefillData, currentLocale, ui.common.toast.questionError, ui.common.toast.questionSuccess])
 
   const homeRedirect = paths.home[currentLocale] || paths.home.en
   const modularBuildsRedirect = paths.modularBuilds[currentLocale] || paths.modularBuilds.en
@@ -414,7 +417,7 @@ function AppShell() {
             </form>
           </Modal>
 
-          {!isInternal && <a href="viber://chat?number=%2B359892456245" className="viber-bubble" aria-label={ui.common.viberChatLabel}>NVC</a>}
+          {!isInternal && <ContactDock labels={{ contact: ui.common.contactLabel, whatsapp: ui.common.whatsAppChatLabel, viber: ui.common.viberChatLabel }} />}
 
           {!isInternal && <MobileDock content={ui.home.mobileDock} />}
           {toast.show && (

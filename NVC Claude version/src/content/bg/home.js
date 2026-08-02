@@ -257,6 +257,8 @@ export default {
     close: 'Затвори',
     open: 'Отвори',
     viberChatLabel: 'Отвори чат във Viber',
+    whatsAppChatLabel: 'Отвори чат в WhatsApp',
+    contactLabel: 'Пишете ни',
     lightbox: {
       closeLabel: 'Затвори',
       prevLabel: 'Назад',

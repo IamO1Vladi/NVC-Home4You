@@ -2916,8 +2916,26 @@ export default function BoxHouseConfiguratorPage({ content }) {
         <div className="bhc-mobile-action-grid">
           <button className="btn ghost" type="button" onClick={exportPdf}>{actions.export}</button>
           <button className="btn ghost" type="button" onClick={copySummary}>{actions.copy}</button>
+          <button className="btn ghost" type="button" onClick={shareConfigLink}>{actions.shareLink}</button>
           <button className="btn ghost" type="button" onClick={handleOpenQuestion}>{actions.question}</button>
         </div>
+        <form className="bhc-email-row" onSubmit={handleEmailConfig}>
+          <input
+            type="email"
+            className="bhc-email-input"
+            placeholder={labels.emailPlaceholder}
+            value={emailValue}
+            onChange={(e) => { setEmailValue(e.target.value); if (emailState !== 'idle') setEmailState('idle') }}
+            aria-label={labels.emailPrompt}
+            autoComplete="email"
+          />
+          <button className="btn ghost" type="submit" disabled={emailState === 'sending'}>
+            {emailState === 'sending' ? labels.emailSending : labels.emailPrompt}
+          </button>
+        </form>
+        {emailState === 'sent' && <div className="bhc-email-status bhc-email-status--ok">{labels.emailSent}</div>}
+        {emailState === 'invalid' && <div className="bhc-email-status bhc-email-status--err">{labels.emailInvalid}</div>}
+        {emailState === 'error' && <div className="bhc-email-status bhc-email-status--err">{labels.emailFailed}</div>}
 
         <MobileSection id="overview" openId={openSection} onToggle={toggleSection} title={labels.summary} value={euro(knownTotal, locale)}>
           <div className="bhc-detail-list">

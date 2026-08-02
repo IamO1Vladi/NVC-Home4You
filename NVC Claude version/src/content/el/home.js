@@ -257,6 +257,8 @@ export default {
     close: 'Κλείσιμο',
     open: 'Άνοιγμα',
     viberChatLabel: 'Άνοιγμα συνομιλίας Viber',
+    whatsAppChatLabel: 'Άνοιγμα συνομιλίας WhatsApp',
+    contactLabel: 'Επικοινωνήστε μαζί μας',
     lightbox: {
       closeLabel: 'Κλείσιμο',
       prevLabel: 'Προηγ.',

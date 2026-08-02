@@ -257,6 +257,8 @@ export default {
     close: 'Close',
     open: 'Open',
     viberChatLabel: 'Open Viber chat',
+    whatsAppChatLabel: 'Open WhatsApp chat',
+    contactLabel: 'Chat with us',
     lightbox: {
       closeLabel: 'Close',
       prevLabel: 'Prev',
