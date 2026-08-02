@@ -16,8 +16,10 @@ public class QuestionController : ControllerBase
     public async Task<IActionResult> Post([FromBody] QuestionDto dto, CancellationToken ct)
     {
         var rid = await _svc.CreateQuestionAsync(dto, ct);
-        // Best-effort instant acknowledgement to the lead (never blocks capture).
-        await _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: false, dto.Question, dto.Locale, ct);
+        // Best-effort emails (never block capture): acknowledge the lead + notify sales.
+        await Task.WhenAll(
+            _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: false, dto.Question, dto.Locale, ct),
+            _email.TrySendLeadNotificationAsync(isOffer: false, dto.Name, dto.Email, null, dto.Question, ct));
         return Ok(new { recordId = rid });
     }
 }

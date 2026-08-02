@@ -16,8 +16,10 @@ public class OfferController : ControllerBase
     public async Task<IActionResult> Post([FromBody] OfferDto dto, CancellationToken ct)
     {
         var rid = await _svc.CreateOfferAsync(dto, ct);
-        // Best-effort instant acknowledgement to the lead (never blocks capture).
-        await _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: true, dto.Project, dto.Locale, ct);
+        // Best-effort emails (never block capture): acknowledge the lead + notify sales.
+        await Task.WhenAll(
+            _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: true, dto.Project, dto.Locale, ct),
+            _email.TrySendLeadNotificationAsync(isOffer: true, dto.Name, dto.Email, dto.Phone, dto.Project, ct));
         return Ok(new { recordId = rid });
     }
 }

@@ -164,6 +164,10 @@ public class EnvConfig
     // Email works if either transport is configured (Graph preferred).
     public bool EmailConfigured => GraphConfigured || SmtpConfigured;
 
+    // Internal "new lead" notification recipient(s), comma/semicolon separated.
+    // Defaults to the sales inbox; override via env to add/redirect recipients.
+    public string LeadNotifyEmail => (_cfg["LEAD_NOTIFY_EMAIL"] ?? "nlekov@nvc-home4you.eu").Trim();
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 

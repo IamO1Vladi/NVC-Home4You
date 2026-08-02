@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -34,7 +35,7 @@ public class EmailService
     public async Task SendConfigLinkAsync(string toEmail, string shortUrl, string? modelLabel, string? locale, CancellationToken ct = default)
     {
         var (subject, html) = BuildMessage(shortUrl, modelLabel, locale);
-        await SendAsync(toEmail, subject, html, ct);
+        await SendAsync(new[] { toEmail }, subject, html, replyTo: null, ct);
     }
 
     // Best-effort lead autoresponder: confirms receipt to the lead and echoes what they
@@ -48,7 +49,7 @@ public class EmailService
             var (subject, html) = BuildAutoresponder(name, isOffer, details, locale);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
-            await SendAsync(toEmail, subject, html, timeout.Token);
+            await SendAsync(new[] { toEmail! }, subject, html, replyTo: null, timeout.Token);
             return true;
         }
         catch (Exception ex)
@@ -58,13 +59,43 @@ public class EmailService
         }
     }
 
-    // Picks the configured transport (Graph preferred, SMTP fallback).
-    private Task SendAsync(string toEmail, string subject, string html, CancellationToken ct) =>
-        _env.GraphConfigured
-            ? SendViaGraphAsync(toEmail, subject, html, ct)
-            : SendViaSmtpAsync(toEmail, subject, html, ct);
+    // Best-effort internal "new lead" notification to the sales inbox, with Reply-To set
+    // to the lead so the team can respond directly. Never throws.
+    public async Task<bool> TrySendLeadNotificationAsync(bool isOffer, string name, string leadEmail, string? phone, string details, CancellationToken ct = default)
+    {
+        if (!IsConfigured) return false;
+        var recipients = ParseRecipients(_env.LeadNotifyEmail);
+        if (recipients.Count == 0) return false;
+        try
+        {
+            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            var replyTo = string.IsNullOrWhiteSpace(leadEmail) ? null : leadEmail.Trim();
+            await SendAsync(recipients, subject, html, replyTo, timeout.Token);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Lead notification failed");
+            return false;
+        }
+    }
 
-    private async Task SendViaSmtpAsync(string toEmail, string subject, string html, CancellationToken ct)
+    private static IReadOnlyCollection<string> ParseRecipients(string? raw) =>
+        (raw ?? "")
+            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => x.Contains('@'))
+            .Distinct()
+            .ToArray();
+
+    // Picks the configured transport (Graph preferred, SMTP fallback).
+    private Task SendAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct) =>
+        _env.GraphConfigured
+            ? SendViaGraphAsync(toEmails, subject, html, replyTo, ct)
+            : SendViaSmtpAsync(toEmails, subject, html, replyTo, ct);
+
+    private async Task SendViaSmtpAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct)
     {
         using var message = new MailMessage
         {
@@ -73,7 +104,8 @@ public class EmailService
             Body = html,
             IsBodyHtml = true,
         };
-        message.To.Add(new MailAddress(toEmail));
+        foreach (var to in toEmails) message.To.Add(new MailAddress(to));
+        if (!string.IsNullOrWhiteSpace(replyTo)) message.ReplyToList.Add(new MailAddress(replyTo));
 
         using var client = new SmtpClient(_env.SmtpHost, _env.SmtpPort)
         {
@@ -87,20 +119,26 @@ public class EmailService
 
     // Sends via Graph POST /users/{sender}/sendMail using an app-only access token.
     // The sender is fixed by the URL path, so the app needs Mail.Send (application).
-    private async Task SendViaGraphAsync(string toEmail, string subject, string html, CancellationToken ct)
+    private async Task SendViaGraphAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct)
     {
         var token = await GetGraphTokenAsync(ct);
 
-        var payload = new
-        {
-            message = new
+        var toRecipients = toEmails.Select(a => new { emailAddress = new { address = a } }).ToArray();
+        object messageObj = string.IsNullOrWhiteSpace(replyTo)
+            ? new
             {
                 subject,
                 body = new { contentType = "HTML", content = html },
-                toRecipients = new[] { new { emailAddress = new { address = toEmail } } },
-            },
-            saveToSentItems = false,
-        };
+                toRecipients,
+            }
+            : new
+            {
+                subject,
+                body = new { contentType = "HTML", content = html },
+                toRecipients,
+                replyTo = new[] { new { emailAddress = new { address = replyTo } } },
+            };
+        var payload = new { message = messageObj, saveToSentItems = false };
 
         var http = _httpFactory.CreateClient();
         using var request = new HttpRequestMessage(
@@ -261,5 +299,37 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1
     {
         var encoded = System.Net.WebUtility.HtmlEncode(text);
         return Regex.Replace(encoded, @"https?://[^\s<]+", m => $@"<a href=""{m.Value}"">{m.Value}</a>");
+    }
+
+    // Internal team notification (English) with the lead's contact details and submission.
+    private (string subject, string html) BuildLeadNotification(bool isOffer, string name, string leadEmail, string? phone, string details)
+    {
+        var trimmedName = (name ?? "").Trim();
+        var trimmedEmail = (leadEmail ?? "").Trim();
+        var safeName = System.Net.WebUtility.HtmlEncode(trimmedName);
+        var safeEmail = System.Net.WebUtility.HtmlEncode(trimmedEmail);
+        var safePhone = System.Net.WebUtility.HtmlEncode((phone ?? "").Trim());
+        var detailsHtml = LinkifyEncoded(details ?? "");
+        var kind = isOffer ? "offer request" : "question";
+
+        var subject = $"New {kind}: {(string.IsNullOrEmpty(trimmedName) ? trimmedEmail : trimmedName)}";
+
+        var phoneRow = string.IsNullOrEmpty(safePhone)
+            ? ""
+            : $@"<p style=""margin:2px 0""><strong>Phone:</strong> {safePhone}</p>";
+
+        var html =
+$@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.6;max-width:600px"">
+  <p style=""font-size:15px""><strong>New {kind} from the website</strong></p>
+  <p style=""margin:2px 0""><strong>Name:</strong> {(string.IsNullOrEmpty(safeName) ? "—" : safeName)}</p>
+  <p style=""margin:2px 0""><strong>Email:</strong> <a href=""mailto:{safeEmail}"">{safeEmail}</a></p>
+  {phoneRow}
+  <p style=""font-size:13px;color:#555;margin-top:16px"">Details:</p>
+  <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>
+  <hr style=""border:none;border-top:1px solid #eee;margin:20px 0"" />
+  <p style=""font-size:12px;color:#888"">Reply to this email to respond to the lead directly.</p>
+</div>";
+
+        return (subject, html);
     }
 }
