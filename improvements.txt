@@ -28,9 +28,9 @@ HIGH PRIORITY — MEASURE & CONVERT
            (live; email sends via Microsoft Graph / OAuth — M365 SMTP basic auth is disabled)
 [ ] 3. Popular presets / quick-start bundles in the configurator
        (3-4 ready-made configurations to pick and tweak; fights choice overload)
-[ ] 4. Speed-to-lead follow-up
-       - Instant autoresponder email to the lead with their config PDF (needs email infra)
-       - WhatsApp click-to-chat button next to Viber
+[x] 4. Speed-to-lead follow-up (PR #8)
+       [x] Instant autoresponder to the lead (config link) + internal "new lead" email to sales
+       [x] WhatsApp click-to-chat — expandable launcher next to Viber (+359 87 935 5269)
 [ ] 5. Financing / total-cost calculator
        (monthly payment estimate; clear "included vs quote-on-review" breakdown)
 
