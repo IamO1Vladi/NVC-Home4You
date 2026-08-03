@@ -29,4 +29,8 @@ public class Review
     [MaxLength(32)] public string Status { get; set; } = "pending";
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    // Mirrors Quickbase's "Date Modified". Phase 2's re-import uses it to pull only rows
+    // that changed since the last sync instead of re-reading the whole table each night.
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

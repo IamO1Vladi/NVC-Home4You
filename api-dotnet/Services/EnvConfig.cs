@@ -108,6 +108,9 @@ public class EnvConfig
     public int F_REVIEW_COMMENT => GetInt("FID_REVIEW_COMMENT", 12);
     public int F_REVIEW_STATUS => GetInt("FID_REVIEW_STATUS", 13);
     public int? F_REVIEW_CREATED => GetOptionalInt("FID_REVIEW_CREATED", 1);
+    // Quickbase built-in "Date Modified" (fid 2 by convention, same as fid 1 = Date
+    // Created). Used by the SQL import to fetch only rows changed since the last sync.
+    public int? F_REVIEW_MODIFIED => GetOptionalInt("FID_REVIEW_MODIFIED", 2);
 
     public string ReviewApprovedValue => (_cfg["QB_REVIEW_APPROVED"] ?? "approved").Trim();
     public string ReviewPendingValue => (_cfg["QB_REVIEW_PENDING"] ?? "pending").Trim();
