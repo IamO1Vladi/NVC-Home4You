@@ -196,6 +196,27 @@ public class EnvConfig
             .ToArray();
     }
 
+    // --- SQL migration (Quickbase -> Azure SQL) --------------------------------------
+    // Connection string for the SQL data layer. Empty until a database is provisioned,
+    // which is the safe default: every DataSourceFor() below then reports Quickbase.
+    // Set via Azure App Settings in deployed environments, user-secrets locally.
+    public string SqlConnectionString => (_cfg["SQL_CONNECTION_STRING"] ?? "").Trim();
+
+    public bool SqlConfigured => !string.IsNullOrWhiteSpace(SqlConnectionString);
+
+    // Per-entity switch so tables can be cut over one at a time and reverted instantly.
+    // Env var shape: DATA_SOURCE_HOUSES=sql (anything else, or unset, means quickbase).
+    // Falls back to Quickbase whenever SQL isn't configured, so a half-set flag can
+    // never take the site down.
+    public DataSource DataSourceFor(string entity)
+    {
+        if (!SqlConfigured) return DataSource.Quickbase;
+        var raw = (_cfg[$"DATA_SOURCE_{entity.ToUpperInvariant()}"] ?? "").Trim();
+        return raw.Equals("sql", StringComparison.OrdinalIgnoreCase)
+            ? DataSource.Sql
+            : DataSource.Quickbase;
+    }
+
     private static string NormalizeRealm(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return "";

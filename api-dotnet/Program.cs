@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,16 @@ builder.Services.AddHttpClient<Services.QuickbaseApi>(client => {
 });
 
 builder.Services.AddSingleton<Services.EnvConfig>();
+
+// SQL data layer (Quickbase -> Azure SQL migration). Registered only when a connection
+// string is present, so environments without a database start exactly as before and
+// every entity keeps resolving to Quickbase.
+var sqlConnectionString = (builder.Configuration["SQL_CONNECTION_STRING"] ?? "").Trim();
+if (!string.IsNullOrWhiteSpace(sqlConnectionString))
+{
+    builder.Services.AddDbContext<Data.AppDbContext>(options =>
+        options.UseSqlServer(sqlConnectionString, sql => sql.EnableRetryOnFailure()));
+}
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
 builder.Services.AddScoped<Services.GalleryService>();
