@@ -21,6 +21,12 @@
 **/.claude/
 **/.vs/
 
+# SPA build output. Vite builds the frontend straight into the API's web root, and
+# `dotnet publish` regenerates it (see the BuildSpa target in api-dotnet.csproj), so
+# it is generated, never authored. Source of truth is "NVC Claude version/".
+# Deploys are Zip Deploy from the publish output, so nothing here needs committing.
+api-dotnet/wwwroot/
+
 # Logs & OS cruft
 *.log
 npm-debug.log*
