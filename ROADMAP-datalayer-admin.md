@@ -44,17 +44,24 @@ without it.
   | `QB_TABLE_QUESTION` | `FormService` — **leads** | write |
   | `QB_TABLE_SAVED_CONFIGS` | `SavedConfigService` — short links `/c/{code}` | read + write |
 
-- **Caching is inconsistent:** only `CasesPageService` uses `IMemoryCache`.
-  `GalleryService` and `ReviewService` hit Quickbase on every request.
-- **Files:** `FilesController` proxies Quickbase attachments — images are stored
-  in Quickbase, so migrating them means moving blobs, not just rows.
+- **Content list caching is already done.** `CasesPageService`, `GalleryService`
+  and `ReviewService` each use `IMemoryCache` with a 10-minute TTL. The list
+  endpoints are not the bottleneck.
+- **The uncached hot paths are:**
+  - `FilesController` — **every image request** proxies to Quickbase
+    (`RawGetAsync v1/files/{table}/{rid}/{fid}/{version}`), no cache, no
+    long-lived HTTP cache headers. A gallery page = one Quickbase round trip
+    *per image*. **This is the most likely cause of "requests take too long."**
+  - `SavedConfigService.GetAsync` / `GetReturnPathAsync` — every `/c/{code}`
+    short-link click queries Quickbase. These links are in customer inboxes via
+    the PR #8 autoresponder, and a saved config is immutable once written, so
+    it's an ideal cache candidate.
+  - `SitemapController` — crawler traffic, uncached.
 
-> ⚠️ **Worth knowing before you invest in this:** a chunk of the load-time win is
-> available *without* migrating at all — adding `IMemoryCache` to Gallery and
-> Reviews (the same pattern `CasesPageService` already uses) would cut most
-> repeat-request latency in an afternoon. Migration is still the right call for
-> vendor consolidation and query flexibility, but do the caching first so you
-> can measure what the migration itself actually buys.
+> **Sequencing insight:** because image proxying is the real bottleneck, the
+> single biggest latency win in this whole roadmap is **moving images to Blob
+> Storage** — not the SQL migration. Consider pulling Blob forward and shipping
+> it before the row migration; it's independently valuable and lower risk.
 
 ---
 
@@ -71,6 +78,19 @@ without it.
   the cutover is per-table and instantly revertible.
 
 ---
+
+## Phase 0 — Quick latency wins (independent of the migration)
+
+Ship these first; each is small, low-risk and measurable on its own.
+
+- [ ] **Cache the `/c/{code}` short-link lookup** in `SavedConfigService`.
+      Saved configs are immutable once written, so a long TTL is safe. These
+      links are live in customer inboxes.
+- [ ] **Cache + set HTTP cache headers on `FilesController`.** Image bytes keyed
+      by `{table}/{rid}/{fid}/{version}` are immutable — the version is in the
+      key — so they can be cached hard (`Cache-Control: public, max-age=1y,
+      immutable`). Biggest single win available today.
+- [ ] Measure before/after so the Blob migration's benefit is provable.
 
 ## Phase 1 — Foundation (no behaviour change)
 
@@ -116,23 +136,25 @@ without it.
 
 ---
 
+## Decisions made (2026-08-03)
+
+- ✅ **Azure SQL**, same region as the App Service.
+- ✅ **Azure Blob Storage** for images.
+- ✅ **Billing/invoicing stays in Quickbase** — out of scope for this migration.
+  Only the site-facing content tables move.
+
 ## Open decisions
 
-1. **"Local" — where does the DB actually live?** On Azure, the latency win comes
-   from an Azure SQL instance in the *same region* as the App Service, not from a
-   machine on your premises. A truly on-prem DB behind your office network would
-   likely be *slower* for Azure-hosted requests and adds VPN/firewall work.
-   **Recommendation: Azure SQL, same region.** Worth confirming this matches what
-   you had in mind — it changes Phase 1 materially.
-2. **Admin auth.** Microsoft Entra ID (staff sign in with existing M365 accounts,
+1. **Admin auth.** Microsoft Entra ID (staff sign in with existing M365 accounts,
    nothing new to manage, MFA included) vs ASP.NET Identity (self-contained, more
    code, own password handling). **Recommendation: Entra ID** — you already run
    M365 and Graph OAuth for email, so it's the same identity system.
-3. **Do leads migrate at all?** If sales works offers/questions inside Quickbase
-   day to day, moving them means rebuilding that workflow in the admin panel.
-   Viable to keep leads in Quickbase and migrate only content tables.
-4. **Hosting tier / cost** for Azure SQL — not free; worth a quick check against
-   what Quickbase currently costs.
+2. **Do leads migrate?** If sales works offers/questions inside Quickbase day to
+   day — and billing already stays there — it may be simplest to keep leads in
+   Quickbase too and migrate only content. Decide after the admin panel exists.
+3. **Azure SQL tier.** Serverless (auto-pause, scales to near-zero when idle)
+   suits this traffic shape better than a fixed tier. Confirm against current
+   Azure pricing before provisioning.
 
 ---
 
