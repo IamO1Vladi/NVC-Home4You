@@ -1,0 +1,86 @@
+# Deploying NVC Home4You
+
+Azure App Service, published by **Zip Deploy from VS Code**. Azure is not connected to
+GitHub, so *merging to `master` does not deploy anything* — a human publishes.
+
+## Branches
+
+| Branch | Means |
+|---|---|
+| `master` | Integration. Feature branches merge here. **Merged ≠ live.** |
+| `production` | What is actually deployed. Only ever fast-forwarded from `master`, at deploy time. |
+| `feature/*` | Short-lived. Branch off `master`, merge back, delete. |
+
+The question "what's merged but not yet live?" is answered by:
+
+```bash
+git log --oneline production..master
+```
+
+This replaces the hand-written `DEPLOY PENDING` block that used to live at the top of
+`improvements.txt`.
+
+## Publish — step by step
+
+1. **Merge the work into `master`** (PR on GitHub, squash merge, delete the branch).
+
+2. **Check what's about to ship.**
+   ```bash
+   git checkout master && git pull
+   git log --oneline production..master
+   ```
+
+3. **Run the tests.** Both halves:
+   ```bash
+   cd api-dotnet.Tests && dotnet test
+   cd "../NVC Claude version" && npm test
+   ```
+
+4. **Move `production` up to `master` and push.**
+   ```bash
+   git checkout production && git merge --ff-only master && git push
+   ```
+   `--ff-only` is deliberate: if it refuses, someone committed directly to `production`,
+   which should never happen. Investigate rather than forcing it.
+
+5. **Publish from the `production` checkout.** In VS Code: right-click the `api-dotnet`
+   project → **Publish to Azure** → pick the App Service.
+
+   You do **not** need to build the frontend first. Publishing runs `npm run build`
+   automatically (the `BuildSpa` target in `api-dotnet.csproj`) and writes it into
+   `wwwroot`, so the SPA can never ship stale. There is no `dist/` → `wwwroot` copy step
+   any more — if you still have that in muscle memory, drop it.
+
+6. **Tag the deploy** so you can identify what's live later:
+   ```bash
+   git tag deploy-$(date +%Y-%m-%d) && git push --tags
+   ```
+
+7. **Verify on the live site**, hard-refreshed (Ctrl+F5):
+   - the pages you changed
+   - a `/c/{code}` short link still resolves
+   - submitting the offer form still sends the autoresponder
+
+## Rules of thumb
+
+- **Publish only from a clean `production` checkout.** Zip Deploy ships whatever is on
+  disk, including uncommitted edits — a clean checkout is what stops "works on my
+  machine" reaching customers.
+- **`wwwroot` is generated, never authored.** It's gitignored. Edit the frontend in
+  `NVC Claude version/`; the build populates `wwwroot`.
+- **Rolling back** = check out the previous `deploy-*` tag and publish from it.
+
+## Local development
+
+Unchanged, and it does not use `wwwroot`:
+
+```bash
+cd api-dotnet && dotnet run                 # API on :5178
+cd "NVC Claude version" && npm run dev      # SPA on :5173, proxies /api to :5178
+```
+
+Work at <http://localhost:5173>. To exercise the *built* SPA against the local API
+instead, run `npm run build` once and open <http://localhost:5178>.
+
+To publish without rebuilding the frontend (rare — e.g. an API-only hotfix when the
+frontend is known-good): `dotnet publish /p:SkipSpaBuild=true`.
