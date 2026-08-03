@@ -70,17 +70,14 @@ for (const [pageKey, localized] of Object.entries(paths)) {
 
 const json = JSON.stringify(manifest, null, 2)
 
-// Write to the build output and, when present, straight into the .NET web root so the
-// two stay in lock-step with the existing dist -> wwwroot copy step.
-const targets = [
-  resolve(root, 'dist/seo-manifest.json'),
-  resolve(root, '../api-dotnet/wwwroot/seo-manifest.json'),
-]
-let wrote = 0
-for (const target of targets) {
-  if (!existsSync(dirname(target))) continue
-  writeFileSync(target, json, 'utf8')
-  console.log(`SEO manifest -> ${target}`)
-  wrote++
+// Vite now builds straight into the .NET web root, so there is a single target: the
+// build output directory. (This used to write to both dist/ and wwwroot/ to keep them
+// in sync across the old manual copy step — that copy no longer exists.)
+const target = resolve(root, '../api-dotnet/wwwroot/seo-manifest.json')
+if (!existsSync(dirname(target))) {
+  console.error(`SEO manifest: build output not found at ${dirname(target)} — run vite build first.`)
+  process.exit(1)
 }
-console.log(`Done: ${Object.keys(manifest).length} routes, ${wrote} file(s).`)
+writeFileSync(target, json, 'utf8')
+console.log(`SEO manifest -> ${target}`)
+console.log(`Done: ${Object.keys(manifest).length} routes.`)

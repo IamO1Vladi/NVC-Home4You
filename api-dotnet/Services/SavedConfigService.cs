@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using Models;
 
 namespace Services;
@@ -21,13 +22,22 @@ public class SavedConfigService
     private const int CodeLength = 8;
     private const int MaxCollisionRetries = 5;
 
+    // A saved config row is write-once: SaveAsync creates it and nothing ever updates it,
+    // so a resolved code can be cached for a long time. Only *successful* lookups are
+    // cached — caching a miss would risk pinning a "not found" for a code that is about
+    // to be minted, which would break a link already sent to a customer.
+    private const string CachePrefix = "savedcfg:";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(12);
+
     private readonly QuickbaseClient _qb;
     private readonly EnvConfig _env;
+    private readonly IMemoryCache _cache;
 
-    public SavedConfigService(QuickbaseClient qb, EnvConfig env)
+    public SavedConfigService(QuickbaseClient qb, EnvConfig env, IMemoryCache cache)
     {
         _qb = qb;
         _env = env;
+        _cache = cache;
     }
 
     public bool IsConfigured => _env.SavedConfigsConfigured;
@@ -59,6 +69,10 @@ public class SavedConfigService
     // Returns the stored config (and its metadata) for a code, or null if unknown.
     public async Task<SavedConfigDto?> GetAsync(string code, CancellationToken ct = default)
     {
+        var cacheKey = $"{CachePrefix}cfg:{Sanitize(code)}";
+        if (_cache.TryGetValue(cacheKey, out SavedConfigDto? cached) && cached is not null)
+            return cached;
+
         var row = await LookupAsync(code, new[] { _env.F_SAVEDCFG_JSON, _env.F_SAVEDCFG_MODEL, _env.F_SAVEDCFG_LOCALE }, ct);
         if (row is null) return null;
 
@@ -69,16 +83,25 @@ public class SavedConfigService
         try { config = JsonSerializer.Deserialize<JsonElement>(json); }
         catch (JsonException) { return null; }
 
-        return new SavedConfigDto(config, row.Get(_env.F_SAVEDCFG_MODEL), row.Get(_env.F_SAVEDCFG_LOCALE));
+        var dto = new SavedConfigDto(config, row.Get(_env.F_SAVEDCFG_MODEL), row.Get(_env.F_SAVEDCFG_LOCALE));
+        _cache.Set(cacheKey, dto, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheTtl });
+        return dto;
     }
 
     // Resolves a code to the localized return path saved with it (for the /c/{code}
     // redirect), or null if the code is unknown / has no stored path.
     public async Task<string?> GetReturnPathAsync(string code, CancellationToken ct = default)
     {
+        var cacheKey = $"{CachePrefix}path:{Sanitize(code)}";
+        if (_cache.TryGetValue(cacheKey, out string? cached) && !string.IsNullOrWhiteSpace(cached))
+            return cached;
+
         var row = await LookupAsync(code, new[] { _env.F_SAVEDCFG_PATH }, ct);
         var path = row?.Get(_env.F_SAVEDCFG_PATH);
-        return string.IsNullOrWhiteSpace(path) ? null : path;
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        _cache.Set(cacheKey, path, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheTtl });
+        return path;
     }
 
     private async Task<QbRec?> LookupAsync(string code, int[] select, CancellationToken ct)

@@ -79,18 +79,22 @@ without it.
 
 ---
 
-## Phase 0 — Quick latency wins (independent of the migration)
+## Phase 0 — Quick latency wins (independent of the migration) ✅
 
-Ship these first; each is small, low-risk and measurable on its own.
-
-- [ ] **Cache the `/c/{code}` short-link lookup** in `SavedConfigService`.
-      Saved configs are immutable once written, so a long TTL is safe. These
-      links are live in customer inboxes.
-- [ ] **Cache + set HTTP cache headers on `FilesController`.** Image bytes keyed
-      by `{table}/{rid}/{fid}/{version}` are immutable — the version is in the
-      key — so they can be cached hard (`Cache-Control: public, max-age=1y,
-      immutable`). Biggest single win available today.
+- [x] **Cache the `/c/{code}` short-link lookup** in `SavedConfigService`
+      (12h TTL). Only *successful* lookups are cached — caching a miss could pin
+      a "not found" for a code about to be minted, breaking a link already sent
+      to a customer. The collision check in `GenerateUniqueCodeAsync` calls
+      `LookupAsync` directly and so deliberately bypasses the cache.
+- [x] **Cache + HTTP cache headers on `FilesController`.** Responses now carry
+      `Cache-Control: public, max-age=31536000, immutable`, so a browser reuses
+      image bytes for a year without even revalidating. Server-side bytes live in
+      `ImageCache` — a *separate* size-capped `MemoryCache` (64 MB budget, 4 MB
+      per-item ceiling), because putting a `SizeLimit` on the shared
+      `IMemoryCache` would make every existing caller throw.
 - [ ] Measure before/after so the Blob migration's benefit is provable.
+      **Do this on the deployed site**, not locally — the win is the round trip
+      to Quickbase, which localhost doesn't reproduce faithfully.
 
 ## Phase 1 — Foundation (no behaviour change)
 

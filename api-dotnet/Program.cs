@@ -26,6 +26,8 @@ builder.Services.AddHttpClient<Services.QuickbaseApi>(client => {
 });
 
 builder.Services.AddSingleton<Services.EnvConfig>();
+// Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
+builder.Services.AddSingleton<Services.ImageCache>();
 builder.Services.AddScoped<Services.GalleryService>();
 builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
