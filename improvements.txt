@@ -2,6 +2,15 @@ NVC HOME4YOU — IMPROVEMENTS & IDEAS TRACKER
 ============================================
 (kept up to date as we work; [ ] = todo, [x] = done, [~] = in progress)
 
+>>> DEPLOY PENDING (remove this block once published) <<<
+    PR #8 (speed-to-lead) is merged to master but NOT yet published.
+    Undeployed: lead autoresponder, sales notification to nlekov@nvc-home4you.eu,
+    mobile "Copy link" + "Email it to me", WhatsApp/Viber launcher (+359 87 935 5269).
+    Spans both halves -> needs SPA rebuild + API redeploy. No new env vars required.
+    After deploying, verify: (1) offer form -> lead gets autoresponder AND nlekov@ gets
+    "New offer request" (Reply-To = lead); (2) mobile Summary shows Copy link + Email it
+    to me; (3) mobile corner bubble expands to WhatsApp + Viber.
+
 RECENTLY DONE
 -------------
 [x] Mobile-first redesign of the Box House configurator
