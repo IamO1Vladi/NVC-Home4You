@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,16 +27,80 @@ builder.Services.AddHttpClient<Services.QuickbaseApi>(client => {
 });
 
 builder.Services.AddSingleton<Services.EnvConfig>();
+
+// SQL data layer (Quickbase -> Azure SQL migration). Registered only when a connection
+// string is present, so environments without a database start exactly as before and
+// every entity keeps resolving to Quickbase.
+var sqlConnectionString = (builder.Configuration["SQL_CONNECTION_STRING"] ?? "").Trim();
+if (!string.IsNullOrWhiteSpace(sqlConnectionString))
+{
+    builder.Services.AddDbContext<Data.AppDbContext>(options =>
+        options.UseSqlServer(sqlConnectionString, sql =>
+        {
+            // Serverless Azure SQL auto-pauses when idle and returns error 40613 for the
+            // 30-60s it takes to resume. The default retry budget expires before then, so
+            // the first request after a quiet period would fail. Retry longer instead.
+            sql.EnableRetryOnFailure(
+                maxRetryCount: 12,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }));
+
+    // Registered inside this block because they depend on AppDbContext. Registering them
+    // unconditionally makes startup fail outright in Development, where the DI container
+    // validates every descriptor up front - so a machine without a connection string
+    // couldn't even run the site.
+    builder.Services.AddScoped<Services.ReviewImportService>();
+    builder.Services.AddScoped<Services.SqlReviewService>();
+}
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
 builder.Services.AddScoped<Services.GalleryService>();
 builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
 builder.Services.AddScoped<Services.ReviewService>();
+
+// Read path for reviews, chosen per request by DATA_SOURCE_REVIEWS. DataSourceFor only
+// returns Sql when a connection string is present, so SqlReviewService is guaranteed to
+// be registered whenever this resolves to it.
+builder.Services.AddScoped<Services.IReviewStore>(sp =>
+    sp.GetRequiredService<Services.EnvConfig>().DataSourceFor("reviews") == Services.DataSource.Sql
+        ? sp.GetRequiredService<Services.SqlReviewService>()
+        : sp.GetRequiredService<Services.ReviewService>());
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();
 
 var app = builder.Build();
+
+// --- Maintenance CLI ------------------------------------------------------------------
+// `dotnet run -- import-reviews` / `-- compare-reviews`. Kept off HTTP on purpose: the app
+// has no authentication yet, so an import endpoint would let anyone rewrite the table and
+// hammer Quickbase. These run and exit without ever starting the web server.
+if (args.Length > 0 && (args[0] == "import-reviews" || args[0] == "compare-reviews"))
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.ReviewImportService>();
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL_CONNECTION_STRING is not configured, so there is no database to import into.");
+        return 1;
+    }
+
+    if (args[0] == "import-reviews")
+    {
+        var r = await importer.ImportAsync(CancellationToken.None);
+        Console.WriteLine($"Fetched {r.Fetched} from Quickbase -> inserted {r.Inserted}, updated {r.Updated}, skipped {r.Skipped}.");
+        return 0;
+    }
+
+    var (compared, diffs) = await importer.CompareAsync(CancellationToken.None);
+    Console.WriteLine($"Compared {compared} rows; {diffs.Count} difference(s).");
+    foreach (var d in diffs.Take(50))
+        Console.WriteLine($"  rid {d.QuickbaseRecordId} {d.Field}: quickbase=[{d.Quickbase}] sql=[{d.Sql}]");
+    if (diffs.Count > 50) Console.WriteLine($"  ... and {diffs.Count - 50} more.");
+    // Non-zero exit when they disagree, so this can gate a cutover in a script.
+    return diffs.Count == 0 ? 0 : 2;
+}
 
 app.UseCors();
 app.UseSwagger();
@@ -177,3 +242,4 @@ app.MapFallback(async context =>
 });
 
 app.Run();
+return 0;

@@ -11,11 +11,14 @@ namespace Controllers;
 [Route("api/reviews")]
 public class ReviewsController : ControllerBase
 {
-    private readonly ReviewService _svc;
+    // Reads and writes both go through IReviewStore, which resolves to Quickbase or SQL
+    // per DATA_SOURCE_REVIEWS. They move together on purpose: reading from one store while
+    // writing to the other would make a new review invisible until the next import.
+    private readonly IReviewStore _store;
 
-    public ReviewsController(ReviewService svc)
+    public ReviewsController(IReviewStore store)
     {
-        _svc = svc;
+        _store = store;
     }
 
     // Lightweight social-proof feed for the homepage: top approved reviews plus the
@@ -27,7 +30,7 @@ public class ReviewsController : ControllerBase
         if (take <= 0) take = 3;
         if (take > 12) take = 12;
 
-        var dto = await _svc.GetFeaturedAsync(take, ct);
+        var dto = await _store.GetFeaturedAsync(take, ct);
         Response.Headers["Cache-Control"] = "public, max-age=120";
         return Ok(dto);
     }
@@ -43,7 +46,7 @@ public class ReviewsController : ControllerBase
 
         try
         {
-            var rid = await _svc.CreatePendingReviewAsync(dto, ct);
+            var rid = await _store.CreatePendingReviewAsync(dto, ct);
             return Ok(new { ok = true, recordId = rid, status = "pending" });
         }
         catch (InvalidOperationException ex)

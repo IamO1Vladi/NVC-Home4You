@@ -108,6 +108,9 @@ public class EnvConfig
     public int F_REVIEW_COMMENT => GetInt("FID_REVIEW_COMMENT", 12);
     public int F_REVIEW_STATUS => GetInt("FID_REVIEW_STATUS", 13);
     public int? F_REVIEW_CREATED => GetOptionalInt("FID_REVIEW_CREATED", 1);
+    // Quickbase built-in "Date Modified" (fid 2 by convention, same as fid 1 = Date
+    // Created). Used by the SQL import to fetch only rows changed since the last sync.
+    public int? F_REVIEW_MODIFIED => GetOptionalInt("FID_REVIEW_MODIFIED", 2);
 
     public string ReviewApprovedValue => (_cfg["QB_REVIEW_APPROVED"] ?? "approved").Trim();
     public string ReviewPendingValue => (_cfg["QB_REVIEW_PENDING"] ?? "pending").Trim();
@@ -195,6 +198,51 @@ public class EnvConfig
             .Distinct()
             .ToArray();
     }
+
+    // --- SQL migration (Quickbase -> Azure SQL) --------------------------------------
+    // Connection string for the SQL data layer. Empty until a database is provisioned,
+    // which is the safe default: every DataSourceFor() below then reports Quickbase.
+    // Set via Azure App Settings in deployed environments, user-secrets locally.
+    public string SqlConnectionString => (_cfg["SQL_CONNECTION_STRING"] ?? "").Trim();
+
+    public bool SqlConfigured => !string.IsNullOrWhiteSpace(SqlConnectionString);
+
+    // Per-entity switch so tables can be cut over one at a time and reverted instantly.
+    // Env var shape: DATA_SOURCE_HOUSES=sql (anything else, or unset, means quickbase).
+    // Falls back to Quickbase whenever SQL isn't configured, so a half-set flag can
+    // never take the site down.
+    public DataSource DataSourceFor(string entity)
+    {
+        if (!SqlConfigured) return DataSource.Quickbase;
+        var raw = (_cfg[$"DATA_SOURCE_{entity.ToUpperInvariant()}"] ?? "").Trim();
+        return raw.Equals("sql", StringComparison.OrdinalIgnoreCase)
+            ? DataSource.Sql
+            : DataSource.Quickbase;
+    }
+
+    // --- Admin sign-in (Microsoft Entra ID) -------------------------------------------
+    // Staff authenticate with the M365 accounts they already have, so the app never stores
+    // passwords. Client id and tenant id are not secrets (they appear in the sign-in URL);
+    // only the client secret is, and it lives in App Service settings / user-secrets.
+    public string EntraClientId => (_cfg["ENTRA_CLIENT_ID"] ?? "").Trim();
+    public string EntraTenantId => (_cfg["ENTRA_TENANT_ID"] ?? "").Trim();
+    public string EntraClientSecret => (_cfg["ENTRA_CLIENT_SECRET"] ?? "").Trim();
+
+    // Admin routes are only wired up when sign-in can actually work. Without this the
+    // panel would be reachable with no authentication at all, which is worse than absent.
+    public bool AdminAuthConfigured =>
+        !string.IsNullOrWhiteSpace(EntraClientId) &&
+        !string.IsNullOrWhiteSpace(EntraTenantId) &&
+        !string.IsNullOrWhiteSpace(EntraClientSecret);
+
+    // Optional allow-list of who may reach the admin panel, as a comma-separated list of
+    // UPNs/emails. Empty means "anyone in the tenant", which is fine for a small company
+    // but should be narrowed once more accounts exist.
+    public string[] AdminAllowedUsers =>
+        (_cfg["ADMIN_ALLOWED_USERS"] ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(v => v.ToLowerInvariant())
+            .ToArray();
 
     private static string NormalizeRealm(string? raw)
     {
