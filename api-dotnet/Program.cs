@@ -282,7 +282,9 @@ app.MapFallback(async context =>
     // Hidden internal tools (e.g. /internal/factory-sheet): serve the SPA shell with a
     // 200 and a noindex tag so direct links / refresh work, while keeping them out of
     // search results. They are not linked anywhere and are password-gated in the SPA.
-    if (path.StartsWith("/internal/", StringComparison.OrdinalIgnoreCase))
+    if (path.StartsWith("/internal/", StringComparison.OrdinalIgnoreCase) ||
+        path.Equals("/admin", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase))
     {
         const string internalTags =
             "<title>NVC internal</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";
