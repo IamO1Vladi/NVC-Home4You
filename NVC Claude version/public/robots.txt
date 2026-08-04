@@ -1,5 +1,11 @@
 User-agent: *
 Allow: /
 
+# Staff-only areas. They are also served with a noindex tag, which is what actually keeps
+# them out of results — Disallow only stops crawling, and a disallowed URL can still be
+# indexed if something links to it.
+Disallow: /admin
+Disallow: /internal/
+
 Sitemap: https://nvc-home4you.eu/sitemap.xml
 Sitemap: https://nvc-home4you.eu/sitemap-gallery.xml

@@ -87,6 +87,9 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'))
 
 // Hidden internal tools (not linked, not in the sitemap, noindex).
 const FactorySheetPage = lazy(() => import('./pages/FactorySheetPage.jsx'))
+// Staff admin panel. Entra ID protects the API it calls; this is only the UI, so a
+// signed-out visitor reaching it sees a sign-in prompt and no data.
+const AdminReviewsPage = lazy(() => import('./pages/AdminReviewsPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -113,7 +116,7 @@ function AppShell() {
   const ui = getHomeContent(currentLocale)
 
   // Internal tools render full-screen without the marketing header/footer/widgets.
-  const isInternal = location.pathname.startsWith('/internal/')
+  const isInternal = location.pathname.startsWith('/internal/') || location.pathname.startsWith('/admin')
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [questionOpen, setQuestionOpen] = useState(false)
@@ -386,6 +389,10 @@ function AppShell() {
 
               {/* Hidden internal tool: factory order sheet (unlisted, noindex, password-gated). */}
               <Route path="/internal/factory-sheet" element={<FactorySheetPage />} />
+
+              {/* Staff admin panel (unlisted, noindex). The API enforces Entra sign-in. */}
+              <Route path="/admin" element={<AdminReviewsPage />} />
+              <Route path="/admin/reviews" element={<AdminReviewsPage />} />
 
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}

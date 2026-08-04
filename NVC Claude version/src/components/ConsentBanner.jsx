@@ -33,9 +33,17 @@ const COPY = {
   },
 };
 
+// Staff-only areas: internal tools and the admin panel. Not public pages, so there is no
+// visitor to ask for advertising consent — showing the banner there is just noise in a
+// tool people use all day.
+function isStaffArea(pathname = '') {
+  return pathname.startsWith('/internal/') || pathname === '/admin' || pathname.startsWith('/admin/');
+}
+
 export default function ConsentBanner() {
   const [open, setOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
+    if (isStaffArea(window.location.pathname)) return false;
     return !localStorage.getItem('consent.choice');
   });
 

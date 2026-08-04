@@ -1,0 +1,131 @@
+/* Admin panel — internal staff tool. Deliberately plainer than the marketing pages:
+   it's read and operated, not browsed, so density and legibility beat atmosphere.
+   Uses the same brand accent so it still feels like the same product. */
+
+.adm-page {
+  --adm-bg: #f4f6f9;
+  --adm-card: #ffffff;
+  --adm-ink: #10161e;
+  --adm-muted: #5a6674;
+  --adm-line: #e2e8f0;
+  --adm-line-firm: #cbd5e1;
+  --adm-ok: #12844c;
+  --adm-ok-bg: #e8f5ee;
+  --adm-warn: #b45309;
+  --adm-warn-bg: #fdf4e7;
+  --adm-stop: #b3261e;
+  --adm-stop-bg: #fdecea;
+
+  min-height: 100vh;
+  background: var(--adm-bg);
+  color: var(--adm-ink);
+  padding: 28px 20px 80px;
+  max-width: 980px;
+  margin: 0 auto;
+  font-size: 15px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .adm-page {
+    --adm-bg: #0e141b;
+    --adm-card: #161f29;
+    --adm-ink: #e8eef5;
+    --adm-muted: #94a3b4;
+    --adm-line: #24303d;
+    --adm-line-firm: #34455480;
+    --adm-ok: #2fb56d;
+    --adm-ok-bg: #11261a;
+    --adm-warn: #d99442;
+    --adm-warn-bg: #241a10;
+    --adm-stop: #e8776e;
+    --adm-stop-bg: #2a1614;
+  }
+}
+
+.adm-center { display: grid; place-items: center; text-align: center; }
+
+.adm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.adm-head h1 { margin: 0; font-size: clamp(20px, 3vw, 26px); letter-spacing: -.01em; }
+.adm-sub { margin: 5px 0 0; color: var(--adm-muted); font-size: 14px; }
+.adm-head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
+.adm-me { font-size: 12.5px; color: var(--adm-muted); }
+
+.adm-lang { display: inline-flex; border: 1px solid var(--adm-line-firm); border-radius: 999px; overflow: hidden; }
+.adm-lang button {
+  font: inherit; font-size: 12.5px; font-weight: 700; padding: 5px 13px;
+  background: transparent; border: 0; color: var(--adm-muted); cursor: pointer;
+}
+.adm-lang button.is-active {
+  background-image: linear-gradient(90deg, var(--brand-teal, #0f9aae), var(--brand-blue, #3a6fd8));
+  color: #fff;
+}
+
+.adm-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.adm-tabs button {
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 8px 15px; border-radius: 999px;
+  border: 1px solid var(--adm-line-firm); background: var(--adm-card); color: var(--adm-ink);
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.adm-tabs button.is-active { border-color: transparent; background-image: linear-gradient(90deg, var(--brand-teal, #0f9aae), var(--brand-blue, #3a6fd8)); color: #fff; }
+.adm-count {
+  font-size: 11.5px; font-weight: 800; min-width: 19px; padding: 0 5px;
+  border-radius: 999px; background: rgba(127,127,127,.22);
+  font-variant-numeric: tabular-nums; text-align: center;
+}
+
+.adm-card {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-line);
+  border-radius: 13px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 20px rgba(16, 22, 30, .05);
+}
+.adm-signin { max-width: 440px; display: grid; gap: 12px; justify-items: center; margin-top: 12vh; }
+
+.adm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+
+.adm-review { display: grid; gap: 10px; border-left: 3px solid var(--adm-line-firm); }
+/* Status is encoded in the rail as well as the badge, so the queue is scannable
+   without reading every label. */
+.adm-review.adm-status-pending  { border-left-color: var(--adm-warn); }
+.adm-review.adm-status-approved { border-left-color: var(--adm-ok); }
+.adm-review.adm-status-rejected { border-left-color: var(--adm-stop); }
+
+.adm-review-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.adm-name { font-weight: 700; }
+.adm-review-meta { display: inline-flex; align-items: center; gap: 10px; }
+
+.adm-stars { color: #e0a53c; letter-spacing: 1px; white-space: nowrap; }
+.adm-stars-dim { opacity: .25; }
+
+.adm-badge { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.adm-badge-pending  { background: var(--adm-warn-bg); color: var(--adm-warn); }
+.adm-badge-approved { background: var(--adm-ok-bg);   color: var(--adm-ok); }
+.adm-badge-rejected { background: var(--adm-stop-bg); color: var(--adm-stop); }
+
+.adm-comment { margin: 0; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.adm-review-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--adm-line); padding-top: 10px; }
+.adm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-actions .btn:disabled { opacity: .5; cursor: progress; }
+.adm-live { font-size: 13px; font-weight: 700; color: var(--adm-ok); }
+
+.adm-muted { color: var(--adm-muted); }
+.adm-small { font-size: 12.5px; }
+
+.adm-alert { background: var(--adm-stop-bg); color: var(--adm-stop); border: 1px solid currentColor; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 14px; }
+
+@media (max-width: 560px) {
+  .adm-head-side { align-items: flex-start; }
+  .adm-review-foot { align-items: flex-start; }
+  .adm-actions { width: 100%; }
+  .adm-actions .btn { flex: 1; }
+}

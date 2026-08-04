@@ -140,3 +140,20 @@ public class QbMeta
 {
     public int? firstRecordId { get; set; }
 }
+
+// Admin-only projection of a review. Unlike PublicReviewDto it exposes every status and
+// the submitter's email, because moderators need both to make a publish decision.
+public class AdminReviewDto {
+  public int Id { get; set; }
+  public int? QuickbaseRecordId { get; set; }
+  public string Status { get; set; } = "";
+  public string Name { get; set; } = "";
+  public string Company { get; set; } = "";
+  public string Email { get; set; } = "";
+  public string Location { get; set; } = "";
+  public string Product { get; set; } = "";
+  public string Comment { get; set; } = "";
+  public double Rating { get; set; }
+  public string CreatedAt { get; set; } = "";
+  public string? UpdatedAt { get; set; }
+}
