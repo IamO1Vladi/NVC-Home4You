@@ -55,7 +55,39 @@ builder.Services.AddScoped<Services.ReviewService>();
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();
 
+builder.Services.AddScoped<Services.ReviewImportService>();
+
 var app = builder.Build();
+
+// --- Maintenance CLI ------------------------------------------------------------------
+// `dotnet run -- import-reviews` / `-- compare-reviews`. Kept off HTTP on purpose: the app
+// has no authentication yet, so an import endpoint would let anyone rewrite the table and
+// hammer Quickbase. These run and exit without ever starting the web server.
+if (args.Length > 0 && (args[0] == "import-reviews" || args[0] == "compare-reviews"))
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.ReviewImportService>();
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL_CONNECTION_STRING is not configured, so there is no database to import into.");
+        return 1;
+    }
+
+    if (args[0] == "import-reviews")
+    {
+        var r = await importer.ImportAsync(CancellationToken.None);
+        Console.WriteLine($"Fetched {r.Fetched} from Quickbase -> inserted {r.Inserted}, updated {r.Updated}, skipped {r.Skipped}.");
+        return 0;
+    }
+
+    var (compared, diffs) = await importer.CompareAsync(CancellationToken.None);
+    Console.WriteLine($"Compared {compared} rows; {diffs.Count} difference(s).");
+    foreach (var d in diffs.Take(50))
+        Console.WriteLine($"  rid {d.QuickbaseRecordId} {d.Field}: quickbase=[{d.Quickbase}] sql=[{d.Sql}]");
+    if (diffs.Count > 50) Console.WriteLine($"  ... and {diffs.Count - 50} more.");
+    // Non-zero exit when they disagree, so this can gate a cutover in a script.
+    return diffs.Count == 0 ? 0 : 2;
+}
 
 app.UseCors();
 app.UseSwagger();
@@ -197,3 +229,4 @@ app.MapFallback(async context =>
 });
 
 app.Run();
+return 0;
