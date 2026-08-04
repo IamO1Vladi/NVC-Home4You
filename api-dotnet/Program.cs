@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -52,7 +53,71 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     // couldn't even run the site.
     builder.Services.AddScoped<Services.ReviewImportService>();
     builder.Services.AddScoped<Services.SqlReviewService>();
+    builder.Services.AddScoped<Services.ReviewModerationService>();
 }
+
+// --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
+// Registered only when client id, tenant id and secret are all present. If any is missing
+// the admin controllers stay unreachable: [Authorize] with no authentication configured
+// rejects every request, so the panel fails closed rather than opening unprotected.
+var envCfg = new Services.EnvConfig(builder.Configuration);
+var adminAuthReady = envCfg.AdminAuthConfigured && !string.IsNullOrWhiteSpace(sqlConnectionString);
+if (adminAuthReady)
+{
+    builder.Services
+        .AddAuthentication(Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApp(options =>
+        {
+            options.Instance = "https://login.microsoftonline.com/";
+            options.TenantId = envCfg.EntraTenantId;
+            options.ClientId = envCfg.EntraClientId;
+            options.ClientSecret = envCfg.EntraClientSecret;
+            options.CallbackPath = "/signin-oidc";
+        });
+}
+else
+{
+    // No Entra config: register a scheme that authenticates nobody, so the [Authorize]
+    // challenge answers a clean 401 instead of throwing "no authenticationScheme was
+    // specified" and surfacing a 500.
+    builder.Services
+        .AddAuthentication(Services.DisabledAdminAuthHandler.SchemeName)
+        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Services.DisabledAdminAuthHandler>(
+            Services.DisabledAdminAuthHandler.SchemeName, _ => { });
+}
+
+// The AdminOnly policy is always defined, even when Entra isn't configured. If it were
+// only registered in the configured case, the admin endpoints would throw "policy not
+// found" (a 500) instead of denying cleanly — safe, but indistinguishable from a bug.
+// Unconfigured means deny-everything.
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+    {
+        if (!adminAuthReady)
+        {
+            policy.RequireAssertion(_ => false);
+            return;
+        }
+
+        policy.RequireAuthenticatedUser();
+
+        // Signed in to the tenant is enough by default. When ADMIN_ALLOWED_USERS is set,
+        // narrow it to those accounts so a new hire with an M365 mailbox doesn't silently
+        // inherit access to live pricing and customer data.
+        var allowed = envCfg.AdminAllowedUsers;
+        if (allowed.Length > 0)
+        {
+            policy.RequireAssertion(ctx =>
+            {
+                var upn = ctx.User.FindFirst("preferred_username")?.Value
+                          ?? ctx.User.Identity?.Name
+                          ?? "";
+                return allowed.Contains(upn.Trim().ToLowerInvariant());
+            });
+        }
+    });
+});
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
 builder.Services.AddScoped<Services.GalleryService>();
@@ -133,6 +198,12 @@ app.UseStaticFiles(new StaticFileOptions
         }
     }
 });
+
+if (adminAuthReady)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+}
 
 app.MapControllers();
 
