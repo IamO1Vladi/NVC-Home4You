@@ -11,10 +11,15 @@ namespace Controllers;
 [Route("api/reviews")]
 public class ReviewsController : ControllerBase
 {
+    // Reads go through IReviewReader, which resolves to Quickbase or SQL per
+    // DATA_SOURCE_REVIEWS. Submitting a review stays on ReviewService: moderation still
+    // happens in Quickbase, so that's where new rows have to land.
+    private readonly IReviewReader _reader;
     private readonly ReviewService _svc;
 
-    public ReviewsController(ReviewService svc)
+    public ReviewsController(IReviewReader reader, ReviewService svc)
     {
+        _reader = reader;
         _svc = svc;
     }
 
@@ -27,7 +32,7 @@ public class ReviewsController : ControllerBase
         if (take <= 0) take = 3;
         if (take > 12) take = 12;
 
-        var dto = await _svc.GetFeaturedAsync(take, ct);
+        var dto = await _reader.GetFeaturedAsync(take, ct);
         Response.Headers["Cache-Control"] = "public, max-age=120";
         return Ok(dto);
     }

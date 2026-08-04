@@ -15,12 +15,12 @@ public class CasesPageService
     private readonly QuickbaseApi _qb;
     private readonly EnvConfig _env;
     private readonly IMemoryCache _cache;
-    private readonly ReviewService _reviews;
+    private readonly IReviewReader _reviews;
 
     private const string CacheKey = "cases-page:v1";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
-    public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache, ReviewService reviews)
+    public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache, IReviewReader reviews)
     {
         _qb = qb;
         _env = env;

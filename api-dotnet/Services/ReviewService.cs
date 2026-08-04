@@ -9,7 +9,7 @@ using Models;
 
 namespace Services;
 
-public class ReviewService
+public class ReviewService : IReviewReader
 {
     private readonly QuickbaseApi _qb;
     private readonly EnvConfig _env;

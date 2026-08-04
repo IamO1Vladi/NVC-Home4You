@@ -46,11 +46,12 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
                 errorNumbersToAdd: null);
         }));
 
-    // Registered inside this block because it depends on AppDbContext. Registering it
+    // Registered inside this block because they depend on AppDbContext. Registering them
     // unconditionally makes startup fail outright in Development, where the DI container
     // validates every descriptor up front - so a machine without a connection string
     // couldn't even run the site.
     builder.Services.AddScoped<Services.ReviewImportService>();
+    builder.Services.AddScoped<Services.SqlReviewService>();
 }
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
@@ -58,6 +59,14 @@ builder.Services.AddScoped<Services.GalleryService>();
 builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
 builder.Services.AddScoped<Services.ReviewService>();
+
+// Read path for reviews, chosen per request by DATA_SOURCE_REVIEWS. DataSourceFor only
+// returns Sql when a connection string is present, so SqlReviewService is guaranteed to
+// be registered whenever this resolves to it.
+builder.Services.AddScoped<Services.IReviewReader>(sp =>
+    sp.GetRequiredService<Services.EnvConfig>().DataSourceFor("reviews") == Services.DataSource.Sql
+        ? sp.GetRequiredService<Services.SqlReviewService>()
+        : sp.GetRequiredService<Services.ReviewService>());
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();
 
