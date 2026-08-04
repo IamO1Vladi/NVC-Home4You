@@ -61,6 +61,27 @@ This replaces the hand-written `DEPLOY PENDING` block that used to live at the t
    - a `/c/{code}` short link still resolves
    - submitting the offer form still sends the autoresponder
 
+## App Service environment variables
+
+All under **Settings → Environment variables → App settings** (not the Connection
+strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
+
+| Name | Purpose |
+|---|---|
+| `SQL_CONNECTION_STRING` | Azure SQL. Absent = every entity reads Quickbase, as before. |
+| `DATA_SOURCE_REVIEWS` | `sql` to serve reviews from SQL; anything else = Quickbase. |
+| `ENTRA_CLIENT_ID` / `ENTRA_TENANT_ID` | Admin sign-in. Not secrets. |
+| `ENTRA_CLIENT_SECRET` | Admin sign-in. **Secret.** |
+| `ADMIN_ALLOWED_USERS` | Optional. Comma-separated emails; empty = anyone in the tenant. |
+
+⚠️ **The Entra client secret expires** (24 months from creation). When it does, admin
+sign-in breaks with an unhelpful error while the public site keeps working — so it looks
+like a panel bug rather than an expiry. Create a new secret in the app registration and
+update this setting. Put a reminder in the calendar now.
+
+The admin panel fails closed: if any of the three `ENTRA_*` values is missing, every
+`/api/admin/*` endpoint answers 401 and nothing is exposed.
+
 ## Rules of thumb
 
 - **Publish only from a clean `production` checkout.** Zip Deploy ships whatever is on
