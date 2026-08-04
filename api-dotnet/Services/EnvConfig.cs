@@ -220,6 +220,30 @@ public class EnvConfig
             : DataSource.Quickbase;
     }
 
+    // --- Admin sign-in (Microsoft Entra ID) -------------------------------------------
+    // Staff authenticate with the M365 accounts they already have, so the app never stores
+    // passwords. Client id and tenant id are not secrets (they appear in the sign-in URL);
+    // only the client secret is, and it lives in App Service settings / user-secrets.
+    public string EntraClientId => (_cfg["ENTRA_CLIENT_ID"] ?? "").Trim();
+    public string EntraTenantId => (_cfg["ENTRA_TENANT_ID"] ?? "").Trim();
+    public string EntraClientSecret => (_cfg["ENTRA_CLIENT_SECRET"] ?? "").Trim();
+
+    // Admin routes are only wired up when sign-in can actually work. Without this the
+    // panel would be reachable with no authentication at all, which is worse than absent.
+    public bool AdminAuthConfigured =>
+        !string.IsNullOrWhiteSpace(EntraClientId) &&
+        !string.IsNullOrWhiteSpace(EntraTenantId) &&
+        !string.IsNullOrWhiteSpace(EntraClientSecret);
+
+    // Optional allow-list of who may reach the admin panel, as a comma-separated list of
+    // UPNs/emails. Empty means "anyone in the tenant", which is fine for a small company
+    // but should be narrowed once more accounts exist.
+    public string[] AdminAllowedUsers =>
+        (_cfg["ADMIN_ALLOWED_USERS"] ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(v => v.ToLowerInvariant())
+            .ToArray();
+
     private static string NormalizeRealm(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return "";
