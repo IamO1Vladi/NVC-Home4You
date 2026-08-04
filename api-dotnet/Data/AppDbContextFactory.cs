@@ -43,7 +43,18 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         }
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure())
+            .UseSqlServer(connectionString, sql =>
+            {
+                // A serverless database that has auto-paused answers with error 40613
+                // ("not currently available") for the 30-60s it takes to resume, and a
+                // newly created one can take longer. The default retry budget gives up
+                // before that, so widen it: 12 attempts backing off to 30s apart.
+                sql.EnableRetryOnFailure(
+                    maxRetryCount: 12,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorNumbersToAdd: null);
+                sql.CommandTimeout(180);
+            })
             .Options;
 
         return new AppDbContext(options);

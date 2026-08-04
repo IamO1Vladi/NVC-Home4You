@@ -35,7 +35,16 @@ var sqlConnectionString = (builder.Configuration["SQL_CONNECTION_STRING"] ?? "")
 if (!string.IsNullOrWhiteSpace(sqlConnectionString))
 {
     builder.Services.AddDbContext<Data.AppDbContext>(options =>
-        options.UseSqlServer(sqlConnectionString, sql => sql.EnableRetryOnFailure()));
+        options.UseSqlServer(sqlConnectionString, sql =>
+        {
+            // Serverless Azure SQL auto-pauses when idle and returns error 40613 for the
+            // 30-60s it takes to resume. The default retry budget expires before then, so
+            // the first request after a quiet period would fail. Retry longer instead.
+            sql.EnableRetryOnFailure(
+                maxRetryCount: 12,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+        }));
 }
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
