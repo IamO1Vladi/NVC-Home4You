@@ -45,6 +45,12 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
                 maxRetryDelay: TimeSpan.FromSeconds(30),
                 errorNumbersToAdd: null);
         }));
+
+    // Registered inside this block because it depends on AppDbContext. Registering it
+    // unconditionally makes startup fail outright in Development, where the DI container
+    // validates every descriptor up front - so a machine without a connection string
+    // couldn't even run the site.
+    builder.Services.AddScoped<Services.ReviewImportService>();
 }
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
@@ -54,8 +60,6 @@ builder.Services.AddScoped<Services.CasesPageService>();
 builder.Services.AddScoped<Services.ReviewService>();
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();
-
-builder.Services.AddScoped<Services.ReviewImportService>();
 
 var app = builder.Build();
 
