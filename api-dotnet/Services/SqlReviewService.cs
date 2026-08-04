@@ -16,7 +16,7 @@ namespace Services;
 // The projection mirrors ReviewService's exactly — same approved filter, same ordering,
 // same ISO-8601 CreatedAt, same "skip rows with neither name nor comment" rule — so
 // swapping the flag cannot change what visitors see.
-public class SqlReviewService : IReviewReader
+public class SqlReviewService : IReviewStore
 {
     private readonly AppDbContext _db;
     private readonly EnvConfig _env;
@@ -73,5 +73,37 @@ public class SqlReviewService : IReviewReader
         var approved = await GetApprovedReviewsAsync(ct);
         // Reuse the Quickbase reader's aggregation so both paths round and count identically.
         return ReviewService.BuildFeatured(approved, take);
+    }
+
+    public async Task<long> CreatePendingReviewAsync(ReviewDto dto, CancellationToken ct)
+    {
+        var review = new Data.Entities.Review
+        {
+            // Null: this row originated in SQL rather than being imported, which is exactly
+            // what the import's filtered unique index allows for.
+            QuickbaseRecordId = null,
+            Status = string.IsNullOrWhiteSpace(_env.ReviewPendingValue) ? "pending" : _env.ReviewPendingValue,
+            Name = Clip(dto.Name, 200) ?? "",
+            Email = Clip(dto.Email, 320),
+            Company = Clip(dto.Company, 200),
+            Location = Clip(dto.Location, 200),
+            Product = Clip(dto.Product, 200),
+            Comment = Clip(dto.Comment, 4000),
+            Rating = dto.Rating,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _db.Reviews.Add(review);
+        await _db.SaveChangesAsync(ct);
+        return review.Id;
+    }
+
+    // Column lengths are generous (longest existing comment is ~180 of 4000 chars), but a
+    // hand-crafted request could exceed them; truncating beats a 500 on submit.
+    private static string? Clip(string? value, int max)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var v = value.Trim();
+        return v.Length <= max ? v : v[..max];
     }
 }

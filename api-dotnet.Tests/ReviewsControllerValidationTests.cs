@@ -10,7 +10,7 @@ namespace ApiDotnet.Tests;
 // them with a controller whose service dependency is never invoked.
 public class ReviewsControllerValidationTests
 {
-    private static ReviewsController NewController() => new(reader: null!, svc: null!);
+    private static ReviewsController NewController() => new(store: null!);
 
     private static ReviewDto Valid(
         string name = "Jane Doe",

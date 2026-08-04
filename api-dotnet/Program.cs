@@ -63,7 +63,7 @@ builder.Services.AddScoped<Services.ReviewService>();
 // Read path for reviews, chosen per request by DATA_SOURCE_REVIEWS. DataSourceFor only
 // returns Sql when a connection string is present, so SqlReviewService is guaranteed to
 // be registered whenever this resolves to it.
-builder.Services.AddScoped<Services.IReviewReader>(sp =>
+builder.Services.AddScoped<Services.IReviewStore>(sp =>
     sp.GetRequiredService<Services.EnvConfig>().DataSourceFor("reviews") == Services.DataSource.Sql
         ? sp.GetRequiredService<Services.SqlReviewService>()
         : sp.GetRequiredService<Services.ReviewService>());
