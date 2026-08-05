@@ -4,8 +4,8 @@ using Xunit;
 
 namespace ApiDotnet.Tests;
 
-// ImageCache is the size-bounded store behind the /api/files image proxy. Its job is to
-// hold hot image bytes without letting one large asset blow the memory budget.
+// ImageCache is the size-bounded store behind ImageStore and the /api/img route. Its job is
+// to hold hot image bytes without letting one large asset blow the memory budget.
 public class ImageCacheTests
 {
     private static byte[] Bytes(int size) => Encoding.UTF8.GetBytes(new string('x', size));

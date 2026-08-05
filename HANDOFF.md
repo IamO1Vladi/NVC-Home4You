@@ -41,10 +41,19 @@ builds itself; there is no `dist/` → `wwwroot` copy step any more. See `DEPLOY
 ## Next steps, in the order I'd take them
 
 ### 1. Blob storage for images — biggest remaining win
-Still the top latency item, and untouched by the SQL work. Every gallery image is a
-separate Quickbase round trip; Phase 0's caching softened it but did not remove it.
-`FilesController` already proxies by `{table}/{rid}/{fid}/{version}`, so the URL shape can
-stay identical while the bytes move to Blob. The `images` container already exists.
+**Started 2026-08-05; two claims in this section turned out to be wrong.** Corrected in
+ROADMAP-datalayer-admin.md → Phase 2b, which supersedes the paragraph below.
+
+- *"Every gallery image is a separate Quickbase round trip [through the app]"* — no. Nothing
+  ever called `FilesController`; the browser fetched Quickbase directly, so Phase 0's cache
+  sat on a route with no traffic. That controller has now been deleted.
+- *"`FilesController` already proxies by `{table}/{rid}/{fid}/{version}`, so the URL shape
+  can stay identical"* — that shape cannot express the base-36 `/up/` URLs the site actually
+  serves. The replacement, `/api/img/{key}`, keys on the attachment path instead.
+
+The real cost was how Quickbase serves images: `Cache-Control: max-age=7200, private` and
+`cf-cache-status: DYNAMIC` — never edge-cached, re-fetched every two hours, ~250-320ms each.
+The `images` container already exists.
 
 ### 2. Migrate the next table
 The pattern is proven and largely mechanical now:
