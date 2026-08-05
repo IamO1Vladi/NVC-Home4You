@@ -15,7 +15,7 @@ export default {
       'EXW/FOB → DAP/DDP από Κίνα, Βιετνάμ και Ταϊλάνδη προς Ευρώπη, Βόρεια και Νότια Αμερική. Θαλάσσια (LCL/FCL), αεροπορική, σιδηροδρομική και συνδυασμένη μεταφορά με συντονισμό τελωνείων.',
     button: 'Επικοινωνήστε μαζί μας',
     image: {
-      src: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      src: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   },
   process: {
@@ -83,25 +83,25 @@ export default {
       id: 'sea',
       title: 'Θαλάσσια μεταφορά (LCL/FCL)',
       desc: 'Κοντέινερ και ομαδικά φορτία από και προς μεγάλα λιμάνια. Η καλύτερη αξία ανά όγκο όταν είναι αποδεκτός μεγαλύτερος χρόνος.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rv/eg/vb',
+      img: '/api/img/content/bvk4n834b-rv-eg-vb.webp',
     },
     {
       id: 'air',
       title: 'Αεροπορική μεταφορά',
       desc: 'Η πιο γρήγορη επιλογή για επείγουσες αποστολές, δείγματα και χρονικά ευαίσθητα φορτία.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rbq/eg/vb',
+      img: '/api/img/content/bvk4n834b-rbq-eg-vb.webp',
     },
     {
       id: 'rail',
       title: 'Σιδηροδρομική μεταφορά',
       desc: 'Ισορροπία κόστους και ταχύτητας στους ευρασιατικούς διαδρόμους, κατάλληλη για παλετοποιημένες και τακτικές ροές.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rx/eg/vb',
+      img: '/api/img/content/bvk4n834b-rx-eg-vb.webp',
     },
     {
       id: 'multi',
       title: 'Συνδυασμένη δρομολόγηση',
       desc: 'Συνδυασμός θαλάσσιων, αεροπορικών, σιδηροδρομικών και οδικών σκελών για αυστηρότερο έλεγχο προϋπολογισμού και χρονοδιαγράμματος.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      img: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   ],
 }

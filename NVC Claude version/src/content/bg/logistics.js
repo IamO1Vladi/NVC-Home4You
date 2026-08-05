@@ -15,7 +15,7 @@ export default {
       'EXW/FOB → DAP/DDP от Китай, Виетнам и Тайланд към Европа, Северна и Южна Америка. Морски (LCL/FCL), въздушен, ЖП и комбиниран транспорт с митническа координация.',
     button: 'Свържи се с нас',
     image: {
-      src: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      src: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   },
   process: {
@@ -83,25 +83,25 @@ export default {
       id: 'sea',
       title: 'Морски транспорт (LCL/FCL)',
       desc: 'Контейнери и групаж към и от основни пристанища. Най-добро съотношение цена/обем при по-дълъг транзит.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rv/eg/vb',
+      img: '/api/img/content/bvk4n834b-rv-eg-vb.webp',
     },
     {
       id: 'air',
       title: 'Въздушен транспорт',
       desc: 'Най-бързият вариант за спешни пратки, мостри и чувствителни по срок товари.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rbq/eg/vb',
+      img: '/api/img/content/bvk4n834b-rbq-eg-vb.webp',
     },
     {
       id: 'rail',
       title: 'ЖП транспорт',
       desc: 'Баланс между цена и време по евразийските коридори, подходящ за палетизирани и регулярни потоци.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rx/eg/vb',
+      img: '/api/img/content/bvk4n834b-rx-eg-vb.webp',
     },
     {
       id: 'multi',
       title: 'Комбиниран маршрут',
       desc: 'Комбинация от море, въздух, ЖП и автомобилен транспорт за по-точен бюджет и график.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      img: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   ],
 }

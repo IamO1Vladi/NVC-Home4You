@@ -14,7 +14,7 @@ export default {
     getOffer: 'Λάβετε προσφορά',
     askQuestion: 'Κάντε μια ερώτηση',
     image: {
-      src: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      src: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   },
   process: {

@@ -15,7 +15,7 @@ export default {
       'EXW/FOB → DAP/DDP from China, Vietnam, and Thailand to Europe, North America, and South America. Sea (LCL/FCL), air, rail, and combined transport with customs coordination.',
     button: 'Contact us',
     image: {
-      src: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      src: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   },
   process: {
@@ -83,25 +83,25 @@ export default {
       id: 'sea',
       title: 'Sea freight (LCL/FCL)',
       desc: 'Containers and groupage to and from major ports. Best value per volume when longer transit is acceptable.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rv/eg/vb',
+      img: '/api/img/content/bvk4n834b-rv-eg-vb.webp',
     },
     {
       id: 'air',
       title: 'Air freight',
       desc: 'The fastest option for urgent shipments, samples, and time-sensitive cargo.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rbq/eg/vb',
+      img: '/api/img/content/bvk4n834b-rbq-eg-vb.webp',
     },
     {
       id: 'rail',
       title: 'Rail freight',
       desc: 'A balance of cost and speed across Eurasian corridors, suitable for palletized and regular flows.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rx/eg/vb',
+      img: '/api/img/content/bvk4n834b-rx-eg-vb.webp',
     },
     {
       id: 'multi',
       title: 'Combined routing',
       desc: 'A mix of sea, air, rail, and road legs for tighter control over budget and schedule.',
-      img: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcd/eg/vb',
+      img: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
     },
   ],
 }

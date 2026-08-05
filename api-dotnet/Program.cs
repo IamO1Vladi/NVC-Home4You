@@ -261,7 +261,11 @@ builder.Services.AddScoped<Services.EmailService>();
 // Only useful when there is somewhere to import into; the CLI says so rather than failing
 // with a DI resolution error.
 if (!string.IsNullOrWhiteSpace(blobConnectionString))
+{
     builder.Services.AddScoped<Services.ImageImportService>();
+    // Needs Blob but not SQL: these images belong to no database row.
+    builder.Services.AddScoped<Services.ContentImageMigrator>();
+}
 
 // The gallery import writes rows AND blobs, so it needs both. Registered only when both are
 // configured, so `import-gallery` reports which one is missing instead of throwing.
@@ -327,6 +331,38 @@ if (args.Length > 0 && args[0] == "import-cases")
     Console.WriteLine(dryRun ? "DRY RUN — nothing was written." : "Import complete.");
     Console.WriteLine($"Cases:  {r.CasesFetched} fetched -> {r.CasesInserted} inserted, {r.CasesUpdated} updated.");
     Console.WriteLine($"Images: {r.ImagesUploaded} uploaded, {r.ImagesAlreadyPresent} already present.");
+
+    foreach (var p in r.Problems.Take(50)) Console.WriteLine($"  problem: {p}");
+    if (r.Problems.Count > 50) Console.WriteLine($"  ... and {r.Problems.Count - 50} more.");
+
+    return r.Problems.Count == 0 ? 0 : 2;
+}
+
+// `dotnet run -- migrate-content-images <src-path> [--dry-run]`.
+// Rewrites the image URLs hard-coded in the frontend source. One-shot, and the hard gate on
+// retiring Quickbase: these are the majority of the site's photographs and the API never
+// sees them, so nothing else in the migration touches them.
+if (args.Length > 0 && args[0] == "migrate-content-images")
+{
+    using var scope = app.Services.CreateScope();
+    var migrator = scope.ServiceProvider.GetService<Services.ContentImageMigrator>();
+    if (migrator is null)
+    {
+        Console.Error.WriteLine("BLOB_CONNECTION_STRING is not configured.");
+        return 1;
+    }
+
+    var path = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--"))
+               ?? Path.Combine("..", "NVC Claude version", "src");
+    var dryRun = args.Contains("--dry-run");
+
+    var r = await migrator.MigrateAsync(Path.GetFullPath(path), dryRun, CancellationToken.None);
+
+    Console.WriteLine(dryRun ? "DRY RUN — nothing was written." : "Migration complete.");
+    Console.WriteLine($"Scanned {r.FilesScanned} source file(s); found {r.UniqueUrls} unique Quickbase image URL(s).");
+    Console.WriteLine($"Blob:   {r.Uploaded} uploaded, {r.AlreadyInBlob} already present.");
+    Console.WriteLine($"Source: {r.ReferencesReplaced} reference(s) rewritten across {r.FilesRewritten} file(s).");
+    if (r.BytesSaved > 0) Console.WriteLine($"WebP conversion saved {r.BytesSaved / 1024 / 1024.0:F1} MB.");
 
     foreach (var p in r.Problems.Take(50)) Console.WriteLine($"  problem: {p}");
     if (r.Problems.Count > 50) Console.WriteLine($"  ... and {r.Problems.Count - 50} more.");

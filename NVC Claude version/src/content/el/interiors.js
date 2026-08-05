@@ -65,8 +65,8 @@ export default {
       { key: 'bath_accessories', label: 'Καθρέφτες και αξεσουάρ', weight: 1 },
     ],
     beforeAfter: {
-      before: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rc2/eg/vb',
-      after: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rc4/eg/vb',
+      before: '/api/img/content/bvk4n834b-rc2-eg-vb.webp',
+      after: '/api/img/content/bvk4n834b-rc4-eg-vb.webp',
       altBefore: 'Μπάνιο πριν την ανακαίνιση',
       altAfter: 'Μπάνιο μετά την ανακαίνιση',
     },
@@ -82,8 +82,8 @@ export default {
       { key: 'kitchen_finish', label: 'Τελικά φινιρίσματα', weight: 1 },
     ],
     beforeAfter: {
-      before: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rc3/eg/vb',
-      after: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcz/eg/vb',
+      before: '/api/img/content/bvk4n834b-rc3-eg-vb.webp',
+      after: '/api/img/content/bvk4n834b-rcz-eg-vb.webp',
       altBefore: 'Κουζίνα πριν την ανακαίνιση',
       altAfter: 'Κουζίνα μετά την ανακαίνιση',
     },

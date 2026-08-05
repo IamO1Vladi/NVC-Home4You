@@ -50,10 +50,18 @@ public static class ImageKey
     public const string GalleryScope = "gallery";
     public const string CasesScope = "cases";
 
-    private static readonly string[] OwnedRoots = { GalleryScope + "/", CasesScope + "/" };
+    // Static site imagery — the photos hard-coded in the frontend content files (homepage,
+    // delivery, interiors and so on). Not owned by a database row, so these are keyed
+    // deterministically from their Quickbase path instead: the same source URL always yields
+    // the same blob name, which is what makes the migration re-runnable and lets a key be
+    // traced back to the attachment it came from.
+    public const string ContentScope = "content";
+
+    private static readonly string[] OwnedRoots =
+        { GalleryScope + "/", CasesScope + "/", ContentScope + "/" };
 
     private static readonly string[] AllRoots =
-        { "files/", "up/", GalleryScope + "/", CasesScope + "/" };
+        { "files/", "up/", GalleryScope + "/", CasesScope + "/", ContentScope + "/" };
 
     /// <summary>
     /// Normalises a Quickbase image URL — absolute, host-relative, or already a bare key —
@@ -167,6 +175,37 @@ public static class ImageKey
     /// <summary>True when we own the bytes — i.e. Blob is the only copy.</summary>
     public static bool IsOwned(string? key) =>
         IsValid(key) && OwnedRoots.Any(r => key!.StartsWith(r, StringComparison.Ordinal));
+
+    /// <summary>
+    /// A stable key for a hard-coded site image, derived from the Quickbase attachment path
+    /// it is being migrated from.
+    ///
+    /// Deterministic rather than a GUID because the same photo appears in the BG, EN and EL
+    /// content files: one key means one blob and one rewrite, and re-running the migration
+    /// recognises what it already did instead of duplicating it.
+    /// </summary>
+    public static string? ContentKeyFor(string sourceKey, string extension)
+    {
+        if (!HasQuickbaseOrigin(sourceKey)) return null;
+
+        // "up/{dbid}/g/r{rid}/e{fid}/v{ver}" or "files/{dbid}/{rid}/{fid}/{ver}" -> the parts
+        // that identify the attachment, flattened into one filename-safe token.
+        var parts = sourceKey
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Skip(1)                                   // drop the "up" / "files" root
+            .Where(p => p is not "a" and not "g")      // Quickbase's encoding markers
+            .Select(p => new string(p.Where(char.IsLetterOrDigit).ToArray()))
+            .Where(p => p.Length > 0)
+            .Take(5)
+            .ToArray();
+
+        if (parts.Length == 0) return null;
+
+        var ext = extension.ToLowerInvariant();
+        if (!AllowedUploadExtensions.Contains(ext)) ext = ".bin";
+
+        return $"{ContentScope}/{string.Join('-', parts)}{ext}";
+    }
 
     private static readonly string[] AllowedUploadExtensions =
         { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif" };

@@ -17,13 +17,13 @@ export default function ModularHousesPage({ locale, content }) {
         {
           key: 'house',
           href: `${asset('Космически Капсули.pdf')}#page=1`,
-          image: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rc8/eg/vb',
+          image: '/api/img/content/bvk4n834b-rc8-eg-vb.webp',
           fallback: asset('card.svg'),
         },
         {
           key: 'expandable',
           href: `${asset('Разгъваеми “Бокс” Къща.pdf')}#page=1`,
-          image: 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rc5/eg/vb',
+          image: '/api/img/content/bvk4n834b-rc5-eg-vb.webp',
           fallback: asset('card.svg'),
         }
       ]

@@ -3,7 +3,10 @@ import React from 'react'
 export function LocalBusinessJSONLD({
   name = 'NVC Home4You',
   url = 'https://nvc-home4you.eu/',
-  image = 'https://vladimirbuilder.quickbase.com/up/bvk4n834b/g/rcy/eg/vb',
+  // Absolute, unlike the rest of the migrated content images. This one is consumed by search
+  // engines and social crawlers reading the JSON-LD out of context, where a site-relative
+  // path has no origin to resolve against.
+  image = 'https://nvc-home4you.eu/api/img/content/bvk4n834b-rcy-eg-vb.webp',
   telephone = '+359879355269',
   email = 'contact@nvc-home4you.eu',
   address = {
