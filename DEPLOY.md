@@ -85,8 +85,144 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 | `BLOB_CONNECTION_STRING` | Azure Blob, for images. Absent = images are read from Quickbase. **Secret.** |
 | `BLOB_IMAGES_CONTAINER` | Optional. Defaults to `images`. |
 | `IMAGES_VIA_APP` | `true` to serve images from our own origin. Anything else = Quickbase URLs, as before. |
+| `DATA_SOURCE_GALLERY` | `sql` to serve the gallery from SQL; anything else = Quickbase. |
+| `DATA_SOURCE_CASES` | `sql` to serve the cases page from SQL; anything else = Quickbase. |
 
-## Image storage cutover
+## Release: gallery + cases to SQL and Blob
+
+**Read this whole section before starting.** Roughly an hour, most of it waiting on
+imports. Every step is reversible by unsetting one variable, and nothing is destructive —
+no Quickbase data is modified or deleted at any point.
+
+The flags default to Quickbase, so **publishing the code changes nothing on its own**. That
+is deliberate: the deploy and the cutover are separate events, and you can stop between any
+two steps and leave the site in a working state.
+
+### Before you start
+
+Confirm all of these are set under **App settings**, then restart the App Service once so it
+picks them up:
+
+- `SQL_CONNECTION_STRING`, `BLOB_CONNECTION_STRING`
+- `ENTRA_CLIENT_ID`, `ENTRA_TENANT_ID`, `ENTRA_CLIENT_SECRET`
+- Leave `BLOB_IMAGES_CONTAINER` unset (defaults to `images`)
+- Leave `IMAGES_VIA_APP`, `DATA_SOURCE_GALLERY`, `DATA_SOURCE_CASES` unset for now
+
+You will run the import commands **from your machine against production**, so your IP needs
+to be in the SQL server firewall (Portal → SQL servers → `nvc-home4you` → Networking).
+
+### Step 1 — Ship the code
+
+```bash
+git checkout master && git pull
+git merge --ff-only feature/images-blob-migration
+git log --oneline production..master          # what is about to go live
+cd api-dotnet && dotnet list package --vulnerable --include-transitive
+cd .. && dotnet test && cd "NVC Claude version" && npm test
+git checkout production && git merge --ff-only master && git push
+```
+
+Publish from the `production` checkout (VS Code → right-click `api-dotnet` → Publish).
+
+**Verify before going further:** the site looks exactly as it did. Every flag is still off,
+so this is the check that the deploy itself changed nothing.
+
+### Step 2 — Create the database tables
+
+```bash
+cd api-dotnet
+SQL_CONNECTION_STRING="<production>" dotnet ef database update
+```
+
+Adds `Houses`, `HouseImages`, `Cases`, `CaseImages`. Nothing reads them yet.
+
+### Step 3 — Copy the data and images
+
+```bash
+dotnet run -- import-gallery --dry-run     # reads everything, writes nothing
+dotnet run -- import-gallery
+dotnet run -- import-cases --dry-run
+dotnet run -- import-cases
+```
+
+Run each dry run first and read its output. The gallery import **refuses the whole run** if
+any house has a category it cannot map — better to find that before it has uploaded half the
+images. Expect roughly 14 houses / 63 images and 1 case / 5 images, and a WebP saving around
+70 MB.
+
+Both are idempotent: re-running uploads nothing and changes nothing.
+
+### Step 4 — Migrate the hard-coded site images
+
+Already done in the repo — the URLs are rewritten in source and shipped in step 1. But the
+blobs must exist in the **production** container:
+
+```bash
+dotnet run -- migrate-content-images --dry-run
+dotnet run -- migrate-content-images
+```
+
+On a repo whose sources are already rewritten this uploads the 47 blobs and rewrites nothing.
+
+⚠️ **Do not skip this.** These are the majority of the site's photographs. If the blobs are
+missing when `IMAGES_VIA_APP` goes on, those images break — they have no Quickbase fallback,
+because their URLs no longer point at Quickbase.
+
+### Step 5 — Check before switching anything on
+
+```bash
+dotnet run -- verify-images        # non-zero exit if anything referenced is missing
+```
+
+Then request any image and look at the response header:
+
+```bash
+curl -sI https://nvc-home4you.eu/api/img/content/bukcsfwf9-rdg-eg-vb.webp | grep -i x-image-origin
+```
+
+It must say **`Blob`**. This step is not optional: the read path falls back to Quickbase per
+key, so an empty, misnamed or unreachable container still serves perfectly good images and is
+indistinguishable from success without this header.
+
+### Step 6 — Flip the flags, one at a time
+
+Set one, wait for the App Service to restart, check the site, then set the next:
+
+1. `IMAGES_VIA_APP=true` — images now come from our origin with a year of `immutable`
+   caching instead of Quickbase's `max-age=7200, private`. Check the homepage and a gallery
+   page, hard-refreshed.
+2. `DATA_SOURCE_GALLERY=sql` — check the gallery page, and that each of the four category
+   filters returns the right models.
+3. `DATA_SOURCE_CASES=sql` — check the cases page: photos, logos, quotes, and the location
+   and attribution labels.
+
+**Rollback is unsetting the flag you just set.** It takes effect on the next request rather
+than after the 10-minute payload cache, because the URL rewrite happens on the way out of the
+cache rather than into it.
+
+### Step 7 — Verify the admin panel
+
+Sign in at `/admin`, then check `/admin/gallery` and `/admin/cases`. Edit something small,
+save, and confirm it appears on the public page immediately.
+
+This is the first time admin sign-in is exercised against the new sections, and it cannot be
+tested without `ENTRA_*` — so if anything is going to need attention, it is here. A failed
+sign-in redirects to `/admin?authError=…` with the reason rather than a blank 500.
+
+### Step 8 — Tag it
+
+```bash
+git tag deploy-$(date +%Y-%m-%d) && git push --tags
+```
+
+### What is NOT done by this release
+
+Quickbase is still the source for **leads** (offers/questions) and **saved configurator
+links**, and both still run through it. Reviews, gallery and cases are on SQL; images are on
+Blob. Do not switch Quickbase off — `verify-images` passing means the images are safe, not
+that the whole site is off Quickbase.
+
+## Image storage cutover (background)
 
 The two image settings are independent on purpose, and the order matters:
 
