@@ -36,14 +36,23 @@ This replaces the hand-written `DEPLOY PENDING` block that used to live at the t
    cd "../NVC Claude version" && npm test
    ```
 
-4. **Move `production` up to `master` and push.**
+4. **Check for vulnerable dependencies.**
+   ```bash
+   cd api-dotnet && dotnet list package --vulnerable --include-transitive
+   ```
+   `--include-transitive` is the point: the build only warns about packages referenced
+   directly, so a High severity issue can sit in a dependency-of-a-dependency for months
+   without ever showing up in normal output. Anything listed gets pinned explicitly to a
+   patched version before shipping.
+
+5. **Move `production` up to `master` and push.**
    ```bash
    git checkout production && git merge --ff-only master && git push
    ```
    `--ff-only` is deliberate: if it refuses, someone committed directly to `production`,
    which should never happen. Investigate rather than forcing it.
 
-5. **Publish from the `production` checkout.** In VS Code: right-click the `api-dotnet`
+6. **Publish from the `production` checkout.** In VS Code: right-click the `api-dotnet`
    project → **Publish to Azure** → pick the App Service.
 
    You do **not** need to build the frontend first. Publishing runs `npm run build`
@@ -51,12 +60,12 @@ This replaces the hand-written `DEPLOY PENDING` block that used to live at the t
    `wwwroot`, so the SPA can never ship stale. There is no `dist/` → `wwwroot` copy step
    any more — if you still have that in muscle memory, drop it.
 
-6. **Tag the deploy** so you can identify what's live later:
+7. **Tag the deploy** so you can identify what's live later:
    ```bash
    git tag deploy-$(date +%Y-%m-%d) && git push --tags
    ```
 
-7. **Verify on the live site**, hard-refreshed (Ctrl+F5):
+8. **Verify on the live site**, hard-refreshed (Ctrl+F5):
    - the pages you changed
    - a `/c/{code}` short link still resolves
    - submitting the offer form still sends the autoresponder

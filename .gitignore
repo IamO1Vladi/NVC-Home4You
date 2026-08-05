@@ -32,6 +32,10 @@ api-dotnet/wwwroot/
 # be committed. The .pubxml files themselves are shared and stay tracked.
 *.pubxml.user
 
+# Per-developer IDE state (last used publish profile, etc). Machine-specific absolute
+# paths, so it just churns between machines and has no shared value.
+*.csproj.user
+
 # Logs & OS cruft
 *.log
 npm-debug.log*
