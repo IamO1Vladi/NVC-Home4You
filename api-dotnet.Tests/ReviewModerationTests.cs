@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Data;
 using Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Services;
 using Xunit;
@@ -26,6 +27,10 @@ public class ReviewModerationTests
         return new AppDbContext(options);
     }
 
+    private static Microsoft.Extensions.Caching.Memory.IMemoryCache NewCache() =>
+        new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+
     private static EnvConfig Env() =>
         new(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build());
 
@@ -44,7 +49,7 @@ public class ReviewModerationTests
     public async Task Queue_defaults_to_pending_only()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
 
         var pending = await svc.ListAsync("pending", CancellationToken.None);
 
@@ -56,7 +61,7 @@ public class ReviewModerationTests
     public async Task All_returns_every_status()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
 
         Assert.Equal(3, (await svc.ListAsync("all", CancellationToken.None)).Count);
     }
@@ -65,7 +70,7 @@ public class ReviewModerationTests
     public async Task Queue_is_newest_first()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
 
         var pending = await svc.ListAsync("pending", CancellationToken.None);
 
@@ -76,7 +81,7 @@ public class ReviewModerationTests
     public async Task Approving_publishes_the_review_and_stamps_updated_at()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
         var target = db.Reviews.First(r => r.Name == "Pending One").Id;
 
         Assert.True(await svc.ApproveAsync(target, CancellationToken.None));
@@ -90,7 +95,7 @@ public class ReviewModerationTests
     public async Task Rejecting_keeps_the_row_but_out_of_the_public_feed()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
         var target = db.Reviews.First(r => r.Name == "Pending One").Id;
 
         Assert.True(await svc.RejectAsync(target, CancellationToken.None));
@@ -105,7 +110,7 @@ public class ReviewModerationTests
     public async Task A_decision_can_be_undone()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
         var target = db.Reviews.First(r => r.Name == "Approved One").Id;
 
         Assert.True(await svc.ResetToPendingAsync(target, CancellationToken.None));
@@ -120,7 +125,7 @@ public class ReviewModerationTests
     public async Task Acting_on_a_missing_review_reports_failure(string action)
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
 
         var result = action switch
         {
@@ -134,11 +139,38 @@ public class ReviewModerationTests
         Assert.False(result);
     }
 
+    [Theory]
+    [InlineData("approve")]
+    [InlineData("reject")]
+    [InlineData("pending")]
+    public async Task A_decision_evicts_the_cases_page_cache(string action)
+    {
+        using var db = await SeededDb();
+        using var cache = new Microsoft.Extensions.Caching.Memory.MemoryCache(
+            new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        // Stand in for a cached cases-page payload built before the decision.
+        cache.Set(CasesPageService.CacheKey, "stale-payload");
+
+        var svc = new ReviewModerationService(db, Env(), cache);
+        var target = db.Reviews.First(r => r.Name == "Pending One").Id;
+
+        _ = action switch
+        {
+            "approve" => await svc.ApproveAsync(target, CancellationToken.None),
+            "reject" => await svc.RejectAsync(target, CancellationToken.None),
+            _ => await svc.ResetToPendingAsync(target, CancellationToken.None),
+        };
+
+        // Without eviction the decision shows on the homepage instantly but on the cases
+        // page up to ten minutes later, which reads as a bug.
+        Assert.False(cache.TryGetValue(CasesPageService.CacheKey, out _));
+    }
+
     [Fact]
     public async Task Counts_are_grouped_by_status()
     {
         using var db = await SeededDb();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
 
         var counts = await svc.CountsByStatusAsync(CancellationToken.None);
 
@@ -152,7 +184,7 @@ public class ReviewModerationTests
         using var db = NewDb();
         db.Reviews.Add(new Review { Name = "X", Status = "pending", Email = "who@example.com", Rating = 5 });
         await db.SaveChangesAsync();
-        var svc = new ReviewModerationService(db, Env());
+        var svc = new ReviewModerationService(db, Env(), NewCache());
 
         var items = await svc.ListAsync("pending", CancellationToken.None);
 

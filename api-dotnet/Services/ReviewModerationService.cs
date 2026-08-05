@@ -17,11 +17,16 @@ public class ReviewModerationService
 {
     private readonly AppDbContext _db;
     private readonly EnvConfig _env;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
-    public ReviewModerationService(AppDbContext db, EnvConfig env)
+    public ReviewModerationService(
+        AppDbContext db,
+        EnvConfig env,
+        Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
     {
         _db = db;
         _env = env;
+        _cache = cache;
     }
 
     private string ApprovedValue =>
@@ -88,6 +93,14 @@ public class ReviewModerationService
         // admin list agree on when a row last changed.
         review.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
+
+        // The cases page caches its whole payload (approved reviews included) for 10
+        // minutes to avoid re-fetching cases and images from Quickbase. That cache is
+        // still worth having, but it must not outlive a moderation decision: without this
+        // an approved review appears on the homepage immediately and on the cases page up
+        // to ten minutes later, which reads as a bug.
+        _cache.Remove(CasesPageService.CacheKey);
+
         return true;
     }
 }

@@ -17,7 +17,10 @@ public class CasesPageService
     private readonly IMemoryCache _cache;
     private readonly IReviewStore _reviews;
 
-    private const string CacheKey = "cases-page:v1";
+    // Public so moderation can evict it: the cached payload embeds the approved reviews,
+    // so an approve/reject would otherwise take up to CacheTtl to show on the cases page
+    // while appearing instantly on the homepage, which reads SQL uncached.
+    public const string CacheKey = "cases-page:v1";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache, IReviewStore reviews)
