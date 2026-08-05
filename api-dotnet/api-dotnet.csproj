@@ -17,6 +17,23 @@
          UseStaticFiles serves from the physical wwwroot in the publish output. -->
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
+
+  <!-- Keep wwwroot out of the evaluation-time globs entirely.
+
+       Removing it inside the build target was not enough. The SDK turns Content into
+       ContentWithTargetPath during AssignTargetPaths, which runs as part of Build - before
+       the SPA is rebuilt. Removing the Content items afterwards left those already-derived
+       ContentWithTargetPath entries behind, still naming the PREVIOUS build's hashed
+       filenames, and the publish then failed with a wall of MSB3030 "could not copy ...
+       because it was not found".
+
+       Excluding it here means nothing ever globs wwwroot at evaluation, so there is no stale
+       list to contradict the build. StageSpaForPublish adds the real files instead. -->
+  <ItemGroup>
+    <Content Remove="wwwroot\**" />
+    <None Remove="wwwroot\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
     <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.15" />
@@ -52,23 +69,37 @@
     <SpaRoot>$(MSBuildProjectDirectory)\..\NVC Claude version\</SpaRoot>
   </PropertyGroup>
 
-  <Target Name="BuildSpa" BeforeTargets="ComputeFilesToPublish" Condition="'$(SkipSpaBuild)' != 'true'">
+  <!-- Rebuilds the frontend. Skipped by /p:SkipSpaBuild=true, and by design that only skips
+       the BUILD - staging below still runs, so an API-only publish still ships whatever is
+       already in wwwroot rather than shipping a site with no frontend at all. -->
+  <Target Name="BuildSpa" BeforeTargets="StageSpaForPublish" Condition="'$(SkipSpaBuild)' != 'true'">
     <Message Importance="high" Text="Building SPA from $(SpaRoot)" />
 
     <!-- npm ci only when dependencies are missing; it wipes node_modules, so doing it
          every publish would add a slow minute for no benefit. -->
     <Exec Command="npm ci" WorkingDirectory="$(SpaRoot)" Condition="!Exists('$(SpaRoot)node_modules')" />
     <Exec Command="npm run build" WorkingDirectory="$(SpaRoot)" />
+  </Target>
 
-    <!-- Vite emptied wwwroot and wrote freshly hashed filenames, but MSBuild globbed
-         wwwroot at *evaluation* time - that list now points at deleted files. Drop it
-         and re-glob from what the build actually produced. -->
+  <!-- Globs wwwroot AFTER the SPA build and hands the result straight to the publish
+       pipeline. This is the only thing that puts wwwroot into the publish output, which is
+       what keeps the file list and the files on disk from ever disagreeing.
+
+       Contributes ResolvedFileToPublish rather than ContentWithTargetPath, and hooks
+       ComputeResolvedFilesToPublishList rather than ComputeFilesToPublish. Both matter:
+       BeforeTargets runs after the target's DependsOnTargets, so hooking
+       ComputeFilesToPublish is already too late - the content list has been turned into
+       ResolvedFileToPublish by then, and freshly added ContentWithTargetPath items are
+       silently ignored. The publish then succeeds while shipping an API with no site. -->
+  <Target Name="StageSpaForPublish" BeforeTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
-      <Content Remove="wwwroot\**" />
       <_SpaBuildOutput Include="wwwroot\**" />
-      <ContentWithTargetPath Include="@(_SpaBuildOutput)" TargetPath="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+      <ResolvedFileToPublish Include="@(_SpaBuildOutput)" RelativePath="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
-    <Message Importance="high" Text="SPA build complete: @(_SpaBuildOutput-&gt;Count()) files staged for publish." />
+    <Error Condition="'@(_SpaBuildOutput)' == ''"
+           Text="wwwroot is empty, so this publish would ship an API with no site. Run 'npm run build' in $(SpaRoot), or drop /p:SkipSpaBuild=true." />
+
+    <Message Importance="high" Text="SPA staged for publish: @(_SpaBuildOutput-&gt;Count()) files." />
   </Target>
 </Project>
