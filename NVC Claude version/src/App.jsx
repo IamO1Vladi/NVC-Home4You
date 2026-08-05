@@ -90,6 +90,8 @@ const FactorySheetPage = lazy(() => import('./pages/FactorySheetPage.jsx'))
 // Staff admin panel. Entra ID protects the API it calls; this is only the UI, so a
 // signed-out visitor reaching it sees a sign-in prompt and no data.
 const AdminReviewsPage = lazy(() => import('./pages/AdminReviewsPage.jsx'))
+const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
+const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -393,6 +395,8 @@ function AppShell() {
               {/* Staff admin panel (unlisted, noindex). The API enforces Entra sign-in. */}
               <Route path="/admin" element={<AdminReviewsPage />} />
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+              <Route path="/admin/gallery" element={<AdminGalleryPage />} />
+              <Route path="/admin/cases" element={<AdminCasesPage />} />
 
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}
