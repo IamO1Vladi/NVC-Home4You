@@ -26,6 +26,7 @@ public sealed class CasesImportService
     private readonly CasesPageService _cases;
     private readonly QuickbaseImageSource _source;
     private readonly BlobImageSource _blob;
+    private readonly ImageProcessor _processor;
     private readonly AppDbContext _db;
     private readonly EnvConfig _env;
 
@@ -33,12 +34,14 @@ public sealed class CasesImportService
         CasesPageService cases,
         QuickbaseImageSource source,
         BlobImageSource blob,
+        ImageProcessor processor,
         AppDbContext db,
         EnvConfig env)
     {
         _cases = cases;
         _source = source;
         _blob = blob;
+        _processor = processor;
         _db = db;
         _env = env;
     }
@@ -166,8 +169,16 @@ public sealed class CasesImportService
 
             if (dryRun) return null;
 
-            var blobKey = ImageKey.NewOwnedKey(ImageKey.CasesScope, entity.Id, FileNameFrom(sourceKey));
-            await _blob.UploadAsync(blobKey, bytes.Bytes, bytes.ContentType, ct);
+            var processed = _processor.TryProcess(bytes.Bytes);
+            var blobKey = ImageKey.NewOwnedKey(
+                ImageKey.CasesScope, entity.Id, FileNameFrom(sourceKey), processed?.Extension);
+
+            await _blob.UploadAsync(
+                blobKey,
+                processed?.Bytes ?? bytes.Bytes,
+                processed?.ContentType ?? bytes.ContentType,
+                ct);
+
             return blobKey;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -234,8 +245,18 @@ public sealed class CasesImportService
                     return;
                 }
 
-                var blobKey = ImageKey.NewOwnedKey(ImageKey.CasesScope, entity.Id, FileNameFrom(sourceKey));
-                await _blob.UploadAsync(blobKey, bytes.Bytes, bytes.ContentType, ct);
+                // Converted on the way in, so the migration lands optimised images rather than
+                // moving the heavy originals and needing a second pass later.
+                var processed = _processor.TryProcess(bytes.Bytes);
+
+                var blobKey = ImageKey.NewOwnedKey(
+                    ImageKey.CasesScope, entity.Id, FileNameFrom(sourceKey), processed?.Extension);
+
+                await _blob.UploadAsync(
+                    blobKey,
+                    processed?.Bytes ?? bytes.Bytes,
+                    processed?.ContentType ?? bytes.ContentType,
+                    ct);
 
                 lock (guard)
                 {

@@ -210,6 +210,9 @@ builder.Services.AddSingleton<Services.ImageCache>();
 builder.Services.AddHttpClient<Services.QuickbaseImageSource>();
 builder.Services.AddSingleton<Services.ImageUrls>();
 
+// Converts uploads and imports to WebP. Stateless, so a singleton.
+builder.Services.AddSingleton<Services.ImageProcessor>();
+
 var blobConnectionString = (builder.Configuration["BLOB_CONNECTION_STRING"] ?? "").Trim();
 if (!string.IsNullOrWhiteSpace(blobConnectionString))
 {
@@ -370,6 +373,8 @@ if (args.Length > 0 && args[0] == "import-gallery")
         $"Houses: {r.HousesFetched} fetched -> {r.HousesInserted} inserted, {r.HousesUpdated} updated.");
     Console.WriteLine(
         $"Images: {r.ImagesUploaded} uploaded, {r.ImagesAlreadyPresent} already present.");
+    if (r.BytesSavedByConversion > 0)
+        Console.WriteLine($"WebP conversion saved {r.BytesSavedByConversion / 1024 / 1024.0:F1} MB.");
 
     foreach (var p in r.Problems.Take(50)) Console.WriteLine($"  problem: {p}");
     if (r.Problems.Count > 50) Console.WriteLine($"  ... and {r.Problems.Count - 50} more.");

@@ -145,7 +145,12 @@ public static class ImageKey
     /// "photo.jpg" to one house must not collide. Only the extension carries over, and only
     /// from a known-safe set — note .svg is deliberately absent, since an SVG is script.
     /// </summary>
-    public static string NewOwnedKey(string scope, long ownerId, string? originalFileName)
+    /// <param name="overrideExtension">
+    /// Set when the bytes have been converted and no longer match the original filename —
+    /// a JPEG re-encoded to WebP must not be stored under ".jpg", or the blob's name would
+    /// contradict its content type and every consumer would have to distrust one of them.
+    /// </param>
+    public static string NewOwnedKey(string scope, long ownerId, string? originalFileName, string? overrideExtension = null)
     {
         if (scope != GalleryScope && scope != CasesScope)
             throw new ArgumentException($"Unknown image scope '{scope}'.", nameof(scope));
@@ -153,7 +158,7 @@ public static class ImageKey
         if (ownerId <= 0)
             throw new ArgumentOutOfRangeException(nameof(ownerId), "An owned image needs the id of the row that owns it.");
 
-        var ext = System.IO.Path.GetExtension(originalFileName ?? "").ToLowerInvariant();
+        var ext = (overrideExtension ?? System.IO.Path.GetExtension(originalFileName ?? "")).ToLowerInvariant();
         if (!AllowedUploadExtensions.Contains(ext)) ext = ".bin";
 
         return $"{scope}/{ownerId}/{Guid.NewGuid():N}{ext}";

@@ -28,6 +28,7 @@ public sealed class GalleryImportService
     private readonly GalleryService _gallery;
     private readonly QuickbaseImageSource _source;
     private readonly BlobImageSource _blob;
+    private readonly ImageProcessor _processor;
     private readonly AppDbContext _db;
     private readonly EnvConfig _env;
 
@@ -35,12 +36,14 @@ public sealed class GalleryImportService
         GalleryService gallery,
         QuickbaseImageSource source,
         BlobImageSource blob,
+        ImageProcessor processor,
         AppDbContext db,
         EnvConfig env)
     {
         _gallery = gallery;
         _source = source;
         _blob = blob;
+        _processor = processor;
         _db = db;
         _env = env;
     }
@@ -51,6 +54,7 @@ public sealed class GalleryImportService
         int HousesUpdated,
         int ImagesUploaded,
         int ImagesAlreadyPresent,
+        long BytesSavedByConversion,
         List<string> Problems);
 
     public async Task<ImportResult> ImportAsync(bool dryRun, CancellationToken ct)
@@ -71,7 +75,7 @@ public sealed class GalleryImportService
         if (unmapped.Count > 0)
         {
             problems.AddRange(unmapped);
-            return new ImportResult(items.Count, 0, 0, 0, 0, problems);
+            return new ImportResult(items.Count, 0, 0, 0, 0, 0, problems);
         }
 
         var existing = await _db.Houses
@@ -83,6 +87,7 @@ public sealed class GalleryImportService
         var updated = 0;
         var uploaded = 0;
         var alreadyPresent = 0;
+        long saved = 0;
 
         var sortOrder = 0;
 
@@ -124,23 +129,25 @@ public sealed class GalleryImportService
             // images can be named. Cheap: one round trip per import, not per image.
             if (house.Id == 0 && !dryRun) await _db.SaveChangesAsync(ct);
 
-            var (up, present, imageProblems) = await ImportImagesAsync(house, item.Images, dryRun, ct);
+            var (up, present, bytesSaved, imageProblems) = await ImportImagesAsync(house, item.Images, dryRun, ct);
             uploaded += up;
             alreadyPresent += present;
+            saved += bytesSaved;
             problems.AddRange(imageProblems);
         }
 
         if (!dryRun) await _db.SaveChangesAsync(ct);
 
-        return new ImportResult(items.Count, inserted, updated, uploaded, alreadyPresent, problems);
+        return new ImportResult(items.Count, inserted, updated, uploaded, alreadyPresent, saved, problems);
     }
 
-    private async Task<(int Uploaded, int Present, List<string> Problems)> ImportImagesAsync(
+    private async Task<(int Uploaded, int Present, long BytesSaved, List<string> Problems)> ImportImagesAsync(
         House house, IReadOnlyList<string> urls, bool dryRun, CancellationToken ct)
     {
         var problems = new List<string>();
         var uploaded = 0;
         var present = 0;
+        long savedBytes = 0;
 
         // Keyed by SourceKey: what has already been imported for this house.
         var bySource = house.Images
@@ -177,7 +184,7 @@ public sealed class GalleryImportService
         }
 
         await Task.WhenAll(work);
-        return (uploaded, present, problems);
+        return (uploaded, present, savedBytes, problems);
 
         async Task ImportOneAsync(string sourceKey, int position)
         {
@@ -204,8 +211,21 @@ public sealed class GalleryImportService
                     return;
                 }
 
-                var blobKey = ImageKey.NewOwnedKey(ImageKey.GalleryScope, house.Id, FileNameFrom(sourceKey));
-                await _blob.UploadAsync(blobKey, bytes.Bytes, bytes.ContentType, ct);
+                // Converted on the way in, so the migration lands optimised images rather than
+                // moving the heavy originals and needing a second pass later. A conversion
+                // that fails, or that would not save bytes, keeps the original.
+                var processed = _processor.TryProcess(bytes.Bytes);
+
+                var blobKey = ImageKey.NewOwnedKey(
+                    ImageKey.GalleryScope, house.Id, FileNameFrom(sourceKey), processed?.Extension);
+
+                await _blob.UploadAsync(
+                    blobKey,
+                    processed?.Bytes ?? bytes.Bytes,
+                    processed?.ContentType ?? bytes.ContentType,
+                    ct);
+
+                lock (guard) savedBytes += (bytes.Bytes.Length - (processed?.Bytes.Length ?? bytes.Bytes.Length));
 
                 lock (guard)
                 {
