@@ -178,13 +178,14 @@ public class ImageKeyTests
     }
 
     [Fact]
-    public void An_uploaded_key_is_valid_but_has_no_quickbase_origin()
+    public void An_owned_key_is_valid_but_has_no_quickbase_origin()
     {
-        // Admin uploads exist only in Blob. Asking Quickbase for one would be a round trip
+        // Images we own exist only in Blob. Asking Quickbase for one would be a round trip
         // that can only 404, on every request, for every image the admin panel ever adds.
-        const string key = "uploads/gallery/0f8fad5bd9cb469fa16570867728950e.webp";
+        const string key = "gallery/13/0f8fad5bd9cb469fa16570867728950e.webp";
 
         Assert.True(ImageKey.IsValid(key));
+        Assert.True(ImageKey.IsOwned(key));
         Assert.False(ImageKey.HasQuickbaseOrigin(key));
         Assert.Null(ImageKey.ToQuickbaseUrl(key, Realm));
     }
@@ -192,18 +193,21 @@ public class ImageKeyTests
     [Fact]
     public void Quickbase_keys_still_report_an_origin()
     {
+        // Transitional: these must keep resolving between switching IMAGES_VIA_APP on and
+        // finishing the import.
         Assert.True(ImageKey.HasQuickbaseOrigin("up/bvk4n834b/g/rcy/eg/vb"));
         Assert.True(ImageKey.HasQuickbaseOrigin("files/bvk4n834b/466/16/11"));
+        Assert.False(ImageKey.IsOwned("up/bvk4n834b/g/rcy/eg/vb"));
     }
 
     [Fact]
-    public void An_upload_key_ignores_the_supplied_filename()
+    public void An_owned_key_ignores_the_supplied_filename()
     {
         // The uploader controls this string. Carrying it through would be a traversal vector
         // and a collision source; only a known-safe extension survives.
-        var key = ImageKey.NewUploadKey("gallery", "../../etc/passwd.jpg");
+        var key = ImageKey.NewOwnedKey(ImageKey.GalleryScope, 13, "../../etc/passwd.jpg");
 
-        Assert.StartsWith("uploads/gallery/", key);
+        Assert.StartsWith("gallery/13/", key);
         Assert.EndsWith(".jpg", key);
         Assert.DoesNotContain("..", key);
         Assert.DoesNotContain("passwd", key);
@@ -211,34 +215,43 @@ public class ImageKeyTests
     }
 
     [Theory]
-    [InlineData("photo.svg")]   // scriptable
+    [InlineData("photo.svg")]   // an SVG is script
     [InlineData("payload.html")]
     [InlineData("archive.zip")]
     [InlineData(null)]
     public void An_unexpected_upload_extension_is_not_carried_over(string? name)
     {
-        var key = ImageKey.NewUploadKey("gallery", name);
+        var key = ImageKey.NewOwnedKey(ImageKey.CasesScope, 7, name);
 
         Assert.EndsWith(".bin", key);
         Assert.True(ImageKey.IsValid(key));
     }
 
     [Fact]
-    public void Upload_keys_are_unique_per_call()
+    public void Owned_keys_are_unique_per_call()
     {
         // Two people uploading "photo.jpg" to the same house must not overwrite each other.
         Assert.NotEqual(
-            ImageKey.NewUploadKey("gallery", "photo.jpg"),
-            ImageKey.NewUploadKey("gallery", "photo.jpg"));
+            ImageKey.NewOwnedKey(ImageKey.GalleryScope, 13, "photo.jpg"),
+            ImageKey.NewOwnedKey(ImageKey.GalleryScope, 13, "photo.jpg"));
     }
 
     [Fact]
-    public void An_unsafe_upload_scope_is_reduced_to_something_safe()
+    public void An_unknown_scope_is_refused_rather_than_coerced()
     {
-        var key = ImageKey.NewUploadKey("../gallery/../..", "photo.jpg");
+        // Coercing an unrecognised scope to something plausible would put images somewhere
+        // no read path looks for them, which is invisible until someone opens the page.
+        Assert.Throws<ArgumentException>(() => ImageKey.NewOwnedKey("../etc", 13, "photo.jpg"));
+        Assert.Throws<ArgumentException>(() => ImageKey.NewOwnedKey("uploads", 13, "photo.jpg"));
+    }
 
-        Assert.True(ImageKey.IsValid(key));
-        Assert.DoesNotContain("..", key);
+    [Fact]
+    public void An_owned_key_needs_a_real_owner()
+    {
+        // Without this, a failed lookup yielding id 0 would silently file images under
+        // "gallery/0/" instead of failing where the bug is.
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => ImageKey.NewOwnedKey(ImageKey.GalleryScope, 0, "photo.jpg"));
     }
 
     [Fact]

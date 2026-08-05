@@ -29,14 +29,31 @@ public static class ImageKey
 {
     // Quickbase-originated images. These have a fallback: if the key is not in Blob yet, the
     // bytes can still be fetched from the realm host.
+    //
+    // TRANSITIONAL. Quickbase's URL shape is not something we chose or want to keep — it is
+    // carried only so images still resolve between switching IMAGES_VIA_APP on and finishing
+    // the import. Once Quickbase is retired nothing may still use these roots, because the
+    // fallback behind them can then only 404. `verify-images` is the gate for that.
     private static readonly string[] AttachmentRoots = { "files/", "up/" };
 
-    // Images uploaded through the admin panel. Blob is the only copy — there is nothing to
-    // fall back to, and asking Quickbase for one would be a pointless round trip ending in
-    // a 404. ToQuickbaseUrl returns null for these, which is what stops that.
-    public const string UploadRoot = "uploads/";
+    // Where images live once they are ours: owned by an entity, named by us.
+    //
+    //   gallery/{houseId}/{guid}.{ext}
+    //   cases/{caseId}/{guid}.{ext}
+    //
+    // Blob is the only copy, so these get no Quickbase fallback — asking for one would be a
+    // round trip that can only 404, on every request. ToQuickbaseUrl returns null for them.
+    //
+    // Scoping by entity rather than hashing content keeps the container readable (you can see
+    // what belongs to which house) and makes deletion unambiguous: one row owns one blob, so
+    // removing an image never has to check whether something else still references the bytes.
+    public const string GalleryScope = "gallery";
+    public const string CasesScope = "cases";
 
-    private static readonly string[] AllRoots = { "files/", "up/", UploadRoot };
+    private static readonly string[] OwnedRoots = { GalleryScope + "/", CasesScope + "/" };
+
+    private static readonly string[] AllRoots =
+        { "files/", "up/", GalleryScope + "/", CasesScope + "/" };
 
     /// <summary>
     /// Normalises a Quickbase image URL — absolute, host-relative, or already a bare key —
@@ -117,23 +134,34 @@ public static class ImageKey
         IsValid(key) && AttachmentRoots.Any(r => key!.StartsWith(r, StringComparison.Ordinal));
 
     /// <summary>
-    /// Mints a key for a newly uploaded image: uploads/{scope}/{guid}{ext}.
+    /// Mints a key for an image we own: {scope}/{ownerId}/{guid}{ext}.
     ///
-    /// The name is generated rather than taken from the upload, because an attacker-supplied
-    /// filename is the classic path-traversal and content-sniffing vector, and because two
-    /// people uploading "photo.jpg" must not collide. Only the extension is carried over,
-    /// and only from a known-safe set.
+    /// Used both by the admin panel's upload and by the Quickbase importer, so migrated
+    /// images end up named the same way as new ones and nothing inherits Quickbase's URL
+    /// shape permanently.
+    ///
+    /// The filename is generated, not taken from the upload: a caller-supplied name is the
+    /// classic path-traversal and content-sniffing vector, and two people uploading
+    /// "photo.jpg" to one house must not collide. Only the extension carries over, and only
+    /// from a known-safe set — note .svg is deliberately absent, since an SVG is script.
     /// </summary>
-    public static string NewUploadKey(string scope, string? originalFileName)
+    public static string NewOwnedKey(string scope, long ownerId, string? originalFileName)
     {
-        var safeScope = new string((scope ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-        if (safeScope.Length == 0) safeScope = "misc";
+        if (scope != GalleryScope && scope != CasesScope)
+            throw new ArgumentException($"Unknown image scope '{scope}'.", nameof(scope));
+
+        if (ownerId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(ownerId), "An owned image needs the id of the row that owns it.");
 
         var ext = System.IO.Path.GetExtension(originalFileName ?? "").ToLowerInvariant();
         if (!AllowedUploadExtensions.Contains(ext)) ext = ".bin";
 
-        return $"{UploadRoot}{safeScope}/{Guid.NewGuid():N}{ext}";
+        return $"{scope}/{ownerId}/{Guid.NewGuid():N}{ext}";
     }
+
+    /// <summary>True when we own the bytes — i.e. Blob is the only copy.</summary>
+    public static bool IsOwned(string? key) =>
+        IsValid(key) && OwnedRoots.Any(r => key!.StartsWith(r, StringComparison.Ordinal));
 
     private static readonly string[] AllowedUploadExtensions =
         { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif" };

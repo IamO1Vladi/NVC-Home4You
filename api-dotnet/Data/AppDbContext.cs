@@ -13,6 +13,8 @@ public class AppDbContext : DbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<House> Houses => Set<House>();
     public DbSet<HouseImage> HouseImages => Set<HouseImage>();
+    public DbSet<Case> Cases => Set<Case>();
+    public DbSet<CaseImage> CaseImages => Set<CaseImage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -45,6 +47,35 @@ public class AppDbContext : DbContext
             // The same Quickbase attachment must not be imported onto one house twice; a
             // re-run of the importer would otherwise duplicate every image.
             e.HasIndex(i => new { i.HouseId, i.ImageKey }).IsUnique();
+        });
+
+        b.Entity<Case>(e =>
+        {
+            // The cases page reads published rows in sort order, and pulls featured ones out
+            // for the top of the page.
+            e.HasIndex(c => new { c.IsPublished, c.SortOrder });
+            e.HasIndex(c => new { c.IsPublished, c.Featured });
+
+            e.HasIndex(c => c.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+        });
+
+        b.Entity<CaseImage>(e =>
+        {
+            e.HasOne(i => i.Case)
+             .WithMany(c => c.Images)
+             .HasForeignKey(i => i.CaseId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(i => new { i.CaseId, i.SortOrder });
+
+            // Same guarantee as HouseImage: a re-run of the importer must not duplicate.
+            e.HasIndex(i => new { i.CaseId, i.ImageKey }).IsUnique();
+
+            e.HasIndex(i => i.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
         });
 
         b.Entity<Review>(e =>
