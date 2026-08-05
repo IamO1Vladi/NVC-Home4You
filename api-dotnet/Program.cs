@@ -91,6 +91,15 @@ if (adminAuthReady)
             options.ClientSecret = envCfg.EntraClientSecret;
             options.CallbackPath = "/signin-oidc";
 
+            // Authorization code flow rather than Identity.Web's default of id_token.
+            //
+            // The default requires "ID tokens (used for implicit and hybrid flows)" to be
+            // ticked on the app registration, and returns the token through the browser
+            // (AADSTS700054 when it isn't enabled). Code flow exchanges a short-lived code
+            // for tokens over a back channel using the client secret we already hold, so
+            // no token ever passes through the browser and implicit grant stays off.
+            options.ResponseType = Microsoft.IdentityModel.Protocols.OpenIdConnect.OpenIdConnectResponseType.Code;
+
             // Microsoft returns the login result as a cross-site POST (response_mode=
             // form_post). A SameSite=Lax cookie is not sent on a cross-site POST, so these
             // must be None — and None is only accepted alongside Secure.
