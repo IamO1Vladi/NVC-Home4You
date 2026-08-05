@@ -46,7 +46,13 @@ public class AppDbContext : DbContext
 
             // The same Quickbase attachment must not be imported onto one house twice; a
             // re-run of the importer would otherwise duplicate every image.
-            e.HasIndex(i => new { i.HouseId, i.ImageKey }).IsUnique();
+            //
+            // Filtered because SQL Server treats NULLs as equal in a unique index, so without
+            // it a house could hold only ONE admin-uploaded image (they all have a null
+            // SourceKey) — the second insert would fail with a constraint violation.
+            e.HasIndex(i => new { i.HouseId, i.SourceKey })
+             .IsUnique()
+             .HasFilter("[SourceKey] IS NOT NULL");
         });
 
         b.Entity<Case>(e =>
@@ -70,8 +76,10 @@ public class AppDbContext : DbContext
 
             e.HasIndex(i => new { i.CaseId, i.SortOrder });
 
-            // Same guarantee as HouseImage: a re-run of the importer must not duplicate.
-            e.HasIndex(i => new { i.CaseId, i.ImageKey }).IsUnique();
+            // Same guarantee, and the same NULL-filter reason, as HouseImage.
+            e.HasIndex(i => new { i.CaseId, i.SourceKey })
+             .IsUnique()
+             .HasFilter("[SourceKey] IS NOT NULL");
 
             e.HasIndex(i => i.QuickbaseRecordId)
              .IsUnique()

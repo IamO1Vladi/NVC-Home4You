@@ -76,6 +76,20 @@ public sealed class BlobImageSource : IImageSource
             ct);
     }
 
+    /// <summary>
+    /// Creates the container if it is missing. Deliberately NOT called from the read or write
+    /// paths: a typo in BLOB_IMAGES_CONTAINER would then quietly create an empty container and
+    /// look like a working, if strangely empty, migration. Making it an explicit setup step
+    /// means a wrong name fails loudly as ContainerNotFound instead.
+    /// </summary>
+    public async Task<bool> EnsureContainerAsync(CancellationToken ct)
+    {
+        var response = await _container.CreateIfNotExistsAsync(cancellationToken: ct);
+        return response is not null;   // non-null only when it actually created one
+    }
+
+    public string ContainerName => _container.Name;
+
     /// <summary>True when the blob already exists, so the import can skip re-uploading it.</summary>
     public async Task<bool> ExistsAsync(string key, CancellationToken ct)
     {

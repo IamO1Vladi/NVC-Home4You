@@ -24,6 +24,10 @@ public class CaseImage
     // can change without rewriting every row.
     [MaxLength(1024)] public string ImageKey { get; set; } = "";
 
+    // Quickbase attachment path this was imported from; null for admin uploads. Carries the
+    // import's idempotency, since ImageKey holds a freshly minted GUID. See HouseImage.
+    [MaxLength(1024)] public string? SourceKey { get; set; }
+
     public int SortOrder { get; set; }
 
     [MaxLength(400)] public string? AltText { get; set; }
