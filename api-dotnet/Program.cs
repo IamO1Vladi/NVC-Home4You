@@ -4,6 +4,23 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Azure App Service terminates TLS at its front end and forwards to the app over plain
+// HTTP, so without this the app believes every request is insecure. That breaks OIDC:
+// the correlation/nonce cookies need SameSite=None to survive Microsoft's cross-site
+// form_post callback, a browser rejects SameSite=None unless the cookie is also Secure,
+// and the app won't set Secure on a connection it thinks is HTTP. Result is a failed
+// correlation and a 500 on /signin-oidc.
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto |
+        Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor;
+    // App Service's front end isn't in the default known-proxy list, and its address
+    // isn't fixed, so the restriction has to be lifted for the headers to be honoured.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // CORS: allow Vite dev server on 5173 and localhost:5173
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .WithOrigins("http://localhost:5173", "https://localhost:5173")
@@ -73,6 +90,14 @@ if (adminAuthReady)
             options.ClientId = envCfg.EntraClientId;
             options.ClientSecret = envCfg.EntraClientSecret;
             options.CallbackPath = "/signin-oidc";
+
+            // Microsoft returns the login result as a cross-site POST (response_mode=
+            // form_post). A SameSite=Lax cookie is not sent on a cross-site POST, so these
+            // must be None — and None is only accepted alongside Secure.
+            options.CorrelationCookie.SameSite = SameSiteMode.None;
+            options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.NonceCookie.SameSite = SameSiteMode.None;
+            options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
         });
 
     // An API must not answer a fetch() with a 302 to Microsoft. fetch follows redirects
@@ -96,6 +121,27 @@ if (adminAuthReady)
                     return;
                 }
                 if (previous is not null) await previous(ctx);
+            };
+
+            // A failed callback otherwise surfaces as a bare 500 with an empty body, which
+            // says nothing about what went wrong and leaves the user stranded on
+            // /signin-oidc. Send them back to the panel with the reason instead, and clear
+            // the stale correlation cookies so a retry starts clean rather than piling up
+            // another nonce pair on every attempt.
+            options.Events.OnRemoteFailure = ctx =>
+            {
+                var reason = ctx.Failure?.Message ?? "unknown";
+                foreach (var cookie in ctx.Request.Cookies.Keys)
+                {
+                    if (cookie.StartsWith(".AspNetCore.Correlation.", StringComparison.Ordinal) ||
+                        cookie.StartsWith(".AspNetCore.OpenIdConnect.Nonce.", StringComparison.Ordinal))
+                    {
+                        ctx.Response.Cookies.Delete(cookie);
+                    }
+                }
+                ctx.Response.Redirect($"/admin?authError={Uri.EscapeDataString(reason)}");
+                ctx.HandleResponse();
+                return Task.CompletedTask;
             };
         });
 }
@@ -190,6 +236,10 @@ if (args.Length > 0 && (args[0] == "import-reviews" || args[0] == "compare-revie
     // Non-zero exit when they disagree, so this can gate a cutover in a script.
     return diffs.Count == 0 ? 0 : 2;
 }
+
+// Must run before anything that inspects the scheme or writes cookies, so the rest of the
+// pipeline sees the original https request rather than App Service's internal http hop.
+app.UseForwardedHeaders();
 
 app.UseCors();
 app.UseSwagger();
