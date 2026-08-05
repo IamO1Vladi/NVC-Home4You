@@ -74,6 +74,30 @@ if (adminAuthReady)
             options.ClientSecret = envCfg.EntraClientSecret;
             options.CallbackPath = "/signin-oidc";
         });
+
+    // An API must not answer a fetch() with a 302 to Microsoft. fetch follows redirects
+    // automatically, login.microsoftonline.com sends no CORS headers, and the browser
+    // blocks the read — so the SPA sees an opaque network failure instead of "sign in".
+    // Interactive sign-in only works as a top-level navigation (see /admin/signin below),
+    // so /api/* gets a plain 401 and the SPA decides what to do about it.
+    builder.Services.Configure<Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectOptions>(
+        Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme,
+        options =>
+        {
+            // Chain rather than replace: Microsoft.Identity.Web installs its own handler
+            // here and dropping it would break the auth flow.
+            var previous = options.Events.OnRedirectToIdentityProvider;
+            options.Events.OnRedirectToIdentityProvider = async ctx =>
+            {
+                if (ctx.Request.Path.StartsWithSegments("/api"))
+                {
+                    ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    ctx.HandleResponse();
+                    return;
+                }
+                if (previous is not null) await previous(ctx);
+            };
+        });
 }
 else
 {
@@ -206,6 +230,33 @@ if (adminAuthReady)
 }
 
 app.MapControllers();
+
+// --- Admin sign-in / sign-out ---------------------------------------------------------
+// These are deliberately outside /api: they must be reached by a full page navigation, not
+// fetch. A browser can follow the redirect to Microsoft and back; fetch cannot, because
+// login.microsoftonline.com sends no CORS headers.
+if (adminAuthReady)
+{
+    app.MapGet("/admin/signin", (string? returnUrl) =>
+        Results.Challenge(
+            new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+            {
+                // Only local paths, so the endpoint can't be used as an open redirector.
+                RedirectUri = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
+                    ? returnUrl
+                    : "/admin",
+            },
+            new[] { Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme }));
+
+    app.MapGet("/admin/signout", () =>
+        Results.SignOut(
+            new Microsoft.AspNetCore.Authentication.AuthenticationProperties { RedirectUri = "/" },
+            new[]
+            {
+                Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme,
+                Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectDefaults.AuthenticationScheme,
+            }));
+}
 
 // --- Short "save & resume" share links (/c/{code}) -----------------------------------
 // A shared configurator link is minted as /c/{code}. Resolve the code to the localized
