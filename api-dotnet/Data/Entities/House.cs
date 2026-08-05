@@ -52,7 +52,13 @@ public class House
     // already prefers a stable id when it sees one (`byId.has(n)` before the label lookups),
     // so storing the key works today with no frontend change, and the labels become
     // presentation only. See HouseCategories for the allowed values.
-    [MaxLength(40)] public string? CategoryKey { get; set; }
+    //
+    // NOT NULL, because it is mandatory in Quickbase and every house has one. Encoding that
+    // in the schema rather than only in admin validation is what stops a house from ever
+    // reaching the gallery in a state where it belongs to no filter — the failure mode here
+    // is invisible on the page, so it is worth refusing to store at all.
+    [Required]
+    [MaxLength(40)] public string CategoryKey { get; set; } = "";
 
     // Facebook catalogue id (27). Distinct from the Quickbase record id, and the only one of
     // the two that may reach analytics (see App.jsx).

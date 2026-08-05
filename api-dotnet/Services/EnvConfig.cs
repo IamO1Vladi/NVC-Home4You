@@ -33,7 +33,10 @@ public class EnvConfig
     public int F_HOUSE_PRICE => GetInt("FID_HOUSE_PRICE", 10);
     public int F_HOUSE_DESC => GetInt("FID_HOUSE_DESC", 7);
     public int F_HOUSE_CATEGORY => GetInt("FID_HOUSE_CATEGORY", 16);
-    public int? F_HOUSE_TITLE_BG => GetOptionalInt("F_HOUSE_TITLE_B", 13);
+    // The key was "F_HOUSE_TITLE_B" — missing the FID_ prefix and truncated — so setting
+    // FID_HOUSE_TITLE_BG had no effect and the default silently did the work. Harmless only
+    // because the default happens to be right.
+    public int? F_HOUSE_TITLE_BG => GetOptionalInt("FID_HOUSE_TITLE_BG", 13);
     public int? F_HOUSE_DESC_BG => GetOptionalInt("FID_HOUSE_DESC_BG", 14);
     public int? F_HOUSE_TITLE_EL => GetOptionalInt("FID_HOUSE_TITLE_EL", 25);
     public int? F_HOUSE_DESC_EL => GetOptionalInt("FID_HOUSE_DESC_EL", 26);
@@ -54,46 +57,55 @@ public class EnvConfig
     public int F_Q_EMAIL => GetInt("FID_Q_EMAIL", 7);
     public int F_Q_MESSAGE => GetInt("FID_Q_MESSAGE", 8);
 
-    // Cases table. These defaults match the field IDs you already shared.
+    // Cases table.
+    //
+    // These defaults were wrong — off by about +2 from field 9 onwards, and 35-38 for the
+    // formula fields. They never bit because every FID_CASE_* is set in user-secrets and App
+    // Service, and a set value wins. But GetInt falls back silently when a setting is missing
+    // or blank, so ONE absent App Service setting meant reading a different Quickbase field
+    // and serving wrong data with no error anywhere. Corrected against the live table so the
+    // fallback is now merely redundant rather than dangerous.
+    //
+    // Removed as dead: SLUG, LOCALE, CURRENCY, DEAL_VALUE and PUBLISHED_AT. None is
+    // referenced anywhere, and the first four are blank in configuration because the fields
+    // do not exist on the table — so they were resolving to their (wrong) defaults, i.e. to
+    // Company Name, Company Sector, Scope and Result.
     public int F_CASE_RID => GetInt("FID_CASE_RID", 3);
     public int F_CASE_PUBLISHED => GetInt("FID_CASE_PUBLISHED", 6);
     public int F_CASE_FEATURED => GetInt("FID_CASE_FEATURED", 7);
     public int F_CASE_SORT => GetInt("FID_CASE_SORT", 8);
-    public int F_CASE_SLUG => GetInt("FID_CASE_SLUG", 9);
-    public int F_CASE_LOCALE => GetInt("FID_CASE_LOCALE", 10);
-    public int F_CASE_COMPANY_NAME => GetInt("FID_CASE_COMPANY_NAME", 11);
-    public int F_CASE_COMPANY_SECTOR => GetInt("FID_CASE_COMPANY_SECTOR", 12);
-    public int F_CASE_BUYER_NAME => GetInt("FID_CASE_BUYER_NAME", 13);
-    public int F_CASE_BUYER_ROLE => GetInt("FID_CASE_BUYER_ROLE", 14);
-    public int F_CASE_COUNTRY => GetInt("FID_CASE_COUNTRY", 15);
-    public int F_CASE_CITY => GetInt("FID_CASE_CITY", 16);
-    public int F_CASE_PUBLIC_LOCATION => GetInt("FID_CASE_PUBLIC_LOCATION", 17);
-    public int F_CASE_CATEGORY => GetInt("FID_CASE_CATEGORY", 18);
-    public int F_CASE_PRODUCT_NAME => GetInt("FID_CASE_PRODUCT_NAME", 19);
-    public int F_CASE_PRODUCT_VARIANT => GetInt("FID_CASE_PRODUCT_VARIANT", 20);
-    public int F_CASE_UNITS => GetInt("FID_CASE_UNITS", 21);
-    public int F_CASE_CURRENCY => GetInt("FID_CASE_CURRENCY", 22);
-    public int F_CASE_DEAL_VALUE => GetInt("FID_CASE_DEAL_VALUE", 23);
-    public int F_CASE_YEAR => GetInt("FID_CASE_YEAR", 24);
-    public int F_CASE_DELIVERED_AT => GetInt("FID_CASE_DELIVERED_AT", 25);
-    public int F_CASE_SCOPE => GetInt("FID_CASE_SCOPE", 26);
-    public int F_CASE_RESULT => GetInt("FID_CASE_RESULT", 27);
-    public int F_CASE_QUOTE => GetInt("FID_CASE_QUOTE", 28);
-    public int F_CASE_RATING => GetInt("FID_CASE_RATING", 29);
-    public int F_CASE_LOGO_FILE => GetInt("FID_CASE_LOGO_FILE", 30);
-    public int F_CASE_IMAGE_FILE => GetInt("FID_CASE_IMAGE_FILE", 31);
-    public int F_CASE_VISIBILITY => GetInt("FID_CASE_VISIBILITY", 35);
-    public int F_CASE_PUBLISHED_AT => GetInt("FID_CASE_PUBLISHED_AT", 36);
-    public int F_CASE_IS_PUBLIC => GetInt("FID_CASE_IS_PUBLIC", 37);
-    public int F_CASE_PUBLIC_BUYER_LABEL => GetInt("FID_CASE_PUBLIC_BUYER_LABEL", 38);
+    public int F_CASE_COMPANY_NAME => GetInt("FID_CASE_COMPANY_NAME", 9);
+    public int F_CASE_COMPANY_SECTOR => GetInt("FID_CASE_COMPANY_SECTOR", 10);
+    public int F_CASE_BUYER_NAME => GetInt("FID_CASE_BUYER_NAME", 11);
+    public int F_CASE_BUYER_ROLE => GetInt("FID_CASE_BUYER_ROLE", 12);
+    public int F_CASE_COUNTRY => GetInt("FID_CASE_COUNTRY", 13);
+    public int F_CASE_CITY => GetInt("FID_CASE_CITY", 14);
+    public int F_CASE_PUBLIC_LOCATION => GetInt("FID_CASE_PUBLIC_LOCATION", 15);
+    public int F_CASE_CATEGORY => GetInt("FID_CASE_CATEGORY", 16);
+    public int F_CASE_PRODUCT_NAME => GetInt("FID_CASE_PRODUCT_NAME", 17);
+    public int F_CASE_PRODUCT_VARIANT => GetInt("FID_CASE_PRODUCT_VARIANT", 18);
+    public int F_CASE_UNITS => GetInt("FID_CASE_UNITS", 19);
+    public int F_CASE_YEAR => GetInt("FID_CASE_YEAR", 20);
+    public int F_CASE_DELIVERED_AT => GetInt("FID_CASE_DELIVERED_AT", 21);
+    public int F_CASE_SCOPE => GetInt("FID_CASE_SCOPE", 22);
+    public int F_CASE_RESULT => GetInt("FID_CASE_RESULT", 23);
+    public int F_CASE_QUOTE => GetInt("FID_CASE_QUOTE", 24);
+    public int F_CASE_RATING => GetInt("FID_CASE_RATING", 25);
+    public int F_CASE_LOGO_FILE => GetInt("FID_CASE_LOGO_FILE", 26);
+    public int F_CASE_IMAGE_FILE => GetInt("FID_CASE_IMAGE_FILE", 27);
+    public int F_CASE_VISIBILITY => GetInt("FID_CASE_VISIBILITY", 28);
+    public int F_CASE_IS_PUBLIC => GetInt("FID_CASE_IS_PUBLIC", 29);
+    public int F_CASE_PUBLIC_BUYER_LABEL => GetInt("FID_CASE_PUBLIC_BUYER_LABEL", 30);
 
     // Optional extra image attachment fields on the SAME cases table.
     public IReadOnlyList<int> CaseExtraImageFids => ParseCsvInts(_cfg["QB_CASE_EXTRA_IMAGE_FIDS"]);
 
-    // Optional child image table.
+    // Child image table. Note this is the SAME Quickbase table as the house images
+    // (both bvguw9s2h) — one attachment field, distinguished only by which parent
+    // relationship is populated: 6 links to a house, 12 links to a case.
     public int F_CASEIMG_RID => GetInt("FID_CASEIMG_RID", 3);
-    public int F_CASEIMG_PARENT => GetInt("FID_CASEIMG_PARENT", 6);
-    public int? F_CASEIMG_FILE => GetOptionalInt("FID_CASEIMG_FILE");
+    public int F_CASEIMG_PARENT => GetInt("FID_CASEIMG_PARENT", 12);
+    public int? F_CASEIMG_FILE => GetOptionalInt("FID_CASEIMG_FILE", 9);
     public int? F_CASEIMG_URL => GetOptionalInt("FID_CASEIMG_URL");
     public int? F_CASEIMG_SORT => GetOptionalInt("FID_CASEIMG_SORT");
 
