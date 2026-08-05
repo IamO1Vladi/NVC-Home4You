@@ -131,10 +131,18 @@ export default function AdminReviewsPage() {
   }
 
   if (state === 'unauthorized') {
+    // The server redirects here with ?authError=... when the Entra callback fails, rather
+    // than leaving a bare 500 on /signin-oidc. Surfacing it means a broken sign-in says
+    // why instead of just looping back to this screen.
+    const authError = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('authError')
+      : null
+
     return (
       <main className="adm-page adm-center">
         <div className="adm-card adm-signin">
           <h1>{t.title}</h1>
+          {authError ? <div className="adm-alert">{authError}</div> : null}
           <p>{t.unauthorized}</p>
           {/* A real navigation, not fetch: the browser has to follow the redirect to
               Microsoft and back, which fetch cannot do — the login host sends no CORS
