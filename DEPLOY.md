@@ -111,34 +111,59 @@ picks them up:
 You will run the import commands **from your machine against production**, so your IP needs
 to be in the SQL server firewall (Portal → SQL servers → `nvc-home4you` → Networking).
 
-#### Point this terminal at production — do this first
+#### Check what this machine's secrets point at — do this first
 
-⚠️ **A development machine's user-secrets may point at LocalDB and at a `images-dev`
-container.** The import commands read configuration the same way the app does, so without
-this block they will happily write your production data into a dev container and report
-success. Environment variables override user-secrets, which is what makes this safe and
-temporary — close the terminal afterwards and the override is gone.
-
-In **PowerShell** (the VS Code terminal default on Windows):
-
-```powershell
-$env:SQL_CONNECTION_STRING  = "<production Azure SQL connection string>"
-$env:BLOB_CONNECTION_STRING = "<production storage connection string>"
-$env:BLOB_IMAGES_CONTAINER  = "images"
-```
-
-Confirm it took, before running anything that writes:
+The import commands read configuration exactly as the app does: **user-secrets**, overridden
+by environment variables. Normally user-secrets already hold the right values and there is
+nothing to do. The check matters because a machine used for development may have been pointed
+at LocalDB or at a scratch container, and if it has, these commands will write production data
+somewhere harmless-looking and report success.
 
 ```powershell
 cd api-dotnet
-dotnet run -- verify-images
+dotnet user-secrets list
 ```
 
-The output names the container it checked. If it says anything other than `images`, stop and
-fix the variables — everything below depends on this being right.
+For the migration this machine needs:
 
-> Bash-style `VAR=value command` prefixes do **not** work in PowerShell; it is a parse error,
-> not a silent no-op, so you will notice. The `$env:` form above is the equivalent.
+| Key | Value |
+|---|---|
+| `SQL_CONNECTION_STRING` | the **production** Azure SQL string — not `(localdb)` |
+| `BLOB_CONNECTION_STRING` | the production storage string |
+| `BLOB_IMAGES_CONTAINER` | **unset**, so it defaults to `images` (a value like `images-dev` sends everything to a scratch container) |
+| `DATA_SOURCE_GALLERY` / `DATA_SOURCE_CASES` | unset — these only affect a local run, never what the importers write |
+
+##### Setting a value that contains a double quote
+
+`dotnet user-secrets set` goes through PowerShell's native-argument handling, which **silently
+strips `"` characters** — a connection string whose password contains one is stored wrong, with
+no error, and every command then fails to authenticate for no visible reason. Quoting the
+argument does not help; the stripping happens after PowerShell is done with it.
+
+Two ways round it. Escape the quote as `\"`:
+
+```powershell
+dotnet user-secrets set "SQL_CONNECTION_STRING" 'Server=...;Password=aa\"bb;'
+```
+
+Or, less error-prone, edit the file directly in VS Code — JSON uses the same `\"` escape, and
+the editor flags it if you get it wrong:
+
+```
+%APPDATA%\Microsoft\UserSecrets\eeb92d08-ebad-4094-86a6-24cf86c0cac2\secrets.json
+```
+
+Either way, confirm it round-tripped before relying on it:
+
+```powershell
+dotnet user-secrets list | Select-String "SQL_CONNECTION_STRING"
+```
+
+##### Afterwards
+
+If this is a development machine, put it back when the migration is done — restore the local
+`SQL_CONNECTION_STRING` and set `BLOB_IMAGES_CONTAINER` to a scratch container — so ordinary
+local work cannot reach production storage.
 
 ### Step 1 — Ship the code
 
