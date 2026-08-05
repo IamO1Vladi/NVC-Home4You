@@ -7,7 +7,13 @@ import { cdnImage, cdnSrcSet } from '../lib/img.js'
 
 function resolveAsset(assetFn, src) {
   if (!src) return ''
-  return /^https?:/i.test(src) ? src : assetFn(src)
+  // Already absolute — an http(s) URL, a protocol-relative one, or a site-root path — so it
+  // must be left alone. The root-relative case is the one that bit: these images used to be
+  // full Quickbase URLs, and after the Blob migration they are "/api/img/…". Prefixing
+  // BASE_URL ("/") turned that into "//api/img/…", which a browser reads as
+  // protocol-relative and resolves against a host called "api". Every product image on this
+  // page 404'd at DNS.
+  return /^(https?:)?\/\//i.test(src) || src.startsWith('/') ? src : assetFn(src)
 }
 
 export default function PartnerPage({ content }) {
