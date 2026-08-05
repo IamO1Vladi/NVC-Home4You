@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { m } from 'framer-motion'
-import DOMPurify from 'dompurify'
+// Shared with GalleryModal and the admin editor — one definition of what HTML renders.
+import { sanitizeRichText } from '../lib/sanitizeRichText.js'
 import { useLocation } from 'react-router-dom'
 import { getLocaleFromPath } from '../routes/paths.js'
 import { getHomeContent } from '../content/home/index.js'
@@ -61,16 +62,7 @@ export default function Lightbox({
   const [i, setI] = useState(Math.max(0, Math.min(index, list.length - 1)))
   const ref = useRef(null)
 
-  const safeDescHtml = useMemo(() => {
-    if (!desc) return ''
-    const raw = String(desc)
-    const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(raw)
-    const html = looksLikeHtml ? raw : raw.replace(/\n/g, '<br/>')
-    return DOMPurify.sanitize(html, {
-      USE_PROFILES: { html: true },
-      FORBID_ATTR: ['style'],
-    })
-  }, [desc])
+  const safeDescHtml = useMemo(() => sanitizeRichText(desc), [desc])
 
   useEffect(() => {
     function onKey(e) {

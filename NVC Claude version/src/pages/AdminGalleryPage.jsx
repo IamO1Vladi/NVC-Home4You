@@ -1,5 +1,6 @@
 import React from 'react'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
+import RichTextEditor from '../admin/RichTextEditor.jsx'
 import { adminGet, adminSend, adminDelete, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
 
 // Gallery management. Once Quickbase is retired this is the only way to edit the catalogue,
@@ -14,7 +15,14 @@ const TEXT = {
     edit: 'Редактирай',
     remove: 'Изтрий',
     save: 'Запази',
+    saving: 'Запазване…',
+    saved: 'Запазено',
     cancel: 'Откажи',
+    sections: { basics: 'Основни данни', content: 'Съдържание по езици' },
+    priceOnRequest: 'По запитване',
+    publishedHint: 'Вижда се в галерията',
+    draftHint: 'Скрит от посетителите',
+    descPlaceholder: 'Опишете модела — размери, включено оборудване, срок за изработка…',
     published: 'Публикуван',
     draft: 'Чернова',
     empty: 'Няма добавени модели.',
@@ -46,7 +54,14 @@ const TEXT = {
     edit: 'Edit',
     remove: 'Delete',
     save: 'Save',
+    saving: 'Saving…',
+    saved: 'Saved',
     cancel: 'Cancel',
+    sections: { basics: 'Basics', content: 'Content by language' },
+    priceOnRequest: 'On request',
+    publishedHint: 'Visible in the gallery',
+    draftHint: 'Hidden from visitors',
+    descPlaceholder: 'Describe the model — dimensions, what is included, lead time…',
     published: 'Published',
     draft: 'Draft',
     empty: 'No models yet.',
@@ -190,10 +205,12 @@ export default function AdminGalleryPage() {
       {editing !== null ? (
         <HouseForm
           t={t}
+          lang={lang}
           form={form}
           setForm={setForm}
           categories={categories}
           busy={busy}
+          isNew={editing === 'new'}
           onSubmit={save}
           onCancel={() => setEditing(null)}
         />
@@ -242,56 +259,129 @@ export default function AdminGalleryPage() {
   )
 }
 
-function HouseForm({ t, form, setForm, categories, busy, onSubmit, onCancel }) {
+function HouseForm({ t, lang, form, setForm, categories, busy, isNew, onSubmit, onCancel }) {
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  const setHtml = (key) => (html) => setForm((prev) => ({ ...prev, [key]: html }))
+
+  // Three languages × title and description is a lot of boxes. Tabbing by language keeps one
+  // language's fields together, which is how they are actually written and proofread.
+  const [tab, setTab] = React.useState('bg')
+
   return (
     <form className="adm-card adm-form" onSubmit={onSubmit}>
-      <div className="adm-grid">
-        <label>
-          {t.fields.title} <span className="adm-req">{t.required}</span>
-          <input value={form.title} onChange={set('title')} required />
-        </label>
-        <label>
-          {t.fields.category} <span className="adm-req">{t.required}</span>
-          {/* Options come from the API, not a local list: an unrecognised category makes a
-              house vanish from every gallery filter with no error, so the two must not drift. */}
-          <select value={form.categoryKey} onChange={set('categoryKey')} required>
-            <option value="">—</option>
-            {categories.map((key) => (
-              <option key={key} value={key}>{t.categories[key] ?? key}</option>
-            ))}
-          </select>
-        </label>
+      <h2 className="adm-form-title">{isNew ? t.add : t.edit}</h2>
 
-        <label>{t.fields.titleBg}<input value={form.titleBg} onChange={set('titleBg')} /></label>
-        <label>{t.fields.titleEl}<input value={form.titleEl} onChange={set('titleEl')} /></label>
+      <section className="adm-fieldset">
+        <h3>{t.sections.basics}</h3>
+        <div className="adm-grid">
+          <label>
+            <span className="adm-label">{t.fields.category} <em className="adm-req">{t.required}</em></span>
+            {/* Options come from the API, not a local list: an unrecognised category makes a
+                house vanish from every gallery filter with no error, so the two must not drift. */}
+            <select value={form.categoryKey} onChange={set('categoryKey')} required>
+              <option value="">—</option>
+              {categories.map((key) => (
+                <option key={key} value={key}>{t.categories[key] ?? key}</option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          {t.fields.price}
-          <input type="number" step="0.01" min="0" value={form.price} onChange={set('price')} />
-        </label>
-        <label>{t.fields.currency}<input value={form.currency} onChange={set('currency')} /></label>
+          <label>
+            <span className="adm-label">{t.fields.price}</span>
+            <div className="adm-input-row">
+              <input type="number" step="0.01" min="0" value={form.price} onChange={set('price')}
+                     placeholder={t.priceOnRequest} />
+              <input className="adm-currency" value={form.currency} onChange={set('currency')} aria-label={t.fields.currency} />
+            </div>
+          </label>
 
-        <label>{t.fields.catalogId}<input value={form.catalogId} onChange={set('catalogId')} /></label>
-        <label className="adm-check">
-          <input type="checkbox" checked={form.isPublished} onChange={set('isPublished')} />
-          {t.fields.isPublished}
-        </label>
-      </div>
+          <label>
+            <span className="adm-label">{t.fields.catalogId}</span>
+            <input value={form.catalogId} onChange={set('catalogId')} />
+          </label>
 
-      <label>{t.fields.description}<textarea rows={4} value={form.description} onChange={set('description')} /></label>
-      <label>{t.fields.descriptionBg}<textarea rows={4} value={form.descriptionBg} onChange={set('descriptionBg')} /></label>
-      <label>{t.fields.descriptionEl}<textarea rows={4} value={form.descriptionEl} onChange={set('descriptionEl')} /></label>
+          <label className="adm-switch">
+            <input type="checkbox" checked={form.isPublished} onChange={set('isPublished')} />
+            <span>
+              <strong>{t.fields.isPublished}</strong>
+              <em>{form.isPublished ? t.publishedHint : t.draftHint}</em>
+            </span>
+          </label>
+        </div>
+      </section>
 
-      <div className="adm-form-actions">
-        <button type="submit" className="btn" disabled={busy}>{t.save}</button>
+      <section className="adm-fieldset">
+        <h3>{t.sections.content}</h3>
+
+        <div className="adm-langtabs" role="tablist" aria-label={t.sections.content}>
+          {['bg', 'en', 'el'].map((code) => (
+            <button
+              key={code}
+              type="button"
+              role="tab"
+              aria-selected={tab === code}
+              className={tab === code ? 'is-active' : ''}
+              onClick={() => setTab(code)}
+            >
+              {code.toUpperCase()}
+              {code === 'bg' && form.titleBg ? ' ✓' : null}
+              {code === 'en' && form.title ? ' ✓' : null}
+              {code === 'el' && form.titleEl ? ' ✓' : null}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'bg' ? (
+          <LangFields
+            t={t} lang={lang}
+            titleLabel={t.fields.titleBg} title={form.titleBg} onTitle={set('titleBg')}
+            descLabel={t.fields.descriptionBg} desc={form.descriptionBg} onDesc={setHtml('descriptionBg')}
+          />
+        ) : null}
+
+        {tab === 'en' ? (
+          <LangFields
+            t={t} lang={lang} required
+            titleLabel={t.fields.title} title={form.title} onTitle={set('title')}
+            descLabel={t.fields.description} desc={form.description} onDesc={setHtml('description')}
+          />
+        ) : null}
+
+        {tab === 'el' ? (
+          <LangFields
+            t={t} lang={lang}
+            titleLabel={t.fields.titleEl} title={form.titleEl} onTitle={set('titleEl')}
+            descLabel={t.fields.descriptionEl} desc={form.descriptionEl} onDesc={setHtml('descriptionEl')}
+          />
+        ) : null}
+      </section>
+
+      {/* Sticky, because the description editors make this form taller than the viewport and
+          a save button you have to hunt for gets pressed less often than it should. */}
+      <div className="adm-form-actions is-sticky">
+        <button type="submit" className="btn" disabled={busy}>{busy ? t.saving : t.save}</button>
         <button type="button" className="btn btn-ghost" onClick={onCancel}>{t.cancel}</button>
       </div>
     </form>
+  )
+}
+
+function LangFields({ t, lang, required, titleLabel, title, onTitle, descLabel, desc, onDesc }) {
+  return (
+    <div className="adm-langpane">
+      <label>
+        <span className="adm-label">{titleLabel} {required ? <em className="adm-req">{t.required}</em> : null}</span>
+        <input value={title} onChange={onTitle} required={required} />
+      </label>
+      <div className="adm-field">
+        <span className="adm-label">{descLabel}</span>
+        <RichTextEditor value={desc} onChange={onDesc} lang={lang} placeholder={t.descPlaceholder} />
+      </div>
+    </div>
   )
 }
 

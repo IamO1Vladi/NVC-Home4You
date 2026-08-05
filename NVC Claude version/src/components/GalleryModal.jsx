@@ -1,18 +1,9 @@
 import React, { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { m, AnimatePresence } from 'framer-motion'
-import DOMPurify from 'dompurify'
-
-function sanitizeDescription(desc) {
-  if (!desc) return ''
-  const raw = String(desc)
-  const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(raw)
-  const html = looksLikeHtml ? raw : raw.replace(/\n/g, '<br/>')
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_ATTR: ['style'],
-  })
-}
+// Shared with Lightbox and with the admin editor, so what staff format is exactly what
+// renders here. See src/lib/sanitizeRichText.js.
+import { sanitizeRichText as sanitizeDescription } from '../lib/sanitizeRichText.js'
 
 export default function GalleryModal({ open, onClose, children, closeLabel }) {
   useEffect(() => {
