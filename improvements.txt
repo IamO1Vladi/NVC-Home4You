@@ -4,6 +4,9 @@ NVC HOME4YOU — IMPROVEMENTS & IDEAS TRACKER
 
 RECENTLY DONE
 -------------
+[x] Reviews migrated to Azure SQL + admin panel (2026-08-05, see HANDOFF.md)
+    Data layer work is tracked in ROADMAP-datalayer-admin.md, not here.
+    Publishing is now one action from VS Code - see DEPLOY.md.
 [x] Mobile-first redesign of the Box House configurator
     (progress stepper, live preview hero, one-decision accordions, sticky price/nav bar)
 [x] Fix: window-size selector overflow on mobile in BG/EL (long "standard size" label)
