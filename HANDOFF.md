@@ -1,5 +1,11 @@
 # Where things stand — 2026-08-05
 
+> **Superseded 2026-08-06.** Gallery, cases and every image have since moved off Quickbase and
+> are live. **Start at [ROADMAP-next.md](ROADMAP-next.md)**, which covers what is left
+> (leads, saved configs, factory sheet) and the state as of that release, `deploy-2026-08-06`.
+> This file is kept for the history below — what was believed on 2026-08-05, including the two
+> claims in "Next steps" that turned out to be wrong.
+
 Written at the end of the vacation working session. Everything below is **deployed and
 verified live** unless it says otherwise. Start here when you pick the project back up.
 

@@ -4,6 +4,12 @@ NVC HOME4YOU — IMPROVEMENTS & IDEAS TRACKER
 
 RECENTLY DONE
 -------------
+[x] Gallery + cases on Azure SQL, all images on Azure Blob as WebP (2026-08-06)
+    Live: DATA_SOURCE_GALLERY=sql, DATA_SOURCE_CASES=sql, IMAGES_VIA_APP=true.
+    Admin panel now does full CRUD for both, with image upload and a rich text editor.
+    ~92 MB saved converting images to WebP. Tag deploy-2026-08-06.
+    Still on Quickbase: leads (offers/questions) and saved configurator links.
+    What is left -> ROADMAP-next.md. History -> ROADMAP-datalayer-admin.md.
 [x] Reviews migrated to Azure SQL + admin panel (2026-08-05, see HANDOFF.md)
     Data layer work is tracked in ROADMAP-datalayer-admin.md, not here.
     Publishing is now one action from VS Code - see DEPLOY.md.
@@ -48,7 +54,10 @@ COMPOUNDING BETS
 
 FOUNDATION / POLISH
 -------------------
-[ ]  9. Performance pass: Lighthouse / Core Web Vitals, image optimization, preconnect
+[~]  9. Performance pass: Lighthouse / Core Web Vitals, image optimization, preconnect
+        Images are now WebP and capped at 2560px, served from our own origin with a year
+        of immutable caching (was: Quickbase, max-age=7200 private, never edge-cached).
+        Still open: per-breakpoint srcset - a phone downloads the desktop-sized file.
 [ ] 10. Accessibility audit (EU Accessibility Act applies since June 2025)
 [ ] 11. Translation completeness audit for Greek (added recently; check gaps/fallbacks)
 [x] 12. Dev hygiene: stop tracking api-dotnet bin/ and obj/ build artifacts in git
