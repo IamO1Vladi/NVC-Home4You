@@ -199,6 +199,31 @@ builder.Services.AddAuthorization(options =>
 });
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
+
+// --- Image storage (Quickbase -> Azure Blob) -------------------------------------------
+// The Quickbase source is always registered: it is both today's behaviour and the fallback
+// for any key not yet copied to Blob. The Blob source is registered only when a connection
+// string is present, and ImageStore takes it as an optional dependency, so an environment
+// without storage configured serves images exactly as it does now.
+builder.Services.AddHttpClient<Services.QuickbaseImageSource>();
+builder.Services.AddSingleton<Services.ImageUrls>();
+
+var blobConnectionString = (builder.Configuration["BLOB_CONNECTION_STRING"] ?? "").Trim();
+if (!string.IsNullOrWhiteSpace(blobConnectionString))
+{
+    var containerName = (builder.Configuration["BLOB_IMAGES_CONTAINER"] ?? "").Trim();
+    if (string.IsNullOrWhiteSpace(containerName)) containerName = "images";
+
+    builder.Services.AddSingleton(_ =>
+        new Azure.Storage.Blobs.BlobContainerClient(blobConnectionString, containerName));
+    builder.Services.AddSingleton<Services.BlobImageSource>();
+}
+
+builder.Services.AddScoped<Services.ImageStore>(sp => new Services.ImageStore(
+    sp.GetRequiredService<Services.ImageCache>(),
+    sp.GetRequiredService<Services.QuickbaseImageSource>(),
+    sp.GetService<Services.BlobImageSource>()));
+
 builder.Services.AddScoped<Services.GalleryService>();
 builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
@@ -213,6 +238,11 @@ builder.Services.AddScoped<Services.IReviewStore>(sp =>
         : sp.GetRequiredService<Services.ReviewService>());
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();
+
+// Only useful when there is somewhere to import into; the CLI says so rather than failing
+// with a DI resolution error.
+if (!string.IsNullOrWhiteSpace(blobConnectionString))
+    builder.Services.AddScoped<Services.ImageImportService>();
 
 var app = builder.Build();
 
@@ -244,6 +274,40 @@ if (args.Length > 0 && (args[0] == "import-reviews" || args[0] == "compare-revie
     if (diffs.Count > 50) Console.WriteLine($"  ... and {diffs.Count - 50} more.");
     // Non-zero exit when they disagree, so this can gate a cutover in a script.
     return diffs.Count == 0 ? 0 : 2;
+}
+
+// `dotnet run -- import-images [--force]` / `-- verify-images`. Off HTTP for the same reason
+// as the review importer: it rewrites storage and pulls hard on Quickbase.
+if (args.Length > 0 && (args[0] == "import-images" || args[0] == "verify-images"))
+{
+    using var scope = app.Services.CreateScope();
+    var images = scope.ServiceProvider.GetService<Services.ImageImportService>();
+    if (images is null)
+    {
+        Console.Error.WriteLine("BLOB_CONNECTION_STRING is not configured, so there is no container to import into.");
+        return 1;
+    }
+
+    if (args[0] == "import-images")
+    {
+        // Attachment versions are part of the key, so a changed image is a new key and
+        // re-uploading an existing one is pure waste. --force is for repairing a container
+        // whose contents are suspect.
+        var force = args.Contains("--force");
+        var r = await images.ImportAsync(force, CancellationToken.None);
+        Console.WriteLine(
+            $"Found {r.Found} image(s) -> uploaded {r.Uploaded}, already present {r.AlreadyPresent}, failed {r.Failed}.");
+        foreach (var f in r.Failures.Take(50)) Console.WriteLine($"  failed: {f}");
+        if (r.Failures.Count > 50) Console.WriteLine($"  ... and {r.Failures.Count - 50} more.");
+        return r.Failed == 0 ? 0 : 2;
+    }
+
+    var v = await images.VerifyAsync(CancellationToken.None);
+    Console.WriteLine($"Checked {v.Checked} referenced image(s); {v.InBlob} in Blob, {v.Missing.Count} missing.");
+    foreach (var m in v.Missing.Take(50)) Console.WriteLine($"  missing: {m}");
+    if (v.Missing.Count > 50) Console.WriteLine($"  ... and {v.Missing.Count - 50} more.");
+    // Non-zero when anything is missing, so this can gate flipping IMAGES_VIA_APP.
+    return v.Missing.Count == 0 ? 0 : 2;
 }
 
 // Must run before anything that inspects the scheme or writes cookies, so the rest of the

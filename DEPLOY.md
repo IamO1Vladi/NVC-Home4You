@@ -82,6 +82,35 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 | `ENTRA_CLIENT_ID` / `ENTRA_TENANT_ID` | Admin sign-in. Not secrets. |
 | `ENTRA_CLIENT_SECRET` | Admin sign-in. **Secret.** |
 | `ADMIN_ALLOWED_USERS` | Optional. Comma-separated emails; empty = anyone in the tenant. |
+| `BLOB_CONNECTION_STRING` | Azure Blob, for images. Absent = images are read from Quickbase. **Secret.** |
+| `BLOB_IMAGES_CONTAINER` | Optional. Defaults to `images`. |
+| `IMAGES_VIA_APP` | `true` to serve images from our own origin. Anything else = Quickbase URLs, as before. |
+
+## Image storage cutover
+
+The two image settings are independent on purpose, and the order matters:
+
+1. **Copy the bytes.** With `BLOB_CONNECTION_STRING` set:
+   ```bash
+   cd api-dotnet && dotnet run -- import-images
+   ```
+2. **Confirm they arrived.** `dotnet run -- verify-images` exits non-zero if anything the site
+   references is missing from the container.
+3. **Check the read path.** Request any image and look at `X-Image-Origin`; it should say
+   `Blob`. This step is not optional — the read path falls back to Quickbase per key, so an
+   empty, misnamed or unreachable container still serves perfectly good images and is
+   indistinguishable from success without that header.
+4. **Then flip `IMAGES_VIA_APP=true`**, which is what actually changes the URLs in the
+   gallery and cases payloads.
+
+Rolling back is setting `IMAGES_VIA_APP` back to `false`; it takes effect on the next request
+rather than after the 10-minute payload cache, because the rewrite happens on the way out of
+the cache rather than into it.
+
+Worth knowing: turning on `IMAGES_VIA_APP` is worthwhile **even with no Blob container at
+all**. Quickbase serves images as `Cache-Control: max-age=7200, private` with
+`cf-cache-status: DYNAMIC` — never edge-cached, re-fetched every two hours, ~250-320ms each.
+Serving them from our origin replaces that with a year of `immutable`.
 
 ## ⚠️ Secret expiry — every 6 months
 

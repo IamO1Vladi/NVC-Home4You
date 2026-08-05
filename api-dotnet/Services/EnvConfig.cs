@@ -220,6 +220,39 @@ public class EnvConfig
             : DataSource.Quickbase;
     }
 
+    // --- Image storage (Quickbase -> Azure Blob) --------------------------------------
+    // These two switches are deliberately independent, because they carry very different
+    // risk and are worth rolling out separately:
+    //
+    //   ImagesViaApp  - visible. Changes the URLs in every gallery/cases payload from
+    //                   Quickbase's host to ours. Worth turning on by itself: even with no
+    //                   Blob container at all, it moves images onto our origin and replaces
+    //                   Quickbase's `max-age=7200, private` with a year of `immutable`.
+    //   BlobConfigured - invisible. Decides only where the bytes are read from, and
+    //                   ImageStore falls back to Quickbase per key, so turning it on before
+    //                   the import has finished degrades to today's behaviour rather than
+    //                   breaking an image.
+    //
+    // So the safe order is: import the bytes, set BLOB_CONNECTION_STRING, confirm
+    // X-Image-Origin says Blob, then set IMAGES_VIA_APP=true.
+    public string BlobConnectionString => (_cfg["BLOB_CONNECTION_STRING"] ?? "").Trim();
+
+    public bool BlobConfigured => !string.IsNullOrWhiteSpace(BlobConnectionString);
+
+    public string BlobImagesContainer
+    {
+        get
+        {
+            var raw = (_cfg["BLOB_IMAGES_CONTAINER"] ?? "").Trim();
+            return string.IsNullOrWhiteSpace(raw) ? "images" : raw;
+        }
+    }
+
+    // Whether gallery/cases payloads point at /api/img/... instead of straight at Quickbase.
+    // Defaults to false: until it is set, image URLs are byte-for-byte what they are today.
+    public bool ImagesViaApp =>
+        (_cfg["IMAGES_VIA_APP"] ?? "").Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
+
     // --- Admin sign-in (Microsoft Entra ID) -------------------------------------------
     // Staff authenticate with the M365 accounts they already have, so the app never stores
     // passwords. Client id and tenant id are not secrets (they appear in the sign-in URL);

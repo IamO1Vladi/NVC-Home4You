@@ -15,6 +15,7 @@ namespace Services
         private readonly QuickbaseClient _qb;
         private readonly EnvConfig _env;
         private readonly IMemoryCache _cache;
+        private readonly ImageUrls _imageUrls;
 
         private const string CacheKey = "gallery:list:v2";
         private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
@@ -22,24 +23,54 @@ namespace Services
         // Max number of image queries (one per house) to run against Quickbase concurrently.
         private const int ImageFetchConcurrency = 6;
 
-        public GalleryService(QuickbaseClient qb, EnvConfig env, IMemoryCache cache)
+        public GalleryService(QuickbaseClient qb, EnvConfig env, IMemoryCache cache, ImageUrls imageUrls)
         {
             _qb = qb;
             _env = env;
             _cache = cache;
+            _imageUrls = imageUrls;
         }
 
         public async Task<IReadOnlyList<GalleryItem>> GetAsync(CancellationToken ct = default)
         {
-            if (_cache.TryGetValue(CacheKey, out IReadOnlyList<GalleryItem>? cached) && cached is not null)
-                return cached;
-
-            var items = await LoadAsync(ct);
-            _cache.Set(CacheKey, items, new MemoryCacheEntryOptions
+            if (!_cache.TryGetValue(CacheKey, out IReadOnlyList<GalleryItem>? items) || items is null)
             {
-                AbsoluteExpirationRelativeToNow = CacheTtl
-            });
-            return items;
+                items = await LoadAsync(ct);
+                _cache.Set(CacheKey, items, new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = CacheTtl
+                });
+            }
+
+            // Applied on the way out rather than before caching, so what's cached is always the
+            // raw Quickbase URLs. Flipping IMAGES_VIA_APP then takes effect on the next request
+            // instead of trailing the 10-minute TTL — which matters most when flipping it back.
+            return WithResponseUrls(items);
+        }
+
+        // Copies rather than mutating: the cached instances are shared by every subsequent
+        // request, so rewriting them in place would rewrite the cache too, and the second flip
+        // of the flag would find the originals already gone.
+        private IReadOnlyList<GalleryItem> WithResponseUrls(IReadOnlyList<GalleryItem> items)
+        {
+            if (!_imageUrls.ViaApp) return items;
+
+            return items.Select(it => new GalleryItem
+            {
+                Id = it.Id,
+                Title = it.Title,
+                Price = it.Price,
+                Currency = it.Currency,
+                Description = it.Description,
+                CoverUrl = _imageUrls.ForResponse(it.CoverUrl),
+                Images = it.Images.Select(u => _imageUrls.ForResponse(u) ?? u).ToList(),
+                TitleBg = it.TitleBg,
+                DescriptionBg = it.DescriptionBg,
+                TitleEl = it.TitleEl,
+                DescriptionEl = it.DescriptionEl,
+                Category = it.Category,
+                CatalogId = it.CatalogId,
+            }).ToList();
         }
 
         private async Task<IReadOnlyList<GalleryItem>> LoadAsync(CancellationToken ct)

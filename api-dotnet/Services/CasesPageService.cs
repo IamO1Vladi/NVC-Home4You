@@ -16,6 +16,7 @@ public class CasesPageService
     private readonly EnvConfig _env;
     private readonly IMemoryCache _cache;
     private readonly IReviewStore _reviews;
+    private readonly ImageUrls _imageUrls;
 
     // Public so moderation can evict it: the cached payload embeds the approved reviews,
     // so an approve/reject would otherwise take up to CacheTtl to show on the cases page
@@ -23,27 +24,72 @@ public class CasesPageService
     public const string CacheKey = "cases-page:v1";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
-    public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache, IReviewStore reviews)
+    public CasesPageService(QuickbaseApi qb, EnvConfig env, IMemoryCache cache, IReviewStore reviews, ImageUrls imageUrls)
     {
         _qb = qb;
         _env = env;
         _cache = cache;
         _reviews = reviews;
+        _imageUrls = imageUrls;
     }
 
     public async Task<CasesPageResponse> GetAsync(CancellationToken ct)
     {
-        if (_cache.TryGetValue(CacheKey, out CasesPageResponse? cached) && cached is not null)
-            return cached;
-
-        var response = await LoadAsync(ct);
-
-        _cache.Set(CacheKey, response, new MemoryCacheEntryOptions
+        if (!_cache.TryGetValue(CacheKey, out CasesPageResponse? response) || response is null)
         {
-            AbsoluteExpirationRelativeToNow = CacheTtl
-        });
+            response = await LoadAsync(ct);
 
-        return response;
+            _cache.Set(CacheKey, response, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = CacheTtl
+            });
+        }
+
+        // Rewritten on the way out, so the cache always holds raw Quickbase URLs and
+        // IMAGES_VIA_APP takes effect on the next request rather than after the TTL.
+        return WithResponseUrls(response);
+    }
+
+    // Copies rather than mutating, because the cached instance is shared across requests and
+    // rewriting it in place would leave no original to fall back to when the flag is turned off.
+    private CasesPageResponse WithResponseUrls(CasesPageResponse response)
+    {
+        if (!_imageUrls.ViaApp) return response;
+
+        return new CasesPageResponse
+        {
+            Stats = response.Stats,
+            Reviews = response.Reviews,
+            Clients = response.Clients.Select(c => new PublicClientDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Sector = c.Sector,
+                Country = c.Country,
+                LogoUrl = _imageUrls.ForResponse(c.LogoUrl),
+            }).ToList(),
+            Cases = response.Cases.Select(c => new PublicCaseDto
+            {
+                Id = c.Id,
+                Featured = c.Featured,
+                CompanyName = c.CompanyName,
+                CompanyType = c.CompanyType,
+                BuyerName = c.BuyerName,
+                BuyerRole = c.BuyerRole,
+                Category = c.Category,
+                Product = c.Product,
+                Units = c.Units,
+                Location = c.Location,
+                Year = c.Year,
+                Scope = c.Scope,
+                Result = c.Result,
+                Quote = c.Quote,
+                Rating = c.Rating,
+                CompanyLogoUrl = _imageUrls.ForResponse(c.CompanyLogoUrl),
+                ImageUrl = _imageUrls.ForResponse(c.ImageUrl),
+                Images = c.Images.Select(u => _imageUrls.ForResponse(u) ?? u).ToList(),
+            }).ToList(),
+        };
     }
 
     private async Task<CasesPageResponse> LoadAsync(CancellationToken ct)
