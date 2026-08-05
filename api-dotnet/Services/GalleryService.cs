@@ -10,7 +10,7 @@ using Models;
 
 namespace Services
 {
-    public class GalleryService
+    public class GalleryService : IGalleryStore
     {
         private readonly QuickbaseClient _qb;
         private readonly EnvConfig _env;

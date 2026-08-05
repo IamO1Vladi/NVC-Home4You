@@ -24,9 +24,34 @@ public sealed class ImageUrls
     public string? ForResponse(string? quickbaseUrl)
     {
         if (string.IsNullOrWhiteSpace(quickbaseUrl)) return quickbaseUrl;
-        if (!_env.ImagesViaApp) return quickbaseUrl;
 
         var key = ImageKey.TryNormalize(quickbaseUrl, _env.Realm);
-        return key is null ? quickbaseUrl : ImageKey.ToPublicPath(key);
+        if (key is null) return quickbaseUrl;
+
+        // An image we own exists only in Blob, so /api/img is the only URL that can reach it.
+        // IMAGES_VIA_APP decides whether we proxy QUICKBASE images; it cannot decide whether
+        // our own are reachable. Without this, serving the gallery from SQL with the flag off
+        // would emit raw storage keys as image URLs and every picture on the page would break.
+        if (ImageKey.IsOwned(key)) return ImageKey.ToPublicPath(key);
+
+        return _env.ImagesViaApp ? ImageKey.ToPublicPath(key) : quickbaseUrl;
+    }
+
+    /// <summary>
+    /// The URL for an image identified by a stored key — the SQL read paths' entry point,
+    /// where there is no original URL to fall back to.
+    /// </summary>
+    public string? ForKey(string? imageKey)
+    {
+        if (string.IsNullOrWhiteSpace(imageKey)) return null;
+        if (!ImageKey.IsValid(imageKey)) return null;
+
+        // Rows imported before the Blob move can still hold a Quickbase path. Those honour
+        // the flag, so turning it off really does put every Quickbase-backed image back on
+        // Quickbase's own host.
+        if (!ImageKey.IsOwned(imageKey) && !_env.ImagesViaApp)
+            return ImageKey.ToQuickbaseUrl(imageKey, _env.Realm)?.AbsoluteUri;
+
+        return ImageKey.ToPublicPath(imageKey);
     }
 }

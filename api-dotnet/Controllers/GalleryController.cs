@@ -7,8 +7,10 @@ namespace Controllers;
 [Route("api/[controller]")]
 public class GalleryController : ControllerBase
 {
-    private readonly GalleryService _svc;
-    public GalleryController(GalleryService svc) { _svc = svc; }
+    // IGalleryStore, not GalleryService: which store answers is decided per request by
+    // DATA_SOURCE_GALLERY (see Program.cs), so the controller must not name one of them.
+    private readonly IGalleryStore _svc;
+    public GalleryController(IGalleryStore svc) { _svc = svc; }
 
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
