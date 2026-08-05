@@ -111,35 +111,89 @@ picks them up:
 You will run the import commands **from your machine against production**, so your IP needs
 to be in the SQL server firewall (Portal → SQL servers → `nvc-home4you` → Networking).
 
-### Step 1 — Ship the code
+#### Point this terminal at production — do this first
 
-```bash
-git checkout master && git pull
-git merge --ff-only feature/images-blob-migration
-git log --oneline production..master          # what is about to go live
-cd api-dotnet && dotnet list package --vulnerable --include-transitive
-cd .. && dotnet test && cd "NVC Claude version" && npm test
-git checkout production && git merge --ff-only master && git push
+⚠️ **A development machine's user-secrets may point at LocalDB and at a `images-dev`
+container.** The import commands read configuration the same way the app does, so without
+this block they will happily write your production data into a dev container and report
+success. Environment variables override user-secrets, which is what makes this safe and
+temporary — close the terminal afterwards and the override is gone.
+
+In **PowerShell** (the VS Code terminal default on Windows):
+
+```powershell
+$env:SQL_CONNECTION_STRING  = "<production Azure SQL connection string>"
+$env:BLOB_CONNECTION_STRING = "<production storage connection string>"
+$env:BLOB_IMAGES_CONTAINER  = "images"
 ```
 
-Publish from the `production` checkout (VS Code → right-click `api-dotnet` → Publish).
+Confirm it took, before running anything that writes:
+
+```powershell
+cd api-dotnet
+dotnet run -- verify-images
+```
+
+The output names the container it checked. If it says anything other than `images`, stop and
+fix the variables — everything below depends on this being right.
+
+> Bash-style `VAR=value command` prefixes do **not** work in PowerShell; it is a parse error,
+> not a silent no-op, so you will notice. The `$env:` form above is the equivalent.
+
+### Step 1 — Ship the code
+
+From the repo root, one command per line:
+
+```powershell
+git checkout master
+git pull
+git merge --ff-only feature/images-blob-migration
+git log --oneline production..master
+```
+
+That last line lists exactly what is about to go live. Then the pre-flight checks:
+
+```powershell
+cd api-dotnet
+dotnet list package --vulnerable --include-transitive
+cd ..
+dotnet test
+cd "NVC Claude version"
+npm test
+cd ..
+```
+
+Then move `production` up and push:
+
+```powershell
+git checkout production
+git merge --ff-only master
+git push
+```
+
+Publish from the `production` checkout: **VS Code → right-click `api-dotnet` → Publish to
+Azure**. That is the whole publish. The `BuildSpa` target in `api-dotnet.csproj` runs
+`npm run build` into `wwwroot` as part of it, so there is no `dist` copy step on any machine.
 
 **Verify before going further:** the site looks exactly as it did. Every flag is still off,
 so this is the check that the deploy itself changed nothing.
 
 ### Step 2 — Create the database tables
 
-```bash
+```powershell
 cd api-dotnet
-SQL_CONNECTION_STRING="<production>" dotnet ef database update
+dotnet ef database update
 ```
 
-Adds `Houses`, `HouseImages`, `Cases`, `CaseImages`. Nothing reads them yet.
+Uses `$env:SQL_CONNECTION_STRING` from the block above. Adds `Houses`, `HouseImages`,
+`Cases`, `CaseImages`. Nothing reads them yet.
 
 ### Step 3 — Copy the data and images
 
-```bash
-dotnet run -- import-gallery --dry-run     # reads everything, writes nothing
+Run these one at a time and read each result before moving on:
+
+```powershell
+dotnet run -- import-gallery --dry-run
 dotnet run -- import-gallery
 dotnet run -- import-cases --dry-run
 dotnet run -- import-cases
@@ -157,7 +211,7 @@ Both are idempotent: re-running uploads nothing and changes nothing.
 Already done in the repo — the URLs are rewritten in source and shipped in step 1. But the
 blobs must exist in the **production** container:
 
-```bash
+```powershell
 dotnet run -- migrate-content-images --dry-run
 dotnet run -- migrate-content-images
 ```
@@ -170,19 +224,25 @@ because their URLs no longer point at Quickbase.
 
 ### Step 5 — Check before switching anything on
 
-```bash
-dotnet run -- verify-images        # non-zero exit if anything referenced is missing
+```powershell
+dotnet run -- verify-images
 ```
 
-Then request any image and look at the response header:
+Non-zero exit if anything the site references is missing from the container.
 
-```bash
-curl -sI https://nvc-home4you.eu/api/img/content/bukcsfwf9-rdg-eg-vb.webp | grep -i x-image-origin
+Then request an image from the **live site** and look at the response header:
+
+```powershell
+(Invoke-WebRequest -Method Head -Uri "https://nvc-home4you.eu/api/img/content/bukcsfwf9-rdg-eg-vb.webp").Headers["X-Image-Origin"]
 ```
 
-It must say **`Blob`**. This step is not optional: the read path falls back to Quickbase per
+It must print **`Blob`**. This step is not optional: the read path falls back to Quickbase per
 key, so an empty, misnamed or unreachable container still serves perfectly good images and is
 indistinguishable from success without this header.
+
+`Quickbase` here means the blob is missing and you are still being carried by the fallback —
+which will stop working for content images, because their URLs no longer point at Quickbase.
+Go back to step 4.
 
 ### Step 6 — Flip the flags, one at a time
 
@@ -211,9 +271,13 @@ sign-in redirects to `/admin?authError=…` with the reason rather than a blank 
 
 ### Step 8 — Tag it
 
-```bash
-git tag deploy-$(date +%Y-%m-%d) && git push --tags
+```powershell
+git tag "deploy-$(Get-Date -Format yyyy-MM-dd)"
+git push --tags
 ```
+
+Then **close the terminal** you set the environment variables in, so this machine goes back
+to its own configuration rather than silently staying pointed at production.
 
 ### What is NOT done by this release
 
