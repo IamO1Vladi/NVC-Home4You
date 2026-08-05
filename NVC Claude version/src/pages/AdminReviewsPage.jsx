@@ -136,8 +136,10 @@ export default function AdminReviewsPage() {
         <div className="adm-card adm-signin">
           <h1>{t.title}</h1>
           <p>{t.unauthorized}</p>
-          {/* Hitting a protected endpoint triggers the Entra redirect. */}
-          <a className="btn" href="/api/admin/reviews">{t.signIn}</a>
+          {/* A real navigation, not fetch: the browser has to follow the redirect to
+              Microsoft and back, which fetch cannot do — the login host sends no CORS
+              headers, so a fetch-initiated redirect is blocked before it can complete. */}
+          <a className="btn" href="/admin/signin?returnUrl=/admin">{t.signIn}</a>
         </div>
       </main>
     )

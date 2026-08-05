@@ -67,6 +67,19 @@ describe('AdminReviewsPage', () => {
     expect(screen.queryByText('Иван Петров')).toBeNull()
   })
 
+  it('sign-in is a navigation to /admin/signin, never an API URL', async () => {
+    mockApi({ status: 401 })
+    render(<AdminReviewsPage />)
+    await screen.findByText(/Нямате достъп/)
+
+    const link = screen.getByRole('link', { name: 'Вход' })
+    // Regression guard: pointing this at an /api/* URL sends the browser into a redirect
+    // to login.microsoftonline.com that CORS blocks, so sign-in silently fails. Interactive
+    // sign-in has to be a top-level navigation to a non-API endpoint.
+    expect(link.getAttribute('href')).toBe('/admin/signin?returnUrl=/admin')
+    expect(link.getAttribute('href')).not.toContain('/api/')
+  })
+
   it('approving calls the approve endpoint for that review', async () => {
     const { calls } = mockApi()
     render(<AdminReviewsPage />)
