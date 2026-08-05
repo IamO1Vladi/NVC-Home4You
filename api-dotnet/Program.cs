@@ -262,7 +262,6 @@ builder.Services.AddScoped<Services.EmailService>();
 // with a DI resolution error.
 if (!string.IsNullOrWhiteSpace(blobConnectionString))
 {
-    builder.Services.AddScoped<Services.ImageImportService>();
     // Needs Blob but not SQL: these images belong to no database row.
     builder.Services.AddScoped<Services.ContentImageMigrator>();
 }
@@ -278,6 +277,9 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString) && !string.IsNullOrWhiteSpa
     // the controllers cannot resolve and the admin routes stay absent rather than half-working.
     builder.Services.AddScoped<Services.GalleryAdminService>();
     builder.Services.AddScoped<Services.CasesAdminService>();
+
+    // Reads image keys from SQL and checks them against Blob, so it needs both.
+    builder.Services.AddScoped<Services.MigrationVerifier>();
 }
 
 var app = builder.Build();
@@ -423,38 +425,38 @@ if (args.Length > 0 && args[0] == "import-gallery")
     return r.Problems.Count == 0 ? 0 : 2;
 }
 
-// `dotnet run -- import-images [--force]` / `-- verify-images`. Off HTTP for the same reason
-// as the review importer: it rewrites storage and pulls hard on Quickbase.
-if (args.Length > 0 && (args[0] == "import-images" || args[0] == "verify-images"))
+// `dotnet run -- verify-images [<frontend-src-path>]`. The gate before flipping the flags:
+// is every image the site will ask for actually in the container?
+if (args.Length > 0 && args[0] == "verify-images")
 {
     using var scope = app.Services.CreateScope();
-    var images = scope.ServiceProvider.GetService<Services.ImageImportService>();
-    if (images is null)
+    var verifier = scope.ServiceProvider.GetService<Services.MigrationVerifier>();
+    if (verifier is null)
     {
-        Console.Error.WriteLine("BLOB_CONNECTION_STRING is not configured, so there is no container to import into.");
+        Console.Error.WriteLine("verify-images needs both SQL_CONNECTION_STRING and BLOB_CONNECTION_STRING.");
         return 1;
     }
 
-    if (args[0] == "import-images")
+    var srcPath = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--"))
+                  ?? Path.Combine("..", "NVC Claude version", "src");
+
+    var report = await verifier.VerifyAsync(Path.GetFullPath(srcPath), CancellationToken.None);
+
+    // The container is named because "0 missing" against the WRONG container reads exactly
+    // like success against the right one.
+    Console.WriteLine($"Container: {report.Container}");
+    foreach (var section in report.Sections)
     {
-        // Attachment versions are part of the key, so a changed image is a new key and
-        // re-uploading an existing one is pure waste. --force is for repairing a container
-        // whose contents are suspect.
-        var force = args.Contains("--force");
-        var r = await images.ImportAsync(force, CancellationToken.None);
-        Console.WriteLine(
-            $"Found {r.Found} image(s) -> uploaded {r.Uploaded}, already present {r.AlreadyPresent}, failed {r.Failed}.");
-        foreach (var f in r.Failures.Take(50)) Console.WriteLine($"  failed: {f}");
-        if (r.Failures.Count > 50) Console.WriteLine($"  ... and {r.Failures.Count - 50} more.");
-        return r.Failed == 0 ? 0 : 2;
+        Console.WriteLine($"  {section.Name,-14} {section.Present}/{section.Checked} present, {section.Missing.Count} missing");
+        foreach (var m in section.Missing.Take(20)) Console.WriteLine($"      missing: {m}");
+        if (section.Missing.Count > 20) Console.WriteLine($"      ... and {section.Missing.Count - 20} more.");
     }
 
-    var v = await images.VerifyAsync(CancellationToken.None);
-    Console.WriteLine($"Checked {v.Checked} referenced image(s); {v.InBlob} in Blob, {v.Missing.Count} missing.");
-    foreach (var m in v.Missing.Take(50)) Console.WriteLine($"  missing: {m}");
-    if (v.Missing.Count > 50) Console.WriteLine($"  ... and {v.Missing.Count - 50} more.");
-    // Non-zero when anything is missing, so this can gate flipping IMAGES_VIA_APP.
-    return v.Missing.Count == 0 ? 0 : 2;
+    Console.WriteLine(report.TotalMissing == 0
+        ? "OK — every referenced image is in Blob."
+        : $"{report.TotalMissing} image(s) missing. Do NOT flip the flags yet.");
+
+    return report.TotalMissing == 0 ? 0 : 2;
 }
 
 // Must run before anything that inspects the scheme or writes cookies, so the rest of the

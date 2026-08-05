@@ -233,19 +233,29 @@ Both are idempotent: re-running uploads nothing and changes nothing.
 
 ### Step 4 — Migrate the hard-coded site images
 
-Already done in the repo — the URLs are rewritten in source and shipped in step 1. But the
-blobs must exist in the **production** container:
+The URLs were rewritten in the repo and shipped in step 1, but the **blobs** still have to
+exist in whichever container this environment uses.
+
+⚠️ **The obvious command does nothing here.** `migrate-content-images` finds images by
+scanning the source for Quickbase URLs — and the committed source no longer contains any, so
+it reports "0 unique URLs found" and exits successfully having uploaded nothing. That is a
+successful-looking no-op, and it is how you end up flipping the flags with an empty container.
+
+Run it against the source as it was **before** the rewrite instead:
 
 ```powershell
-dotnet run -- migrate-content-images --dry-run
-dotnet run -- migrate-content-images
+cd ..
+git archive 2eba191 "NVC Claude version/src" | tar -x -C "$env:TEMP\prerewrite"
+cd api-dotnet
+dotnet run -- migrate-content-images "$env:TEMP\prerewrite\NVC Claude version\src"
 ```
 
-On a repo whose sources are already rewritten this uploads the 47 blobs and rewrites nothing.
+`2eba191` is the commit before the rewrite. The command uploads the 47 blobs and rewrites the
+throwaway copy, which nothing reads. Expect `47 uploaded`.
 
-⚠️ **Do not skip this.** These are the majority of the site's photographs. If the blobs are
-missing when `IMAGES_VIA_APP` goes on, those images break — they have no Quickbase fallback,
-because their URLs no longer point at Quickbase.
+These are the majority of the site's photographs, and unlike gallery and cases images they
+have **no Quickbase fallback** — their URLs no longer point there. A missing blob is a broken
+photo, not a slow one.
 
 ### Step 5 — Check before switching anything on
 
@@ -253,7 +263,22 @@ because their URLs no longer point at Quickbase.
 dotnet run -- verify-images
 ```
 
-Non-zero exit if anything the site references is missing from the container.
+Checks the three groups independently, against where the site actually reads them from — the
+image keys stored in SQL for gallery and cases, and the `/api/img/content/…` paths in the
+frontend source. Names the container, and exits non-zero if anything is missing. A clean run
+looks like:
+
+```
+Container: images
+  gallery        63/63 present, 0 missing
+  cases          5/5 present, 0 missing
+  site content   47/47 present, 0 missing
+OK — every referenced image is in Blob.
+```
+
+All three must be clean. `cases` covers the company logo and cover image as well as the
+carousel — they live on the case row rather than in the images table, so they are exactly the
+sort of thing a looser check misses.
 
 Then request an image from the **live site** and look at the response header:
 
