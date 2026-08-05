@@ -74,10 +74,25 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 | `ENTRA_CLIENT_SECRET` | Admin sign-in. **Secret.** |
 | `ADMIN_ALLOWED_USERS` | Optional. Comma-separated emails; empty = anyone in the tenant. |
 
-⚠️ **The Entra client secret expires** (24 months from creation). When it does, admin
-sign-in breaks with an unhelpful error while the public site keeps working — so it looks
-like a panel bug rather than an expiry. Create a new secret in the app registration and
-update this setting. Put a reminder in the calendar now.
+## ⚠️ Secret expiry — every 6 months
+
+The Entra client secret, and the other credentials this app uses, are issued for
+**6 months**. Created 2026-08-04, so the first renewal is due around **2027-02-04**.
+
+This matters more than it sounds. Each expiry fails *silently and partially*:
+
+| Expired credential | What breaks | What still works (hiding it) |
+|---|---|---|
+| `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
+| Graph / email credentials | Lead autoresponder, "email me my config" | Forms still submit successfully |
+| Quickbase token | Gallery, cases, any table still on Quickbase | Anything already moved to SQL |
+
+None of these take the site down, so nothing alerts you — the first sign is usually a
+customer saying they never got an email. **Put a recurring 6-monthly calendar reminder in
+now**, a couple of weeks ahead of the date, and renew all of them together.
+
+To renew the Entra one: app registration → Certificates & secrets → New client secret →
+copy the **Value** → update `ENTRA_CLIENT_SECRET` in App Service → delete the old secret.
 
 The admin panel fails closed: if any of the three `ENTRA_*` values is missing, every
 `/api/admin/*` endpoint answers 401 and nothing is exposed.
