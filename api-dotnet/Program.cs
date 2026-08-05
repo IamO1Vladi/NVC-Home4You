@@ -269,6 +269,11 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString) && !string.IsNullOrWhiteSpa
 {
     builder.Services.AddScoped<Services.GalleryImportService>();
     builder.Services.AddScoped<Services.CasesImportService>();
+
+    // Admin write paths. They store images, so they need Blob as well as SQL — without both,
+    // the controllers cannot resolve and the admin routes stay absent rather than half-working.
+    builder.Services.AddScoped<Services.GalleryAdminService>();
+    builder.Services.AddScoped<Services.CasesAdminService>();
 }
 
 var app = builder.Build();
