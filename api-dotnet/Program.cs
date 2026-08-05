@@ -72,6 +72,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.SqlReviewService>();
     builder.Services.AddScoped<Services.ReviewModerationService>();
     builder.Services.AddScoped<Services.SqlGalleryService>();
+    builder.Services.AddScoped<Services.SqlCasesPageService>();
 }
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
@@ -245,6 +246,12 @@ builder.Services.AddScoped<Services.IGalleryStore>(sp =>
         ? sp.GetRequiredService<Services.SqlGalleryService>()
         : sp.GetRequiredService<Services.GalleryService>());
 
+// Read path for the cases page, chosen per request by DATA_SOURCE_CASES.
+builder.Services.AddScoped<Services.ICasesPageStore>(sp =>
+    sp.GetRequiredService<Services.EnvConfig>().DataSourceFor("cases") == Services.DataSource.Sql
+        ? sp.GetRequiredService<Services.SqlCasesPageService>()
+        : sp.GetRequiredService<Services.CasesPageService>());
+
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();
 
@@ -256,7 +263,10 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
 // The gallery import writes rows AND blobs, so it needs both. Registered only when both are
 // configured, so `import-gallery` reports which one is missing instead of throwing.
 if (!string.IsNullOrWhiteSpace(blobConnectionString) && !string.IsNullOrWhiteSpace(sqlConnectionString))
+{
     builder.Services.AddScoped<Services.GalleryImportService>();
+    builder.Services.AddScoped<Services.CasesImportService>();
+}
 
 var app = builder.Build();
 
@@ -288,6 +298,32 @@ if (args.Length > 0 && (args[0] == "import-reviews" || args[0] == "compare-revie
     if (diffs.Count > 50) Console.WriteLine($"  ... and {diffs.Count - 50} more.");
     // Non-zero exit when they disagree, so this can gate a cutover in a script.
     return diffs.Count == 0 ? 0 : 2;
+}
+
+// `dotnet run -- import-cases [--dry-run]`. Same shape as import-gallery.
+if (args.Length > 0 && args[0] == "import-cases")
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.CasesImportService>();
+    if (importer is null)
+    {
+        Console.Error.WriteLine(
+            "import-cases needs both SQL_CONNECTION_STRING and BLOB_CONNECTION_STRING; " +
+            "it writes rows and image bytes together.");
+        return 1;
+    }
+
+    var dryRun = args.Contains("--dry-run");
+    var r = await importer.ImportAsync(dryRun, CancellationToken.None);
+
+    Console.WriteLine(dryRun ? "DRY RUN — nothing was written." : "Import complete.");
+    Console.WriteLine($"Cases:  {r.CasesFetched} fetched -> {r.CasesInserted} inserted, {r.CasesUpdated} updated.");
+    Console.WriteLine($"Images: {r.ImagesUploaded} uploaded, {r.ImagesAlreadyPresent} already present.");
+
+    foreach (var p in r.Problems.Take(50)) Console.WriteLine($"  problem: {p}");
+    if (r.Problems.Count > 50) Console.WriteLine($"  ... and {r.Problems.Count - 50} more.");
+
+    return r.Problems.Count == 0 ? 0 : 2;
 }
 
 // `dotnet run -- ensure-image-container`. One-off setup for a new environment.

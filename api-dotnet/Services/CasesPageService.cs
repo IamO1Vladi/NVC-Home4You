@@ -10,7 +10,7 @@ using Models;
 
 namespace Services;
 
-public class CasesPageService
+public class CasesPageService : ICasesPageStore
 {
     private readonly QuickbaseApi _qb;
     private readonly EnvConfig _env;
@@ -260,6 +260,107 @@ public class CasesPageService
                 .Select(id => "{" + _env.F_CASEIMG_PARENT + ".EX.'" + id.ToString(CultureInfo.InvariantCulture) + "'}")
         );
     }
+
+    /// <summary>
+    /// Every case, published or not, with its attachments resolved — the migration's view of
+    /// the table.
+    ///
+    /// Separate from GetAsync because that one serves the public page: it drops non-public
+    /// cases and has already applied the formula fields. Importing through it would silently
+    /// leave unpublished cases behind in a system we are about to switch off, and the admin
+    /// panel exists precisely to edit those.
+    ///
+    /// Reuses this class's attachment resolution rather than reimplementing it, so the import
+    /// sees the same URLs the live page does.
+    /// </summary>
+    public async Task<List<CaseImportRow>> LoadForImportAsync(CancellationToken ct)
+    {
+        if (!_qb.IsConfigured || string.IsNullOrWhiteSpace(_env.TableCases))
+            return new List<CaseImportRow>();
+
+        var caseRows = await _qb.QueryAsync(_env.TableCases, BuildCaseSelect(), "", _env.F_CASE_SORT, "ASC", ct);
+        var rawCases = caseRows.data ?? new List<QbRec>();
+
+        // Note: no IsCasePublic filter, unlike the public path.
+        var allIds = rawCases
+            .Select(row => ToLong(Get(row, _env.F_CASE_RID) ?? Get(row, 3)))
+            .Where(id => id > 0)
+            .Distinct()
+            .ToArray();
+
+        var relatedImages = await LoadCaseImagesAsync(allIds, ct);
+
+        var result = new List<CaseImportRow>();
+
+        foreach (var row in rawCases)
+        {
+            var rid = ToLong(Get(row, _env.F_CASE_RID) ?? Get(row, 3));
+            if (rid <= 0) continue;
+
+            // Gallery images, in the same order and with the same de-duplication the page uses.
+            // The cover (F_CASE_IMAGE_FILE) is deliberately excluded here and carried
+            // separately, so the admin panel can edit it as its own field rather than relying
+            // on it happening to sort first.
+            var images = new List<string>();
+            foreach (var fid in _env.CaseExtraImageFids)
+                AddUnique(images, ResolveAttachmentUrl(row, _env.TableCases, rid, fid));
+
+            if (relatedImages.TryGetValue(rid, out var extraImages))
+                foreach (var image in extraImages)
+                    AddUnique(images, image);
+
+            result.Add(new CaseImportRow(
+                QuickbaseRecordId: rid,
+                Publish: IsTruthy(Get(row, _env.F_CASE_PUBLISHED)),
+                IsPublicFlag: IsTruthy(Get(row, _env.F_CASE_IS_PUBLIC)),
+                VisibilityStatus: Get(row, _env.F_CASE_VISIBILITY),
+                Featured: IsTruthy(Get(row, _env.F_CASE_FEATURED)),
+                SortOrder: (int)ToLong(Get(row, _env.F_CASE_SORT)),
+                CompanyName: Get(row, _env.F_CASE_COMPANY_NAME) ?? string.Empty,
+                CompanySector: Get(row, _env.F_CASE_COMPANY_SECTOR),
+                BuyerName: Get(row, _env.F_CASE_BUYER_NAME),
+                BuyerRole: Get(row, _env.F_CASE_BUYER_ROLE),
+                Country: Get(row, _env.F_CASE_COUNTRY),
+                City: Get(row, _env.F_CASE_CITY),
+                CategoryKey: Get(row, _env.F_CASE_CATEGORY),
+                ProductName: Get(row, _env.F_CASE_PRODUCT_NAME),
+                ProductVariant: Get(row, _env.F_CASE_PRODUCT_VARIANT),
+                UnitsQty: ToNullableInt(Get(row, _env.F_CASE_UNITS)),
+                Year: ToNullableInt(NormalizeYear(Get(row, _env.F_CASE_YEAR))),
+                DeliveredAt: ToNullableDate(Get(row, _env.F_CASE_DELIVERED_AT)),
+                Scope: Get(row, _env.F_CASE_SCOPE),
+                Result: Get(row, _env.F_CASE_RESULT),
+                PublicQuote: Get(row, _env.F_CASE_QUOTE),
+                RatingSnapshot: ToNullableDouble(Get(row, _env.F_CASE_RATING)),
+                CompanyLogoUrl: ResolveAttachmentUrl(row, _env.TableCases, rid, _env.F_CASE_LOGO_FILE),
+                CoverImageUrl: ResolveAttachmentUrl(row, _env.TableCases, rid, _env.F_CASE_IMAGE_FILE),
+                ImageUrls: images));
+        }
+
+        return result;
+    }
+
+    // Parsed as a decimal, not an int: Quickbase renders its numeric fields with a decimal
+    // part, so Units arrives as "1.0" and int.TryParse rejects it outright — which would have
+    // silently dropped the quantity from every case.
+    private static int? ToNullableInt(string? value)
+    {
+        var raw = (value ?? "").Trim();
+        if (raw.Length == 0) return null;
+
+        return decimal.TryParse(raw, System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var d)
+            ? (int)Math.Round(d)
+            : null;
+    }
+
+    private static double? ToNullableDouble(string? value) =>
+        double.TryParse((value ?? "").Trim(), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
+
+    private static DateTimeOffset? ToNullableDate(string? value) =>
+        DateTimeOffset.TryParse((value ?? "").Trim(), System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal, out var dt) ? dt : null;
 
     private List<PublicCaseDto> MapCases(
         IEnumerable<QbRec> rows,

@@ -9,9 +9,11 @@ namespace Controllers;
 [Route("api/cases-page")]
 public class CasesPageController : ControllerBase
 {
-    private readonly CasesPageService _svc;
+    // ICasesPageStore, not CasesPageService: which store answers is decided per request by
+    // DATA_SOURCE_CASES (see Program.cs).
+    private readonly ICasesPageStore _svc;
 
-    public CasesPageController(CasesPageService svc)
+    public CasesPageController(ICasesPageStore svc)
     {
         _svc = svc;
     }
