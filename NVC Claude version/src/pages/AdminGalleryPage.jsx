@@ -1,5 +1,6 @@
 import React from 'react'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
+import AdminModal from '../admin/AdminModal.jsx'
 import RichTextEditor from '../admin/RichTextEditor.jsx'
 import { adminGet, adminSend, adminDelete, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
 
@@ -36,6 +37,12 @@ const TEXT = {
       prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', garage: 'Гараж',
     },
     images: 'Снимки',
+    // Creating a model and adding photos cannot be one step: the photo has to be attached to
+    // a model that already exists. Saying so beats an empty space where the uploader will be.
+    photosAfterSave: 'Снимките се добавят веднага след като запазите модела — ще останете на този екран.',
+    savedAddPhotos: 'Моделът е запазен. Сега можете да добавите снимки.',
+    discard: 'Има незапазени промени. Да ги отхвърля ли?',
+    close: 'Затвори',
     uploadHint: 'Плъзнете снимка тук или изберете файл. Автоматично се преобразува в WebP.',
     uploading: 'Качване…',
     deleteImage: 'Премахни',
@@ -75,6 +82,10 @@ const TEXT = {
       prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', garage: 'Garage',
     },
     images: 'Photos',
+    photosAfterSave: 'Photos can be added as soon as you save the model — you will stay on this screen.',
+    savedAddPhotos: 'Model saved. You can add photos now.',
+    discard: 'You have unsaved changes. Discard them?',
+    close: 'Close',
     uploadHint: 'Drop a photo here or choose a file. Converted to WebP automatically.',
     uploading: 'Uploading…',
     deleteImage: 'Remove',
@@ -87,6 +98,10 @@ const TEXT = {
     cover: 'Cover',
   },
 }
+
+// The Save button lives in the dialog's footer, outside the <form>, so it reaches the form
+// by id rather than by being nested in it.
+const FORM_ID = 'adm-house-form'
 
 const EMPTY = {
   title: '', titleBg: '', titleEl: '',
@@ -105,6 +120,11 @@ export default function AdminGalleryPage() {
   const [form, setForm] = React.useState(EMPTY)
   const [errors, setErrors] = React.useState([])
   const [busy, setBusy] = React.useState(false)
+  // Set when a brand-new model has just been saved, so the dialog can say why photos have
+  // suddenly appeared instead of the form simply closing.
+  const [justCreated, setJustCreated] = React.useState(false)
+  // What the form looked like when it opened, to tell an accidental Escape from a real one.
+  const pristine = React.useRef(EMPTY)
 
   const load = React.useCallback(async () => {
     setState('loading')
@@ -125,8 +145,20 @@ export default function AdminGalleryPage() {
 
   function startNew() {
     setForm(EMPTY)
+    pristine.current = EMPTY
     setErrors([])
+    setJustCreated(false)
     setEditing('new')
+  }
+
+  // Escape, the backdrop and the ✕ all land here rather than closing outright — losing a
+  // half-written model to a stray key press is exactly the kind of thing this audience
+  // will not mention and will quietly stop trusting the panel over.
+  function requestClose() {
+    const dirty = JSON.stringify(form) !== JSON.stringify(pristine.current)
+    if (dirty && !window.confirm(t.discard)) return
+    setEditing(null)
+    setJustCreated(false)
   }
 
   function startEdit(house) {
@@ -143,7 +175,21 @@ export default function AdminGalleryPage() {
       catalogId: house.catalogId ?? '',
       isPublished: house.isPublished,
     })
+    pristine.current = {
+      title: house.title ?? '',
+      titleBg: house.titleBg ?? '',
+      titleEl: house.titleEl ?? '',
+      description: house.description ?? '',
+      descriptionBg: house.descriptionBg ?? '',
+      descriptionEl: house.descriptionEl ?? '',
+      price: house.price ?? '',
+      currency: house.currency ?? 'EUR',
+      categoryKey: house.categoryKey ?? '',
+      catalogId: house.catalogId ?? '',
+      isPublished: house.isPublished,
+    }
     setErrors([])
+    setJustCreated(false)
     setEditing(house.id)
   }
 
@@ -159,11 +205,23 @@ export default function AdminGalleryPage() {
     }
 
     try {
-      if (editing === 'new') await adminSend('/api/admin/gallery', 'POST', payload)
-      else await adminSend(`/api/admin/gallery/${editing}`, 'PUT', payload)
+      const isNew = editing === 'new'
+      const saved = isNew
+        ? await adminSend('/api/admin/gallery', 'POST', payload)
+        : await adminSend(`/api/admin/gallery/${editing}`, 'PUT', payload)
 
-      setEditing(null)
+      pristine.current = form
       await load()
+
+      // A photo has to attach to a model that already exists, so creating one cannot also
+      // upload its pictures. Rather than close and make someone find the row they just made
+      // and press Edit, the dialog stays open on the saved model — where the uploader now is.
+      if (isNew && saved?.id != null) {
+        setEditing(saved.id)
+        setJustCreated(true)
+      } else {
+        setEditing(null)
+      }
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setErrors([err.message || t.saveError])
@@ -196,30 +254,52 @@ export default function AdminGalleryPage() {
       onRetry={load}
       actions={<button type="button" className="btn" onClick={startNew}>{t.add}</button>}
     >
-      {errors.length > 0 ? <div className="adm-alert">{errors.join(' ')}</div> : null}
+      {/* Errors from deleting a row belong on the page; errors from the editor belong in
+          the dialog, which is covering the page at the time. */}
+      {errors.length > 0 && editing === null ? <div className="adm-alert">{errors.join(' ')}</div> : null}
 
-      {editing !== null ? (
+      <AdminModal
+        open={editing !== null}
+        title={editing === 'new' ? t.add : t.edit}
+        subtitle={form.titleBg || form.title || undefined}
+        closeLabel={t.close}
+        onClose={requestClose}
+        footer={
+          <div className="adm-form-actions">
+            <button type="submit" form={FORM_ID} className="btn" disabled={busy}>
+              {busy ? t.saving : t.save}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={requestClose}>{t.cancel}</button>
+          </div>
+        }
+      >
+        {errors.length > 0 ? <div className="adm-alert">{errors.join(' ')}</div> : null}
+        {justCreated ? <div className="adm-note">{t.savedAddPhotos}</div> : null}
+
         <HouseForm
+          formId={FORM_ID}
           t={t}
           lang={lang}
           form={form}
           setForm={setForm}
           categories={categories}
-          busy={busy}
-          isNew={editing === 'new'}
           onSubmit={save}
-          onCancel={() => setEditing(null)}
         />
-      ) : null}
 
-      {editingHouse ? (
-        <ImageManager
-          t={t}
-          house={editingHouse}
-          onChanged={load}
-          onUnauthorized={() => setState('unauthorized')}
-        />
-      ) : null}
+        {editingHouse ? (
+          <ImageManager
+            t={t}
+            house={editingHouse}
+            onChanged={load}
+            onUnauthorized={() => setState('unauthorized')}
+          />
+        ) : (
+          <section className="adm-modal-section">
+            <h3>{t.images}</h3>
+            <p className="adm-hint">{t.photosAfterSave}</p>
+          </section>
+        )}
+      </AdminModal>
 
       {houses.length === 0 ? (
         <p className="adm-muted">{t.empty}</p>
@@ -255,7 +335,7 @@ export default function AdminGalleryPage() {
   )
 }
 
-function HouseForm({ t, lang, form, setForm, categories, busy, isNew, onSubmit, onCancel }) {
+function HouseForm({ formId, t, lang, form, setForm, categories, onSubmit }) {
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -268,9 +348,7 @@ function HouseForm({ t, lang, form, setForm, categories, busy, isNew, onSubmit, 
   const [tab, setTab] = React.useState('bg')
 
   return (
-    <form className="adm-card adm-form" onSubmit={onSubmit}>
-      <h2 className="adm-form-title">{isNew ? t.add : t.edit}</h2>
-
+    <form id={formId} className="adm-form" onSubmit={onSubmit}>
       <section className="adm-fieldset">
         <h3>{t.sections.basics}</h3>
         <div className="adm-grid">
@@ -356,12 +434,6 @@ function HouseForm({ t, lang, form, setForm, categories, busy, isNew, onSubmit, 
         ) : null}
       </section>
 
-      {/* Sticky, because the description editors make this form taller than the viewport and
-          a save button you have to hunt for gets pressed less often than it should. */}
-      <div className="adm-form-actions is-sticky">
-        <button type="submit" className="btn" disabled={busy}>{busy ? t.saving : t.save}</button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>{t.cancel}</button>
-      </div>
     </form>
   )
 }
@@ -435,8 +507,8 @@ function ImageManager({ t, house, onChanged, onUnauthorized }) {
   }
 
   return (
-    <section className="adm-card">
-      <h2>{t.images}</h2>
+    <section className="adm-modal-section">
+      <h3>{t.images}</h3>
       {error ? <div className="adm-alert">{error}</div> : null}
 
       <div

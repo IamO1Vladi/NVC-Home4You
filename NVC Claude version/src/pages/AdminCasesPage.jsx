@@ -1,5 +1,6 @@
 import React from 'react'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
+import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminSend, adminDelete, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
 
 // Case study management. Mirrors the gallery page, with the extra pieces cases have: a
@@ -37,6 +38,12 @@ const TEXT = {
     confirmDelete: 'Да изтрия ли този проект? Действието е необратимо.',
     required: 'Задължително', saveError: 'Промяната не беше запазена.', noImages: 'Няма снимки.',
     attributionHint: 'Попълнете фирма или клиент.',
+    saving: 'Запазване…',
+    close: 'Затвори',
+    // Same constraint as the gallery: an image has to attach to a case that already exists.
+    photosAfterSave: 'Снимките и логото се добавят веднага след като запазите проекта — ще останете на този екран.',
+    savedAddPhotos: 'Проектът е запазен. Сега можете да добавите снимки.',
+    discard: 'Има незапазени промени. Да ги отхвърля ли?',
   },
   en: {
     title: 'Cases',
@@ -68,8 +75,17 @@ const TEXT = {
     confirmDelete: 'Delete this case? This cannot be undone.',
     required: 'Required', saveError: 'That change was not saved.', noImages: 'No photos yet.',
     attributionHint: 'Fill in a company or a buyer.',
+    saving: 'Saving…',
+    close: 'Close',
+    photosAfterSave: 'Photos and the logo can be added as soon as you save the case — you will stay on this screen.',
+    savedAddPhotos: 'Case saved. You can add photos now.',
+    discard: 'You have unsaved changes. Discard them?',
   },
 }
+
+// The Save button lives in the dialog's footer, outside the <form>, so it reaches the form
+// by id rather than by being nested in it.
+const FORM_ID = 'adm-case-form'
 
 const EMPTY = {
   companyName: '', companySector: '', buyerName: '', buyerRole: '',
@@ -90,6 +106,8 @@ export default function AdminCasesPage() {
   const [form, setForm] = React.useState(EMPTY)
   const [errors, setErrors] = React.useState([])
   const [busy, setBusy] = React.useState(false)
+  const [justCreated, setJustCreated] = React.useState(false)
+  const pristine = React.useRef(EMPTY)
 
   const load = React.useCallback(async () => {
     setState('loading')
@@ -108,8 +126,25 @@ export default function AdminCasesPage() {
 
   React.useEffect(() => { load() }, [load])
 
+  function startNew() {
+    setForm(EMPTY)
+    pristine.current = EMPTY
+    setErrors([])
+    setJustCreated(false)
+    setEditing('new')
+  }
+
+  // Escape, the backdrop and the ✕ all land here, so a stray key press cannot silently
+  // throw away a half-written case.
+  function requestClose() {
+    const dirty = JSON.stringify(form) !== JSON.stringify(pristine.current)
+    if (dirty && !window.confirm(t.discard)) return
+    setEditing(null)
+    setJustCreated(false)
+  }
+
   function startEdit(item) {
-    setForm({
+    const loaded = {
       companyName: item.companyName ?? '',
       companySector: item.companySector ?? '',
       buyerName: item.buyerName ?? '',
@@ -129,8 +164,11 @@ export default function AdminCasesPage() {
       ratingSnapshot: item.ratingSnapshot ?? '',
       isPublished: item.isPublished,
       featured: item.featured,
-    })
+    }
+    setForm(loaded)
+    pristine.current = loaded
     setErrors([])
+    setJustCreated(false)
     setEditing(item.id)
   }
 
@@ -148,11 +186,22 @@ export default function AdminCasesPage() {
     }
 
     try {
-      if (editing === 'new') await adminSend('/api/admin/cases', 'POST', payload)
-      else await adminSend(`/api/admin/cases/${editing}`, 'PUT', payload)
+      const isNew = editing === 'new'
+      const saved = isNew
+        ? await adminSend('/api/admin/cases', 'POST', payload)
+        : await adminSend(`/api/admin/cases/${editing}`, 'PUT', payload)
 
-      setEditing(null)
+      pristine.current = form
       await load()
+
+      // Images attach to a case that already exists, so stay open on the one just created
+      // rather than making someone find its row and press Edit to add the photos.
+      if (isNew && saved?.id != null) {
+        setEditing(saved.id)
+        setJustCreated(true)
+      } else {
+        setEditing(null)
+      }
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setErrors([err.message || t.saveError])
@@ -173,6 +222,9 @@ export default function AdminCasesPage() {
   }
 
   const editingCase = typeof editing === 'number' ? cases.find((c) => c.id === editing) : null
+  // A case has to be attributable to someone. Computed here rather than inside the form,
+  // because the Save button it disables now lives in the dialog footer.
+  const needsAttribution = !form.companyName.trim() && !form.buyerName.trim()
 
   return (
     <AdminShell
@@ -183,30 +235,50 @@ export default function AdminCasesPage() {
       subtitle={t.subtitle}
       state={state}
       onRetry={load}
-      actions={
-        <button type="button" className="btn" onClick={() => { setForm(EMPTY); setErrors([]); setEditing('new') }}>
-          {t.add}
-        </button>
-      }
+      actions={<button type="button" className="btn" onClick={startNew}>{t.add}</button>}
     >
-      {errors.length > 0 ? <div className="adm-alert">{errors.join(' ')}</div> : null}
+      {/* Errors from deleting a row belong on the page; errors from the editor belong in
+          the dialog, which is covering the page at the time. */}
+      {errors.length > 0 && editing === null ? <div className="adm-alert">{errors.join(' ')}</div> : null}
 
-      {editing !== null ? (
+      <AdminModal
+        open={editing !== null}
+        title={editing === 'new' ? t.add : t.edit}
+        subtitle={form.companyName || form.buyerName || undefined}
+        closeLabel={t.close}
+        onClose={requestClose}
+        footer={
+          <div className="adm-form-actions">
+            <button type="submit" form={FORM_ID} className="btn" disabled={busy || needsAttribution}>
+              {busy ? t.saving : t.save}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={requestClose}>{t.cancel}</button>
+          </div>
+        }
+      >
+        {errors.length > 0 ? <div className="adm-alert">{errors.join(' ')}</div> : null}
+        {justCreated ? <div className="adm-note">{t.savedAddPhotos}</div> : null}
+
         <CaseForm
+          formId={FORM_ID}
           t={t}
           form={form}
           setForm={setForm}
           categories={categories}
-          busy={busy}
           preview={editingCase}
+          needsAttribution={needsAttribution}
           onSubmit={save}
-          onCancel={() => setEditing(null)}
         />
-      ) : null}
 
-      {editingCase ? (
-        <CaseImages t={t} item={editingCase} onChanged={load} onUnauthorized={() => setState('unauthorized')} />
-      ) : null}
+        {editingCase ? (
+          <CaseImages t={t} item={editingCase} onChanged={load} onUnauthorized={() => setState('unauthorized')} />
+        ) : (
+          <section className="adm-modal-section">
+            <h3>{t.images}</h3>
+            <p className="adm-hint">{t.photosAfterSave}</p>
+          </section>
+        )}
+      </AdminModal>
 
       {cases.length === 0 ? (
         <p className="adm-muted">{t.empty}</p>
@@ -242,16 +314,14 @@ export default function AdminCasesPage() {
   )
 }
 
-function CaseForm({ t, form, setForm, categories, busy, preview, onSubmit, onCancel }) {
+function CaseForm({ formId, t, form, setForm, categories, preview, needsAttribution, onSubmit }) {
   const set = (key) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  const needsAttribution = !form.companyName.trim() && !form.buyerName.trim()
-
   return (
-    <form className="adm-card adm-form" onSubmit={onSubmit}>
+    <form id={formId} className="adm-form" onSubmit={onSubmit}>
       <div className="adm-grid">
         <label>
           {t.fields.companyName}
@@ -311,11 +381,6 @@ function CaseForm({ t, form, setForm, categories, busy, preview, onSubmit, onCan
           <span>{t.previewProduct}: {preview.previewProduct || '—'}</span>
         </div>
       ) : null}
-
-      <div className="adm-form-actions">
-        <button type="submit" className="btn" disabled={busy || needsAttribution}>{t.save}</button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>{t.cancel}</button>
-      </div>
     </form>
   )
 }
@@ -381,8 +446,8 @@ function CaseImages({ t, item, onChanged, onUnauthorized }) {
   }
 
   return (
-    <section className="adm-card">
-      <h2>{t.images}</h2>
+    <section className="adm-modal-section">
+      <h3>{t.images}</h3>
       {error ? <div className="adm-alert">{error}</div> : null}
 
       <div className="adm-slots">
