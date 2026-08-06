@@ -40,6 +40,7 @@ const TEXT = {
     attributionHint: 'Попълнете фирма или клиент.',
     saving: 'Запазване…',
     close: 'Затвори',
+    unsaved: 'Незапазени промени',
     // Same constraint as the gallery: an image has to attach to a case that already exists.
     photosAfterSave: 'Снимките и логото се добавят веднага след като запазите проекта — ще останете на този екран.',
     savedAddPhotos: 'Проектът е запазен. Сега можете да добавите снимки.',
@@ -77,6 +78,7 @@ const TEXT = {
     attributionHint: 'Fill in a company or a buyer.',
     saving: 'Saving…',
     close: 'Close',
+    unsaved: 'Unsaved changes',
     photosAfterSave: 'Photos and the logo can be added as soon as you save the case — you will stay on this screen.',
     savedAddPhotos: 'Case saved. You can add photos now.',
     discard: 'You have unsaved changes. Discard them?',
@@ -137,7 +139,6 @@ export default function AdminCasesPage() {
   // Escape, the backdrop and the ✕ all land here, so a stray key press cannot silently
   // throw away a half-written case.
   function requestClose() {
-    const dirty = JSON.stringify(form) !== JSON.stringify(pristine.current)
     if (dirty && !window.confirm(t.discard)) return
     setEditing(null)
     setJustCreated(false)
@@ -225,6 +226,7 @@ export default function AdminCasesPage() {
   // A case has to be attributable to someone. Computed here rather than inside the form,
   // because the Save button it disables now lives in the dialog footer.
   const needsAttribution = !form.companyName.trim() && !form.buyerName.trim()
+  const dirty = editing !== null && JSON.stringify(form) !== JSON.stringify(pristine.current)
 
   return (
     <AdminShell
@@ -253,6 +255,7 @@ export default function AdminCasesPage() {
               {busy ? t.saving : t.save}
             </button>
             <button type="button" className="btn btn-ghost" onClick={requestClose}>{t.cancel}</button>
+            {dirty ? <span className="adm-dirty">{t.unsaved}</span> : null}
           </div>
         }
       >

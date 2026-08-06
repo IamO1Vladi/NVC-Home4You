@@ -6,8 +6,14 @@
 
    Layout: sidebar + content on desktop, content + bottom tab bar on phones. */
 
+/* .adm-modal-portal is in this list because the dialog is rendered with createPortal into
+   document.body — it is NOT inside .adm-app, so it inherits nothing from it. Leaving it out
+   made every token here resolve to nothing: the dialog had no background at all and took
+   the marketing site's pale body colour for its text. Anything else that portals out of the
+   panel has to be added here too. */
 .adm-app,
-.adm-page {
+.adm-page,
+.adm-modal-portal {
   --adm-bg: #f4f6f9;
   --adm-card: #ffffff;
   --adm-ink: #10161e;
@@ -35,7 +41,8 @@
 
 @media (prefers-color-scheme: dark) {
   .adm-app,
-  .adm-page {
+  .adm-page,
+  .adm-modal-portal {
     --adm-bg: #0e141b;
     --adm-card: #161f29;
     --adm-ink: #e8eef5;
@@ -569,6 +576,12 @@
   border-radius: 999px;
 }
 .adm-langtabs button.is-active { background: var(--adm-ink); color: var(--adm-card); border-color: var(--adm-ink); }
+.adm-tick { color: var(--adm-ok); font-weight: 800; margin-left: 5px; }
+.adm-langtabs button.is-active .adm-tick { color: inherit; }
+/* Marks the one language that can hold up a save, before the save rather than after it. */
+.adm-req-dot { color: var(--adm-stop); font-size: 18px; line-height: 0; margin-left: 5px; }
+.adm-langtabs button.is-needed { border-color: var(--adm-stop); }
+.adm-langtabs button.is-active .adm-req-dot { color: inherit; }
 .adm-langpane { display: grid; gap: 16px; }
 
 /* The sticky in-page save bar is gone: the editors are dialogs now, and .adm-modal-foot
@@ -679,7 +692,25 @@
   border-top: 1px solid var(--adm-line);
   background: var(--adm-card);
 }
-.adm-modal-foot .adm-form-actions { margin: 0; }
+.adm-modal-foot .adm-form-actions { margin: 0; align-items: center; }
+
+/* States the work is unsaved rather than leaving someone to remember it. */
+.adm-dirty {
+  margin-left: auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--adm-warn);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.adm-dirty::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
 
 /* A sub-section inside the dialog. Not .adm-card — a card on a card is the same colour on
    the same colour, which reads as a rendering fault rather than as grouping. */
@@ -742,15 +773,45 @@
 .adm-drop {
   border: 2px dashed var(--adm-line-firm);
   border-radius: 12px;
-  padding: 16px;
+  padding: 22px 18px;
   display: grid;
-  gap: 9px;
-  justify-items: start;
+  gap: 10px;
+  justify-items: center;
+  text-align: center;
   margin-bottom: 14px;
+  background: var(--adm-bg);
   transition: border-color .12s ease, background .12s ease;
 }
-.adm-drop:hover { border-color: var(--adm-accent); background: var(--adm-bg); }
-.adm-drop p { margin: 0; font-size: 13.5px; }
+.adm-drop:hover { border-color: var(--adm-accent); }
+.adm-drop.is-dragging { border-color: var(--adm-accent); border-style: solid; background: var(--adm-ok-bg); }
+.adm-drop.is-busy { border-style: solid; }
+.adm-drop p { margin: 0; }
+.adm-drop-ico { width: 30px; height: 30px; color: var(--adm-muted); }
+.adm-drop.is-dragging .adm-drop-ico { color: var(--adm-accent); }
+.adm-drop-title {
+  font-size: 13.5px;
+  color: var(--adm-muted);
+  max-width: 42ch;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Hidden but still in the tab order and still the target of the visible <label> button —
+   display:none would take its keyboard behaviour away with it. */
+.adm-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.adm-file-input:focus-visible + .adm-drop-title { outline: 2px solid var(--adm-accent); }
+label.btn { cursor: pointer; }
 
 .adm-images {
   list-style: none;
@@ -953,6 +1014,8 @@
   .adm-actions .btn,
   .adm-form-actions .btn { min-height: 44px; }
   .adm-img-actions button { min-height: 38px; min-width: 38px; }
+  /* The file picker is a label, so it misses the button rules above. */
+  .adm-drop label.btn { min-height: 44px; padding-inline: 18px; }
 
   .adm-head h1 { font-size: 20px; }
   .adm-head-actions { width: 100%; }

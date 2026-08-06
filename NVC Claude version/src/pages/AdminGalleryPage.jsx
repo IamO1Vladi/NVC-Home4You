@@ -50,6 +50,10 @@ const TEXT = {
     moveRight: 'Надясно',
     confirmDelete: 'Да изтрия ли този модел? Действието е необратимо.',
     required: 'Задължително',
+    titleRequiredEn: 'Заглавието на английски е задължително — попълнете го, за да запазите.',
+    unsaved: 'Незапазени промени',
+    chooseFile: 'Изберете снимки',
+    dropHere: 'Пуснете снимките тук',
     saveError: 'Промяната не беше запазена.',
     noImages: 'Няма снимки.',
     cover: 'Корица',
@@ -93,6 +97,10 @@ const TEXT = {
     moveRight: 'Move right',
     confirmDelete: 'Delete this model? This cannot be undone.',
     required: 'Required',
+    titleRequiredEn: 'The English title is required — fill it in to save.',
+    unsaved: 'Unsaved changes',
+    chooseFile: 'Choose photos',
+    dropHere: 'Drop the photos here',
     saveError: 'That change was not saved.',
     noImages: 'No photos yet.',
     cover: 'Cover',
@@ -155,7 +163,6 @@ export default function AdminGalleryPage() {
   // half-written model to a stray key press is exactly the kind of thing this audience
   // will not mention and will quietly stop trusting the panel over.
   function requestClose() {
-    const dirty = JSON.stringify(form) !== JSON.stringify(pristine.current)
     if (dirty && !window.confirm(t.discard)) return
     setEditing(null)
     setJustCreated(false)
@@ -242,6 +249,7 @@ export default function AdminGalleryPage() {
   }
 
   const editingHouse = typeof editing === 'number' ? houses.find((h) => h.id === editing) : null
+  const dirty = editing !== null && JSON.stringify(form) !== JSON.stringify(pristine.current)
 
   return (
     <AdminShell
@@ -270,6 +278,9 @@ export default function AdminGalleryPage() {
               {busy ? t.saving : t.save}
             </button>
             <button type="button" className="btn btn-ghost" onClick={requestClose}>{t.cancel}</button>
+            {/* Nothing on this screen saves by itself, so the state of the work is worth
+                stating rather than leaving someone to remember. */}
+            {dirty ? <span className="adm-dirty">{t.unsaved}</span> : null}
           </div>
         }
       >
@@ -346,9 +357,31 @@ function HouseForm({ formId, t, lang, form, setForm, categories, onSubmit }) {
   // Three languages × title and description is a lot of boxes. Tabbing by language keeps one
   // language's fields together, which is how they are actually written and proofread.
   const [tab, setTab] = React.useState('bg')
+  const [missingTitle, setMissingTitle] = React.useState(false)
+  const titleRef = React.useRef(null)
+
+  // Only the open tab's fields are in the DOM, so the browser never gets to enforce the
+  // required English title — the form submits and the server answers "Title is required".
+  // That lands as an error about a field the editor cannot see, on a tab they are not on.
+  // Catch it here instead and take them to it.
+  function handleSubmit(e) {
+    if (!form.title.trim()) {
+      e.preventDefault()
+      setTab('en')
+      setMissingTitle(true)
+      return
+    }
+    setMissingTitle(false)
+    onSubmit(e)
+  }
+
+  // Focus lands after the tab has actually switched, not in the same commit.
+  React.useEffect(() => {
+    if (missingTitle && tab === 'en') titleRef.current?.focus()
+  }, [missingTitle, tab])
 
   return (
-    <form id={formId} className="adm-form" onSubmit={onSubmit}>
+    <form id={formId} className="adm-form" onSubmit={handleSubmit}>
       <section className="adm-fieldset">
         <h3>{t.sections.basics}</h3>
         <div className="adm-grid">
@@ -392,22 +425,32 @@ function HouseForm({ formId, t, lang, form, setForm, categories, onSubmit }) {
         <h3>{t.sections.content}</h3>
 
         <div className="adm-langtabs" role="tablist" aria-label={t.sections.content}>
-          {['bg', 'en', 'el'].map((code) => (
-            <button
-              key={code}
-              type="button"
-              role="tab"
-              aria-selected={tab === code}
-              className={tab === code ? 'is-active' : ''}
-              onClick={() => setTab(code)}
-            >
-              {code.toUpperCase()}
-              {code === 'bg' && form.titleBg ? ' ✓' : null}
-              {code === 'en' && form.title ? ' ✓' : null}
-              {code === 'el' && form.titleEl ? ' ✓' : null}
-            </button>
-          ))}
+          {[
+            { code: 'bg', filled: !!form.titleBg },
+            { code: 'en', filled: !!form.title, required: true },
+            { code: 'el', filled: !!form.titleEl },
+          ].map(({ code, filled, required }) => {
+            // The English tab is the only one that can hold up a save, so it says so —
+            // before the save, not after it.
+            const needed = required && !filled
+            return (
+              <button
+                key={code}
+                type="button"
+                role="tab"
+                aria-selected={tab === code}
+                className={`${tab === code ? 'is-active' : ''}${needed ? ' is-needed' : ''}`}
+                onClick={() => setTab(code)}
+              >
+                {code.toUpperCase()}
+                {filled ? <span className="adm-tick" aria-hidden="true">✓</span> : null}
+                {needed ? <span className="adm-req-dot" title={t.required} aria-hidden="true">•</span> : null}
+              </button>
+            )
+          })}
         </div>
+
+        {missingTitle ? <div className="adm-alert">{t.titleRequiredEn}</div> : null}
 
         {tab === 'bg' ? (
           <LangFields
@@ -419,7 +462,7 @@ function HouseForm({ formId, t, lang, form, setForm, categories, onSubmit }) {
 
         {tab === 'en' ? (
           <LangFields
-            t={t} lang={lang} required
+            t={t} lang={lang} required inputRef={titleRef}
             titleLabel={t.fields.title} title={form.title} onTitle={set('title')}
             descLabel={t.fields.description} desc={form.description} onDesc={setHtml('description')}
           />
@@ -438,12 +481,12 @@ function HouseForm({ formId, t, lang, form, setForm, categories, onSubmit }) {
   )
 }
 
-function LangFields({ t, lang, required, titleLabel, title, onTitle, descLabel, desc, onDesc }) {
+function LangFields({ t, lang, required, inputRef, titleLabel, title, onTitle, descLabel, desc, onDesc }) {
   return (
     <div className="adm-langpane">
       <label>
         <span className="adm-label">{titleLabel} {required ? <em className="adm-req">{t.required}</em> : null}</span>
-        <input value={title} onChange={onTitle} required={required} />
+        <input ref={inputRef} value={title} onChange={onTitle} required={required} />
       </label>
       <div className="adm-field">
         <span className="adm-label">{descLabel}</span>
@@ -456,6 +499,7 @@ function LangFields({ t, lang, required, titleLabel, title, onTitle, descLabel, 
 function ImageManager({ t, house, onChanged, onUnauthorized }) {
   const [uploading, setUploading] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [dragging, setDragging] = React.useState(false)
   const inputRef = React.useRef(null)
 
   async function upload(files) {
@@ -511,21 +555,42 @@ function ImageManager({ t, house, onChanged, onUnauthorized }) {
       <h3>{t.images}</h3>
       {error ? <div className="adm-alert">{error}</div> : null}
 
+      {/* The raw file input is visually hidden rather than removed, so it keeps its keyboard
+          behaviour and its label — the button below is the <label> for it. */}
       <div
-        className="adm-drop"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); upload(e.dataTransfer.files) }}
+        className={`adm-drop${dragging ? ' is-dragging' : ''}${uploading ? ' is-busy' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files) }}
       >
-        <p className="adm-muted">{t.uploadHint}</p>
+        <svg className="adm-drop-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16" />
+        </svg>
+
         <input
           ref={inputRef}
+          id={`adm-upload-${house.id}`}
+          className="adm-file-input"
           type="file"
           accept="image/*"
           multiple
           onChange={(e) => upload(e.target.files)}
           disabled={uploading}
         />
-        {uploading ? <p className="adm-muted">{t.uploading}</p> : null}
+
+        {uploading ? (
+          <p className="adm-drop-title">
+            <span className="adm-spinner" aria-hidden="true" /> {t.uploading}
+          </p>
+        ) : (
+          <>
+            <p className="adm-drop-title">{dragging ? t.dropHere : t.uploadHint}</p>
+            <label className="btn btn-ghost btn-sm" htmlFor={`adm-upload-${house.id}`}>
+              {t.chooseFile}
+            </label>
+          </>
+        )}
       </div>
 
       {house.images.length === 0 ? (
