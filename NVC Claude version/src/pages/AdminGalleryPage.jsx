@@ -101,7 +101,6 @@ export default function AdminGalleryPage() {
   const [state, setState] = React.useState('loading')
   const [houses, setHouses] = React.useState([])
   const [categories, setCategories] = React.useState([])
-  const [me, setMe] = React.useState(null)
   const [editing, setEditing] = React.useState(null) // null | 'new' | house id
   const [form, setForm] = React.useState(EMPTY)
   const [errors, setErrors] = React.useState([])
@@ -110,14 +109,12 @@ export default function AdminGalleryPage() {
   const load = React.useCallback(async () => {
     setState('loading')
     try {
-      const [list, cats, who] = await Promise.all([
+      const [list, cats] = await Promise.all([
         adminGet('/api/admin/gallery'),
         adminGet('/api/admin/gallery/categories'),
-        adminGet('/api/admin/me').catch(() => null),
       ])
       setHouses(list ?? [])
       setCategories(cats ?? [])
-      setMe(who)
       setState('ready')
     } catch (err) {
       setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error')
@@ -197,7 +194,6 @@ export default function AdminGalleryPage() {
       subtitle={t.subtitle}
       state={state}
       onRetry={load}
-      me={me}
       actions={<button type="button" className="btn" onClick={startNew}>{t.add}</button>}
     >
       {errors.length > 0 ? <div className="adm-alert">{errors.join(' ')}</div> : null}

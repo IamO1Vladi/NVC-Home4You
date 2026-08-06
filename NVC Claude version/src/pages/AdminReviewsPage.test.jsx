@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, cleanup } from '@testing-library/react'
+import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import AdminReviewsPage from './AdminReviewsPage.jsx'
+
+// The shell's section nav uses <Link>, so the page needs a router around it now.
+const render = (ui) => rtlRender(<MemoryRouter initialEntries={['/admin/reviews']}>{ui}</MemoryRouter>)
 
 // The moderation UI is staff-facing and acts on live content, so these cover the states
 // that matter: what a moderator sees, that a 401 asks them to sign in rather than looking
@@ -21,8 +25,15 @@ const approvedReview = {
 
 function mockApi({ items = [pendingReview], status = 200 } = {}) {
   const calls = []
+  // adminApi reads the body with res.text() so it can tell "204 no content" from "{}",
+  // so the mock has to offer text() as well as json().
   const json = (body, code = 200) =>
-    Promise.resolve({ ok: code >= 200 && code < 300, status: code, json: async () => body })
+    Promise.resolve({
+      ok: code >= 200 && code < 300,
+      status: code,
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    })
 
   const fetchMock = vi.fn((url, opts) => {
     const u = String(url)
@@ -63,21 +74,34 @@ describe('AdminReviewsPage', () => {
     render(<AdminReviewsPage />)
 
     // A 401 must read as "sign in", not as a server fault.
-    expect(await screen.findByText(/Нямате достъп/)).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Необходим е вход' })).toBeTruthy()
     expect(screen.queryByText('Иван Петров')).toBeNull()
   })
 
   it('sign-in is a navigation to /admin/signin, never an API URL', async () => {
     mockApi({ status: 401 })
     render(<AdminReviewsPage />)
-    await screen.findByText(/Нямате достъп/)
+    await screen.findByRole('heading', { name: 'Необходим е вход' })
 
-    const link = screen.getByRole('link', { name: 'Вход' })
+    const link = screen.getByRole('link', { name: /Вход/ })
     // Regression guard: pointing this at an /api/* URL sends the browser into a redirect
     // to login.microsoftonline.com that CORS blocks, so sign-in silently fails. Interactive
     // sign-in has to be a top-level navigation to a non-API endpoint.
-    expect(link.getAttribute('href')).toBe('/admin/signin?returnUrl=/admin')
+    expect(link.getAttribute('href')).toMatch(/^\/admin\/signin\?returnUrl=/)
     expect(link.getAttribute('href')).not.toContain('/api/')
+  })
+
+  it('every section is reachable from the nav, so /admin is not a dead end', async () => {
+    mockApi()
+    render(<AdminReviewsPage />)
+    await screen.findByText('Иван Петров')
+
+    // The panel used to render the review queue with no navigation at all, which left
+    // gallery and cases reachable only by typing their URLs.
+    const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
+    for (const path of ['/admin', '/admin/reviews', '/admin/gallery', '/admin/cases']) {
+      expect(hrefs).toContain(path)
+    }
   })
 
   it('approving calls the approve endpoint for that review', async () => {
@@ -99,7 +123,7 @@ describe('AdminReviewsPage', () => {
 
     // It shows "live on the site" instead — approving again is meaningless.
     expect(screen.queryByRole('button', { name: 'Одобри' })).toBeNull()
-    expect(screen.getByText('Публикуван на сайта')).toBeTruthy()
+    expect(screen.getByText(/Публикуван на сайта/)).toBeTruthy()
   })
 
   it('switches between Bulgarian and English and remembers the choice', async () => {

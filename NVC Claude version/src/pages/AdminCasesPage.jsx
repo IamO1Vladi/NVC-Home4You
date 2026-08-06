@@ -86,7 +86,6 @@ export default function AdminCasesPage() {
   const [state, setState] = React.useState('loading')
   const [cases, setCases] = React.useState([])
   const [categories, setCategories] = React.useState([])
-  const [me, setMe] = React.useState(null)
   const [editing, setEditing] = React.useState(null)
   const [form, setForm] = React.useState(EMPTY)
   const [errors, setErrors] = React.useState([])
@@ -95,14 +94,12 @@ export default function AdminCasesPage() {
   const load = React.useCallback(async () => {
     setState('loading')
     try {
-      const [list, cats, who] = await Promise.all([
+      const [list, cats] = await Promise.all([
         adminGet('/api/admin/cases'),
         adminGet('/api/admin/cases/categories'),
-        adminGet('/api/admin/me').catch(() => null),
       ])
       setCases(list ?? [])
       setCategories(cats ?? [])
-      setMe(who)
       setState('ready')
     } catch (err) {
       setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error')
@@ -186,7 +183,6 @@ export default function AdminCasesPage() {
       subtitle={t.subtitle}
       state={state}
       onRetry={load}
-      me={me}
       actions={
         <button type="button" className="btn" onClick={() => { setForm(EMPTY); setErrors([]); setEditing('new') }}>
           {t.add}
