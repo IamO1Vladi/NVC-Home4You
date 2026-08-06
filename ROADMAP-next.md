@@ -26,6 +26,13 @@ are revenue paths.
 
 ## 1. Leads: offers and questions
 
+> **Superseded 2026-08-06 by [ROADMAP-leads.md](ROADMAP-leads.md).** The open question at the
+> bottom of this section has been answered — sales *does* work leads inside Quickbase daily —
+> so this is a workflow to replace, not a table to move, and the plan changed accordingly.
+> That file also records a silent lead-loss path that is live today and is worth fixing
+> before any migration work starts. Read it instead of this section; the text below is kept
+> for what was believed beforehand.
+
 The last thing standing between here and retiring Quickbase, and the highest-risk item in the
 whole migration. `QB_TABLE_OFFER` and `QB_TABLE_QUESTION`, written by `FormService`.
 
@@ -54,6 +61,8 @@ Quickbase day to day?** If they do, migrating leads means replacing a workflow, 
 table, and the admin panel needs to cover it before the cutover. If they do not, this is much
 simpler. `ROADMAP-datalayer-admin.md` has been carrying this question unanswered since the
 start.
+
+*Answered 2026-08-06: they do. See [ROADMAP-leads.md](ROADMAP-leads.md).*
 
 ## 2. Saved configurator links
 
