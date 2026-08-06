@@ -301,6 +301,85 @@
   .gcard:hover .gcard-glare{ opacity:.55; }
 }
 
+/* ===== Phones: caption below the photo, not on top of it =====================
+   The overlay works on a wide card and fails on a narrow one. In the 2-column grid at
+   ~375px each card is only ~165px wide, so the glass panel's title wraps to two or three
+   lines and — with the readability gradient behind it — covers roughly half the photo.
+   The images are the reason anyone is on this page, so on phones the caption moves out of
+   the image and sits underneath it.
+
+   The photo is squared off rather than cropped to a landscape box. Checked against the live
+   catalogue: the product shots are 17 square (1024x1024) to 3 portrait (1414x2000), and
+   nothing is landscape. A 4:3 crop would therefore have cut a quarter off the height of
+   almost every photo — the opposite of the point. 1:1 shows the square majority whole and
+   centre-crops the few portraits gently. */
+@media (max-width: 640px){
+  .gcard{
+    display:flex;
+    flex-direction:column;
+    background: color-mix(in srgb, var(--anth) 55%, transparent);
+    box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  }
+
+  /* Was clamp(190px, 22vw, 280px): 22vw is only ~82px on a phone, so it always hit the
+     190px floor — a 190px-tall box in a 160px-wide card, which is a portrait letterbox. */
+  .gcard img{
+    height:auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  /* Both existed only to keep white text legible on top of the image. */
+  .gcard::after{ display:none; }
+  .gcard-glare{ display:none; }
+
+  .gcard-info{
+    position:static;
+    left:auto; right:auto; bottom:auto;
+    padding:10px 12px 12px;
+    border:0;
+    border-radius:0;
+    background:none;
+    backdrop-filter:none;
+    color:inherit;
+    transform:none;
+  }
+
+  .gcard-title{ font-size:14.5px; line-height:1.25; }
+
+  /* The price lives inside .gcard-more, which is collapsed for the desktop hover reveal —
+     so on a phone it was never shown at all. Below the image there is room for it. */
+  .gcard-more{
+    max-height:none;
+    opacity:1;
+    overflow:visible;
+    transform:none;
+    margin-top:7px;
+  }
+  .gcard-metaRow{ margin-bottom:0; }
+  .gcard-price{
+    font-size:12.5px;
+    padding:5px 9px;
+    box-shadow:none;
+  }
+  /* The whole card is the tap target, so "open" is noise, and the description is the
+     crowding the caption move was meant to remove. */
+  .gcard-open{ display:none; }
+  .gcard-desc{ display:none; }
+
+  /* Keep the skeleton the same shape as the card it stands in for, or the grid jumps
+     when the real images arrive. */
+  .gcard--skel .skel-img{ height:auto; aspect-ratio: 1 / 1; }
+  .gcard-skel-info{
+    position:static;
+    left:auto; right:auto; bottom:auto;
+    padding:12px;
+    border:0;
+    border-radius:0;
+    background:none;
+    backdrop-filter:none;
+  }
+}
+
 /* Keyboard accessibility: treat focus like hover */
 .gcard:focus-visible{
   outline:none;
