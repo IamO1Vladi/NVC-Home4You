@@ -369,7 +369,7 @@ function MobileStepper({ steps, activeIndex, onGo, stepWord }) {
 
 // Accordion decision row. Collapsed it shows the current pick (thumb/swatch + value);
 // expanded it reveals the options. Controlled so only one section is open at a time.
-function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badge, children, onNext, nextLabel }) {
+function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badge, children }) {
   const open = openId === id
   const [failed, setFailed] = React.useState(false)
 
@@ -394,17 +394,7 @@ function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badg
         {badge ? <span className="bhc-msection-badge">{badge}</span> : null}
         <span className="bhc-msection-chevron" aria-hidden="true" />
       </button>
-      {open ? (
-        <div className="bhc-msection-body">
-          {children}
-          {/* Move on without hunting for the next header. */}
-          {onNext ? (
-            <button type="button" className="bhc-msection-next" onClick={() => onNext(id)}>
-              {nextLabel} <span aria-hidden="true">→</span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      {open ? <div className="bhc-msection-body">{children}</div> : null}
     </div>
   )
 }
@@ -669,7 +659,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
     pdfInterior: t.labels?.pdfInterior || (isBg ? 'Интериор' : locale === 'el' ? 'Εσωτερικό' : 'Interior'),
     openPlanEditor: t.labels?.openPlanEditor || (isBg ? 'Отвори на цял екран' : 'Open full screen'),
     planEditorDone: t.labels?.planEditorDone || (isBg ? 'Готово' : 'Done'),
-    nextSection: t.labels?.nextSection || (isBg ? 'Към следващия избор' : 'Next choice'),
     resetToLayout: t.labels?.resetToLayout || (isBg ? 'Върни към разпределението' : 'Reset to layout'),
     socketDescHint: t.labels?.socketDescHint || (isBg ? 'Добавете описание за всеки контакт' : 'Add a description for each socket'),
     socketNotesLabel: t.labels?.socketNotesLabel || (isBg ? 'Бележки за контактите' : 'Socket notes'),
@@ -899,21 +888,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
     setOpenSection((current) => (current === id ? null : id))
   }, [])
 
-  // Open the next accordion section in document order. Reading the DOM keeps
-  // this honest about sections that aren't rendered for the current model --
-  // terrace and decking only exist on the balcony variant.
-  const goToNextSection = React.useCallback((currentId) => {
-    if (typeof document === 'undefined') return
-    const ids = [...document.querySelectorAll('[data-section-id]')]
-      .map((node) => node.getAttribute('data-section-id'))
-    const next = ids[ids.indexOf(currentId) + 1]
-    if (!next) return
-    setOpenSection(next)
-    window.setTimeout(() => {
-      document.querySelector(`[data-section-id="${next}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 60)
-  }, [])
 
   const stepWord = isBg ? 'Стъпка' : locale === 'el' ? 'Βήμα' : 'Step'
 
@@ -3226,8 +3200,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="model"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.model}
           value={`${selectedModel?.label || '-'} · ${selectedModel?.area} m²`}
           thumb={asset(selectedModelHeroImage)}
@@ -3257,8 +3229,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="variant"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.variant}
           value={config.variant === 'balcony' ? labels.balcony : labels.standard}
           badge={euro(knownBasePrice, locale)}
@@ -3295,8 +3265,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="layout"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.layout}
           value={`${selectedPlan?.label || '-'}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`}
           thumb={asset(selectedPlan?.image || '')}
@@ -3393,8 +3361,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="panels"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.outsidePanels}
           value={selectedExteriorFinishCaption}
           thumb={asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || '')}
@@ -3438,8 +3404,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="frame"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.windowTypeLabel}
           value={selectedWindowType?.label || '-'}
           badge={selectedWindowType?.price ? `+${euro(selectedWindowType.price, locale)}` : labels.includedShort}
@@ -3470,8 +3434,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="windowColour"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.windowColour}
           value={selectedWindowColour?.label || '-'}
           thumb={asset(selectedWindowColour?.thumbImage || '')}
@@ -3496,8 +3458,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="exteriorDoor"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.exteriorDoor}
           value={entranceDoorLabel}
           thumb={asset(entranceDoor?.thumbImage || '')}
@@ -3533,8 +3493,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
             id="terrace"
             openId={openSection}
             onToggle={toggleSection}
-            onNext={goToNextSection}
-            nextLabel={labels.nextSection}
             title={labels.terrace}
             value={selectedTerrace?.label || '-'}
             badge={terracePrice ? `+${euro(terracePrice, locale)}` : labels.includedShort}
@@ -3558,8 +3516,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="steelColor"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.steelFrameColor}
           value={selectedSteelFrameColor?.label || '-'}
           swatch={selectedSteelFrameColor?.swatch}
@@ -3582,8 +3538,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
             id="decking"
             openId={openSection}
             onToggle={toggleSection}
-            onNext={goToNextSection}
-            nextLabel={labels.nextSection}
             title={labels.deckingColor}
             value={selectedDeckingColor?.label || '-'}
             swatch={selectedDeckingColor?.swatch}
@@ -3600,8 +3554,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="windows"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.windowOpenings}
           value={`${(config.windows || []).length} · ${windowSizeDimension} mm${windowExtrasPrice ? ` · +${euro(windowExtrasPrice, locale)}` : ''}`}
         >
@@ -3680,8 +3632,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="heating"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.heating}
           value={config.heating ? `${yesText} · ${euro(heatingPrice, locale)}` : noText}
         >
@@ -3712,8 +3662,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="panels"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.interiorPanels}
           value={`${selectedInteriorPanels?.label || labels.defaultWhitePanels}${interiorPanelsPrice ? ` · ${euro(interiorPanelsPrice, locale)}` : ''}`}
           thumb={asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || '')}
@@ -3769,8 +3717,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="floor"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.floorFinish}
           value={optionDisplay(selectedFloorOption)}
           thumb={asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || '')}
@@ -3805,8 +3751,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="bench"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.kitchenBench}
           value={optionDisplay(selectedKitchenBench)}
           thumb={asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || '')}
@@ -3829,8 +3773,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="bathroom"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.bathroom}
           value={selectedBathroom?.label || '-'}
           thumb={asset(selectedBathroom?.image || '')}
@@ -3846,8 +3788,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="bathroomUv"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.bathroomUvPanel}
           value={optionDisplay(selectedBathroomUvPanel)}
           thumb={asset(selectedBathroomUvPanel?.thumbImage || '')}
@@ -3871,8 +3811,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="bathroomDoor"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.bathroomDoor}
           value={selectedBathroomDoor?.label || '-'}
           badge={bathroomDoorPrice ? `+${euro(bathroomDoorPrice, locale)}` : labels.includedShort}
@@ -3895,8 +3833,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="vanity"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.vanity}
           value={selectedVanity?.label || '-'}
           badge={selectedVanity?.onRequest ? labels.onRequest : labels.includedShort}
@@ -3919,8 +3855,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="kitchen"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.kitchen}
           value={selectedKitchen?.label || '-'}
           badge={kitchenVariantPrice ? `+${euro(kitchenVariantPrice, locale)}` : labels.includedShort}
@@ -3944,8 +3878,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="kitchenSink"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.kitchenSink}
           value={selectedKitchenSink?.label || '-'}
           badge={kitchenSinkPrice ? `+${euro(kitchenSinkPrice, locale)}` : labels.includedShort}
@@ -3968,8 +3900,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="petColour"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.kitchenPetColour}
           value={selectedKitchenPetColour ? `${selectedKitchenPetColour.code} · ${labels.onRequest}` : labels.none}
           swatch={selectedKitchenPetColour?.swatch}
@@ -3994,8 +3924,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="extras"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.kitchenExtras}
           value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'}
         >
@@ -4012,8 +3940,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="doors"
           openId={openSection}
           onToggle={toggleSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
           title={labels.insideDoors}
           value={`${selectedInsideDoorStyle?.label || '-'} · ${config.insideDoorCount || 0}${insideDoorPrice ? ` · ${euro(insideDoorPrice, locale)}` : ''}`}
           thumb={asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || '')}
