@@ -287,11 +287,47 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1
   <p>{intro}</p>
   {detailsBlock}
   <p style=""font-size:13px;color:#555;margin-top:22px"">{signoff}</p>
-  <hr style=""border:none;border-top:1px solid #eee;margin:24px 0"" />
-  <p style=""font-size:12px;color:#888"">NVC Home4You · nvc-home4you.eu</p>
+{BuildSignature(loc)}
 </div>";
 
         return (subject, html);
+    }
+
+    // Branded sign-off for the customer-facing email. Quickbase used to send this welcome
+    // message; it is ours now, so it needs to look like it came from the company.
+    //
+    // The logo is referenced by URL rather than embedded: Gmail strips `data:` image URIs
+    // outright, so an inlined logo would show as nothing in the client most customers use.
+    // Table markup and inline styles are deliberate — Outlook ignores most modern CSS.
+    // Every detail here is already published on the public site.
+    private static string BuildSignature(string loc)
+    {
+        var (addressLine, phoneLabel, emailLabel, siteLabel) = loc switch
+        {
+            "bg" => ("Марикостиново, Петрич 2850, България", "Телефон", "Имейл", "Уебсайт"),
+            "el" => ("Marikostinovo, Petrich 2850, Βουλγαρία", "Τηλέφωνο", "Email", "Ιστότοπος"),
+            _ => ("Marikostinovo, Petrich 2850, Bulgaria", "Phone", "Email", "Website"),
+        };
+
+        return
+$@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
+  <table cellpadding=""0"" cellspacing=""0"" border=""0"" style=""font-family:Arial,Helvetica,sans-serif"">
+    <tr>
+      <td style=""vertical-align:top;padding-right:14px"">
+        <img src=""https://nvc-home4you.eu/logo3.jpg"" width=""56"" height=""56"" alt=""NVC Home4You""
+             style=""display:block;width:56px;height:56px;border-radius:8px;border:0"" />
+      </td>
+      <td style=""vertical-align:top;font-size:12px;color:#555;line-height:1.55"">
+        <div style=""font-size:14px;font-weight:bold;color:#1a1a1a"">NVC Home4You</div>
+        <div style=""color:#888"">{addressLine}</div>
+        <div style=""margin-top:6px"">
+          {phoneLabel}: <a href=""tel:+359892456245"" style=""color:#2f6fd0;text-decoration:none"">+359 892 456 245</a><br />
+          {emailLabel}: <a href=""mailto:contact@nvc-home4you.eu"" style=""color:#2f6fd0;text-decoration:none"">contact@nvc-home4you.eu</a><br />
+          {siteLabel}: <a href=""https://nvc-home4you.eu"" style=""color:#2f6fd0;text-decoration:none"">nvc-home4you.eu</a>
+        </div>
+      </td>
+    </tr>
+  </table>";
     }
 
     // HTML-encodes text and turns bare http(s) URLs into clickable links.
