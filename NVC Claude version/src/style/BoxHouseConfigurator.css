@@ -234,6 +234,10 @@
   position: absolute;
   left: 12px;
   top: 12px;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -355,8 +359,10 @@
   flex: none;
 }
 
+/* Auto-fit rather than a fixed pair: a lone counter would otherwise sit in a
+   half-width column and squeeze its value box to a couple of digits. */
 .bhc-number-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin-top: 12px;
 }
 
@@ -364,6 +370,8 @@
   padding: 12px 14px;
   display: grid;
   gap: 10px;
+  /* A counter reads badly stretched across a full-width column. */
+  max-width: 320px;
 }
 
 .bhc-number-field span {
@@ -386,8 +394,38 @@
   text-align: center;
 }
 
+.bhc-number-box button {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bhc-number-box button:hover {
+  border-color: currentColor;
+}
+
+.bhc-number-box button:active {
+  transform: scale(.94);
+}
+
 .bhc-number-box input {
   width: 100%;
+  font: inherit;
+  font-weight: 800;
+  font-size: 16px;
+  /* Native spinners sit on top of the centred value and duplicate the
+     -/+ buttons either side of it. */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.bhc-number-box input::-webkit-outer-spin-button,
+.bhc-number-box input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .bhc-inline-price {
@@ -1034,6 +1072,33 @@
   background: linear-gradient(135deg, color-mix(in srgb, var(--sw) 78%, #ffffff), color-mix(in srgb, var(--sw) 18%, #ffffff));
 }
 
+/* Which option the preview is showing. Product shots are near-identical at
+   thumbnail size, so the card is unreadable without its code. */
+.bhc-selection-card-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--bhc-border);
+}
+
+.bhc-selection-card-caption strong {
+  font-size: 13px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.bhc-selection-card-caption span {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Materials render as a tighter grid, so their previews get a shorter image. */
+.bhc-preview-stage--materials .bhc-selection-card img,
+.bhc-preview-stage--materials .bhc-selection-card-placeholder {
+  height: 150px;
+}
+
 .bhc-choice-caption {
   display: flex;
   flex-direction: column;
@@ -1352,13 +1417,18 @@
   .bhc-card-grid--plans,
   .bhc-card-grid--compact,
   .bhc-pill-grid,
-  .bhc-number-grid,
   .bhc-ref-grid,
   .bhc-code-grid,
   .bhc-swatch-grid,
   .bhc-thumb-choice-grid--wide,
   .bhc-thumb-choice-grid--compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The counter needs its full width on a phone -- halved, the value box is
+     barely two digits wide between the -/+ buttons. */
+  .bhc-number-grid {
+    grid-template-columns: 1fr;
   }
 
   .bhc-toggle-row,
@@ -1756,6 +1826,282 @@
   font-size: 14px;
   line-height: 1.4;
 }
+
+/* Series picker for the 135 facade decors. */
+.bhc-series-picker {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.bhc-series-picker-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.bhc-select {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-card, #fff);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bhc-select:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.bhc-series-range {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+/* Full-screen plan editor.
+   The plan is ~240px inside a phone accordion, far too small to place a marker
+   accurately, so editing happens over the whole viewport instead. */
+.bhc-plan-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--bhc-bg);
+}
+
+.bhc-plan-modal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--bhc-border);
+  background: var(--bhc-surface);
+}
+
+.bhc-plan-modal-copy {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bhc-plan-modal-copy strong { font-size: 15px; }
+.bhc-plan-modal-copy span { font-size: 12px; color: var(--bhc-muted); line-height: 1.4; }
+
+.bhc-plan-modal-close {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-soft);
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.bhc-plan-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 10px;
+}
+
+.bhc-plan-modal-foot {
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--bhc-border);
+  background: var(--bhc-surface);
+}
+
+.bhc-plan-modal-foot .btn { width: 100%; }
+
+/* Opening-type chips above the plan, so the buyer picks what to place. */
+.bhc-plan-modal-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.bhc-plan-kind {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-soft);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.bhc-plan-kind em { font-style: normal; font-weight: 800; opacity: .7; }
+
+.bhc-plan-kind.is-active {
+  border-color: transparent;
+  background-image: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
+  color: #fff;
+}
+
+.bhc-plan-kind.is-active em { opacity: .9; }
+
+/* The plan gets the room the modal frees up -- trimmed padding here is worth
+   real millimetres of tap target on a phone. */
+.bhc-plan-stage--modal {
+  margin-top: 0;
+  padding: 4px;
+  border-radius: 14px;
+}
+
+.bhc-plan-stage--modal img { max-height: 62vh; }
+
+.bhc-plan-open-btn { width: 100%; margin: 12px 0; }
+
+/* "Show all N" under a truncated decor grid. */
+.bhc-show-all {
+  margin-top: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed var(--bhc-border);
+  background: var(--bhc-soft);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Step to the next accordion section without scrolling back for its header. */
+.bhc-msection-next {
+  margin-top: 14px;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background-image: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.bhc-linkish {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Price badge for cards that carry no artwork to overlay it on. */
+.bhc-card-inline-badge {
+  margin-top: 6px;
+  align-self: start;
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--bhc-soft);
+  border: 1px solid var(--bhc-border);
+}
+
+/* Window type picker: compact rows rather than full-bleed cards. */
+.bhc-window-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 10px;
+}
+
+.bhc-window-type {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px;
+  text-align: left;
+  border-radius: 12px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-card, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+
+.bhc-window-type.is-active {
+  border-color: currentColor;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.bhc-window-type img {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.bhc-window-type-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bhc-window-type-text strong { font-size: 14px; line-height: 1.3; }
+.bhc-window-type-text em { font-size: 12px; font-style: normal; opacity: 0.7; line-height: 1.35; }
+.bhc-window-type-price { font-size: 12.5px; font-weight: 800; margin-top: 2px; }
+
+/* The opening-type row has one entry with no artwork, so it sets its own
+   minimum rather than inheriting the window-type column width. */
+.bhc-window-type-grid--kinds { grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
+
+/* Per-opening upgrade picker, inside the window list. */
+.bhc-window-row--kinds { align-items: flex-start; flex-wrap: wrap; }
+
+.bhc-window-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bhc-window-kind {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--bhc-border);
+  background: var(--bhc-card, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.bhc-window-kind em { font-style: normal; font-weight: 800; opacity: 0.7; }
+
+.bhc-window-kind.is-active {
+  border-color: currentColor;
+  box-shadow: inset 0 0 0 1px currentColor;
+  font-weight: 700;
+}
+
+.bhc-select--inline { width: auto; padding: 5px 8px; font-size: 12px; }
 
 .bhc-window-price-box {
   display: grid;

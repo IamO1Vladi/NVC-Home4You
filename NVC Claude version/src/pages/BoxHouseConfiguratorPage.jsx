@@ -72,6 +72,9 @@ function ChoiceCard({ active, title, subtitle, image, onClick, badge, note }) {
         <div className="bhc-card-title">{title}</div>
         {subtitle ? <div className="bhc-card-subtitle">{subtitle}</div> : null}
         {note ? <div className="bhc-card-note">{note}</div> : null}
+        {/* Without artwork the badge has no media strip to sit on, so the
+            price would silently disappear -- show it inline instead. */}
+        {badge && !image ? <div className="bhc-card-inline-badge">{badge}</div> : null}
       </div>
     </button>
   )
@@ -94,10 +97,12 @@ function MaterialPreviewCard({ title, image, label, swatch, subtitle }) {
       ) : (
         <div className="bhc-selection-card-placeholder" style={{ '--sw': swatch || '#d7dce4' }} aria-hidden="true" />
       )}
-      {/* <div className="bhc-thumb-caption">
+      <div className="bhc-selection-card-caption">
         <strong>{label || '-'}</strong>
-        {subtitle ? <span>{subtitle}</span> : null}
-      </div> */}
+        {/* Coded options with no descriptive name would otherwise print the
+            same string twice. */}
+        {subtitle && subtitle !== label ? <span>{subtitle}</span> : null}
+      </div>
     </div>
   )
 }
@@ -136,12 +141,98 @@ function ThumbChoiceButton({ active, label, image, swatch, onClick, hideLabel = 
   )
 }
 
+// A long decor list, shown a manageable slice at a time.
+//
+// Where the catalogue groups its decors into series the picker offers those as
+// a category select; where it doesn't, it shows a first page with a "show all".
+// Either way the buyer never faces 135 tiles at once.
+function GroupedOptionGrid({
+  options,
+  value,
+  onSelect,
+  categoryLabel,
+  showAllLabel,
+  gridClassName = 'bhc-thumb-choice-grid',
+  pageSize = 12,
+  renderOption,
+}) {
+  const groups = React.useMemo(() => {
+    const out = []
+    options.forEach((item) => {
+      const label = item.group || ''
+      let group = out.find((g) => g.label === label)
+      if (!group) {
+        group = { label, options: [] }
+        out.push(group)
+      }
+      group.options.push(item)
+    })
+    return out
+  }, [options])
+
+  const grouped = groups.length > 1
+  const groupOfValue = React.useMemo(
+    () => groups.findIndex((g) => g.options.some((item) => item.key === value)),
+    [groups, value]
+  )
+
+  const [activeIndex, setActiveIndex] = React.useState(() => Math.max(0, groupOfValue))
+  const [expanded, setExpanded] = React.useState(false)
+
+  // Follow the selection when it changes from elsewhere (a reset, a shared
+  // link), so the picker opens on the group holding the current pick. Keyed on
+  // the value rather than the derived index, or browsing to another category
+  // would immediately snap back to wherever the current selection lives.
+  const lastValue = React.useRef(value)
+  React.useEffect(() => {
+    if (lastValue.current === value) return
+    lastValue.current = value
+    if (groupOfValue >= 0) setActiveIndex(groupOfValue)
+  }, [value, groupOfValue])
+
+  React.useEffect(() => { setExpanded(false) }, [activeIndex])
+
+  const active = groups[Math.min(activeIndex, groups.length - 1)] || { options: [] }
+  const all = active.options
+  const hidden = Math.max(0, all.length - pageSize)
+  const visible = expanded || !hidden ? all : all.slice(0, pageSize)
+
+  return (
+    <>
+      {grouped ? (
+        <label className="bhc-series-picker">
+          <span className="bhc-series-picker-label">{categoryLabel}</span>
+          <select
+            className="bhc-select"
+            value={String(activeIndex)}
+            onChange={(event) => setActiveIndex(Number(event.target.value))}
+          >
+            {groups.map((group, index) => (
+              <option key={group.label || index} value={index}>
+                {group.label || '—'} ({group.options.length})
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <div className={gridClassName}>
+        {visible.map((item) => renderOption(item))}
+      </div>
+      {hidden && !expanded ? (
+        <button type="button" className="bhc-show-all" onClick={() => setExpanded(true)}>
+          {showAllLabel.replace('{n}', String(all.length))}
+        </button>
+      ) : null}
+    </>
+  )
+}
+
 function NumberField({ label, value, onChange, min = 0, max = 99 }) {
   return (
     <label className="bhc-number-field">
       <span>{label}</span>
       <div className="bhc-number-box">
-        <button type="button" onClick={() => onChange(Math.max(min, Number(value || 0) - 1))}>-</button>
+        <button type="button" onClick={() => onChange(Math.max(min, Number(value || 0) - 1))}>−</button>
         <input
           type="number"
           min={min}
@@ -278,7 +369,7 @@ function MobileStepper({ steps, activeIndex, onGo, stepWord }) {
 
 // Accordion decision row. Collapsed it shows the current pick (thumb/swatch + value);
 // expanded it reveals the options. Controlled so only one section is open at a time.
-function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badge, children }) {
+function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badge, children, onNext, nextLabel }) {
   const open = openId === id
   const [failed, setFailed] = React.useState(false)
 
@@ -289,7 +380,7 @@ function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badg
   const showThumb = Boolean(thumb) && !failed
 
   return (
-    <div className={['bhc-msection', open && 'is-open'].filter(Boolean).join(' ')}>
+    <div className={['bhc-msection', open && 'is-open'].filter(Boolean).join(' ')} data-section-id={id}>
       <button type="button" className="bhc-msection-head" onClick={() => onToggle(id)} aria-expanded={open}>
         {showThumb ? (
           <img className="bhc-msection-thumb" src={cdnImage(thumb, { width: 160 })} alt="" loading="lazy" onError={() => setFailed(true)} />
@@ -303,7 +394,54 @@ function MobileSection({ id, openId, onToggle, title, value, thumb, swatch, badg
         {badge ? <span className="bhc-msection-badge">{badge}</span> : null}
         <span className="bhc-msection-chevron" aria-hidden="true" />
       </button>
-      {open ? <div className="bhc-msection-body">{children}</div> : null}
+      {open ? (
+        <div className="bhc-msection-body">
+          {children}
+          {/* Move on without hunting for the next header. */}
+          {onNext ? (
+            <button type="button" className="bhc-msection-next" onClick={() => onNext(id)}>
+              {nextLabel} <span aria-hidden="true">→</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// Full-screen editor for the floor-plan steps.
+//
+// Inside a phone accordion the plan renders about 240px square, which is far
+// too small to place a marker accurately. This gives the plan the whole
+// viewport, keeps its controls under it, and hands back to the section on close.
+function PlanEditorModal({ open, title, hint, onClose, doneLabel, children }) {
+  React.useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (event) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previous
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className="bhc-plan-modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="bhc-plan-modal-head">
+        <div className="bhc-plan-modal-copy">
+          <strong>{title}</strong>
+          {hint ? <span>{hint}</span> : null}
+        </div>
+        <button type="button" className="bhc-plan-modal-close" onClick={onClose} aria-label={doneLabel}>✕</button>
+      </div>
+      <div className="bhc-plan-modal-body">{children}</div>
+      <div className="bhc-plan-modal-foot">
+        <button type="button" className="btn" onClick={onClose}>{doneLabel}</button>
+      </div>
     </div>
   )
 }
@@ -368,12 +506,12 @@ function WindowPlanStage({ image, markers = [], onAdd, onRemove, interactive = f
         {markers.map((marker, index) => (
           <span
             key={marker.id || `window-${index}`}
-            className={['bhc-window-dot', marker.isPanoramic && 'is-panoramic', removable && 'is-removable'].filter(Boolean).join(' ')}
+            className={['bhc-window-dot', marker.kind && marker.kind !== 'standard' && 'is-panoramic', removable && 'is-removable'].filter(Boolean).join(' ')}
             style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
             onClick={removable ? (e) => { e.stopPropagation(); onRemove(marker.id) } : undefined}
             title={removable ? '✕' : undefined}
           >
-            {marker.isPanoramic ? 'P' : index + 1}
+            {marker.badge || index + 1}
           </span>
         ))}
       </div>
@@ -423,7 +561,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     sockets: t.labels?.sockets || (isBg ? 'Контакти' : 'Sockets'),
     summary: t.labels?.summary || (isBg ? 'Обобщение' : 'Summary'),
     frame: t.labels?.frame || (isBg ? 'Материал на дограмата' : 'Window frame material'),
-    windowStyle: t.labels?.windowStyle || (isBg ? 'Тип прозорец' : 'Window style'),
+    windowSystem: t.labels?.windowStyle || (isBg ? 'Тип прозорец' : 'Window style'),
     exteriorDoor: t.labels?.exteriorDoor || (isBg ? 'Външна врата' : 'Exterior door'),
     outsidePanels: t.labels?.outsidePanels || (isBg ? 'Външни панели' : 'Outside panels'),
     steelFrameColor: t.labels?.steelFrameColor || (isBg ? 'Цвят на стоманената рамка' : 'Steel frame colour'),
@@ -439,9 +577,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
     kitchenBench: t.labels?.kitchenBench || (isBg ? 'Цвят на кухненския плот' : 'Kitchen bench colour'),
     windowOpenings: t.labels?.windowOpenings || (isBg ? 'Прозоречни отвори' : 'Window openings'),
     windowSize: t.labels?.windowSize || (isBg ? 'Размер на прозорците' : 'Window size'),
-    windowSize1000: t.labels?.windowSize1000 || (isBg ? '1000×950 (стандартен)' : '1000×950 (standard)'),
-    windowSize1200: t.labels?.windowSize1200 || (isBg ? '1200×950 (+€500)' : '1200×950 (+€500)'),
-    windowSize1400: t.labels?.windowSize1400 || (isBg ? '1400×950 (+€800)' : '1400×950 (+€800)'),
+    windowSize1000: t.labels?.windowSize1000 || (isBg ? '1100×950 (стандартен)' : '1100×950 (standard)'),
+    windowSize1200: t.labels?.windowSize1200 || '1200×950 (+€500)',
+    windowSize1400: t.labels?.windowSize1400 || '1400×950 (+€800)',
     windowPanoramic: t.labels?.windowPanoramic || (isBg ? 'Панорамен / Френски (+€300)' : 'Panoramic / French (+€300)'),
     makePanoramic: t.labels?.makePanoramic || (isBg ? 'Кликни за панорамен (+€300)' : 'Click to make panoramic (+€300)'),
     panoramicActive: t.labels?.panoramicActive || (isBg ? 'Панорамен ✓ (+€300)' : 'Panoramic ✓ (+€300)'),
@@ -488,11 +626,51 @@ export default function BoxHouseConfiguratorPage({ content }) {
     colouredPanels: t.labels?.colouredPanels || (isBg ? 'Цветни панели' : 'Coloured panels'),
     uvPanels: t.labels?.uvPanels || (isBg ? 'UV панели' : 'UV panels'),
     interiorPanelColour: t.labels?.interiorPanelColour || (isBg ? 'Цвят на вътрешните панели' : 'Interior panel colour'),
+    bathroomUvPanel: t.labels?.bathroomUvPanel || (isBg ? 'UV панели за банята' : 'Bathroom UV panels'),
+    bathroomUvPanelHint: t.labels?.bathroomUvPanelHint || (isBg ? 'Включени в оборудването на банята.' : 'Included with the bathroom fit-out.'),
+    wallUvPanel: t.labels?.wallUvPanel || (isBg ? 'UV панели за стените' : 'Wall UV panels'),
     uvPanel: t.labels?.uvPanel || (isBg ? 'UV опция' : 'UV option'),
+    // Catalogue categories added with the 2026 edition.
+    bathroomDoor: t.labels?.bathroomDoor || (isBg ? 'Врата за баня' : 'Bathroom door'),
+    vanity: t.labels?.vanity || (isBg ? 'Мебели за баня' : 'Bathroom furniture'),
+    kitchenSink: t.labels?.kitchenSink || (isBg ? 'Кухненска мивка' : 'Kitchen sink'),
+    kitchenPetColour: t.labels?.kitchenPetColour || (isBg ? 'Цвят на кухненските шкафове' : 'Kitchen cabinet colour'),
+    windowColour: t.labels?.windowColour || (isBg ? 'Цвят на профила' : 'Profile colour'),
+    windowSystemLabel: t.labels?.windowSystemLabel || (isBg ? 'Профилна система' : 'Profile system'),
+    windowTypeLabel: t.labels?.windowTypeLabel || (isBg ? 'Вид дограма' : 'Glazing type'),
+    terrace: t.labels?.terrace || (isBg ? 'Тераса' : 'Terrace'),
+    armouredDoor: t.labels?.armouredDoor || (isBg ? 'Блиндирана врата' : 'Armoured door'),
+    openingType: t.labels?.openingType || (isBg ? 'Вид отвор' : 'Opening type'),
+    openingTypeHint: t.labels?.openingTypeHint || (isBg ? 'Изберете вид, след което кликнете върху плана, за да го поставите.' : 'Pick a type, then click the plan to place it.'),
+    standardWindow: t.labels?.standardWindow || (isBg ? 'Стандартен прозорец' : 'Standard window'),
+    standardGlazing: t.labels?.standardGlazing || (isBg ? 'Стандартна дограма' : 'Standard glazing'),
+    glazingUpgrades: t.labels?.glazingUpgrades || (isBg ? 'Неотваряемо остъкляване и плъзгащи' : 'Fixed glazing and sliding doors'),
+    glazingUpgradesHint: t.labels?.glazingUpgradesHint || (isBg
+      ? 'Всяко от тях замества стандартен отвор. Максималната ширина зависи от носещата рамка на модела.'
+      : 'Each of these replaces a standard opening. Maximum width depends on the model’s load-bearing frame.'),
+    none: t.labels?.none || (isBg ? 'Без' : 'None'),
+    onRequest: t.labels?.onRequest || (isBg ? 'по запитване' : 'price on request'),
+    quotationItems: t.labels?.quotationItems || (isBg ? 'За офериране' : 'Quoted separately'),
+    perWindow: t.labels?.perWindow || (isBg ? 'на прозорец' : 'per window'),
+    perDoor: t.labels?.perDoor || (isBg ? 'на врата' : 'per door'),
     insideDoors: t.labels?.insideDoors || (isBg ? 'Вътрешни врати' : 'Inside doors'),
     insideDoorStyle: t.labels?.insideDoorStyle || (isBg ? 'Стил на вътрешните врати' : 'Inside door style'),
     insideDoorCount: t.labels?.insideDoorCount || (isBg ? 'Брой вътрешни врати' : 'Inside door count'),
     insideDoorPrice: t.labels?.insideDoorPrice || (isBg ? 'Вътрешни врати цена' : 'Inside doors price'),
+    insideDoorCountHint: t.labels?.insideDoorCountHint || (isBg
+      ? 'Разпределение {plan} се нуждае от {n} {doorWord}. '
+      : 'Layout {plan} needs {n} interior {doorWord}. '),
+    doorWordOne: t.labels?.doorWordOne || (isBg ? 'вътрешна врата' : 'door'),
+    doorWordMany: t.labels?.doorWordMany || (isBg ? 'вътрешни врати' : 'doors'),
+    includedShort: t.labels?.includedShort || (isBg ? 'Включено' : locale === 'el' ? 'Περιλαμβάνεται' : 'Included'),
+    showAllOptions: t.labels?.showAllOptions || (isBg ? 'Покажи всички {n}' : 'Show all {n}'),
+    pdfHouse: t.labels?.pdfHouse || (isBg ? 'Къща' : locale === 'el' ? 'Σπίτι' : 'House'),
+    pdfExterior: t.labels?.pdfExterior || (isBg ? 'Екстериор' : locale === 'el' ? 'Εξωτερικό' : 'Exterior'),
+    pdfInterior: t.labels?.pdfInterior || (isBg ? 'Интериор' : locale === 'el' ? 'Εσωτερικό' : 'Interior'),
+    openPlanEditor: t.labels?.openPlanEditor || (isBg ? 'Отвори на цял екран' : 'Open full screen'),
+    planEditorDone: t.labels?.planEditorDone || (isBg ? 'Готово' : 'Done'),
+    nextSection: t.labels?.nextSection || (isBg ? 'Към следващия избор' : 'Next choice'),
+    resetToLayout: t.labels?.resetToLayout || (isBg ? 'Върни към разпределението' : 'Reset to layout'),
     socketDescHint: t.labels?.socketDescHint || (isBg ? 'Добавете описание за всеки контакт' : 'Add a description for each socket'),
     socketNotesLabel: t.labels?.socketNotesLabel || (isBg ? 'Бележки за контактите' : 'Socket notes'),
     socketMarker: t.labels?.socketMarker || (isBg ? 'Контакт' : 'Socket'),
@@ -554,34 +732,42 @@ export default function BoxHouseConfiguratorPage({ content }) {
     model: initialModel?.key || '37',
     variant: 'standard',
     plan: initialPlan,
-    windowFrame: catalog.windowFrameOptions[0]?.key || 'pvc',
+    windowType: catalog.windowTypeOptions[0]?.key || 'pvc-double',
     steelFrameColor: catalog.steelFrameColorOptions[0]?.key || 'black',
-    windowStyle: catalog.windowStyleOptions[0]?.key || 'broken-bridge',
-    exteriorDoor: catalog.exteriorDoorOptions[0]?.key || 'titanium-alloy-door',
+    windowColour: catalog.windowBasicColourOptions[0]?.key || '',
+    exteriorDoor: catalog.exteriorDoorOptions[0]?.key || 'v-01',
+    armouredDoor: '',
     exteriorFinishFamily: initialExteriorFamily,
     exteriorFinish: initialExteriorFinish,
-    deckingColor: catalog.deckingColorOptions[0]?.key || 'red-pine',
+    terrace: catalog.terraceOptions[0]?.key || 'standard',
+    deckingColor: catalog.deckingColorOptions[0]?.key || 't-01',
     heating: false,
     windowSize: '1000',
+    nextWindowKind: 'standard',
     windows: [],
     windowNotes: '',
     interiorPanelMode: 'white',
-    interiorPanelColor: catalog.interiorPanelColorOptions[0]?.key || 'panel-red',
-    uvPanel: catalog.uvPanelOptions[0]?.key || 'uv-001',
-    floorFamily: 'spc',
-    spcFloor: catalog.spcFloorOptions[0]?.key || 'spc-7005',
-    pvcFloor: catalog.pvcFloorOptions[0]?.key || 'pvc-001',
+    interiorPanelColor: catalog.interiorPanelColorOptions[0]?.key || 'ip-01',
+    uvPanel: catalog.uvPanelOptions[0]?.key || '',
+    bathroomUvPanel: catalog.uvPanelOptions[0]?.key || '',
+    floorFamily: 'vinyl',
+    vinylFloor: catalog.vinylFloorOptions[0]?.key || 'floor-7005',
+    herringboneFloor: catalog.herringboneFloorOptions[0]?.key || 'yg5716',
     carbonCrystalFloor: catalog.carbonCrystalOptions[0]?.key || 'carbon-gf005',
-    bathroom: catalog.bathroomOptions[0]?.key || 'E1',
-    kitchen: catalog.kitchenOptions[0]?.key || 'F1',
-    kitchenBench: catalog.kitchenBenchOptions[0]?.key || 'yl-4003',
+    bathroom: catalog.bathroomOptions[0]?.key || 'BA-1',
+    bathroomDoor: catalog.bathroomDoorOptions[0]?.key || 'bd-01',
+    vanity: catalog.vanityOptions[0]?.key || 'bv-01',
+    kitchen: catalog.kitchenOptions[0]?.key || 'K-1',
+    kitchenBench: catalog.kitchenBenchOptions[0]?.key || '',
+    kitchenSink: catalog.kitchenSinkOptions[0]?.key || 'ks-1',
+    kitchenPetColour: '',
     kitchenExtras: {
       furnace: false,
       washingMachine: false,
       dishwasherCabinet: false,
     },
-    insideDoorStyle: catalog.insideDoorStyleOptions[0]?.key || 'inside-01',
-    insideDoorCount: 0,
+    insideDoorStyle: catalog.insideDoorStyleOptions[0]?.key || 'vr-01',
+    insideDoorCount: catalog.planOptions.find((p) => p.key === initialPlan)?.doorCount || 0,
     sockets: [],
     socketNotes: '',
   })
@@ -713,13 +899,38 @@ export default function BoxHouseConfiguratorPage({ content }) {
     setOpenSection((current) => (current === id ? null : id))
   }, [])
 
+  // Open the next accordion section in document order. Reading the DOM keeps
+  // this honest about sections that aren't rendered for the current model --
+  // terrace and decking only exist on the balcony variant.
+  const goToNextSection = React.useCallback((currentId) => {
+    if (typeof document === 'undefined') return
+    const ids = [...document.querySelectorAll('[data-section-id]')]
+      .map((node) => node.getAttribute('data-section-id'))
+    const next = ids[ids.indexOf(currentId) + 1]
+    if (!next) return
+    setOpenSection(next)
+    window.setTimeout(() => {
+      document.querySelector(`[data-section-id="${next}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
+  }, [])
+
   const stepWord = isBg ? 'Стъпка' : locale === 'el' ? 'Βήμα' : 'Step'
 
 
+  const optionPageSize = isMobileShell ? 8 : 18
+  const [planEditor, setPlanEditor] = React.useState('')
+
   const scrollToPreview = React.useCallback((key) => {
-    const node = previewRefs.current?.[key]
+    // A preview that remounted between steps leaves a detached node in the ref
+    // map. It is still truthy, and scrollIntoView on it silently does nothing,
+    // so require a connected node and fall back to a DOM lookup.
+    const cached = previewRefs.current?.[key]
+    const node = cached && cached.isConnected
+      ? cached
+      : (typeof document === 'undefined' ? null : document.querySelector(`[data-preview="${key}"]`))
     if (!node) return
-    node.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    node.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
   }, [])
 
   React.useEffect(() => () => {
@@ -776,7 +987,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
       return
     }
     if (!config.heating && config.floorFamily === 'carbon') {
-      setConfig((prev) => ({ ...prev, floorFamily: 'spc' }))
+      setConfig((prev) => ({ ...prev, floorFamily: 'vinyl' }))
     }
   }, [config.floorFamily, config.heating])
 
@@ -794,16 +1005,16 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }, [config.exteriorFinish, exteriorFinishOptions])
 
   const activeFloorFamily = config.heating ? 'carbon' : config.floorFamily
-  const activeFloorOptions = activeFloorFamily === 'pvc'
-    ? catalog.pvcFloorOptions
+  const activeFloorOptions = activeFloorFamily === 'herringbone'
+    ? catalog.herringboneFloorOptions
     : activeFloorFamily === 'carbon'
       ? catalog.carbonCrystalOptions
-      : catalog.spcFloorOptions
-  const activeFloorField = activeFloorFamily === 'pvc'
-    ? 'pvcFloor'
+      : catalog.vinylFloorOptions
+  const activeFloorField = activeFloorFamily === 'herringbone'
+    ? 'herringboneFloor'
     : activeFloorFamily === 'carbon'
       ? 'carbonCrystalFloor'
-      : 'spcFloor'
+      : 'vinylFloor'
   const activeFloorSelection = config[activeFloorField]
 
   React.useEffect(() => {
@@ -816,20 +1027,100 @@ export default function BoxHouseConfiguratorPage({ content }) {
     setStatus('')
   }, [stepIndex])
 
+  // Land at the start of a step the first time it is opened -- at the stage
+  // where the choices begin, not the page masthead above it. Coming back to a
+  // step the buyer has already worked through keeps their scroll position.
+  const seenSteps = React.useRef(new Set([stepIndex]))
+  React.useEffect(() => {
+    if (seenSteps.current.has(stepIndex)) return
+    seenSteps.current.add(stepIndex)
+    if (typeof document === 'undefined') return
+    const stage = document.querySelector('.bhc-stage')
+    if (stage) stage.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    else window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [stepIndex])
+
   const selectedPlan = resolveSelected(planChoices, config.plan)
   const selectedBathroom = resolveSelected(catalog.bathroomOptions, config.bathroom)
   const selectedKitchen = resolveSelected(catalog.kitchenOptions, config.kitchen)
-  const selectedFrame = resolveSelected(catalog.windowFrameOptions, config.windowFrame)
+  const selectedWindowType = resolveSelected(catalog.windowTypeOptions, config.windowType)
   const selectedSteelFrameColor = resolveSelected(catalog.steelFrameColorOptions, config.steelFrameColor)
-  const selectedWindowStyle = resolveSelected(catalog.windowStyleOptions, config.windowStyle)
+  // Which colour range the chosen window type unlocks: the base glazings come
+  // in black / white / grey, the upgraded systems in the nine catalogue decors.
+  const windowColourOptions = selectedWindowType?.colourSet === 'decor'
+    ? catalog.windowDecorOptions
+    : catalog.windowBasicColourOptions
   const selectedDoor = resolveSelected(catalog.exteriorDoorOptions, config.exteriorDoor)
   const selectedExteriorFinish = resolveSelected(exteriorFinishOptions, config.exteriorFinish)
+  const selectedExteriorFinishCaption = [selectedExteriorFinish?.code, selectedExteriorFinish?.displayLabel]
+    .filter(Boolean).join(' · ') || '-'
+
+  // What a chosen option costs, in words: a figure, "included", or the
+  // quotation note for the ones the catalogue never prices.
+  const priceNote = React.useCallback((option) => {
+    if (!option) return ''
+    if (option.onRequest) return labels.onRequest
+    return option.price ? `+${euro(option.price, locale)}` : labels.included
+  }, [labels.onRequest, labels.included, locale])
   const selectedDeckingColor = resolveSelected(catalog.deckingColorOptions, config.deckingColor)
   const selectedInteriorPanelColor = resolveSelected(catalog.interiorPanelColorOptions, config.interiorPanelColor)
   const selectedUvPanel = resolveSelected(catalog.uvPanelOptions, config.uvPanel)
+  const selectedBathroomUvPanel = resolveSelected(catalog.uvPanelOptions, config.bathroomUvPanel)
   const selectedKitchenBench = resolveSelected(catalog.kitchenBenchOptions, config.kitchenBench)
   const selectedFloorOption = resolveSelected(activeFloorOptions, activeFloorSelection)
+  const selectedFloor = selectedFloorOption
   const selectedInsideDoorStyle = resolveSelected(catalog.insideDoorStyleOptions, config.insideDoorStyle)
+  const selectedBathroomDoor = resolveSelected(catalog.bathroomDoorOptions, config.bathroomDoor)
+  const selectedVanity = resolveSelected(catalog.vanityOptions, config.vanity)
+  const selectedKitchenSink = resolveSelected(catalog.kitchenSinkOptions, config.kitchenSink)
+  const selectedTerrace = resolveSelected(catalog.terraceOptions, config.terrace)
+  // These four are optional upgrades -- an empty selection means "not taken",
+  // so they must not fall back to the first option the way the others do.
+  const selectedWindowColour = windowColourOptions.find((item) => item.key === config.windowColour) || null
+
+  // Switching window type switches the colour range with it, so a colour
+  // carried over from the other range has to be dropped.
+  React.useEffect(() => {
+    if (config.windowColour && !windowColourOptions.some((item) => item.key === config.windowColour)) {
+      setConfig((prev) => ({ ...prev, windowColour: windowColourOptions[0]?.key || '' }))
+    }
+  }, [config.windowColour, windowColourOptions])
+
+  // Armoured leaves are only offered on the solid single door.
+  React.useEffect(() => {
+    if (config.armouredDoor && config.exteriorDoor !== 'v-01') {
+      setConfig((prev) => ({ ...prev, armouredDoor: '' }))
+    }
+  }, [config.armouredDoor, config.exteriorDoor])
+
+  // The terrace belongs to the balcony variant; drop any upgrade when the
+  // buyer goes back to standard so it can't be billed invisibly.
+  React.useEffect(() => {
+    if (config.variant !== 'balcony' && config.terrace !== 'standard') {
+      setConfig((prev) => ({ ...prev, terrace: 'standard' }))
+    }
+  }, [config.variant, config.terrace])
+
+  // How many interior doors the chosen layout implies.
+  const planDoorCount = selectedPlan?.doorCount || 0
+
+  // Follow the layout when it changes, but leave a hand-edited count alone --
+  // hence keying off the plan rather than the count.
+  const lastPlanForDoors = React.useRef(config.plan)
+  React.useEffect(() => {
+    if (lastPlanForDoors.current === config.plan) return
+    lastPlanForDoors.current = config.plan
+    setConfig((prev) => ({ ...prev, insideDoorCount: planDoorCount }))
+  }, [config.plan, planDoorCount])
+  const selectedKitchenPetColour = catalog.kitchenPetColourOptions.find((item) => item.key === config.kitchenPetColour) || null
+  const selectedArmouredDoor = catalog.armouredDoorOptions.find((item) => item.key === config.armouredDoor) || null
+
+  // The armoured leaf replaces the standard entrance door rather than adding
+  // to it, so every summary reads back whichever one is actually fitted.
+  const entranceDoor = selectedArmouredDoor || selectedDoor
+  const entranceDoorLabel = entranceDoor
+    ? [entranceDoor.label, entranceDoor.summaryLabel].filter(Boolean).join(' · ')
+    : '-'
 
   const selectedKitchenExtras = React.useMemo(
     () => Object.entries(config.kitchenExtras)
@@ -865,18 +1156,74 @@ export default function BoxHouseConfiguratorPage({ content }) {
   const interiorPanelsPrice = config.interiorPanelMode === 'white' ? 0 : internalWallsPrice
   const knownBasePrice = config.variant === 'balcony' ? selectedModel?.balconyPrice || 0 : selectedModel?.basePrice || 0
   const heatingPrice = config.heating ? (selectedModel?.area || 0) * catalog.pricing.heatingPerM2 : 0
-  const WINDOW_SIZE_PRICES = { '1000': 0, '1200': 500, '1400': 800 }
-  const WINDOW_SIZE_DIMENSIONS = { '1000': '1000×950', '1200': '1200×950', '1400': '1400×950' }
-  const windowSizeExtra = WINDOW_SIZE_PRICES[config.windowSize] || 0
+
+  // The catalogue prices glazing per window, so the per-window upgrades bill
+  // against the openings the buyer has actually placed on the plan.
+  const placedWindowCount = (config.windows || []).length
+  const WINDOW_SIZE_DIMENSIONS = { '1000': '1100×950', '1200': '1200×950', '1400': '1400×950' }
   const windowSizeDimension = WINDOW_SIZE_DIMENSIONS[config.windowSize] || WINDOW_SIZE_DIMENSIONS['1000']
-  const panoramicWindowCount = (config.windows || []).filter((w) => w.isPanoramic).length
-  const panoramicUpgradePrice = panoramicWindowCount * 300
-  const windowExtrasPrice = windowSizeExtra + panoramicUpgradePrice
-  const windowSizeSummaryValue = windowSizeExtra
-    ? `${windowSizeDimension} mm · +${euro(windowSizeExtra, locale)} ${labels.forAllWindows}`
-    : `${windowSizeDimension} mm · ${labels.windowSizeIncluded}`
-  const insideDoorPrice = Number(config.insideDoorCount || 0) * catalog.pricing.insideDoorPerDoor
-  const knownTotal = knownBasePrice + interiorPanelsPrice + heatingPrice + windowExtrasPrice + insideDoorPrice
+  const windowSizeExtra = catalog.pricing.windowSizeUpgrade[config.windowSize] || 0
+  const windowTypePrice = (selectedWindowType?.price || 0) * placedWindowCount
+  // Fixed and sliding units replace a standard opening, so each is priced on
+  // the opening it occupies rather than counted separately.
+  const glazingByKey = React.useMemo(
+    () => Object.fromEntries(catalog.glazingUpgradeOptions.map((item) => [item.key, item])),
+    [catalog.glazingUpgradeOptions]
+  )
+  const upgradedWindows = (config.windows || []).filter((w) => w.kind && w.kind !== 'standard')
+  const panoramicWindowCount = upgradedWindows.length
+  const glazingUpgradePrice = upgradedWindows.reduce(
+    (sum, w) => sum + (glazingByKey[w.kind]?.price || 0), 0)
+  const windowExtrasPrice = windowTypePrice + windowSizeExtra + glazingUpgradePrice
+  const windowSizeSummaryValue = `${windowSizeDimension} mm · ${labels.windowSizeIncluded}`
+
+  const terracePrice = selectedTerrace?.price || 0
+  const bathroomDoorPrice = selectedBathroomDoor?.price || 0
+  const kitchenVariantPrice = selectedKitchen?.price || 0
+  const kitchenSinkPrice = selectedKitchenSink?.price || 0
+  const armouredDoorPrice = selectedArmouredDoor?.price || 0
+  // ВР-01 is in the base price; the other four are charged per door, so the
+  // cost follows the door count the chosen layout implies.
+  const insideDoorPrice = Number(config.insideDoorCount || 0) * (selectedInsideDoorStyle?.price || 0)
+  const knownTotal = knownBasePrice + interiorPanelsPrice + heatingPrice + windowExtrasPrice
+    + terracePrice + bathroomDoorPrice + kitchenVariantPrice + kitchenSinkPrice
+    + armouredDoorPrice + insideDoorPrice
+
+  // One breakdown for the desktop summary, the mobile summary and the PDF, so
+  // the listed lines always add up to the known total. Zero-priced optional
+  // lines are dropped rather than printed as dashes.
+  const priceBreakdownRows = [
+    [labels.basePrice, euro(knownBasePrice, locale), true],
+    [labels.internalWalls, euro(interiorPanelsPrice, locale), interiorPanelsPrice > 0],
+    [`${labels.terrace} · ${selectedTerrace?.label || ''}`, euro(terracePrice, locale), config.variant === 'balcony' && terracePrice > 0],
+    [`${labels.windowTypeLabel} · ${placedWindowCount}× ${selectedWindowType?.label || ''}`, euro(windowTypePrice, locale), windowTypePrice > 0],
+    [`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`, euro(windowSizeExtra, locale), windowSizeExtra > 0],
+    [`${labels.panoramicUpgrades} · ${panoramicWindowCount}`, euro(glazingUpgradePrice, locale), glazingUpgradePrice > 0],
+    [`${labels.armouredDoor} · ${selectedArmouredDoor?.summaryLabel || ''}`, euro(armouredDoorPrice, locale), armouredDoorPrice > 0],
+    [`${labels.bathroomDoor} · ${selectedBathroomDoor?.summaryLabel || ''}`, euro(bathroomDoorPrice, locale), bathroomDoorPrice > 0],
+    [`${labels.kitchen} · ${selectedKitchen?.summaryLabel || ''}`, euro(kitchenVariantPrice, locale), kitchenVariantPrice > 0],
+    [`${labels.kitchenSink}`, euro(kitchenSinkPrice, locale), kitchenSinkPrice > 0],
+    [`${labels.insideDoorPrice} · ${config.insideDoorCount || 0}× ${selectedInsideDoorStyle?.summaryLabel || ''}`, euro(insideDoorPrice, locale), insideDoorPrice > 0],
+    [labels.heatingPrice, euro(heatingPrice, locale), Boolean(config.heating)],
+    [labels.totalKnown, euro(knownTotal, locale), true],
+  ].filter(([, , show]) => show).map(([label, value]) => [label, value])
+
+  // Catalogue options marked as a surcharge without a printed figure. They
+  // stay selectable and surface as quotation lines rather than moving the total.
+  const quotationItems = React.useMemo(() => {
+    const picks = [
+      // Coloured wall panels are only on order while that mode is chosen.
+      [labels.interiorPanels, config.interiorPanelMode === 'coloured' ? selectedInteriorPanelColor : null],
+      [labels.vanity, selectedVanity],
+      [labels.kitchenPetColour, selectedKitchenPetColour],
+      [labels.windowColour, selectedWindowColour],
+      [labels.floorFinish, activeFloorFamily === 'herringbone' ? selectedFloor : null],
+    ]
+    return picks
+      .filter(([, option]) => option && option.onRequest)
+      .map(([label, option]) => ({ label, value: option.summaryLabel || option.label }))
+  }, [labels, config.interiorPanelMode, selectedInteriorPanelColor, selectedVanity,
+    selectedKitchenPetColour, selectedWindowColour, activeFloorFamily, selectedFloor])
 
   const socketMarkerItems = React.useMemo(
     () => config.sockets.map((socket, index) => ({
@@ -888,11 +1235,22 @@ export default function BoxHouseConfiguratorPage({ content }) {
     [config.sockets, labels.socketMarker]
   )
 
+  // Markers carry their upgrade letter so the plan can distinguish panoramic,
+  // sliding and bi-folding openings at a glance.
+  const windowStageMarkers = React.useMemo(
+    () => (config.windows || []).map((win) => ({
+      ...win,
+      badge: glazingByKey[win.kind]?.marker || '',
+    })),
+    [config.windows, glazingByKey]
+  )
+
   const windowMarkerItems = React.useMemo(
     () => (config.windows || []).map((win, index) => ({
       id: win.id,
       label: `${labels.windowMarker} ${index + 1}`,
-      isPanoramic: win.isPanoramic,
+      kind: win.kind || 'standard',
+      badge: glazingByKey[win.kind]?.marker || '',
       coords: `${Math.round(win.x)}% / ${Math.round(win.y)}%`,
     })),
     [config.windows, labels.windowMarker]
@@ -904,11 +1262,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
       `${labels.model}: ${selectedModel?.label || '-'}`,
       `${labels.variant}: ${config.variant === 'balcony' ? labels.balcony : labels.standard}`,
       `${labels.layout}: ${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` - ${selectedPlan.subtitle}` : ''}`,
-      `${labels.frame}: ${selectedFrame?.label || '-'}`,
+      `${labels.frame}: ${selectedWindowType?.label || '-'}`,
       `${labels.steelFrameColor}: ${selectedSteelFrameColor?.label || '-'}`,
-      `${labels.windowStyle}: ${selectedWindowStyle?.label || '-'}`,
-      `${labels.exteriorDoor}: ${selectedDoor?.label || '-'}`,
-      `${labels.outsidePanels}: ${selectedExteriorFinish?.label || '-'}`,
+      `${labels.windowColour}: ${selectedWindowColour?.label || '-'}`,
+      `${labels.exteriorDoor}: ${entranceDoorLabel}`,
+      `${labels.outsidePanels}: ${selectedExteriorFinishCaption}`,
       ...(config.variant === 'balcony' ? [`${labels.deckingColor}: ${selectedDeckingColor?.label || '-'}`] : []),
       `${labels.interiorPanels}: ${selectedInteriorPanels?.label || labels.defaultWhitePanels}`,
       `${labels.floorFinish}: ${optionSummary(selectedFloorOption)}`,
@@ -952,7 +1310,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     selectedDoor,
     selectedExteriorFinish,
     selectedFloorOption,
-    selectedFrame,
+    selectedWindowType,
     selectedSteelFrameColor,
     selectedInsideDoorStyle,
     selectedInteriorPanels,
@@ -961,7 +1319,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     selectedKitchenExtras,
     selectedModel,
     selectedPlan,
-    selectedWindowStyle,
+    selectedWindowColour,
     t.title,
     yesText,
   ])
@@ -1177,7 +1535,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
       ...prev,
       windows: [
         ...(prev.windows || []),
-        { id: `w-${Date.now()}-${(prev.windows || []).length}`, x: point.x, y: point.y, isPanoramic: false },
+        { id: `w-${Date.now()}-${(prev.windows || []).length}`, x: point.x, y: point.y, kind: prev.nextWindowKind || 'standard' },
       ],
     }))
   }
@@ -1189,10 +1547,12 @@ export default function BoxHouseConfiguratorPage({ content }) {
     }))
   }
 
-  function toggleWindowPanoramic(id) {
+  // Each opening is a standard window unless the buyer upgrades it to one of
+  // the catalogue's fixed or sliding units.
+  function setWindowKind(id, kind) {
     setConfig((prev) => ({
       ...prev,
-      windows: (prev.windows || []).map((w) => w.id === id ? { ...w, isPanoramic: !w.isPanoramic } : w),
+      windows: (prev.windows || []).map((w) => (w.id === id ? { ...w, kind } : w)),
     }))
   }
 
@@ -1211,92 +1571,141 @@ export default function BoxHouseConfiguratorPage({ content }) {
       // ignore
     }
 
-    const rows = [
-      [labels.model, selectedModel?.label || '-'],
-      [labels.variant, config.variant === 'balcony' ? labels.balcony : labels.standard],
-      [labels.layout, `${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` - ${selectedPlan.subtitle}` : ''}`],
-      [labels.frame, selectedFrame?.label || '-'],
-      [labels.steelFrameColor, selectedSteelFrameColor?.label || '-'],
-      [labels.windowStyle, selectedWindowStyle?.label || '-'],
-      [labels.exteriorDoor, selectedDoor?.label || '-'],
-      [labels.outsidePanels, selectedExteriorFinish?.label || '-'],
-      ...(config.variant === 'balcony' ? [[labels.deckingColor, selectedDeckingColor?.label || '-']] : []),
-      [labels.interiorPanels, selectedInteriorPanels?.label || labels.defaultWhitePanels],
-      [labels.floorFinish, optionSummary(selectedFloorOption)],
-      [labels.kitchenBench, optionSummary(selectedKitchenBench)],
-      [labels.bathroom, selectedBathroom?.label || '-'],
-      [labels.kitchen, selectedKitchen?.label || '-'],
-      [labels.insideDoorStyle, selectedInsideDoorStyle?.label || '-'],
-      [labels.insideDoorCount, String(config.insideDoorCount || 0)],
-      [labels.kitchenExtras, selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'],
+    const dash = '\u2014'
+    const val = (value) => (value === 0 || value ? String(value) : dash)
+    // Coded finishes read as "M-01 · Silver dragon": the code alone means
+    // nothing to a buyer, the name alone means nothing to the factory.
+    const coded = (option) => [option?.summaryLabel, option?.displayLabel]
+      .filter(Boolean).join(' · ') || dash
+
+    // Spec rows, grouped the way the configurator steps are. Optional rows drop
+    // out entirely rather than printing a dash, so the sheet stays dense.
+    const specGroups = [
+      [labels.pdfHouse, [
+        [labels.model, selectedModel?.label],
+        [labels.variant, config.variant === 'balcony' ? labels.balcony : labels.standard],
+        [labels.layout, `${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` ${dash} ${selectedPlan.subtitle}` : ''}`],
+        [labels.area, selectedModel?.area ? `${selectedModel.area} m²` : ''],
+        [labels.dimensionsOpen, selectedModel?.dimensionsOpen],
+        [labels.dimensionsFolded, selectedModel?.dimensionsFolded],
+      ]],
+      [labels.pdfExterior, [
+        [labels.windowTypeLabel, selectedWindowType?.label],
+        [labels.windowColour, selectedWindowColour?.label],
+        [labels.steelFrameColor, selectedSteelFrameColor?.label],
+        [labels.outsidePanels, selectedExteriorFinishCaption],
+        [labels.exteriorDoor, entranceDoorLabel],
+        ...(config.variant === 'balcony' ? [
+          [labels.terrace, `${selectedTerrace?.label || ''}${terracePrice ? ` (+${euro(terracePrice, locale)})` : ''}`],
+          [labels.deckingColor, selectedDeckingColor?.label],
+        ] : []),
+        [labels.windowSize, `${windowSizeDimension} mm`],
+        [labels.heating, config.heating ? euro(heatingPrice, locale) : noText],
+      ]],
+      [labels.pdfInterior, [
+        [labels.interiorPanels, selectedInteriorPanels?.label || labels.defaultWhitePanels],
+        ...(config.interiorPanelMode === 'uv' ? [[labels.wallUvPanel, coded(selectedUvPanel)]] : []),
+        [labels.floorFinish, coded(selectedFloorOption)],
+        [labels.insideDoorStyle, `${selectedInsideDoorStyle?.label || ''} \u00d7 ${config.insideDoorCount || 0}`],
+        [labels.bathroom, selectedBathroom?.label],
+        [labels.bathroomUvPanel, coded(selectedBathroomUvPanel)],
+        [labels.bathroomDoor, selectedBathroomDoor?.label],
+        [labels.vanity, selectedVanity?.label],
+        [labels.kitchen, selectedKitchen?.label],
+        [labels.kitchenBench, coded(selectedKitchenBench)],
+        [labels.kitchenSink, selectedKitchenSink?.label],
+        ...(selectedKitchenPetColour ? [[labels.kitchenPetColour, selectedKitchenPetColour.code]] : []),
+        [labels.kitchenExtras, selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : dash],
+      ]],
     ]
 
-    const priceRows = [
-      [labels.basePrice, euro(knownBasePrice, locale)],
-      [labels.internalWalls, interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'],
-      [labels.insideDoorPrice, insideDoorPrice ? euro(insideDoorPrice, locale) : '-'],
-      [labels.heatingPrice, config.heating ? euro(heatingPrice, locale) : '-'],
-      [`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`, windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included],
-      ...(panoramicWindowCount ? [[`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`, euro(panoramicUpgradePrice, locale)]] : []),
-      [labels.totalKnown, euro(knownTotal, locale)],
-    ]
+    const specHtml = specGroups.map(([heading, rows]) => `
+      <section class="block">
+        <h2>${escapeHtml(heading)}</h2>
+        <dl class="spec">
+          ${rows
+            .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+            .map(([label, value]) => `<div class="srow"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(val(value))}</dd></div>`)
+            .join('')}
+        </dl>
+      </section>`).join('')
 
-    const rowsHtml = rows
-      .map(([label, value]) => `<div class="row"><div class="k">${escapeHtml(label)}</div><div class="v">${escapeHtml(value)}</div></div>`)
+    const priceHtml = priceBreakdownRows
+      .map(([label, value], index) => `<div class="prow${index === priceBreakdownRows.length - 1 ? ' ptotal' : ''}"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`)
       .join('')
 
-    const priceRowsHtml = priceRows
-      .map(([label, value], index) => `<div class="row${index === priceRows.length - 1 ? ' row-total' : ''}"><div class="k">${escapeHtml(label)}</div><div class="v">${escapeHtml(value)}</div></div>`)
-      .join('')
-
-    const finishRows = [
-      [labels.outsidePanels, selectedExteriorFinish?.label || '-'],
-      [labels.windowStyle, selectedWindowStyle?.label || '-'],
-      [labels.exteriorDoor, selectedDoor?.label || '-'],
-      ...(config.variant === 'balcony' ? [[labels.deckingColor, selectedDeckingColor?.label || '-']] : []),
-      [labels.steelFrameColor, selectedSteelFrameColor?.label || '-'],
-      [labels.interiorPanels, selectedInteriorPanels?.label || labels.defaultWhitePanels],
-      [labels.floorFinish, optionSummary(selectedFloorOption)],
-      [labels.kitchenBench, optionSummary(selectedKitchenBench)],
-      [labels.insideDoorStyle, selectedInsideDoorStyle?.label || '-'],
-    ]
-
-    const socketDots = config.sockets
-      .map((socket, index) => `<span class="dot" style="left:${socket.x}%;top:${socket.y}%">${index + 1}</span>`)
-      .join('')
-
-    const socketLegendHtml = socketMarkerItems.length
-      ? socketMarkerItems.map((item) => `<span class="chip chip-dark">${escapeHtml(`${item.label}${item.description ? ` — ${item.description}` : ''} • ${item.coords}`)}</span>`).join('')
-      : `<div class="empty-note">${escapeHtml(labels.noSockets)}</div>`
-
-    const windowDots = (config.windows || [])
-      .map((win, index) => `<span class="dot dot-win${win.isPanoramic ? ' pano' : ''}" style="left:${win.x}%;top:${win.y}%">${win.isPanoramic ? 'P' : index + 1}</span>`)
-      .join('')
-
-    const windowSizeChip = `<span class="chip chip-dark">${escapeHtml(`${labels.windowSize}: ${windowSizeDimension} mm${windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}`)}</span>`
-    const windowLegendHtml = windowMarkerItems.length
-      ? windowSizeChip + windowMarkerItems.map((item) => `<span class="chip chip-dark">${escapeHtml(`${item.label}${item.isPanoramic ? ' · P' : ''} • ${item.coords}`)}</span>`).join('')
-      : windowSizeChip + `<div class="empty-note">${escapeHtml(labels.noWindows)}</div>`
-
-    const referenceCards = [
-      { title: labels.outsidePanels, image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || ''), caption: selectedExteriorFinish?.label || '-', swatch: selectedExteriorFinish?.swatch },
-      { title: labels.windowStyle, image: asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.referenceImage || ''), caption: selectedWindowStyle?.label || '-' },
-      { title: labels.exteriorDoor, image: asset(selectedDoor?.thumbImage || selectedDoor?.referenceImage || ''), caption: selectedDoor?.label || '-' },
-      ...(config.variant === 'balcony' ? [{ title: labels.deckingColor, image: asset(selectedDeckingColor?.thumbImage || selectedDeckingColor?.referenceImage || ''), caption: selectedDeckingColor?.label || '-', swatch: selectedDeckingColor?.swatch }] : []),
-      { title: labels.interiorPanels, image: asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || ''), caption: selectedInteriorPanels?.label || labels.defaultWhitePanels, swatch: selectedInteriorPanels?.swatch },
-      { title: labels.floorFinish, image: asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || ''), caption: optionSummary(selectedFloorOption), swatch: selectedFloorOption?.swatch },
-      { title: labels.kitchenBench, image: asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || ''), caption: optionSummary(selectedKitchenBench), swatch: selectedKitchenBench?.swatch },
-      { title: labels.insideDoorStyle, image: asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || ''), caption: selectedInsideDoorStyle?.label || '-' },
-    ].filter((item) => item.image || item.swatch)
-
-    const referenceCardsHtml = referenceCards.length
-      ? referenceCards.map((item) => `
-        <div class="ref-card">
-          <div class="ref-head">${escapeHtml(item.title)}</div>
-          ${item.image ? `<img src="${item.image}" alt="" />` : `<div style="height:180px;background:linear-gradient(135deg,${item.swatch || '#d7dce4'},#ffffff);"></div>`}
-          <div class="ref-cap">${escapeHtml(item.caption)}</div>
-        </div>`).join('')
+    const quotationHtml = quotationItems.length
+      ? `<div class="quote">
+          <h3>${escapeHtml(labels.quotationItems)}</h3>
+          ${quotationItems.map((item) => `<div class="prow"><span>${escapeHtml(item.label)}</span><span>${escapeHtml(`${item.value} · ${labels.onRequest}`)}</span></div>`).join('')}
+        </div>`
       : ''
+
+    const markerDots = (items, kind) => items
+      .map((marker, index) => {
+        const badge = kind === 'window' ? (glazingByKey[marker.kind]?.marker || index + 1) : index + 1
+        const upgraded = kind === 'window' && marker.kind && marker.kind !== 'standard'
+        return `<span class="dot${upgraded ? ' up' : ''}" style="left:${marker.x}%;top:${marker.y}%">${escapeHtml(String(badge))}</span>`
+      })
+      .join('')
+
+    const legend = (items) => items.length
+      ? `<ol class="legend">${items.join('')}</ol>`
+      : ''
+
+    const windowLegend = legend(windowMarkerItems.map((item) => {
+      const kindLabel = glazingByKey[item.kind]?.label || labels.standardWindow
+      return `<li><b>${escapeHtml(item.badge || String(windowMarkerItems.indexOf(item) + 1))}</b> ${escapeHtml(kindLabel)} <span>${escapeHtml(item.coords)}</span></li>`
+    }))
+
+    const socketLegend = legend(socketMarkerItems.map((item, index) => `<li><b>${index + 1}</b> ${escapeHtml(item.description || labels.socketMarker)} <span>${escapeHtml(item.coords)}</span></li>`))
+
+    const planBlock = (title, image, dots, legendHtml, emptyText, note, noteLabel) => `
+      <section class="block plan-block">
+        <h2>${escapeHtml(title)}</h2>
+        <div class="plan">
+          <img src="${image}" alt="" />
+          ${dots}
+        </div>
+        ${legendHtml || `<p class="muted">${escapeHtml(emptyText)}</p>`}
+        ${note ? `<div class="note"><b>${escapeHtml(noteLabel)}</b><p>${multilineHtml(note)}</p></div>` : ''}
+      </section>`
+
+    const swatchCards = [
+      [labels.outsidePanels, selectedExteriorFinish, selectedExteriorFinishCaption],
+      [labels.windowColour, selectedWindowColour, selectedWindowColour?.label],
+      [labels.exteriorDoor, entranceDoor, entranceDoorLabel],
+      ...(config.variant === 'balcony' ? [[labels.deckingColor, selectedDeckingColor, selectedDeckingColor?.label]] : []),
+      [labels.interiorPanels, selectedInteriorPanels, selectedInteriorPanels?.label || labels.defaultWhitePanels],
+      [labels.floorFinish, selectedFloorOption, coded(selectedFloorOption)],
+      [labels.kitchenBench, selectedKitchenBench, coded(selectedKitchenBench)],
+      [labels.bathroomUvPanel, selectedBathroomUvPanel, coded(selectedBathroomUvPanel)],
+      [labels.bathroomDoor, selectedBathroomDoor, selectedBathroomDoor?.label],
+      [labels.vanity, selectedVanity, selectedVanity?.label],
+      [labels.kitchenSink, selectedKitchenSink, selectedKitchenSink?.label],
+      [labels.insideDoorStyle, selectedInsideDoorStyle, selectedInsideDoorStyle?.label],
+    ]
+      .filter(([, option]) => option && (option.thumbImage || option.swatch))
+      .map(([title, option, caption]) => `
+        <figure class="swatch">
+          ${option.thumbImage
+            ? `<img src="${asset(option.thumbImage)}" alt="" />`
+            : `<span class="chip-fill" style="background:${option.swatch || '#e2e8f0'}"></span>`}
+          <figcaption><b>${escapeHtml(title)}</b>${escapeHtml(caption || dash)}</figcaption>
+        </figure>`)
+      .join('')
+
+    const roomCards = [
+      [labels.bathroom, selectedBathroom?.image, selectedBathroom?.label],
+      [labels.kitchen, selectedKitchen?.image, selectedKitchen?.label],
+    ]
+      .filter(([, image]) => image)
+      .map(([title, image, caption]) => `
+        <figure class="room">
+          <img src="${asset(image)}" alt="" />
+          <figcaption><b>${escapeHtml(title)}</b>${escapeHtml(caption || dash)}</figcaption>
+        </figure>`)
+      .join('')
 
     popup.document.open()
     popup.document.write(`<!doctype html>
@@ -1305,153 +1714,189 @@ export default function BoxHouseConfiguratorPage({ content }) {
   <meta charset="utf-8" />
   <title>${escapeHtml(pdfText.title)}</title>
   <style>
-    @page{size:A4;margin:12mm}
-    :root{--ink:#111827;--muted:#4b5563;--accent:#2563eb;--line:#d1d5db;--bg:#f8fafc}
-    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    body{margin:0;padding:20px;font-family:Inter,Arial,sans-serif;color:var(--ink);background:var(--bg)}
-    .sheet{max-width:1040px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 16px 42px rgba(15,23,42,.08)}
-    .top{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}
-    .hero,.panel,.thumb,.ref-card{border:1px solid var(--line);border-radius:18px;background:#fff;overflow:hidden}
-    .hero{background:#f4f7fb}
-    .hero img{width:100%;height:350px;object-fit:cover;display:block}
-    .hero-foot{padding:16px 18px;display:flex;justify-content:space-between;gap:12px;align-items:center}
-    .title{font-size:30px;font-weight:900;line-height:1.05;margin:0}
-    .sub{margin:8px 0 0;color:var(--muted)}
-    .price{display:inline-flex;align-items:center;border-radius:999px;padding:10px 14px;background:linear-gradient(90deg,#14b8a6,#3b82f6);color:#fff;font-weight:900;white-space:nowrap}
-    .panel{padding:18px}
-    .panel h2{margin:0 0 12px;font-size:18px}
-    .row{display:grid;grid-template-columns:190px 1fr;gap:12px;padding:8px 0;border-top:1px solid #eef2f7}
-    .row:first-child{border-top:0;padding-top:0}
-    .row-total .v{font-size:18px;font-weight:900}
-    .k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}
-    .v{font-weight:700;line-height:1.45}
-    .overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
-    .span-2{grid-column:span 2}
-    .thumb-head,.ref-head{padding:12px 14px;font-weight:900;border-bottom:1px solid var(--line);background:#f8fafc}
-    .thumb img{width:100%;height:220px;object-fit:cover;display:block}
-    .thumb-foot{padding:12px 14px}
-    .plan-shell{padding:14px;display:flex;justify-content:center;background:#fff}
-    .plan-canvas{position:relative;width:100%;max-width:760px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
-    .plan-canvas img{width:100%;height:auto;display:block;background:#fff}
-    .dot{position:absolute;transform:translate(-50%,-50%);min-width:26px;height:26px;padding:0 8px;border-radius:999px;display:grid;place-items:center;background:#111827;color:#fff;font-size:12px;font-weight:900;border:2px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-    .dot-win{background:#14b8a6}
-    .dot-win.pano{background:linear-gradient(90deg,#14b8a6,#3b82f6)}
-    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-    .chip{display:inline-flex;align-items:center;border-radius:999px;padding:8px 12px;background:#eff6ff;color:#1d4ed8;font-weight:800;font-size:12px}
-    .chip-dark{background:#111827;color:#fff}
-    .meta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .meta-box{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#f8fafc}
-    .meta-box .k{display:block}
-    .meta-box .v{margin-top:6px}
-    .note{margin-top:12px;padding:12px 14px;border-radius:16px;background:#f8fafc;border:1px solid var(--line)}
-    .note-k{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}
-    .note-v{margin-top:6px;line-height:1.55}
-    .empty-note{color:var(--muted);font-size:13px;line-height:1.55}
-    .ref-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
-    .ref-card img{width:100%;height:180px;display:block;object-fit:cover;background:#fff}
-    .ref-cap{padding:12px 14px;color:var(--muted);line-height:1.45;font-weight:700}
-    .footer-note{margin-top:18px;color:var(--muted);font-size:13px;line-height:1.55}
-    @media (max-width:900px){body{padding:12px}.sheet{padding:16px}.top,.overview,.meta-grid,.ref-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.hero img{height:auto;max-height:none}}
-    @media print{body{padding:0;background:#fff}.sheet{border:none;box-shadow:none;max-width:none}.hero,.panel,.thumb,.ref-card,.meta-box,.note{break-inside:avoid}}
+    /* Laid out for A4 first: measurements are in mm and pt so what the buyer
+       sees on paper matches the preview, rather than a screen layout scaled
+       down at print time. */
+    @page { size: A4 portrait; margin: 14mm 12mm 16mm; }
+
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    body {
+      margin: 0;
+      padding: 14mm 12mm;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.45;
+      color: #111827;
+      background: #f1f5f9;
+    }
+
+    .doc { max-width: 186mm; margin: 0 auto; background: #fff; padding: 10mm; border-radius: 4mm; box-shadow: 0 4mm 12mm rgba(15,23,42,.12); }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8mm;
+      padding-bottom: 4mm;
+      border-bottom: 0.8mm solid #111827;
+    }
+
+    .brand { font-size: 8pt; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: #6b7280; }
+    h1 { margin: 1mm 0 0; font-size: 17pt; line-height: 1.15; }
+    header .sub { margin: 1mm 0 0; color: #6b7280; font-size: 8.5pt; }
+
+    .total { text-align: right; white-space: nowrap; }
+    .total span { display: block; font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: #6b7280; font-weight: 800; }
+    .total strong { font-size: 16pt; }
+
+    h2 {
+      margin: 0 0 2mm;
+      font-size: 9pt;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: #374151;
+      border-bottom: 0.3mm solid #d1d5db;
+      padding-bottom: 1.4mm;
+    }
+
+    .block { margin-top: 6mm; break-inside: avoid; }
+
+    /* Two columns of label/value pairs -- roughly halves the page count. */
+    .spec { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8mm; margin: 0; }
+    .srow { display: grid; grid-template-columns: 32mm 1fr; gap: 3mm; padding: 1.3mm 0; border-bottom: 0.2mm dotted #d1d5db; break-inside: avoid; }
+    .srow dt { margin: 0; color: #6b7280; font-size: 8pt; font-weight: 700; }
+    .srow dd { margin: 0; font-weight: 600; }
+
+    .prow { display: flex; justify-content: space-between; gap: 6mm; padding: 1.6mm 0; border-bottom: 0.2mm dotted #d1d5db; break-inside: avoid; }
+    .prow span:last-child { font-weight: 700; white-space: nowrap; }
+    .ptotal { border-bottom: 0; border-top: 0.5mm solid #111827; margin-top: 1mm; padding-top: 2.4mm; font-size: 12pt; }
+    .ptotal span { font-weight: 900; }
+
+    .quote { margin-top: 4mm; padding: 3mm 4mm; background: #f8fafc; border: 0.2mm solid #e2e8f0; border-radius: 2mm; }
+    .quote h3 { margin: 0 0 1mm; font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: #6b7280; }
+
+    .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+    .plan { position: relative; border: 0.2mm solid #d1d5db; border-radius: 2mm; overflow: hidden; background: #fff; }
+    .plan img { width: 100%; display: block; }
+
+    .dot {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      min-width: 5mm;
+      height: 5mm;
+      padding: 0 1mm;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: #111827;
+      color: #fff;
+      font-size: 7pt;
+      font-weight: 900;
+      border: 0.4mm solid #fff;
+    }
+    .dot.up { background: #2563eb; }
+
+    .legend { margin: 2.5mm 0 0; padding: 0; list-style: none; columns: 2; column-gap: 6mm; font-size: 8pt; }
+    .legend li { break-inside: avoid; padding: 0.6mm 0; color: #374151; }
+    .legend b { display: inline-grid; place-items: center; min-width: 4.4mm; height: 4.4mm; margin-right: 1.5mm; border-radius: 999px; background: #111827; color: #fff; font-size: 6.5pt; }
+    .legend span { color: #9ca3af; }
+
+    .note { margin-top: 3mm; padding: 2.5mm 3mm; background: #f8fafc; border-left: 0.8mm solid #cbd5e1; }
+    .note b { display: block; font-size: 8pt; text-transform: uppercase; letter-spacing: .1em; color: #6b7280; }
+    .note p { margin: 1mm 0 0; }
+
+    .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; }
+    .swatch, .room { margin: 0; border: 0.2mm solid #d1d5db; border-radius: 2mm; overflow: hidden; break-inside: avoid; }
+    /* Contain, not cover: these are material samples, and cropping a decor
+       misrepresents it. */
+    .swatch img { width: 100%; height: 22mm; object-fit: contain; display: block; background: #fff; }
+    .chip-fill { display: block; height: 22mm; }
+    .swatch figcaption, .room figcaption { padding: 2mm; font-size: 7.5pt; line-height: 1.35; border-top: 0.2mm solid #e5e7eb; }
+    .swatch figcaption b, .room figcaption b { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: .08em; color: #6b7280; }
+
+    .rooms { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+    .room img { width: 100%; height: 46mm; object-fit: cover; display: block; }
+
+    .muted { color: #6b7280; font-size: 8.5pt; }
+
+    footer { margin-top: 8mm; padding-top: 3mm; border-top: 0.2mm solid #d1d5db; color: #6b7280; font-size: 7.5pt; line-height: 1.5; }
+
+    @media print {
+      body { padding: 0; background: #fff; }
+      .doc { max-width: none; padding: 0; border-radius: 0; box-shadow: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="sheet">
-    <div class="top">
-      <div class="hero">
-        <img src="${asset(selectedModelHeroImage)}" alt="" />
-        <div class="hero-foot">
-          <div>
-            <h1 class="title">${escapeHtml(pdfText.title)}</h1>
-            <div class="sub">${escapeHtml(pdfText.subtitle)}</div>
-          </div>
-          <div class="price">${escapeHtml(`${pdfText.knownTotal}: ${euro(knownTotal, locale)}`)}</div>
-        </div>
+  <div class="doc">
+    <header>
+      <div>
+        <div class="brand">NVC-HOME4YOU</div>
+        <h1>${escapeHtml(pdfText.title)}</h1>
+        <p class="sub">${escapeHtml(pdfText.subtitle)}</p>
       </div>
-      <div class="panel">
-        <h2>${escapeHtml(labels.summary)}</h2>
-        ${rowsHtml}
+      <div class="total">
+        <span>${escapeHtml(pdfText.knownTotal)}</span>
+        <strong>${escapeHtml(euro(knownTotal, locale))}</strong>
       </div>
+    </header>
+
+    ${specHtml}
+
+    <section class="block">
+      <h2>${escapeHtml(labels.priceBreakdown)}</h2>
+      ${priceHtml}
+      ${quotationHtml}
+    </section>
+
+    <section class="block">
+      <h2>${escapeHtml(labels.referenceBoards)}</h2>
+      <div class="swatches">${swatchCards}</div>
+    </section>
+
+    ${roomCards ? `<section class="block"><div class="rooms">${roomCards}</div></section>` : ''}
+
+    <div class="plans">
+      ${planBlock(labels.windowScheme, asset(selectedPlan?.image || ''), markerDots(config.windows || [], 'window'), windowLegend, labels.noWindows, config.windowNotes, labels.windowNotesLabel)}
+      ${planBlock(labels.electricalScheme, asset(selectedPlan?.image || ''), markerDots(config.sockets, 'socket'), socketLegend, labels.noSockets, config.socketNotes, labels.socketNotesLabel)}
     </div>
 
-    <div class="overview">
-      <div class="thumb span-2">
-        <div class="thumb-head">${escapeHtml(labels.windowScheme)}</div>
-        <div class="plan-shell">
-          <div class="plan-canvas">
-            <img src="${asset(selectedPlan?.image || '')}" alt="" />
-            ${windowDots}
-          </div>
-        </div>
-        <div style="padding:14px 14px 16px">
-          <div class="chips">${windowLegendHtml}</div>
-          ${config.windowNotes ? `<div class="note"><div class="note-k">${escapeHtml(labels.windowNotesLabel)}</div><div class="note-v">${multilineHtml(config.windowNotes)}</div></div>` : ''}
-        </div>
-      </div>
-
-      <div class="thumb span-2">
-        <div class="thumb-head">${escapeHtml(labels.electricalScheme)}</div>
-        <div class="plan-shell">
-          <div class="plan-canvas">
-            <img src="${asset(selectedPlan?.image || '')}" alt="" />
-            ${socketDots}
-          </div>
-        </div>
-        <div style="padding:14px 14px 16px">
-          <div class="chips">${socketLegendHtml}</div>
-          ${config.socketNotes ? `<div class="note"><div class="note-k">${escapeHtml(labels.socketNotesLabel)}</div><div class="note-v">${multilineHtml(config.socketNotes)}</div></div>` : ''}
-        </div>
-      </div>
-
-      <div class="thumb">
-        <div class="thumb-head">${escapeHtml(labels.bathroom)}</div>
-        <img src="${asset(selectedBathroom?.image || '')}" alt="" />
-        <div class="thumb-foot"><strong>${escapeHtml(selectedBathroom?.label || '-')}</strong></div>
-      </div>
-      <div class="thumb">
-        <div class="thumb-head">${escapeHtml(labels.kitchen)}</div>
-        <img src="${asset(selectedKitchen?.image || '')}" alt="" />
-        <div class="thumb-foot"><strong>${escapeHtml(selectedKitchen?.label || '-')}</strong></div>
-      </div>
-
-      <div class="panel span-2">
-        <h2>${escapeHtml(labels.finishBoard)}</h2>
-        <div class="meta-grid">
-          ${finishRows.map(([label, value]) => `<div class="meta-box"><span class="k">${escapeHtml(label)}</span><div class="v">${escapeHtml(value)}</div></div>`).join('')}
-        </div>
-        <div class="chips" style="margin-top:14px">
-          ${selectedKitchenExtras.length ? selectedKitchenExtras.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join('') : `<span class="chip">${escapeHtml(`${labels.kitchenExtras}: -`)}</span>`}
-          <span class="chip">${escapeHtml(`${labels.heating}: ${config.heating ? euro(heatingPrice, locale) : noText}`)}</span>
-          <span class="chip">${escapeHtml(`${labels.windowOpenings}: ${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount} panoramic)` : ''}${windowExtrasPrice ? ` — ${euro(windowExtrasPrice, locale)}` : ''}`)}</span>
-        </div>
-        ${referenceCardsHtml ? `<div class="ref-grid">${referenceCardsHtml}</div>` : ''}
-      </div>
-
-      <div class="panel span-2">
-        <h2>${escapeHtml(labels.priceBreakdown)}</h2>
-        ${priceRowsHtml}
-      </div>
-    </div>
-
-    <div class="footer-note">${escapeHtml(`${pdfText.generatedLabel}: ${new Date().toLocaleString(isBg ? 'bg-BG' : 'en-GB')}`)}<br/>${escapeHtml(pdfText.note)}<br/>${escapeHtml(isBg ? 'Ако прозорецът за печат не се отвори автоматично, натиснете Ctrl/Cmd + P.' : 'If the print dialog does not open automatically, press Ctrl/Cmd + P.')}</div>
+    <footer>
+      ${escapeHtml(`${pdfText.generatedLabel}: ${new Date().toLocaleString(isBg ? 'bg-BG' : 'en-GB')}`)}<br />
+      ${escapeHtml(pdfText.note)}
+    </footer>
   </div>
   <script>
-    window.addEventListener('load', function () {
-      var triggerPrint = function () {
-        window.focus();
-        window.print();
-      };
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(function () {
-          setTimeout(triggerPrint, 180);
-        });
-      } else {
-        setTimeout(triggerPrint, 180);
+    // Print only once the artwork has actually decoded, or the sheet comes out
+    // with empty boxes where the plans and swatches should be.
+    (function () {
+      var done = false
+      function go() {
+        if (done) return
+        done = true
+        window.focus()
+        window.print()
       }
-    });
+      function ready() {
+        var images = Array.prototype.slice.call(document.images)
+        var pending = images.filter(function (img) { return !img.complete })
+        var waits = pending.map(function (img) {
+          return new Promise(function (resolve) {
+            img.addEventListener('load', resolve, { once: true })
+            img.addEventListener('error', resolve, { once: true })
+          })
+        })
+        if (document.fonts && document.fonts.ready) waits.push(document.fonts.ready)
+        Promise.all(waits).then(function () { setTimeout(go, 150) })
+        setTimeout(go, 6000)
+      }
+      if (document.readyState === 'complete') ready()
+      else window.addEventListener('load', ready)
+    })()
     window.addEventListener('afterprint', function () {
-      setTimeout(function () { window.close(); }, 120);
-    });
+      setTimeout(function () { window.close() }, 120)
+    })
   </script>
 </body>
 </html>`)
@@ -1548,21 +1993,44 @@ export default function BoxHouseConfiguratorPage({ content }) {
         key: 'outsidePanels',
         title: labels.outsidePanels,
         image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.previewImage || selectedExteriorFinish?.referenceImage || ''),
-        label: selectedExteriorFinish?.label || '-',
+        label: selectedExteriorFinishCaption,
         swatch: selectedExteriorFinish?.swatch,
       },
       {
-        key: 'windowStyle',
-        title: labels.windowStyle,
-        image: asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.previewImage || selectedWindowStyle?.referenceImage || ''),
-        label: selectedWindowStyle?.label || '-',
+        key: 'windowType',
+        title: labels.windowTypeLabel,
+        image: asset(selectedWindowType?.thumbImage || ''),
+        label: selectedWindowType?.label || '-',
+        note: priceNote(selectedWindowType),
+      },
+      {
+        key: 'windowColour',
+        title: labels.windowColour,
+        image: asset(selectedWindowColour?.thumbImage || ''),
+        label: selectedWindowColour?.label || '-',
+        swatch: selectedWindowColour?.swatch,
+      },
+      {
+        key: 'steelFrameColor',
+        title: labels.steelFrameColor,
+        image: asset(selectedSteelFrameColor?.thumbImage || ''),
+        label: selectedSteelFrameColor?.label || '-',
+        swatch: selectedSteelFrameColor?.swatch,
       },
       {
         key: 'exteriorDoor',
         title: labels.exteriorDoor,
-        image: asset(selectedDoor?.thumbImage || selectedDoor?.previewImage || selectedDoor?.referenceImage || ''),
-        label: selectedDoor?.label || '-',
+        image: asset(entranceDoor?.thumbImage || ''),
+        label: entranceDoorLabel,
+        note: selectedArmouredDoor ? priceNote(selectedArmouredDoor) : '',
       },
+      ...(config.variant !== 'balcony' ? [] : [{
+        key: 'terrace',
+        title: labels.terrace,
+        image: '',
+        label: selectedTerrace?.label || '-',
+        note: [selectedTerrace?.note, priceNote(selectedTerrace)].filter(Boolean).join(' · '),
+      }]),
       ...(config.variant === 'balcony' ? [{
         key: 'deckingColor',
         title: labels.deckingColor,
@@ -1591,19 +2059,46 @@ export default function BoxHouseConfiguratorPage({ content }) {
         <div className="bhc-grid bhc-grid--2 bhc-grid--stack-mobile">
           <div className="bhc-stack">
             <div className="bhc-group">
-              <div className="bhc-section-title">{labels.frame}</div>
-              <div className="bhc-option-list">
-                {catalog.windowFrameOptions.map((item) => (
-                  <ChoiceCard
+              <div className="bhc-section-title">{labels.windowTypeLabel}</div>
+              <div className="bhc-window-type-grid">
+                {catalog.windowTypeOptions.map((item) => (
+                  <button
                     key={item.key}
-                    active={config.windowFrame === item.key}
-                    title={item.label}
-                    subtitle={item.note}
-                    onClick={() => setFieldAndFocus('windowFrame', item.key, 'housePreview')}
-                  />
+                    type="button"
+                    className={['bhc-window-type', config.windowType === item.key && 'is-active'].filter(Boolean).join(' ')}
+                    onClick={() => setFieldAndFocus('windowType', item.key, 'windowType')}
+                  >
+                    <img src={cdnImage(asset(item.thumbImage), { width: 160 })} alt="" loading="lazy" />
+                    <span className="bhc-window-type-text">
+                      <strong>{item.label}</strong>
+                      <em>{item.note}</em>
+                      <span className="bhc-window-type-price">
+                        {item.price ? `+${euro(item.price, locale)} / ${labels.perWindow}` : labels.includedShort}
+                      </span>
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
+
+            {/* The terrace only exists on the balcony variant. */}
+            {config.variant === 'balcony' ? (
+              <div className="bhc-group">
+                <div className="bhc-section-title">{labels.terrace}</div>
+                <div className="bhc-option-list">
+                  {catalog.terraceOptions.map((item) => (
+                    <ChoiceCard
+                      key={item.key}
+                      active={config.terrace === item.key}
+                      title={item.label}
+                      subtitle={item.note}
+                      badge={item.price ? `+${euro(item.price, locale)}` : labels.includedShort}
+                      onClick={() => setFieldAndFocus('terrace', item.key, 'terrace')}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="bhc-group">
               <div className="bhc-section-title">{labels.steelFrameColor}</div>
@@ -1621,17 +2116,32 @@ export default function BoxHouseConfiguratorPage({ content }) {
             </div>
 
             <div className="bhc-group">
-              <div className="bhc-section-title">{labels.windowStyle}</div>
-              <div className="bhc-code-grid">
-                {catalog.windowStyleOptions.map((item) => (
-                  <OptionTile
-                    key={item.key}
-                    active={config.windowStyle === item.key}
-                    title={item.label}
-                    onClick={() => setFieldAndFocus('windowStyle', item.key, 'windowStyle')}
-                  />
-                ))}
-              </div>
+              <div className="bhc-section-title">{labels.windowColour}</div>
+              {selectedWindowType?.colourSet === 'decor' ? (
+                <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
+                  {windowColourOptions.map((item) => (
+                    <ThumbChoiceButton
+                      key={item.key}
+                      active={config.windowColour === item.key}
+                      label={item.label}
+                      image={asset(item.thumbImage)}
+                      onClick={() => setFieldAndFocus('windowColour', item.key, 'windowColour')}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bhc-swatch-grid bhc-swatch-grid--3">
+                  {windowColourOptions.map((item) => (
+                    <SwatchButton
+                      key={item.key}
+                      active={config.windowColour === item.key}
+                      label={item.label}
+                      swatch={item.swatch}
+                      onClick={() => setFieldAndFocus('windowColour', item.key, 'windowColour')}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bhc-group">
@@ -1648,21 +2158,68 @@ export default function BoxHouseConfiguratorPage({ content }) {
               </div>
             </div>
 
+            {/* Armoured leaves are only made for the solid single door. */}
+            {config.exteriorDoor === 'v-01' ? (
+              <div className="bhc-group">
+                <div className="bhc-section-title">{labels.armouredDoor}</div>
+                <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
+                  <OptionTile
+                    active={!config.armouredDoor}
+                    title={labels.none}
+                    onClick={() => setFieldAndFocus('armouredDoor', '', 'armouredDoor')}
+                  />
+                  {catalog.armouredDoorOptions.map((item) => (
+                    <ThumbChoiceButton
+                      key={item.key}
+                      active={config.armouredDoor === item.key}
+                      label={`${item.label} · +${euro(item.price, locale)}`}
+                      image={asset(item.thumbImage)}
+                      onClick={() => setFieldAndFocus('armouredDoor', item.key, 'armouredDoor')}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="bhc-group">
               <div className="bhc-section-title">{labels.outsidePanels}</div>
-              <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--wide bhc-thumb-choice-grid--compact">
-                {exteriorFinishOptions.map((item) => (
+              {/* 135 decors across 18 catalogue series -- shown one series at a
+                  time, or the grid is unusable. */}
+              <label className="bhc-series-picker">
+                <span className="bhc-series-picker-label">{labels.exteriorFinishFamily}</span>
+                <select
+                  className="bhc-select"
+                  value={exteriorFinishGroup?.key || ''}
+                  onChange={(event) => setField('exteriorFinishFamily', event.target.value)}
+                >
+                  {catalog.exteriorFinishGroups.map((group) => (
+                    <option key={group.key} value={group.key}>
+                      {group.label} ({group.options.length})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="bhc-series-range">
+                {exteriorFinishOptions[0]?.code} — {exteriorFinishOptions[exteriorFinishOptions.length - 1]?.code}
+              </div>
+              <GroupedOptionGrid
+                options={exteriorFinishOptions}
+                value={config.exteriorFinish}
+                categoryLabel={labels.exteriorFinishFamily}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact"
+                renderOption={(item) => (
                   <ThumbChoiceButton
                     key={item.key}
                     active={config.exteriorFinish === item.key}
-                    label={item.label}
+                    label={item.code}
                     image={asset(item.thumbImage || item.referenceImage || '')}
                     swatch={item.swatch}
                     onClick={() => setFieldAndFocus('exteriorFinish', item.key, 'outsidePanels')}
-                    hideLabel
                   />
-                ))}
-              </div>
+                )}
+              />
             </div>
 
             {config.variant === 'balcony' ? (
@@ -1670,7 +2227,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <div className="bhc-section-title">{labels.deckingColor}</div>
                 <div className="bhc-swatch-grid bhc-swatch-grid--4">
                   {catalog.deckingColorOptions.map((item) => (
-                    <SwatchButton key={item.key} active={config.deckingColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setFieldAndFocus('deckingColor', item.key, 'deckingColor')} />
+                    <ThumbChoiceButton key={item.key} active={config.deckingColor === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setFieldAndFocus('deckingColor', item.key, 'deckingColor')} />
                   ))}
                 </div>
               </div>
@@ -1686,16 +2243,62 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
               </div>
               <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
-              <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
+
+              {/* What the next click on the plan places. Kept up here with the
+                  size so buyers actually see the fixed and sliding units. */}
+              <div className="bhc-subhead">{labels.openingType}</div>
+              <div className="bhc-window-type-grid bhc-window-type-grid--kinds">
+                <button
+                  type="button"
+                  className={['bhc-window-type', config.nextWindowKind === 'standard' && 'is-active'].filter(Boolean).join(' ')}
+                  onClick={() => setField('nextWindowKind', 'standard')}
+                >
+                  <span className="bhc-window-type-text">
+                    <strong>{labels.standardWindow}</strong>
+                    <em>{windowSizeDimension} mm</em>
+                    <span className="bhc-window-type-price">{labels.included}</span>
+                  </span>
+                </button>
+                {catalog.glazingUpgradeOptions.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={['bhc-window-type', config.nextWindowKind === item.key && 'is-active'].filter(Boolean).join(' ')}
+                    onClick={() => setField('nextWindowKind', item.key)}
+                  >
+                    <img src={cdnImage(asset(item.thumbImage), { width: 160 })} alt="" loading="lazy" />
+                    <span className="bhc-window-type-text">
+                      <strong>{item.label}</strong>
+                      <em>{item.note}</em>
+                      <span className="bhc-window-type-price">
+                        +{euro(item.price, locale)} / {item.unit === 'door' ? labels.perDoor : labels.perWindow}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="bhc-hint">{labels.openingTypeHint}</div>
+
+              <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={windowStageMarkers} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
               {(config.windows || []).length > 0 ? (
                 <div className="bhc-window-list">
+                  {/* Each opening is a standard window until upgraded to one of
+                      the catalogue's fixed or sliding units. */}
                   {(config.windows || []).map((win, index) => (
-                    <div key={win.id} className="bhc-window-row">
-                      <span className={['bhc-window-num', win.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
-                      <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
-                      <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)} title={win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}>
-                        {win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}
-                      </button>
+                    <div key={win.id} className="bhc-window-row bhc-window-row--kinds">
+                      <span className={['bhc-window-num', win.kind && win.kind !== 'standard' && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
+                      <select
+                        className="bhc-select bhc-select--inline"
+                        value={win.kind || 'standard'}
+                        onChange={(event) => setWindowKind(win.id, event.target.value)}
+                      >
+                        <option value="standard">{labels.standardWindow}</option>
+                        {catalog.glazingUpgradeOptions.map((item) => (
+                          <option key={item.key} value={item.key}>
+                            {item.label} +{euro(item.price, locale)}
+                          </option>
+                        ))}
+                      </select>
                       <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
                     </div>
                   ))}
@@ -1705,6 +2308,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
                 <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
               </div>
+
               <div className="bhc-window-price-box">
                 <div className="bhc-window-price-row">
                   <span>{labels.windowSize} · {windowSizeDimension} mm <em>({labels.forAllWindows})</em></span>
@@ -1712,8 +2316,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 </div>
                 {panoramicWindowCount ? (
                   <div className="bhc-window-price-row">
-                    <span>{labels.panoramicUpgrades} · {panoramicWindowCount}×€300</span>
-                    <span>+{euro(panoramicUpgradePrice, locale)}</span>
+                    <span>{labels.panoramicUpgrades} · {panoramicWindowCount}</span>
+                    <span>+{euro(glazingUpgradePrice, locale)}</span>
                   </div>
                 ) : null}
                 <div className="bhc-window-price-row bhc-window-price-row--total">
@@ -1735,22 +2339,23 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
           <div className="bhc-side-panel bhc-side-panel--sticky">
             <div className="bhc-section-title">{labels.overview}</div>
-            <div className="bhc-preview-stage bhc-preview-stage--house" ref={(node) => { previewRefs.current.housePreview = node }}>
+            <div className="bhc-preview-stage bhc-preview-stage--house" data-preview="housePreview" ref={(node) => { previewRefs.current.housePreview = node }}>
               <img src={cdnImage(asset(selectedModelHeroImage), { width: 1000 })} srcSet={cdnSrcSet(asset(selectedModelHeroImage), [500, 750, 1000, 1400])} sizes="(max-width: 900px) 90vw, 600px" alt="" decoding="async" />
               <div className="bhc-preview-tags">
                 <span className="bhc-chip">{selectedExteriorFinish?.label || '-'}</span>
-                <span className="bhc-chip">{selectedWindowStyle?.label || '-'}</span>
+                <span className="bhc-chip">{selectedWindowColour?.label || '-'}</span>
                 <span className="bhc-chip">{selectedDoor?.label || '-'}</span>
                 {config.variant === 'balcony' ? <span className="bhc-chip">{selectedDeckingColor?.label || '-'}</span> : null}
               </div>
             </div>
             <div className="bhc-preview-stage bhc-preview-stage--grid bhc-preview-stage--materials">
               {exteriorPreviewCards.map((card) => (
-                <div key={card.key} ref={(node) => { previewRefs.current[card.key] = node }}>
+                <div key={card.key} data-preview={card.key} ref={(node) => { previewRefs.current[card.key] = node }}>
                   <MaterialPreviewCard
                     title={card.title}
                     image={card.image}
                     label={card.label}
+                    subtitle={card.note}
                     swatch={card.swatch}
                   />
                 </div>
@@ -1759,9 +2364,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <div className="bhc-picked-list">
               <SummaryRow label={labels.variant} value={config.variant === 'balcony' ? labels.balcony : labels.standard} />
               <SummaryRow label={labels.basePrice} value={euro(knownBasePrice, locale)} strong />
-              <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinish?.label || '-'} />
-              <SummaryRow label={labels.windowStyle} value={selectedWindowStyle?.label || '-'} />
-              <SummaryRow label={labels.exteriorDoor} value={selectedDoor?.label || '-'} />
+              <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinishCaption} />
+              <SummaryRow label={labels.windowTypeLabel} value={selectedWindowType?.label || '-'} />
+              <SummaryRow label={labels.windowColour} value={selectedWindowColour?.label || '-'} />
+              {config.variant === 'balcony' ? <SummaryRow label={labels.terrace} value={`${selectedTerrace?.label || '-'}${terracePrice ? ` · ${euro(terracePrice, locale)}` : ''}`} /> : null}
+              <SummaryRow label={labels.exteriorDoor} value={entranceDoorLabel} />
               {config.variant === 'balcony' ? <SummaryRow label={labels.deckingColor} value={selectedDeckingColor?.label || '-'} /> : null}
               <SummaryRow label={labels.steelFrameColor} value={selectedSteelFrameColor?.label || '-'} />
               <SummaryRow label={labels.windowOpenings} value={`${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount}P)` : ''}`} />
@@ -1867,21 +2474,33 @@ export default function BoxHouseConfiguratorPage({ content }) {
               {config.interiorPanelMode === 'coloured' ? (
                 <>
                   <div className="bhc-subhead">{labels.interiorPanelColour}</div>
-                  <div className="bhc-swatch-grid bhc-swatch-grid--4">
-                    {catalog.interiorPanelColorOptions.map((item) => (
+                  <GroupedOptionGrid
+                    options={catalog.interiorPanelColorOptions}
+                    value={config.interiorPanelColor}
+                    categoryLabel={labels.interiorPanelColour}
+                    showAllLabel={labels.showAllOptions}
+                    pageSize={optionPageSize}
+                    gridClassName="bhc-swatch-grid bhc-swatch-grid--4"
+                    renderOption={(item) => (
                       <SwatchButton key={item.key} active={config.interiorPanelColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setFieldAndFocus('interiorPanelColor', item.key, 'interiorPanels')} />
-                    ))}
-                  </div>
+                    )}
+                  />
                 </>
               ) : null}
               {config.interiorPanelMode === 'uv' ? (
                 <>
                   <div className="bhc-subhead">{labels.uvPanel}</div>
-                  <div className="bhc-swatch-grid bhc-swatch-grid--4">
-                    {catalog.uvPanelOptions.map((item) => (
+                  <GroupedOptionGrid
+                    options={catalog.uvPanelOptions}
+                    value={config.uvPanel}
+                    categoryLabel={labels.wallUvPanel}
+                    showAllLabel={labels.showAllOptions}
+                    pageSize={optionPageSize}
+                    gridClassName="bhc-swatch-grid bhc-swatch-grid--4"
+                    renderOption={(item) => (
                       <SwatchButton key={item.key} active={config.uvPanel === item.key} label={optionDisplay(item)} swatch={item.swatch} onClick={() => setFieldAndFocus('uvPanel', item.key, 'interiorPanels')} />
-                    ))}
-                  </div>
+                    )}
+                  />
                 </>
               ) : null}
               <div className="bhc-inline-price">{labels.internalWalls}: {interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}</div>
@@ -1893,8 +2512,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <div className="bhc-toggle-row bhc-toggle-row--3">
                 {!config.heating ? (
                   <>
-                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'spc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'spc', 'floorFinish')}>SPC</button>
-                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'pvc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'pvc', 'floorFinish')}>PVC</button>
+                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'vinyl' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'vinyl', 'floorFinish')}>{isBg ? 'Винил' : 'Vinyl'}</button>
+                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'herringbone' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'herringbone', 'floorFinish')}>{isBg ? 'Рибена кост' : 'Herringbone'}</button>
                   </>
                 ) : null}
                 {config.heating ? (
@@ -1903,32 +2522,44 @@ export default function BoxHouseConfiguratorPage({ content }) {
               </div>
               {config.heating ? <div className="bhc-small-note">{isBg ? 'При избрано долно отопление и изолация Carbon Crystal остава единствената подова опция.' : 'When bottom insulation and heating are selected, Carbon Crystal becomes the only floor family.'}</div> : null}
               <div className="bhc-subhead">{labels.floorFinish}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--scroll bhc-swatch-grid--compact">
-                {activeFloorOptions.map((item) => (
+              <GroupedOptionGrid
+                options={activeFloorOptions}
+                value={activeFloorSelection}
+                categoryLabel={labels.floorFamily}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-swatch-grid bhc-swatch-grid--compact"
+                renderOption={(item) => (
                   <SwatchButton
                     key={item.key}
                     active={activeFloorSelection === item.key}
                     label={optionDisplay(item, item.label || '-')}
-                    swatch={item.swatch || selectedFloorOption?.swatch || '#cbd5e1'}
+                    swatch={item.swatch || '#cbd5e1'}
                     onClick={() => setFieldAndFocus(activeFloorField, item.key, 'floorFinish')}
                   />
-                ))}
-              </div>
+                )}
+              />
             </div>
 
             <div className="bhc-group">
               <div className="bhc-section-title">{labels.kitchenBench}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--scroll bhc-swatch-grid--compact">
-                {catalog.kitchenBenchOptions.map((item) => (
+              <GroupedOptionGrid
+                options={catalog.kitchenBenchOptions}
+                value={config.kitchenBench}
+                categoryLabel={labels.kitchenBench}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-swatch-grid bhc-swatch-grid--compact"
+                renderOption={(item) => (
                   <SwatchButton
                     key={item.key}
                     active={config.kitchenBench === item.key}
                     label={optionDisplay(item, item.label || '-')}
-                    swatch={item.swatch || selectedKitchenBench?.swatch || '#cbd5e1'}
+                    swatch={item.swatch || '#cbd5e1'}
                     onClick={() => setFieldAndFocus('kitchenBench', item.key, 'kitchenBench')}
                   />
-                ))}
-              </div>
+                )}
+              />
             </div>
 
             <div className="bhc-group">
@@ -1941,12 +2572,119 @@ export default function BoxHouseConfiguratorPage({ content }) {
             </div>
 
             <div className="bhc-group">
+              <div className="bhc-section-title">{labels.bathroomDoor}</div>
+              <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
+                {catalog.bathroomDoorOptions.map((item) => (
+                  <ThumbChoiceButton
+                    key={item.key}
+                    active={config.bathroomDoor === item.key}
+                    label={item.price ? `${item.label} · +${euro(item.price, locale)}` : item.label}
+                    image={asset(item.thumbImage)}
+                    onClick={() => setFieldAndFocus('bathroomDoor', item.key, 'bathroomDoor')}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* The catalogue fits UV panels in the bathroom as standard and
+                offers the same decors for the living-area walls, so the two
+                are chosen separately. */}
+            <div className="bhc-group">
+              <div className="bhc-section-title">{labels.bathroomUvPanel}</div>
+              <div className="bhc-hint">{labels.bathroomUvPanelHint}</div>
+              <GroupedOptionGrid
+                options={catalog.uvPanelOptions}
+                value={config.bathroomUvPanel}
+                categoryLabel={labels.bathroomUvPanel}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact"
+                renderOption={(item) => (
+                  <ThumbChoiceButton
+                    key={item.key}
+                    active={config.bathroomUvPanel === item.key}
+                    label={item.code}
+                    image={asset(item.thumbImage)}
+                    swatch={item.swatch}
+                    onClick={() => setFieldAndFocus('bathroomUvPanel', item.key, 'bathroomUvPanel')}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="bhc-group">
+              <div className="bhc-section-title">{labels.vanity}</div>
+              <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
+                {catalog.vanityOptions.map((item) => (
+                  <ThumbChoiceButton
+                    key={item.key}
+                    active={config.vanity === item.key}
+                    label={item.onRequest ? `${item.label} · ${labels.onRequest}` : item.label}
+                    image={asset(item.thumbImage)}
+                    onClick={() => setFieldAndFocus('vanity', item.key, 'vanity')}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="bhc-group">
               <div className="bhc-section-title">{labels.kitchen}</div>
               <div className="bhc-card-grid bhc-card-grid--compact">
                 {catalog.kitchenOptions.map((item) => (
-                  <ChoiceCard key={item.key} active={config.kitchen === item.key} title={item.label} image={asset(item.image)} onClick={() => setFieldAndFocus('kitchen', item.key, 'kitchen')} />
+                  <ChoiceCard
+                    key={item.key}
+                    active={config.kitchen === item.key}
+                    title={item.label}
+                    image={asset(item.image)}
+                    badge={item.price ? `+${euro(item.price, locale)}` : labels.includedShort}
+                    onClick={() => setFieldAndFocus('kitchen', item.key, 'kitchen')}
+                  />
                 ))}
               </div>
+            </div>
+
+            <div className="bhc-group">
+              <div className="bhc-section-title">{labels.kitchenSink}</div>
+              <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
+                {catalog.kitchenSinkOptions.map((item) => (
+                  <ThumbChoiceButton
+                    key={item.key}
+                    active={config.kitchenSink === item.key}
+                    label={item.price ? `${item.label} · +${euro(item.price, locale)}` : item.label}
+                    image={asset(item.thumbImage)}
+                    onClick={() => setFieldAndFocus('kitchenSink', item.key, 'kitchenSink')}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="bhc-group">
+              <div className="bhc-section-title">{labels.kitchenPetColour}</div>
+              <div className="bhc-swatch-grid bhc-swatch-grid--3">
+                <SwatchButton
+                  active={!config.kitchenPetColour}
+                  label={labels.none}
+                  swatch="transparent"
+                  onClick={() => setFieldAndFocus('kitchenPetColour', '', 'kitchenPetColour')}
+                />
+              </div>
+              <GroupedOptionGrid
+                options={catalog.kitchenPetColourOptions}
+                value={config.kitchenPetColour}
+                categoryLabel={labels.kitchenPetColour}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-swatch-grid bhc-swatch-grid--3"
+                renderOption={(item) => (
+                  <SwatchButton
+                    key={item.key}
+                    active={config.kitchenPetColour === item.key}
+                    label={item.code}
+                    swatch={item.swatch}
+                    onClick={() => setFieldAndFocus('kitchenPetColour', item.key, 'kitchenPetColour')}
+                  />
+                )}
+              />
             </div>
 
             <div className="bhc-group">
@@ -1967,7 +2705,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                   <ThumbChoiceButton
                     key={item.key}
                     active={config.insideDoorStyle === item.key}
-                    label={item.label}
+                    label={item.price ? `${item.label} · +${euro(item.price, locale)}` : item.label}
                     image={asset(item.thumbImage || item.referenceImage || '')}
                     onClick={() => setFieldAndFocus('insideDoorStyle', item.key, 'insideDoorStyle')}
                   />
@@ -1976,22 +2714,35 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <div className="bhc-number-grid">
                 <NumberField label={labels.insideDoorCount} value={config.insideDoorCount} onChange={(value) => setFieldAndFocus('insideDoorCount', value, 'insideDoorStyle')} max={24} />
               </div>
-              <div className="bhc-inline-price">{labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : '-'}</div>
+              <div className="bhc-hint">
+                {labels.insideDoorCountHint
+                  .replace('{plan}', selectedPlan?.key || '-')
+                  .replace('{n}', String(planDoorCount))
+                  .replace('{doorWord}', planDoorCount === 1 ? labels.doorWordOne : labels.doorWordMany)}
+                {Number(config.insideDoorCount) !== planDoorCount ? (
+                  <button type="button" className="bhc-linkish" onClick={() => setField('insideDoorCount', planDoorCount)}>
+                    {labels.resetToLayout}
+                  </button>
+                ) : null}
+              </div>
+              <div className="bhc-inline-price">
+                {labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : labels.included}
+              </div>
             </div>
           </div>
 
           <div className="bhc-side-panel bhc-side-panel--sticky">
             <div className="bhc-section-title">{labels.overview}</div>
             <div className="bhc-preview-stage bhc-preview-stage--split">
-              <div ref={(node) => { previewRefs.current.bathroom = node }}>
+              <div data-preview="bathroom" ref={(node) => { previewRefs.current.bathroom = node }}>
                 <MaterialPreviewCard title={labels.bathroom} image={asset(selectedBathroom?.image || '')} label={selectedBathroom?.label || '-'} />
               </div>
-              <div ref={(node) => { previewRefs.current.kitchen = node }}>
+              <div data-preview="kitchen" ref={(node) => { previewRefs.current.kitchen = node }}>
                 <MaterialPreviewCard title={labels.kitchen} image={asset(selectedKitchen?.image || '')} label={selectedKitchen?.label || '-'} />
               </div>
             </div>
             <div className="bhc-preview-stage bhc-preview-stage--split bhc-preview-stage--materials">
-              <div ref={(node) => { previewRefs.current.floorFinish = node }}>
+              <div data-preview="floorFinish" ref={(node) => { previewRefs.current.floorFinish = node }}>
                 <MaterialPreviewCard
                   title={labels.floorFinish}
                   image={asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || '')}
@@ -2000,7 +2751,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                   swatch={selectedFloorOption?.swatch}
                 />
               </div>
-              <div ref={(node) => { previewRefs.current.kitchenBench = node }}>
+              <div data-preview="kitchenBench" ref={(node) => { previewRefs.current.kitchenBench = node }}>
                 <MaterialPreviewCard
                   title={labels.kitchenBench}
                   image={asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || '')}
@@ -2011,7 +2762,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               </div>
             </div>
             <div className="bhc-preview-stage bhc-preview-stage--split bhc-preview-stage--materials">
-              <div ref={(node) => { previewRefs.current.interiorPanels = node }}>
+              <div data-preview="interiorPanels" ref={(node) => { previewRefs.current.interiorPanels = node }}>
                 <MaterialPreviewCard
                   title={labels.interiorPanels}
                   image={asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || '')}
@@ -2019,7 +2770,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                   swatch={selectedInteriorPanels?.swatch}
                 />
               </div>
-              <div ref={(node) => { previewRefs.current.insideDoorStyle = node }}>
+              <div data-preview="insideDoorStyle" ref={(node) => { previewRefs.current.insideDoorStyle = node }}>
                 <MaterialPreviewCard
                   title={labels.insideDoorStyle}
                   image={asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || '')}
@@ -2028,10 +2779,73 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 />
               </div>
             </div>
+            <div className="bhc-preview-stage bhc-preview-stage--split bhc-preview-stage--materials">
+              <div data-preview="bathroomDoor" ref={(node) => { previewRefs.current.bathroomDoor = node }}>
+                <MaterialPreviewCard
+                  title={labels.bathroomDoor}
+                  image={asset(selectedBathroomDoor?.thumbImage || '')}
+                  label={selectedBathroomDoor?.code || '-'}
+                  subtitle={priceNote(selectedBathroomDoor)}
+                />
+              </div>
+              <div data-preview="vanity" ref={(node) => { previewRefs.current.vanity = node }}>
+                <MaterialPreviewCard
+                  title={labels.vanity}
+                  image={asset(selectedVanity?.thumbImage || '')}
+                  label={selectedVanity?.label || '-'}
+                  subtitle={priceNote(selectedVanity)}
+                />
+              </div>
+            </div>
+            <div className="bhc-preview-stage bhc-preview-stage--split bhc-preview-stage--materials">
+              <div data-preview="kitchenSink" ref={(node) => { previewRefs.current.kitchenSink = node }}>
+                <MaterialPreviewCard
+                  title={labels.kitchenSink}
+                  image={asset(selectedKitchenSink?.thumbImage || '')}
+                  label={selectedKitchenSink?.label || '-'}
+                  subtitle={priceNote(selectedKitchenSink)}
+                />
+              </div>
+              <div data-preview="bathroomUvPanel" ref={(node) => { previewRefs.current.bathroomUvPanel = node }}>
+                <MaterialPreviewCard
+                  title={labels.bathroomUvPanel}
+                  image={asset(selectedBathroomUvPanel?.thumbImage || '')}
+                  label={optionDisplay(selectedBathroomUvPanel)}
+                  swatch={selectedBathroomUvPanel?.swatch}
+                />
+              </div>
+            </div>
+            <div className="bhc-preview-stage bhc-preview-stage--split bhc-preview-stage--materials">
+              {/* Wall UV panels only exist while that panel mode is chosen. */}
+              {config.interiorPanelMode === 'uv' ? (
+                <div data-preview="uvPanel" ref={(node) => { previewRefs.current.uvPanel = node }}>
+                  <MaterialPreviewCard
+                    title={labels.wallUvPanel}
+                    image={asset(selectedUvPanel?.thumbImage || '')}
+                    label={optionDisplay(selectedUvPanel)}
+                    swatch={selectedUvPanel?.swatch}
+                  />
+                </div>
+              ) : null}
+              <div data-preview="kitchenPetColour" ref={(node) => { previewRefs.current.kitchenPetColour = node }}>
+                <MaterialPreviewCard
+                  title={labels.kitchenPetColour}
+                  image=""
+                  label={selectedKitchenPetColour?.code || labels.none}
+                  subtitle={selectedKitchenPetColour ? labels.onRequest : ''}
+                  swatch={selectedKitchenPetColour?.swatch}
+                />
+              </div>
+            </div>
             <div className="bhc-picked-list">
               <SummaryRow label={labels.interiorPanels} value={selectedInteriorPanels?.label || labels.defaultWhitePanels} />
               <SummaryRow label={labels.floorFinish} value={optionDisplay(selectedFloorOption)} />
               <SummaryRow label={labels.kitchenBench} value={optionDisplay(selectedKitchenBench)} />
+              <SummaryRow label={labels.bathroomUvPanel} value={optionDisplay(selectedBathroomUvPanel)} />
+              {config.interiorPanelMode === 'uv' ? <SummaryRow label={labels.wallUvPanel} value={optionDisplay(selectedUvPanel)} /> : null}
+              <SummaryRow label={labels.bathroomDoor} value={selectedBathroomDoor?.code || '-'} />
+              <SummaryRow label={labels.vanity} value={selectedVanity?.label || '-'} />
+              <SummaryRow label={labels.kitchenSink} value={selectedKitchenSink?.label || '-'} />
               <SummaryRow label={labels.insideDoorStyle} value={selectedInsideDoorStyle?.label || '-'} />
               <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
               <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText} strong />
@@ -2097,9 +2911,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   function renderSummaryStep() {
     const finishPreviewCards = [
-      { key: 'outsidePanels', title: labels.outsidePanels, image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || ''), caption: selectedExteriorFinish?.label || '-', swatch: selectedExteriorFinish?.swatch },
-      { key: 'windowStyle', title: labels.windowStyle, image: asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.referenceImage || ''), caption: selectedWindowStyle?.label || '-' },
-      { key: 'exteriorDoor', title: labels.exteriorDoor, image: asset(selectedDoor?.thumbImage || selectedDoor?.referenceImage || ''), caption: selectedDoor?.label || '-' },
+      { key: 'outsidePanels', title: labels.outsidePanels, image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || ''), caption: selectedExteriorFinishCaption, swatch: selectedExteriorFinish?.swatch },
+      { key: 'windowColour', title: labels.windowColour, image: asset(selectedWindowColour?.thumbImage || ''), swatch: selectedWindowColour?.swatch, caption: selectedWindowColour?.label || '-' },
+      { key: 'exteriorDoor', title: labels.exteriorDoor, image: asset(entranceDoor?.thumbImage || ''), caption: entranceDoorLabel },
       ...(config.variant === 'balcony' ? [{ key: 'deckingColor', title: labels.deckingColor, image: asset(selectedDeckingColor?.thumbImage || selectedDeckingColor?.referenceImage || ''), caption: selectedDeckingColor?.label || '-', swatch: selectedDeckingColor?.swatch }] : []),
       { key: 'interiorPanels', title: labels.interiorPanels, image: asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || ''), caption: selectedInteriorPanels?.label || labels.defaultWhitePanels, swatch: selectedInteriorPanels?.swatch },
       { key: 'floorFinish', title: labels.floorFinish, image: asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || ''), caption: optionSummary(selectedFloorOption), swatch: selectedFloorOption?.swatch },
@@ -2154,11 +2968,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.model} value={selectedModel?.label || '-'} />
               <SummaryRow label={labels.variant} value={config.variant === 'balcony' ? labels.balcony : labels.standard} />
               <SummaryRow label={labels.layout} value={`${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` - ${selectedPlan.subtitle}` : ''}`} />
-              <SummaryRow label={labels.frame} value={selectedFrame?.label || '-'} />
+              <SummaryRow label={labels.frame} value={selectedWindowType?.label || '-'} />
               <SummaryRow label={labels.steelFrameColor} value={selectedSteelFrameColor?.label || '-'} />
-              <SummaryRow label={labels.windowStyle} value={selectedWindowStyle?.label || '-'} />
-              <SummaryRow label={labels.exteriorDoor} value={selectedDoor?.label || '-'} />
-              <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinish?.label || '-'} />
+              <SummaryRow label={labels.windowColour} value={selectedWindowColour?.label || '-'} />
+              <SummaryRow label={labels.exteriorDoor} value={entranceDoorLabel} />
+              <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinishCaption} />
               {config.variant === 'balcony' ? <SummaryRow label={labels.deckingColor} value={selectedDeckingColor?.label || '-'} /> : null}
               <SummaryRow label={labels.interiorPanels} value={selectedInteriorPanels?.label || labels.defaultWhitePanels} />
               <SummaryRow label={labels.floorFinish} value={optionSummary(selectedFloorOption)} />
@@ -2187,7 +3001,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <div className="bhc-chip-cloud">
                 <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
                 {windowMarkerItems.length ? windowMarkerItems.map((item) => (
-                  <span key={item.id} className="bhc-mini-chip">{item.label}{item.isPanoramic ? ' · P' : ''} • {item.coords}</span>
+                  <span key={item.id} className="bhc-mini-chip">{item.label}{item.badge ? ` · ${item.badge}` : ''} • {item.coords}</span>
                 )) : <div className="bhc-small-note">{labels.noWindows}</div>}
               </div>
               {config.windowNotes ? (
@@ -2237,12 +3051,12 @@ export default function BoxHouseConfiguratorPage({ content }) {
                   <div className="bhc-meta-v">{selectedExteriorFinish?.label || '-'}</div>
                 </div>
                 <div className="bhc-meta-card">
-                  <div className="bhc-meta-k">{labels.windowStyle}</div>
-                  <div className="bhc-meta-v">{selectedWindowStyle?.label || '-'}</div>
+                  <div className="bhc-meta-k">{labels.windowColour}</div>
+                  <div className="bhc-meta-v">{selectedWindowColour?.label || '-'}</div>
                 </div>
                 <div className="bhc-meta-card">
                   <div className="bhc-meta-k">{labels.exteriorDoor}</div>
-                  <div className="bhc-meta-v">{selectedDoor?.label || '-'}</div>
+                  <div className="bhc-meta-v">{entranceDoorLabel}</div>
                 </div>
                 {config.variant === 'balcony' ? (
                   <div className="bhc-meta-card">
@@ -2303,14 +3117,18 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <div className="bhc-side-panel bhc-side-panel--span-2">
               <div className="bhc-section-title">{labels.priceBreakdown}</div>
               <div className="bhc-detail-list">
-                <SummaryRow label={labels.basePrice} value={euro(knownBasePrice, locale)} />
-                <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'} />
-                <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
-                <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
-                <SummaryRow label={`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`} value={windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included} />
-                {panoramicWindowCount ? <SummaryRow label={`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`} value={euro(panoramicUpgradePrice, locale)} /> : null}
-                <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
+                {priceBreakdownRows.map(([label, value], index) => (
+                  <SummaryRow key={label} label={label} value={value} strong={index === priceBreakdownRows.length - 1} />
+                ))}
               </div>
+              {quotationItems.length ? (
+                <div className="bhc-detail-list">
+                  <div className="bhc-subhead">{labels.quotationItems}</div>
+                  {quotationItems.map((item) => (
+                    <SummaryRow key={item.label} label={item.label} value={`${item.value} · ${labels.onRequest}`} />
+                  ))}
+                </div>
+              ) : null}
               <div className="bhc-small-note">{labels.pricingFootnote}</div>
             </div>
           </div>
@@ -2408,6 +3226,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="model"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.model}
           value={`${selectedModel?.label || '-'} · ${selectedModel?.area} m²`}
           thumb={asset(selectedModelHeroImage)}
@@ -2437,6 +3257,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="variant"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.variant}
           value={config.variant === 'balcony' ? labels.balcony : labels.standard}
           badge={euro(knownBasePrice, locale)}
@@ -2473,6 +3295,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="layout"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.layout}
           value={`${selectedPlan?.label || '-'}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`}
           thumb={asset(selectedPlan?.image || '')}
@@ -2495,7 +3319,70 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }
 
   function renderExteriorStepMobile() {
-    const previewChips = [selectedExteriorFinish?.label || '-', selectedWindowStyle?.label || '-', selectedDoor?.label || '-']
+    // Shared between the inline summary and the full-screen editor.
+    const windowListRows = (config.windows || []).length > 0 ? (
+      <div className="bhc-window-list">
+        {(config.windows || []).map((win, index) => (
+          <div key={win.id} className="bhc-window-row">
+            <span className={['bhc-window-num', win.kind && win.kind !== 'standard' && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
+            <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
+            <select className="bhc-select bhc-select--inline" value={win.kind || 'standard'} onChange={(e) => setWindowKind(win.id, e.target.value)}>
+              <option value="standard">{labels.standardWindow}</option>
+              {catalog.glazingUpgradeOptions.map((item) => (
+                <option key={item.key} value={item.key}>{item.label} +{euro(item.price, locale)}</option>
+              ))}
+            </select>
+            <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
+          </div>
+        ))}
+      </div>
+    ) : null
+
+    const windowPlanModal = (
+      <PlanEditorModal
+        open={planEditor === 'windows'}
+        title={labels.windowOpenings}
+        hint={labels.openingTypeHint}
+        doneLabel={labels.planEditorDone}
+        onClose={() => setPlanEditor('')}
+      >
+        <div className="bhc-plan-modal-kinds">
+          <button
+            type="button"
+            className={['bhc-plan-kind', config.nextWindowKind === 'standard' && 'is-active'].filter(Boolean).join(' ')}
+            onClick={() => setField('nextWindowKind', 'standard')}
+          >
+            {labels.standardWindow}
+          </button>
+          {catalog.glazingUpgradeOptions.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={['bhc-plan-kind', config.nextWindowKind === item.key && 'is-active'].filter(Boolean).join(' ')}
+              onClick={() => setField('nextWindowKind', item.key)}
+            >
+              {item.label} <em>+{euro(item.price, locale)}</em>
+            </button>
+          ))}
+        </div>
+        <WindowPlanStage
+          image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')}
+          markers={windowStageMarkers}
+          onAdd={addWindowMarker}
+          onRemove={removeWindowMarker}
+          interactive
+          className="bhc-plan-stage--modal"
+          emptyText={labels.noWindows}
+        />
+        {windowListRows}
+        <div className="bhc-action-row bhc-action-row--stack">
+          <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
+          <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
+        </div>
+      </PlanEditorModal>
+    )
+
+    const previewChips = [selectedExteriorFinish?.label || '-', selectedWindowColour?.label || '-', selectedDoor?.label || '-']
     if (config.variant === 'balcony') previewChips.push(selectedDeckingColor?.label || '-')
 
     return (
@@ -2506,73 +3393,175 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="panels"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.outsidePanels}
-          value={selectedExteriorFinish?.label || '-'}
+          value={selectedExteriorFinishCaption}
           thumb={asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || '')}
           swatch={selectedExteriorFinish?.swatch}
         >
-          <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--wide">
-            {exteriorFinishOptions.map((item) => (
+          <label className="bhc-series-picker">
+            <span className="bhc-series-picker-label">{labels.exteriorFinishFamily}</span>
+            <select
+              className="bhc-select"
+              value={exteriorFinishGroup?.key || ''}
+              onChange={(event) => setField('exteriorFinishFamily', event.target.value)}
+            >
+              {catalog.exteriorFinishGroups.map((group) => (
+                <option key={group.key} value={group.key}>
+                  {group.label} ({group.options.length})
+                </option>
+              ))}
+            </select>
+          </label>
+          <GroupedOptionGrid
+            options={exteriorFinishOptions}
+            value={config.exteriorFinish}
+            categoryLabel={labels.exteriorFinishFamily}
+            showAllLabel={labels.showAllOptions}
+            pageSize={optionPageSize}
+            gridClassName="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact"
+            renderOption={(item) => (
               <ThumbChoiceButton
                 key={item.key}
                 active={config.exteriorFinish === item.key}
-                label={item.label}
+                label={item.code}
                 image={asset(item.thumbImage || item.referenceImage || '')}
                 swatch={item.swatch}
                 onClick={() => setField('exteriorFinish', item.key)}
               />
-            ))}
-          </div>
-        </MobileSection>
-
-        <MobileSection
-          id="windowStyle"
-          openId={openSection}
-          onToggle={toggleSection}
-          title={labels.windowStyle}
-          value={selectedWindowStyle?.label || '-'}
-          thumb={asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.referenceImage || '')}
-        >
-          <div className="bhc-code-grid">
-            {catalog.windowStyleOptions.map((item) => (
-              <OptionTile key={item.key} active={config.windowStyle === item.key} title={item.label} onClick={() => setField('windowStyle', item.key)} />
-            ))}
-          </div>
-        </MobileSection>
-
-        <MobileSection
-          id="exteriorDoor"
-          openId={openSection}
-          onToggle={toggleSection}
-          title={labels.exteriorDoor}
-          value={selectedDoor?.label || '-'}
-          thumb={asset(selectedDoor?.thumbImage || selectedDoor?.referenceImage || '')}
-        >
-          <div className="bhc-code-grid">
-            {catalog.exteriorDoorOptions.map((item) => (
-              <OptionTile key={item.key} active={config.exteriorDoor === item.key} title={item.label} onClick={() => setField('exteriorDoor', item.key)} />
-            ))}
-          </div>
+            )}
+          />
         </MobileSection>
 
         <MobileSection
           id="frame"
           openId={openSection}
           onToggle={toggleSection}
-          title={labels.frame}
-          value={selectedFrame?.label || '-'}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.windowTypeLabel}
+          value={selectedWindowType?.label || '-'}
+          badge={selectedWindowType?.price ? `+${euro(selectedWindowType.price, locale)}` : labels.includedShort}
+          thumb={asset(selectedWindowType?.thumbImage || '')}
         >
-          <div className="bhc-option-list">
-            {catalog.windowFrameOptions.map((item) => (
-              <ChoiceCard key={item.key} active={config.windowFrame === item.key} title={item.label} subtitle={item.note} onClick={() => setField('windowFrame', item.key)} />
+          <div className="bhc-window-type-grid">
+            {catalog.windowTypeOptions.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={['bhc-window-type', config.windowType === item.key && 'is-active'].filter(Boolean).join(' ')}
+                onClick={() => setField('windowType', item.key)}
+              >
+                <img src={cdnImage(asset(item.thumbImage), { width: 160 })} alt="" loading="lazy" />
+                <span className="bhc-window-type-text">
+                  <strong>{item.label}</strong>
+                  <em>{item.note}</em>
+                  <span className="bhc-window-type-price">
+                    {item.price ? `+${euro(item.price, locale)} / ${labels.perWindow}` : labels.includedShort}
+                  </span>
+                </span>
+              </button>
             ))}
           </div>
         </MobileSection>
 
         <MobileSection
+          id="windowColour"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.windowColour}
+          value={selectedWindowColour?.label || '-'}
+          thumb={asset(selectedWindowColour?.thumbImage || '')}
+          swatch={selectedWindowColour?.swatch}
+        >
+          {selectedWindowType?.colourSet === 'decor' ? (
+            <div className="bhc-thumb-choice-grid">
+              {windowColourOptions.map((item) => (
+                <ThumbChoiceButton key={item.key} active={config.windowColour === item.key} label={item.label} image={asset(item.thumbImage)} onClick={() => setField('windowColour', item.key)} />
+              ))}
+            </div>
+          ) : (
+            <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+              {windowColourOptions.map((item) => (
+                <SwatchButton key={item.key} active={config.windowColour === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('windowColour', item.key)} />
+              ))}
+            </div>
+          )}
+        </MobileSection>
+
+        <MobileSection
+          id="exteriorDoor"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.exteriorDoor}
+          value={entranceDoorLabel}
+          thumb={asset(entranceDoor?.thumbImage || '')}
+        >
+          <div className="bhc-thumb-choice-grid">
+            {catalog.exteriorDoorOptions.map((item) => (
+              <ThumbChoiceButton key={item.key} active={config.exteriorDoor === item.key} label={item.label} image={asset(item.thumbImage)} onClick={() => setField('exteriorDoor', item.key)} />
+            ))}
+          </div>
+          {/* Armoured leaves are only made for the solid single door. */}
+          {config.exteriorDoor === 'v-01' ? (
+            <>
+              <div className="bhc-subhead">{labels.armouredDoor}</div>
+              <div className="bhc-thumb-choice-grid">
+                <OptionTile active={!config.armouredDoor} title={labels.none} onClick={() => setField('armouredDoor', '')} />
+                {catalog.armouredDoorOptions.map((item) => (
+                  <ThumbChoiceButton
+                    key={item.key}
+                    active={config.armouredDoor === item.key}
+                    label={`${item.label} · +${euro(item.price, locale)}`}
+                    image={asset(item.thumbImage)}
+                    onClick={() => setField('armouredDoor', item.key)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </MobileSection>
+
+        {/* The terrace only exists on the balcony variant. */}
+        {config.variant === 'balcony' ? (
+          <MobileSection
+            id="terrace"
+            openId={openSection}
+            onToggle={toggleSection}
+            onNext={goToNextSection}
+            nextLabel={labels.nextSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+            title={labels.terrace}
+            value={selectedTerrace?.label || '-'}
+            badge={terracePrice ? `+${euro(terracePrice, locale)}` : labels.includedShort}
+          >
+            <div className="bhc-option-list">
+              {catalog.terraceOptions.map((item) => (
+                <ChoiceCard
+                  key={item.key}
+                  active={config.terrace === item.key}
+                  title={item.label}
+                  subtitle={item.note}
+                  badge={item.price ? `+${euro(item.price, locale)}` : labels.includedShort}
+                  onClick={() => setField('terrace', item.key)}
+                />
+              ))}
+            </div>
+          </MobileSection>
+        ) : null}
+
+        <MobileSection
           id="steelColor"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.steelFrameColor}
           value={selectedSteelFrameColor?.label || '-'}
           swatch={selectedSteelFrameColor?.swatch}
@@ -2595,13 +3584,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
             id="decking"
             openId={openSection}
             onToggle={toggleSection}
+            onNext={goToNextSection}
+            nextLabel={labels.nextSection}
             title={labels.deckingColor}
             value={selectedDeckingColor?.label || '-'}
             swatch={selectedDeckingColor?.swatch}
           >
-            <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+            <div className="bhc-thumb-choice-grid">
               {catalog.deckingColorOptions.map((item) => (
-                <SwatchButton key={item.key} active={config.deckingColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('deckingColor', item.key)} />
+                <ThumbChoiceButton key={item.key} active={config.deckingColor === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setField('deckingColor', item.key)} />
               ))}
             </div>
           </MobileSection>
@@ -2611,6 +3602,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="windows"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.windowOpenings}
           value={`${(config.windows || []).length} · ${windowSizeDimension} mm${windowExtrasPrice ? ` · +${euro(windowExtrasPrice, locale)}` : ''}`}
         >
@@ -2622,21 +3615,46 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <button type="button" className={['bhc-toggle', config.windowSize === '1400' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('windowSize', '1400')}>{labels.windowSize1400}</button>
           </div>
           <p className="bhc-window-size-note">{labels.windowSizeNote}</p>
-          <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={config.windows || []} onAdd={addWindowMarker} onRemove={removeWindowMarker} interactive emptyText={labels.noWindows} />
-          {(config.windows || []).length > 0 ? (
-            <div className="bhc-window-list">
-              {(config.windows || []).map((win, index) => (
-                <div key={win.id} className="bhc-window-row">
-                  <span className={['bhc-window-num', win.isPanoramic && 'is-panoramic'].filter(Boolean).join(' ')}>{index + 1}</span>
-                  <span className="bhc-window-label">{labels.windowMarker} {index + 1}</span>
-                  <button type="button" className={['bhc-window-panoramic-btn', win.isPanoramic && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleWindowPanoramic(win.id)} title={win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}>
-                    {win.isPanoramic ? labels.panoramicActive : labels.makePanoramic}
-                  </button>
-                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeWindowMarker(win.id)}>✕</button>
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <div className="bhc-subhead">{labels.openingType}</div>
+          <div className="bhc-window-type-grid bhc-window-type-grid--kinds">
+            <button
+              type="button"
+              className={['bhc-window-type', config.nextWindowKind === 'standard' && 'is-active'].filter(Boolean).join(' ')}
+              onClick={() => setField('nextWindowKind', 'standard')}
+            >
+              <span className="bhc-window-type-text">
+                <strong>{labels.standardWindow}</strong>
+                <em>{windowSizeDimension} mm</em>
+                <span className="bhc-window-type-price">{labels.included}</span>
+              </span>
+            </button>
+            {catalog.glazingUpgradeOptions.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={['bhc-window-type', config.nextWindowKind === item.key && 'is-active'].filter(Boolean).join(' ')}
+                onClick={() => setField('nextWindowKind', item.key)}
+              >
+                <img src={cdnImage(asset(item.thumbImage), { width: 160 })} alt="" loading="lazy" />
+                <span className="bhc-window-type-text">
+                  <strong>{item.label}</strong>
+                  <em>{item.note}</em>
+                  <span className="bhc-window-type-price">
+                    +{euro(item.price, locale)} / {item.unit === 'door' ? labels.perDoor : labels.perWindow}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="bhc-hint">{labels.openingTypeHint}</div>
+
+          {/* The plan is unusable at accordion width, so placing happens
+              full-screen; this stays as a read-only picture of the result. */}
+          <button type="button" className="btn bhc-plan-open-btn" onClick={() => setPlanEditor('windows')}>
+            {labels.openPlanEditor}
+          </button>
+          <WindowPlanStage image={asset(selectedPlan?.noWindowImage || selectedPlan?.image || '')} markers={windowStageMarkers} emptyText={labels.noWindows} />
+          {windowListRows}
           <div className="bhc-action-row bhc-action-row--stack">
             <button className="btn ghost" type="button" onClick={() => setField('windows', [])}>{actions.clearWindows}</button>
             <button className="btn ghost" type="button" onClick={() => setField('windows', (config.windows || []).slice(0, -1))}>{actions.removeLastWindow}</button>
@@ -2648,8 +3666,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
             </div>
             {panoramicWindowCount ? (
               <div className="bhc-window-price-row">
-                <span>{labels.panoramicUpgrades} · {panoramicWindowCount}×€300</span>
-                <span>+{euro(panoramicUpgradePrice, locale)}</span>
+                <span>{labels.panoramicUpgrades} · {panoramicWindowCount}</span>
+                <span>+{euro(glazingUpgradePrice, locale)}</span>
               </div>
             ) : null}
             <div className="bhc-window-price-row bhc-window-price-row--total">
@@ -2664,6 +3682,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="heating"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.heating}
           value={config.heating ? `${yesText} · ${euro(heatingPrice, locale)}` : noText}
         >
@@ -2674,6 +3694,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-inline-price">{labels.heatingPrice}: {euro(catalog.pricing.heatingPerM2 * (selectedModel?.area || 0), locale)}</div>
           <div className="bhc-hint">{hints.exterior}</div>
         </MobileSection>
+
+        {windowPlanModal}
       </div>
     )
   }
@@ -2692,6 +3714,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="panels"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.interiorPanels}
           value={`${selectedInteriorPanels?.label || labels.defaultWhitePanels}${interiorPanelsPrice ? ` · ${euro(interiorPanelsPrice, locale)}` : ''}`}
           thumb={asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || '')}
@@ -2711,21 +3735,33 @@ export default function BoxHouseConfiguratorPage({ content }) {
           {config.interiorPanelMode === 'coloured' ? (
             <>
               <div className="bhc-subhead">{labels.interiorPanelColour}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                {catalog.interiorPanelColorOptions.map((item) => (
+              <GroupedOptionGrid
+                options={catalog.interiorPanelColorOptions}
+                value={config.interiorPanelColor}
+                categoryLabel={labels.interiorPanelColour}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-swatch-grid bhc-swatch-grid--compact"
+                renderOption={(item) => (
                   <SwatchButton key={item.key} active={config.interiorPanelColor === item.key} label={item.label} swatch={item.swatch} onClick={() => setField('interiorPanelColor', item.key)} />
-                ))}
-              </div>
+                )}
+              />
             </>
           ) : null}
           {config.interiorPanelMode === 'uv' ? (
             <>
-              <div className="bhc-subhead">{labels.uvPanel}</div>
-              <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-                {catalog.uvPanelOptions.map((item) => (
-                  <SwatchButton key={item.key} active={config.uvPanel === item.key} label={optionDisplay(item)} swatch={item.swatch} onClick={() => setField('uvPanel', item.key)} />
-                ))}
-              </div>
+              <div className="bhc-subhead">{labels.wallUvPanel}</div>
+              <GroupedOptionGrid
+                options={catalog.uvPanelOptions}
+                value={config.uvPanel}
+                categoryLabel={labels.wallUvPanel}
+                showAllLabel={labels.showAllOptions}
+                pageSize={optionPageSize}
+                gridClassName="bhc-thumb-choice-grid"
+                renderOption={(item) => (
+                  <ThumbChoiceButton key={item.key} active={config.uvPanel === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setField('uvPanel', item.key)} />
+                )}
+              />
             </>
           ) : null}
           <div className="bhc-inline-price">{labels.internalWalls}: {interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}</div>
@@ -2735,6 +3771,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="floor"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.floorFinish}
           value={optionDisplay(selectedFloorOption)}
           thumb={asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || '')}
@@ -2744,48 +3782,137 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-toggle-row bhc-toggle-row--3">
             {!config.heating ? (
               <>
-                <button type="button" className={['bhc-toggle', activeFloorFamily === 'spc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'spc')}>SPC</button>
-                <button type="button" className={['bhc-toggle', activeFloorFamily === 'pvc' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'pvc')}>PVC</button>
+                <button type="button" className={['bhc-toggle', activeFloorFamily === 'vinyl' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'vinyl')}>{isBg ? 'Винил' : 'Vinyl'}</button>
+                <button type="button" className={['bhc-toggle', activeFloorFamily === 'herringbone' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'herringbone')}>{isBg ? 'Рибена кост' : 'Herringbone'}</button>
               </>
             ) : null}
             {config.heating ? <button type="button" className="bhc-toggle is-active" disabled>Carbon Crystal</button> : null}
           </div>
           {config.heating ? <div className="bhc-small-note">{isBg ? 'При избрано отопление Carbon Crystal остава единствената подова опция.' : 'With heating selected, Carbon Crystal remains the only floor option.'}</div> : null}
           <div className="bhc-subhead">{labels.floorFinish}</div>
-          <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-            {activeFloorOptions.map((item) => (
-              <SwatchButton key={item.key} active={activeFloorSelection === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || selectedFloorOption?.swatch || '#cbd5e1'} onClick={() => setField(activeFloorField, item.key)} />
-            ))}
-          </div>
+          <GroupedOptionGrid
+            options={activeFloorOptions}
+            value={activeFloorSelection}
+            categoryLabel={labels.floorFamily}
+            showAllLabel={labels.showAllOptions}
+            pageSize={optionPageSize}
+            gridClassName="bhc-swatch-grid bhc-swatch-grid--compact"
+            renderOption={(item) => (
+              <SwatchButton key={item.key} active={activeFloorSelection === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || '#cbd5e1'} onClick={() => setField(activeFloorField, item.key)} />
+            )}
+          />
         </MobileSection>
 
         <MobileSection
           id="bench"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.kitchenBench}
           value={optionDisplay(selectedKitchenBench)}
           thumb={asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || '')}
           swatch={selectedKitchenBench?.swatch}
         >
-          <div className="bhc-swatch-grid bhc-swatch-grid--compact">
-            {catalog.kitchenBenchOptions.map((item) => (
-              <SwatchButton key={item.key} active={config.kitchenBench === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || selectedKitchenBench?.swatch || '#cbd5e1'} onClick={() => setField('kitchenBench', item.key)} />
-            ))}
-          </div>
+          <GroupedOptionGrid
+            options={catalog.kitchenBenchOptions}
+            value={config.kitchenBench}
+            categoryLabel={labels.kitchenBench}
+            showAllLabel={labels.showAllOptions}
+            pageSize={optionPageSize}
+            gridClassName="bhc-swatch-grid bhc-swatch-grid--compact"
+            renderOption={(item) => (
+              <SwatchButton key={item.key} active={config.kitchenBench === item.key} label={optionDisplay(item, item.label || '-')} swatch={item.swatch || '#cbd5e1'} onClick={() => setField('kitchenBench', item.key)} />
+            )}
+          />
         </MobileSection>
 
         <MobileSection
           id="bathroom"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.bathroom}
           value={selectedBathroom?.label || '-'}
           thumb={asset(selectedBathroom?.image || '')}
         >
           <div className="bhc-card-grid bhc-card-grid--compact">
             {catalog.bathroomOptions.map((item) => (
-              <ChoiceCard key={item.key} active={config.bathroom === item.key} title={item.label} image={asset(item.image)} onClick={() => setField('bathroom', item.key)} />
+              <ChoiceCard key={item.key} active={config.bathroom === item.key} title={item.label} image={asset(item.image)} badge={labels.includedShort} onClick={() => setField('bathroom', item.key)} />
+            ))}
+          </div>
+        </MobileSection>
+
+        <MobileSection
+          id="bathroomUv"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.bathroomUvPanel}
+          value={optionDisplay(selectedBathroomUvPanel)}
+          thumb={asset(selectedBathroomUvPanel?.thumbImage || '')}
+          swatch={selectedBathroomUvPanel?.swatch}
+        >
+          <div className="bhc-hint">{labels.bathroomUvPanelHint}</div>
+          <GroupedOptionGrid
+            options={catalog.uvPanelOptions}
+            value={config.bathroomUvPanel}
+            categoryLabel={labels.bathroomUvPanel}
+            showAllLabel={labels.showAllOptions}
+            pageSize={optionPageSize}
+            gridClassName="bhc-thumb-choice-grid"
+            renderOption={(item) => (
+              <ThumbChoiceButton key={item.key} active={config.bathroomUvPanel === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setField('bathroomUvPanel', item.key)} />
+            )}
+          />
+        </MobileSection>
+
+        <MobileSection
+          id="bathroomDoor"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.bathroomDoor}
+          value={selectedBathroomDoor?.label || '-'}
+          badge={bathroomDoorPrice ? `+${euro(bathroomDoorPrice, locale)}` : labels.includedShort}
+          thumb={asset(selectedBathroomDoor?.thumbImage || '')}
+        >
+          <div className="bhc-thumb-choice-grid">
+            {catalog.bathroomDoorOptions.map((item) => (
+              <ThumbChoiceButton
+                key={item.key}
+                active={config.bathroomDoor === item.key}
+                label={item.price ? `${item.label} · +${euro(item.price, locale)}` : item.label}
+                image={asset(item.thumbImage)}
+                onClick={() => setField('bathroomDoor', item.key)}
+              />
+            ))}
+          </div>
+        </MobileSection>
+
+        <MobileSection
+          id="vanity"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.vanity}
+          value={selectedVanity?.label || '-'}
+          badge={selectedVanity?.onRequest ? labels.onRequest : labels.includedShort}
+          thumb={asset(selectedVanity?.thumbImage || '')}
+        >
+          <div className="bhc-thumb-choice-grid">
+            {catalog.vanityOptions.map((item) => (
+              <ThumbChoiceButton
+                key={item.key}
+                active={config.vanity === item.key}
+                label={item.onRequest ? `${item.label} · ${labels.onRequest}` : item.label}
+                image={asset(item.thumbImage)}
+                onClick={() => setField('vanity', item.key)}
+              />
             ))}
           </div>
         </MobileSection>
@@ -2794,21 +3921,83 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="kitchen"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.kitchen}
           value={selectedKitchen?.label || '-'}
+          badge={kitchenVariantPrice ? `+${euro(kitchenVariantPrice, locale)}` : labels.includedShort}
           thumb={asset(selectedKitchen?.image || '')}
         >
           <div className="bhc-card-grid bhc-card-grid--compact">
             {catalog.kitchenOptions.map((item) => (
-              <ChoiceCard key={item.key} active={config.kitchen === item.key} title={item.label} image={asset(item.image)} onClick={() => setField('kitchen', item.key)} />
+              <ChoiceCard
+                key={item.key}
+                active={config.kitchen === item.key}
+                title={item.label}
+                image={asset(item.image)}
+                badge={item.price ? `+${euro(item.price, locale)}` : labels.includedShort}
+                onClick={() => setField('kitchen', item.key)}
+              />
             ))}
           </div>
+        </MobileSection>
+
+        <MobileSection
+          id="kitchenSink"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.kitchenSink}
+          value={selectedKitchenSink?.label || '-'}
+          badge={kitchenSinkPrice ? `+${euro(kitchenSinkPrice, locale)}` : labels.includedShort}
+          thumb={asset(selectedKitchenSink?.thumbImage || '')}
+        >
+          <div className="bhc-thumb-choice-grid">
+            {catalog.kitchenSinkOptions.map((item) => (
+              <ThumbChoiceButton
+                key={item.key}
+                active={config.kitchenSink === item.key}
+                label={item.price ? `${item.label} · +${euro(item.price, locale)}` : item.label}
+                image={asset(item.thumbImage)}
+                onClick={() => setField('kitchenSink', item.key)}
+              />
+            ))}
+          </div>
+        </MobileSection>
+
+        <MobileSection
+          id="petColour"
+          openId={openSection}
+          onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
+          title={labels.kitchenPetColour}
+          value={selectedKitchenPetColour ? `${selectedKitchenPetColour.code} · ${labels.onRequest}` : labels.none}
+          swatch={selectedKitchenPetColour?.swatch}
+        >
+          <div className="bhc-swatch-grid bhc-swatch-grid--compact">
+            <SwatchButton active={!config.kitchenPetColour} label={labels.none} swatch="transparent" onClick={() => setField('kitchenPetColour', '')} />
+          </div>
+          <GroupedOptionGrid
+            options={catalog.kitchenPetColourOptions}
+            value={config.kitchenPetColour}
+            categoryLabel={labels.kitchenPetColour}
+            showAllLabel={labels.showAllOptions}
+            pageSize={optionPageSize}
+            gridClassName="bhc-swatch-grid bhc-swatch-grid--compact"
+            renderOption={(item) => (
+              <SwatchButton key={item.key} active={config.kitchenPetColour === item.key} label={item.code} swatch={item.swatch} onClick={() => setField('kitchenPetColour', item.key)} />
+            )}
+          />
         </MobileSection>
 
         <MobileSection
           id="extras"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.kitchenExtras}
           value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'}
         >
@@ -2825,6 +4014,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
           id="doors"
           openId={openSection}
           onToggle={toggleSection}
+          onNext={goToNextSection}
+          nextLabel={labels.nextSection}
           title={labels.insideDoors}
           value={`${selectedInsideDoorStyle?.label || '-'} · ${config.insideDoorCount || 0}${insideDoorPrice ? ` · ${euro(insideDoorPrice, locale)}` : ''}`}
           thumb={asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || '')}
@@ -2834,7 +4025,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <ThumbChoiceButton
                 key={item.key}
                 active={config.insideDoorStyle === item.key}
-                label={item.label}
+                label={item.price ? `${item.label} · +${euro(item.price, locale)}` : item.label}
                 image={asset(item.thumbImage || item.referenceImage || '')}
                 onClick={() => setField('insideDoorStyle', item.key)}
               />
@@ -2843,13 +4034,44 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-number-grid">
             <NumberField label={labels.insideDoorCount} value={config.insideDoorCount} onChange={(value) => setField('insideDoorCount', value)} max={24} />
           </div>
-          <div className="bhc-inline-price">{labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : '-'}</div>
+          <div className="bhc-hint">
+            {labels.insideDoorCountHint
+              .replace('{plan}', selectedPlan?.key || '-')
+              .replace('{n}', String(planDoorCount))
+              .replace('{doorWord}', planDoorCount === 1 ? labels.doorWordOne : labels.doorWordMany)}
+            {Number(config.insideDoorCount) !== planDoorCount ? (
+              <button type="button" className="bhc-linkish" onClick={() => setField('insideDoorCount', planDoorCount)}>
+                {labels.resetToLayout}
+              </button>
+            ) : null}
+          </div>
+          <div className="bhc-inline-price">{labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : labels.included}</div>
         </MobileSection>
       </div>
     )
   }
 
   function renderSocketsStepMobile() {
+    // Shared between the inline list and the full-screen editor.
+    const socketRows = config.sockets.length > 0 ? (
+      <div className="bhc-window-list bhc-socket-list">
+        <div className="bhc-subhead">{labels.socketDescHint}</div>
+        {config.sockets.map((socket, index) => (
+          <div key={socket.id} className="bhc-window-row bhc-socket-row">
+            <span className="bhc-window-num bhc-socket-num">{index + 1}</span>
+            <input
+              className="bhc-socket-desc-input"
+              type="text"
+              placeholder={isBg ? `Контакт ${index + 1} — за какво ще се ползва?` : `Socket ${index + 1} — what's it for?`}
+              value={socket.description || ''}
+              onChange={(e) => updateSocketDescription(socket.id, e.target.value)}
+            />
+            <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={isBg ? 'Премахни контакт' : 'Remove socket'}>✕</button>
+          </div>
+        ))}
+      </div>
+    ) : <div className="bhc-small-note">{labels.noSockets}</div>
+
     return (
       <div className="bhc-mobile-shell">
         <div className="bhc-side-panel bhc-side-panel--full">
@@ -2858,50 +4080,64 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <span className="bhc-msocket-count">{labels.socketCount}: {config.sockets.length}</span>
           </div>
           <div className="bhc-hint">{labels.socketsHint}</div>
-          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} onAdd={addSocketMarker} onRemove={removeSocketMarker} interactive emptyText={labels.noSockets} />
+          {/* Placing a socket needs a bigger target than the column allows. */}
+          <button type="button" className="btn bhc-plan-open-btn" onClick={() => setPlanEditor('sockets')}>
+            {labels.openPlanEditor}
+          </button>
+          <SocketPlanStage image={asset(selectedPlan?.image || '')} markers={config.sockets} emptyText={labels.noSockets} />
         </div>
 
         <div className="bhc-side-panel">
-          {config.sockets.length > 0 ? (
-            <div className="bhc-window-list bhc-socket-list">
-              <div className="bhc-subhead">{labels.socketDescHint}</div>
-              {config.sockets.map((socket, index) => (
-                <div key={socket.id} className="bhc-window-row bhc-socket-row">
-                  <span className="bhc-window-num bhc-socket-num">{index + 1}</span>
-                  <input
-                    className="bhc-socket-desc-input"
-                    type="text"
-                    placeholder={isBg ? `Контакт ${index + 1} — за какво ще се ползва?` : `Socket ${index + 1} — what's it for?`}
-                    value={socket.description || ''}
-                    onChange={(e) => updateSocketDescription(socket.id, e.target.value)}
-                  />
-                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={isBg ? 'Премахни контакт' : 'Remove socket'}>✕</button>
-                </div>
-              ))}
-            </div>
-          ) : <div className="bhc-small-note">{labels.noSockets}</div>}
+          {socketRows}
           <textarea value={config.socketNotes} onChange={(e) => setField('socketNotes', e.target.value)} placeholder={labels.socketNotesPlaceholder} rows={4} />
           <div className="bhc-action-row bhc-action-row--stack">
             <button className="btn ghost" type="button" onClick={() => setField('sockets', [])}>{actions.clearSockets}</button>
             <button className="btn ghost" type="button" onClick={() => setField('sockets', config.sockets.slice(0, -1))}>{actions.removeLastSocket}</button>
           </div>
         </div>
+
+        <PlanEditorModal
+          open={planEditor === 'sockets'}
+          title={labels.sockets}
+          hint={labels.socketsHint}
+          doneLabel={labels.planEditorDone}
+          onClose={() => setPlanEditor('')}
+        >
+          <SocketPlanStage
+            image={asset(selectedPlan?.image || '')}
+            markers={config.sockets}
+            onAdd={addSocketMarker}
+            onRemove={removeSocketMarker}
+            interactive
+            className="bhc-plan-stage--modal"
+            emptyText={labels.noSockets}
+          />
+          {socketRows}
+          <div className="bhc-action-row bhc-action-row--stack">
+            <button className="btn ghost" type="button" onClick={() => setField('sockets', [])}>{actions.clearSockets}</button>
+            <button className="btn ghost" type="button" onClick={() => setField('sockets', config.sockets.slice(0, -1))}>{actions.removeLastSocket}</button>
+          </div>
+        </PlanEditorModal>
       </div>
     )
   }
 
   function renderSummaryStepMobile() {
     const finishPreviewCards = [
-      { key: 'outsidePanels', title: labels.outsidePanels, image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || ''), caption: selectedExteriorFinish?.label || '-', swatch: selectedExteriorFinish?.swatch },
-      { key: 'windowStyle', title: labels.windowStyle, image: asset(selectedWindowStyle?.thumbImage || selectedWindowStyle?.referenceImage || ''), caption: selectedWindowStyle?.label || '-' },
-      { key: 'exteriorDoor', title: labels.exteriorDoor, image: asset(selectedDoor?.thumbImage || selectedDoor?.referenceImage || ''), caption: selectedDoor?.label || '-' },
+      { key: 'outsidePanels', title: labels.outsidePanels, image: asset(selectedExteriorFinish?.thumbImage || selectedExteriorFinish?.referenceImage || ''), caption: selectedExteriorFinishCaption, swatch: selectedExteriorFinish?.swatch },
+      { key: 'windowColour', title: labels.windowColour, image: asset(selectedWindowColour?.thumbImage || ''), swatch: selectedWindowColour?.swatch, caption: selectedWindowColour?.label || '-' },
+      { key: 'exteriorDoor', title: labels.exteriorDoor, image: asset(entranceDoor?.thumbImage || ''), caption: entranceDoorLabel },
       ...(config.variant === 'balcony' ? [{ key: 'deckingColor', title: labels.deckingColor, image: asset(selectedDeckingColor?.thumbImage || selectedDeckingColor?.referenceImage || ''), caption: selectedDeckingColor?.label || '-', swatch: selectedDeckingColor?.swatch }] : []),
       { key: 'interiorPanels', title: labels.interiorPanels, image: asset(selectedInteriorPanels?.thumbImage || selectedInteriorPanels?.referenceImage || ''), caption: selectedInteriorPanels?.label || labels.defaultWhitePanels, swatch: selectedInteriorPanels?.swatch },
       { key: 'floorFinish', title: labels.floorFinish, image: asset(selectedFloorOption?.thumbImage || selectedFloorOption?.referenceImage || ''), caption: optionSummary(selectedFloorOption), swatch: selectedFloorOption?.swatch },
       { key: 'kitchenBench', title: labels.kitchenBench, image: asset(selectedKitchenBench?.thumbImage || selectedKitchenBench?.referenceImage || ''), caption: optionSummary(selectedKitchenBench), swatch: selectedKitchenBench?.swatch },
       { key: 'insideDoorStyle', title: labels.insideDoorStyle, image: asset(selectedInsideDoorStyle?.thumbImage || selectedInsideDoorStyle?.referenceImage || ''), caption: selectedInsideDoorStyle?.label || '-' },
       { key: 'bathroom', title: labels.bathroom, image: asset(selectedBathroom?.image || ''), caption: selectedBathroom?.label || '-' },
+      { key: 'bathroomUvPanel', title: labels.bathroomUvPanel, image: asset(selectedBathroomUvPanel?.thumbImage || ''), caption: optionDisplay(selectedBathroomUvPanel), swatch: selectedBathroomUvPanel?.swatch },
+      { key: 'bathroomDoor', title: labels.bathroomDoor, image: asset(selectedBathroomDoor?.thumbImage || ''), caption: selectedBathroomDoor?.label || '-' },
+      { key: 'vanity', title: labels.vanity, image: asset(selectedVanity?.thumbImage || ''), caption: selectedVanity?.label || '-' },
       { key: 'kitchen', title: labels.kitchen, image: asset(selectedKitchen?.image || ''), caption: selectedKitchen?.label || '-' },
+      { key: 'kitchenSink', title: labels.kitchenSink, image: asset(selectedKitchenSink?.thumbImage || ''), caption: selectedKitchenSink?.label || '-' },
     ].filter((item) => item.image || item.swatch)
 
     return (
@@ -2942,14 +4178,22 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <SummaryRow label={labels.model} value={selectedModel?.label || '-'} />
             <SummaryRow label={labels.variant} value={config.variant === 'balcony' ? labels.balcony : labels.standard} />
             <SummaryRow label={labels.layout} value={`${selectedPlan?.label || ''}${selectedPlan?.subtitle ? ` · ${selectedPlan.subtitle}` : ''}`} />
-            <SummaryRow label={labels.frame} value={selectedFrame?.label || '-'} />
-            <SummaryRow label={labels.windowStyle} value={selectedWindowStyle?.label || '-'} />
-            <SummaryRow label={labels.exteriorDoor} value={selectedDoor?.label || '-'} />
-            <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinish?.label || '-'} />
+            <SummaryRow label={labels.windowTypeLabel} value={selectedWindowType?.label || '-'} />
+            <SummaryRow label={labels.windowColour} value={selectedWindowColour?.label || '-'} />
+            <SummaryRow label={labels.exteriorDoor} value={entranceDoorLabel} />
+            <SummaryRow label={labels.outsidePanels} value={selectedExteriorFinishCaption} />
+            {config.variant === 'balcony' ? <SummaryRow label={labels.terrace} value={`${selectedTerrace?.label || '-'}${terracePrice ? ` · ${euro(terracePrice, locale)}` : ''}`} /> : null}
             {config.variant === 'balcony' ? <SummaryRow label={labels.deckingColor} value={selectedDeckingColor?.label || '-'} /> : null}
             <SummaryRow label={labels.interiorPanels} value={selectedInteriorPanels?.label || labels.defaultWhitePanels} />
             <SummaryRow label={labels.floorFinish} value={optionSummary(selectedFloorOption)} />
             <SummaryRow label={labels.kitchenBench} value={optionSummary(selectedKitchenBench)} />
+            <SummaryRow label={labels.bathroom} value={selectedBathroom?.label || '-'} />
+            <SummaryRow label={labels.bathroomUvPanel} value={optionDisplay(selectedBathroomUvPanel)} />
+            <SummaryRow label={labels.bathroomDoor} value={selectedBathroomDoor?.label || '-'} />
+            <SummaryRow label={labels.vanity} value={selectedVanity?.label || '-'} />
+            <SummaryRow label={labels.kitchen} value={selectedKitchen?.label || '-'} />
+            <SummaryRow label={labels.kitchenSink} value={selectedKitchenSink?.label || '-'} />
+            {selectedKitchenPetColour ? <SummaryRow label={labels.kitchenPetColour} value={`${selectedKitchenPetColour.code} · ${labels.onRequest}`} /> : null}
             <SummaryRow label={labels.kitchenExtras} value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'} />
             <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
           </div>
@@ -2969,7 +4213,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-chip-cloud">
             <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
             {windowMarkerItems.length ? windowMarkerItems.map((item) => (
-              <span key={item.id} className="bhc-mini-chip">{item.label}{item.isPanoramic ? ' · P' : ''} • {item.coords}</span>
+              <span key={item.id} className="bhc-mini-chip">{item.label}{item.badge ? ` · ${item.badge}` : ''} • {item.coords}</span>
             )) : <div className="bhc-small-note">{labels.noWindows}</div>}
           </div>
           {config.windowNotes ? (
@@ -2995,14 +4239,18 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
         <MobileSection id="price" openId={openSection} onToggle={toggleSection} title={labels.priceBreakdown} value={euro(knownTotal, locale)} badge={euro(knownTotal, locale)}>
           <div className="bhc-detail-list">
-            <SummaryRow label={labels.basePrice} value={euro(knownBasePrice, locale)} />
-            <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : '-'} />
-            <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
-            <SummaryRow label={labels.heatingPrice} value={config.heating ? euro(heatingPrice, locale) : '-'} />
-            <SummaryRow label={`${labels.windowSize} · ${windowSizeDimension} mm (${labels.forAllWindows})`} value={windowSizeExtra ? euro(windowSizeExtra, locale) : labels.included} />
-            {panoramicWindowCount ? <SummaryRow label={`${labels.panoramicUpgrades} · ${panoramicWindowCount}×€300`} value={euro(panoramicUpgradePrice, locale)} /> : null}
-            <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
+            {priceBreakdownRows.map(([label, value], index) => (
+              <SummaryRow key={label} label={label} value={value} strong={index === priceBreakdownRows.length - 1} />
+            ))}
           </div>
+          {quotationItems.length ? (
+            <div className="bhc-detail-list">
+              <div className="bhc-subhead">{labels.quotationItems}</div>
+              {quotationItems.map((item) => (
+                <SummaryRow key={item.label} label={item.label} value={`${item.value} · ${labels.onRequest}`} />
+              ))}
+            </div>
+          ) : null}
           <div className="bhc-small-note">{labels.pricingFootnote}</div>
         </MobileSection>
       </div>
