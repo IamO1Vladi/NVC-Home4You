@@ -141,6 +141,15 @@ function AppShell() {
     setQuestionOpen(true)
   }, [])
 
+  // selectedModel is only ever set (from a gallery model's "request a quote"), so without
+  // this it stuck for the whole session: a visitor who looked at one house and later
+  // enquired from the configurator or the doors page sent that stale house id as the
+  // offer's Related Houses/Wagon, and sales saw the wrong product on the lead.
+  // A model reference belongs to the enquiry it was picked for and nothing after it.
+  useEffect(() => {
+    setSelectedModel(null)
+  }, [location.pathname])
+
   const offerPrefill = offerPrefillData?.offerText || ''
   const questionPrefill = questionPrefillData?.questionText || ''
 
@@ -409,7 +418,7 @@ function AppShell() {
 
           {!isInternal && <SiteFooter locale={currentLocale} />}
 
-          <Modal open={offerOpen} onClose={() => setOfferOpen(false)} title={ui.forms.offer.title} closeLabel={ui.common.close}>
+          <Modal open={offerOpen} onClose={() => { setOfferOpen(false); setSelectedModel(null) }} title={ui.forms.offer.title} closeLabel={ui.common.close}>
             <form className="grid" style={{ gap: 10 }} onSubmit={submitOffer}>
               <input name="name" required placeholder={ui.forms.offer.fields.name} autoComplete="name" />
               <input name="email" type="email" required placeholder={ui.forms.offer.fields.email} autoComplete="email" />

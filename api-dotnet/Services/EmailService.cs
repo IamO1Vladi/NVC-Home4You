@@ -310,24 +310,27 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1
         var safeEmail = System.Net.WebUtility.HtmlEncode(trimmedEmail);
         var safePhone = System.Net.WebUtility.HtmlEncode((phone ?? "").Trim());
         var detailsHtml = LinkifyEncoded(details ?? "");
-        var kind = isOffer ? "offer request" : "question";
 
-        var subject = $"New {kind}: {(string.IsNullOrEmpty(trimmedName) ? trimmedEmail : trimmedName)}";
+        // Bulgarian, unlike the customer-facing autoresponder: this one only ever goes to
+        // the sales inbox, so it follows the team's language rather than the visitor's.
+        var kind = isOffer ? "запитване за оферта" : "въпрос";
+
+        var subject = $"Ново {kind}: {(string.IsNullOrEmpty(trimmedName) ? trimmedEmail : trimmedName)}";
 
         var phoneRow = string.IsNullOrEmpty(safePhone)
             ? ""
-            : $@"<p style=""margin:2px 0""><strong>Phone:</strong> {safePhone}</p>";
+            : $@"<p style=""margin:2px 0""><strong>Телефон:</strong> {safePhone}</p>";
 
         var html =
 $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.6;max-width:600px"">
-  <p style=""font-size:15px""><strong>New {kind} from the website</strong></p>
-  <p style=""margin:2px 0""><strong>Name:</strong> {(string.IsNullOrEmpty(safeName) ? "—" : safeName)}</p>
-  <p style=""margin:2px 0""><strong>Email:</strong> <a href=""mailto:{safeEmail}"">{safeEmail}</a></p>
+  <p style=""font-size:15px""><strong>Ново {kind} от сайта</strong></p>
+  <p style=""margin:2px 0""><strong>Име:</strong> {(string.IsNullOrEmpty(safeName) ? "—" : safeName)}</p>
+  <p style=""margin:2px 0""><strong>Имейл:</strong> <a href=""mailto:{safeEmail}"">{safeEmail}</a></p>
   {phoneRow}
-  <p style=""font-size:13px;color:#555;margin-top:16px"">Details:</p>
+  <p style=""font-size:13px;color:#555;margin-top:16px"">Детайли:</p>
   <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>
   <hr style=""border:none;border-top:1px solid #eee;margin:20px 0"" />
-  <p style=""font-size:12px;color:#888"">Reply to this email to respond to the lead directly.</p>
+  <p style=""font-size:12px;color:#888"">Отговорете на този имейл, за да пишете директно на клиента.</p>
 </div>";
 
         return (subject, html);

@@ -199,7 +199,15 @@ public class EnvConfig
 
     // Internal "new lead" notification recipient(s), comma/semicolon separated.
     // Defaults to the sales inbox; override via env to add/redirect recipients.
-    public string LeadNotifyEmail => (_cfg["LEAD_NOTIFY_EMAIL"] ?? "nlekov@nvc-home4you.eu").Trim();
+    // Who gets the internal "new lead" email. Comma- or semicolon-separated; see
+    // EmailService.ParseRecipients.
+    //
+    // This default is load-bearing in a way it did not used to be: since the lead write
+    // was hardened, a failed write only avoids becoming a lost lead because this
+    // notification reached a human. If App Service sets LEAD_NOTIFY_EMAIL explicitly it
+    // overrides this list, so the variable there has to be kept in step.
+    public string LeadNotifyEmail => (_cfg["LEAD_NOTIFY_EMAIL"]
+        ?? "nlekov@nvc-home4you.eu,vvladimirov@nvc-home4you.eu,tbonin@nvc-home4you.eu").Trim();
 
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;

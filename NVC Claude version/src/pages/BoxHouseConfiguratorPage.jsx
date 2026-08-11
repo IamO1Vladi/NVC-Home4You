@@ -1314,7 +1314,10 @@ export default function BoxHouseConfiguratorPage({ content }) {
     return {
       source: 'box-configurator',
       sourcePath: typeof window !== 'undefined' ? window.location.pathname : '',
-      modelId: selectedModel?.key || '',
+      // No modelId here on purpose. The offer's model field is a relationship to a
+      // Houses record, and a configurator model ('37'/'58'/'73' — square metres) is not
+      // one; writing it would link the lead to whichever house happens to hold that
+      // record id. The chosen model is already named in the summary text below.
       // Kept for the funnel analytics: App.jsx reads modelLabel/knownTotal off the
       // prefill to enrich request_quote_success with model_label and lead_value.
       modelLabel: selectedModel?.label || '',
