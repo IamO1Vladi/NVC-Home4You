@@ -29,7 +29,13 @@ public class QuickbaseApi
         !string.IsNullOrWhiteSpace(_env.Realm) &&
         !string.IsNullOrWhiteSpace(_env.Token);
 
-    public async Task<QbQueryResult> QueryAsync(string tableId, IEnumerable<int> select,string where, int? sortFid, string sortOrder, CancellationToken ct)
+    public Task<QbQueryResult> QueryAsync(string tableId, IEnumerable<int> select, string where, int? sortFid, string sortOrder, CancellationToken ct) =>
+        QueryPageAsync(tableId, select, where, sortFid, sortOrder, skip: 0, top: 500, ct);
+
+    // Paged variant. The 500-row cap above is silent — a table with more rows than that
+    // returns the first 500 and looks like a complete result — which is fine for a
+    // content table read but not for importing a lead history that only grows.
+    public async Task<QbQueryResult> QueryPageAsync(string tableId, IEnumerable<int> select, string where, int? sortFid, string sortOrder, int skip, int top, CancellationToken ct)
     {
         EnsureConfigured();
         if (string.IsNullOrWhiteSpace(tableId)) throw new InvalidOperationException("Quickbase table id is missing.");
@@ -41,7 +47,7 @@ public class QuickbaseApi
         {
             ["from"] = tableId,
             ["select"] = selectList,
-            ["options"] = new { skip = 0, top = 500 }
+            ["options"] = new { skip, top }
         };
 
         if (sortFid.HasValue && sortFid.Value > 0)
@@ -64,6 +70,30 @@ public class QuickbaseApi
         }
 
         return JsonSerializer.Deserialize<QbQueryResult>(body, JsonOptions) ?? new QbQueryResult();
+    }
+
+    // Field metadata for a table: every field, not just the ones the app writes.
+    //
+    // The application only ever knew about the eight intake fields, so the sales workflow
+    // built on top of the lead tables — statuses, checkboxes, whatever else — was
+    // invisible from the repository. This is how the migration finds out what it actually
+    // has to carry across. Read-only.
+    public async Task<List<QbField>> GetFieldsAsync(string tableId, CancellationToken ct)
+    {
+        EnsureConfigured();
+        if (string.IsNullOrWhiteSpace(tableId)) throw new InvalidOperationException("Quickbase table id is missing.");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"v1/fields?tableId={Uri.EscapeDataString(tableId)}");
+        AddHeaders(request);
+
+        using var response = await _http.SendAsync(request, ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Quickbase field lookup failed: {(int)response.StatusCode} {body}");
+        }
+
+        return JsonSerializer.Deserialize<List<QbField>>(body, JsonOptions) ?? new List<QbField>();
     }
 
     public async Task<QbCreateResult> CreateAsync(string tableId, Dictionary<int, object?> fields, CancellationToken ct)

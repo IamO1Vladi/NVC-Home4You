@@ -74,6 +74,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.SqlGalleryService>();
     builder.Services.AddScoped<Services.SqlCasesPageService>();
     builder.Services.AddScoped<Services.SqlLeadService>();
+    builder.Services.AddScoped<Services.LeadImportService>();
 }
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
@@ -342,6 +343,84 @@ if (args.Length > 0 && (args[0] == "import-reviews" || args[0] == "compare-revie
     if (diffs.Count > 50) Console.WriteLine($"  ... and {diffs.Count - 50} more.");
     // Non-zero exit when they disagree, so this can gate a cutover in a script.
     return diffs.Count == 0 ? 0 : 2;
+}
+
+// `dotnet run -- import-leads [--dry-run]` / `-- compare-leads`. Copies the Quickbase
+// offers and questions tables into SQL, carrying the two sales checkboxes as well as the
+// intake fields. Idempotent — matched on Quickbase record id, so re-running updates in
+// place. Quickbase remains the source of truth until DATA_SOURCE_LEADS says otherwise.
+if (args.Length > 0 && (args[0] == "import-leads" || args[0] == "compare-leads"))
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.LeadImportService>();
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL_CONNECTION_STRING is not configured, so there is no database to import into.");
+        return 1;
+    }
+
+    if (args[0] == "import-leads")
+    {
+        var dryRun = args.Contains("--dry-run");
+        if (dryRun) Console.WriteLine("DRY RUN — nothing will be written.");
+
+        var offers = await importer.ImportOffersAsync(dryRun, CancellationToken.None);
+        Console.WriteLine($"offers:    fetched {offers.Fetched} -> inserted {offers.Inserted}, updated {offers.Updated}, skipped {offers.Skipped}.");
+
+        var questions = await importer.ImportQuestionsAsync(dryRun, CancellationToken.None);
+        Console.WriteLine($"questions: fetched {questions.Fetched} -> inserted {questions.Inserted}, updated {questions.Updated}, skipped {questions.Skipped}.");
+        return 0;
+    }
+
+    var (comparedLeads, leadDiffs) = await importer.CompareAsync(CancellationToken.None);
+    Console.WriteLine($"Compared {comparedLeads} rows; {leadDiffs.Count} difference(s).");
+    foreach (var d in leadDiffs.Take(50))
+        Console.WriteLine($"  {d.Table} rid {d.QuickbaseRecordId} {d.Field}: quickbase=[{d.Quickbase}] sql=[{d.Sql}]");
+    if (leadDiffs.Count > 50) Console.WriteLine($"  ... and {leadDiffs.Count - 50} more.");
+    // Non-zero exit when they disagree, so this can gate the cutover in a script.
+    return leadDiffs.Count == 0 ? 0 : 2;
+}
+
+// `dotnet run -- lead-schema`. Read-only: prints every field on both lead tables so the
+// migration can be built against what Quickbase actually holds rather than the eight
+// intake fields the app happens to write. Needs only QUICKBASE_REALM / QUICKBASE_TOKEN,
+// touches no database, and changes nothing.
+if (args.Length > 0 && args[0] == "lead-schema")
+{
+    using var scope = app.Services.CreateScope();
+    var qb = scope.ServiceProvider.GetRequiredService<Services.QuickbaseApi>();
+    var env = scope.ServiceProvider.GetRequiredService<Services.EnvConfig>();
+
+    if (!qb.IsConfigured)
+    {
+        Console.Error.WriteLine("Quickbase is not configured (QUICKBASE_REALM / QUICKBASE_TOKEN).");
+        return 1;
+    }
+
+    foreach (var (name, tableId) in new[] { ("OFFERS", env.TableOffer), ("QUESTIONS", env.TableQuestion) })
+    {
+        Console.WriteLine();
+        if (string.IsNullOrWhiteSpace(tableId))
+        {
+            Console.WriteLine($"=== {name}: table id not configured, skipping ===");
+            continue;
+        }
+
+        Console.WriteLine($"=== {name} ({tableId}) ===");
+        var fields = await qb.GetFieldsAsync(tableId, CancellationToken.None);
+        foreach (var f in fields.OrderBy(f => f.id))
+        {
+            var flags = string.Join(" ", new[]
+            {
+                f.required ? "required" : null,
+                f.unique ? "unique" : null,
+            }.Where(x => x is not null));
+            Console.WriteLine($"  {f.id,4}  {f.fieldType,-16} {f.label}{(flags.Length > 0 ? $"  [{flags}]" : "")}");
+        }
+        Console.WriteLine($"  ({fields.Count} fields)");
+    }
+
+    return 0;
 }
 
 // `dotnet run -- import-cases [--dry-run]`. Same shape as import-gallery.

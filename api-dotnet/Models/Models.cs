@@ -141,6 +141,17 @@ public class QbQueryResult
     public List<QbRec>? data { get; set; }
 }
 
+// One field's metadata from GET /v1/fields. Used by the lead-schema command to discover
+// what the lead tables actually hold, rather than assuming it matches what we write.
+public class QbField
+{
+    public int id { get; set; }
+    public string? label { get; set; }
+    public string? fieldType { get; set; }
+    public bool required { get; set; }
+    public bool unique { get; set; }
+}
+
 public class QbCreateResult
 {
     public QbMeta? metadata { get; set; }

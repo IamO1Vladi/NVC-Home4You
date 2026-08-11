@@ -57,17 +57,23 @@ public class EnvConfig
     public int F_Q_EMAIL => GetInt("FID_Q_EMAIL", 7);
     public int F_Q_MESSAGE => GetInt("FID_Q_MESSAGE", 8);
 
-    // Sales workflow checkboxes, present on BOTH lead tables at the same field ids.
-    // The app has never written these — sales ticks them by hand in Quickbase — but the
-    // import has to carry them across or the migration would drop the workflow state.
+    // Sales workflow checkboxes. The app has never written these — sales ticks them by
+    // hand in Quickbase — but the import has to carry them across or the migration would
+    // drop the workflow state and hand back a list.
     //
-    // ⚠️ 13 = "reached out to?", 14 = "Lead created" is an assumption from how the pair
-    // was described, not something the code can verify. If they are the other way round,
-    // swapping these two defaults is the entire fix — nothing else hardcodes them.
+    // The ids are NOT the same on both tables, which is the sort of thing that is only
+    // discoverable by asking Quickbase: verified via `dotnet run -- lead-schema`
+    // (2026-08-12), offers use 13/14 and questions use 9/10.
     public int F_OFFER_REACHED_OUT => GetInt("FID_OFFER_REACHED_OUT", 13);
     public int F_OFFER_LEAD_CREATED => GetInt("FID_OFFER_LEAD_CREATED", 14);
-    public int F_Q_REACHED_OUT => GetInt("FID_Q_REACHED_OUT", 13);
-    public int F_Q_LEAD_CREATED => GetInt("FID_Q_LEAD_CREATED", 14);
+    public int F_Q_REACHED_OUT => GetInt("FID_Q_REACHED_OUT", 9);
+    public int F_Q_LEAD_CREATED => GetInt("FID_Q_LEAD_CREATED", 10);
+
+    // Built-in Quickbase fields, identical on both lead tables. Needed by the import to
+    // key rows and preserve when each lead actually arrived.
+    public int F_LEAD_CREATED_ON => GetInt("FID_LEAD_CREATED_ON", 1);   // Date Created
+    public int F_LEAD_MODIFIED_ON => GetInt("FID_LEAD_MODIFIED_ON", 2); // Date Modified
+    public int F_LEAD_RID => GetInt("FID_LEAD_RID", 3);                 // Record ID#
 
     // Cases table.
     //
