@@ -1,9 +1,20 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace Models;
 
 public record OfferDto(string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null);
 public record QuestionDto(string Name, string Email, string Question, string? Locale = null);
+
+// Outcome of writing a lead. Deliberately not an int?: a null record id used to mean both
+// "Quickbase is not configured", "Quickbase rejected the record" and "it worked but told
+// us nothing", and all three were reported to the customer as success.
+public record LeadWriteResult(bool Ok, long? RecordId, string? Error)
+{
+    public static LeadWriteResult Succeeded(long recordId) => new(true, recordId, null);
+    public static LeadWriteResult Failed(string error) => new(false, null, error);
+}
 public record ReviewDto(string Name, string? Company, string Email, string? Location, string? Product, string Comment, int Rating);
 
 // "Save & resume" Phase 2 — short shareable configurator links.
@@ -134,11 +145,35 @@ public class QbCreateResult
 {
     public QbMeta? metadata { get; set; }
     public List<QbRec>? data { get; set; }
+
+    // Quickbase answers 200 even when it accepted the request but rejected the record —
+    // field validation, a bad value, a field id that changed underneath us. The only
+    // signal is metadata.lineErrors, so "HTTP succeeded" is not "the record exists".
+    public bool HasLineErrors => metadata?.lineErrors is { Count: > 0 };
+
+    // Flattened for logging: "line 1: Incompatible value for field with ID 6".
+    public string? DescribeLineErrors()
+    {
+        var errors = metadata?.lineErrors;
+        if (errors is null || errors.Count == 0) return null;
+        return string.Join("; ", errors.Select(kv => $"line {kv.Key}: {string.Join(", ", kv.Value)}"));
+    }
 }
 
 public class QbMeta
 {
+    // Not part of Quickbase's documented response shape, but harmless to keep: it was
+    // here first, and the record id is read from createdRecordIds/data as well.
     public int? firstRecordId { get; set; }
+
+    // The documented way a POST /records reports what it created.
+    public List<int>? createdRecordIds { get; set; }
+
+    // Keyed by 1-based line number within the submitted `data` array; the value is the
+    // list of reasons that record was rejected. Absent on a clean write.
+    public Dictionary<string, List<string>>? lineErrors { get; set; }
+
+    public int? totalNumberOfRecordsProcessed { get; set; }
 }
 
 // Admin-only projection of a review. Unlike PublicReviewDto it exposes every status and

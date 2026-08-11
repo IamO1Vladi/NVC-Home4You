@@ -73,6 +73,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.ReviewModerationService>();
     builder.Services.AddScoped<Services.SqlGalleryService>();
     builder.Services.AddScoped<Services.SqlCasesPageService>();
+    builder.Services.AddScoped<Services.SqlLeadService>();
 }
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
@@ -254,6 +255,35 @@ builder.Services.AddScoped<Services.ICasesPageStore>(sp =>
     sp.GetRequiredService<Services.EnvConfig>().DataSourceFor("cases") == Services.DataSource.Sql
         ? sp.GetRequiredService<Services.SqlCasesPageService>()
         : sp.GetRequiredService<Services.CasesPageService>());
+
+// Write path for leads, chosen per request by DATA_SOURCE_LEADS, and wrapped in
+// DualWriteLeadStore when LEADS_DUAL_WRITE is on so the non-authoritative store is
+// exercised under real traffic without being able to cost a lead. Both flags are inert
+// without a connection string, so the default everywhere is Quickbase only — exactly
+// what shipped before this seam existed.
+builder.Services.AddScoped<Services.ILeadStore>(sp =>
+{
+    var env = sp.GetRequiredService<Services.EnvConfig>();
+    var quickbase = sp.GetRequiredService<Services.FormService>();
+
+    if (env.DataSourceFor("leads") != Services.DataSource.Sql)
+    {
+        return env.LeadsDualWrite
+            ? new Services.DualWriteLeadStore(
+                quickbase,
+                sp.GetRequiredService<Services.SqlLeadService>(),
+                sp.GetRequiredService<ILogger<Services.DualWriteLeadStore>>())
+            : quickbase;
+    }
+
+    var sql = sp.GetRequiredService<Services.SqlLeadService>();
+    return env.LeadsDualWrite
+        ? new Services.DualWriteLeadStore(
+            sql,
+            quickbase,
+            sp.GetRequiredService<ILogger<Services.DualWriteLeadStore>>())
+        : sql;
+});
 
 builder.Services.AddScoped<Services.SavedConfigService>();
 builder.Services.AddScoped<Services.EmailService>();

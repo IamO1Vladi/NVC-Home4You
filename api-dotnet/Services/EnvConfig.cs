@@ -57,6 +57,18 @@ public class EnvConfig
     public int F_Q_EMAIL => GetInt("FID_Q_EMAIL", 7);
     public int F_Q_MESSAGE => GetInt("FID_Q_MESSAGE", 8);
 
+    // Sales workflow checkboxes, present on BOTH lead tables at the same field ids.
+    // The app has never written these — sales ticks them by hand in Quickbase — but the
+    // import has to carry them across or the migration would drop the workflow state.
+    //
+    // ⚠️ 13 = "reached out to?", 14 = "Lead created" is an assumption from how the pair
+    // was described, not something the code can verify. If they are the other way round,
+    // swapping these two defaults is the entire fix — nothing else hardcodes them.
+    public int F_OFFER_REACHED_OUT => GetInt("FID_OFFER_REACHED_OUT", 13);
+    public int F_OFFER_LEAD_CREATED => GetInt("FID_OFFER_LEAD_CREATED", 14);
+    public int F_Q_REACHED_OUT => GetInt("FID_Q_REACHED_OUT", 13);
+    public int F_Q_LEAD_CREATED => GetInt("FID_Q_LEAD_CREATED", 14);
+
     // Cases table.
     //
     // These defaults were wrong — off by about +2 from field 9 onwards, and 35-38 for the
@@ -231,6 +243,13 @@ public class EnvConfig
             ? DataSource.Sql
             : DataSource.Quickbase;
     }
+
+    // Write every lead to both stores while only DATA_SOURCE_LEADS decides which one the
+    // customer's response depends on. Independent of that flag on purpose: this one is
+    // the safe half (a second write that can fail freely) and is what makes the soak in
+    // ROADMAP-leads Phase 4 possible. Inert without SQL, like every flag above.
+    public bool LeadsDualWrite =>
+        SqlConfigured && (_cfg["LEADS_DUAL_WRITE"] ?? "").Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
 
     // --- Image storage (Quickbase -> Azure Blob) --------------------------------------
     // These two switches are deliberately independent, because they carry very different

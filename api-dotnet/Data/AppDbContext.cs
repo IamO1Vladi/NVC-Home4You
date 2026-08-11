@@ -15,6 +15,8 @@ public class AppDbContext : DbContext
     public DbSet<HouseImage> HouseImages => Set<HouseImage>();
     public DbSet<Case> Cases => Set<Case>();
     public DbSet<CaseImage> CaseImages => Set<CaseImage>();
+    public DbSet<Offer> Offers => Set<Offer>();
+    public DbSet<Question> Questions => Set<Question>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -82,6 +84,34 @@ public class AppDbContext : DbContext
              .HasFilter("[SourceKey] IS NOT NULL");
 
             e.HasIndex(i => i.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+        });
+
+        // Leads. Both tables get the same treatment, and it differs from the content
+        // tables in one way that matters: the natural query is "newest first", because a
+        // lead list is a work queue rather than a catalogue.
+        b.Entity<Offer>(e =>
+        {
+            e.HasIndex(o => o.CreatedAt);
+
+            // Sales filters on "not yet contacted", which is the whole point of the flag.
+            e.HasIndex(o => new { o.ReachedOut, o.CreatedAt });
+
+            // Same idempotent-import guarantee as everywhere else: unique where present,
+            // filtered so rows created natively in SQL (which have no Quickbase id) do
+            // not all collide on NULL.
+            e.HasIndex(o => o.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+        });
+
+        b.Entity<Question>(e =>
+        {
+            e.HasIndex(q => q.CreatedAt);
+            e.HasIndex(q => new { q.ReachedOut, q.CreatedAt });
+
+            e.HasIndex(q => q.QuickbaseRecordId)
              .IsUnique()
              .HasFilter("[QuickbaseRecordId] IS NOT NULL");
         });
