@@ -1,0 +1,153 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Data;
+using Microsoft.EntityFrameworkCore;
+using Models;
+
+namespace Services;
+
+// The staff-facing side of the leads migration: the work queue that replaces what sales
+// does inside Quickbase today.
+//
+// SQL-only by design, like ReviewModerationService — this exists precisely so Quickbase
+// can stop being the staff interface, so there is no Quickbase implementation to fall
+// back to. While Quickbase is still authoritative for writes, a tick made here does NOT
+// appear there; the team has to work from one place or the other.
+//
+// Offers and questions are separate tables but one queue, because "who has not been
+// contacted?" is the same question for both and sales should not have to ask it twice.
+public class LeadAdminService
+{
+    private readonly AppDbContext _db;
+
+    public LeadAdminService(AppDbContext db)
+    {
+        _db = db;
+    }
+
+    public const string KindOffer = "offer";
+    public const string KindQuestion = "question";
+
+    // How many rows a single report will return. High enough that the queue is never
+    // silently truncated in practice, capped so a runaway table cannot take the page down.
+    private const int MaxRows = 1000;
+
+    public async Task<List<AdminLeadDto>> ListAsync(bool? reachedOut, CancellationToken ct)
+    {
+        var offerQuery = _db.Offers.AsNoTracking().AsQueryable();
+        var questionQuery = _db.Questions.AsNoTracking().AsQueryable();
+
+        if (reachedOut.HasValue)
+        {
+            offerQuery = offerQuery.Where(o => o.ReachedOut == reachedOut.Value);
+            questionQuery = questionQuery.Where(q => q.ReachedOut == reachedOut.Value);
+        }
+
+        // Two round trips rather than a UNION: the tables have different shapes, and
+        // projecting each to the shared DTO in memory is clearer than teaching EF to
+        // combine them.
+        var offers = await offerQuery
+            .OrderByDescending(o => o.CreatedAt)
+            .Take(MaxRows)
+            .ToListAsync(ct);
+
+        var questions = await questionQuery
+            .OrderByDescending(q => q.CreatedAt)
+            .Take(MaxRows)
+            .ToListAsync(ct);
+
+        var combined = offers.Select(o => new AdminLeadDto
+        {
+            Kind = KindOffer,
+            Id = o.Id,
+            QuickbaseRecordId = o.QuickbaseRecordId,
+            Name = o.Name ?? "",
+            Email = o.Email ?? "",
+            Phone = o.Phone ?? "",
+            Message = o.Message ?? "",
+            ModelId = o.ModelId ?? "",
+            Locale = o.Locale ?? "",
+            ReachedOut = o.ReachedOut,
+            LeadCreated = o.LeadCreated,
+            CreatedAt = Iso(o.CreatedAt),
+            UpdatedAt = o.UpdatedAt is null ? null : Iso(o.UpdatedAt.Value),
+        }).Concat(questions.Select(q => new AdminLeadDto
+        {
+            Kind = KindQuestion,
+            Id = q.Id,
+            QuickbaseRecordId = q.QuickbaseRecordId,
+            Name = q.Name ?? "",
+            Email = q.Email ?? "",
+            Phone = "",              // questions collect no phone number
+            Message = q.Message ?? "",
+            ModelId = "",            // nor a model
+            Locale = q.Locale ?? "",
+            ReachedOut = q.ReachedOut,
+            LeadCreated = q.LeadCreated,
+            CreatedAt = Iso(q.CreatedAt),
+            UpdatedAt = q.UpdatedAt is null ? null : Iso(q.UpdatedAt.Value),
+        }));
+
+        // Outstanding work is sorted oldest first: an untouched lead from three weeks ago
+        // is the one at risk, and newest-first would bury it under today's arrivals.
+        // Everything else reads as a history, so it is newest first.
+        var ordered = reachedOut == false
+            ? combined.OrderBy(l => l.CreatedAt)
+            : combined.OrderByDescending(l => l.CreatedAt);
+
+        return ordered.Take(MaxRows).ToList();
+    }
+
+    public async Task<LeadCountsDto> CountsAsync(CancellationToken ct) => new()
+    {
+        NotReachedOut =
+            await _db.Offers.AsNoTracking().CountAsync(o => !o.ReachedOut, ct) +
+            await _db.Questions.AsNoTracking().CountAsync(q => !q.ReachedOut, ct),
+        ReachedOut =
+            await _db.Offers.AsNoTracking().CountAsync(o => o.ReachedOut, ct) +
+            await _db.Questions.AsNoTracking().CountAsync(q => q.ReachedOut, ct),
+        Offers = await _db.Offers.AsNoTracking().CountAsync(ct),
+        Questions = await _db.Questions.AsNoTracking().CountAsync(ct),
+    };
+
+    // Null leaves a flag alone, so the caller can tick one box without having to restate
+    // the other and risk clobbering a change someone else just made.
+    //
+    // False means "no such lead", which the controller turns into a 404 rather than
+    // reporting success for an id that never existed.
+    public async Task<bool> SetFlagsAsync(string kind, int id, bool? reachedOut, bool? leadCreated, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        if (string.Equals(kind, KindOffer, StringComparison.OrdinalIgnoreCase))
+        {
+            var offer = await _db.Offers.FirstOrDefaultAsync(o => o.Id == id, ct);
+            if (offer is null) return false;
+            if (reachedOut.HasValue) offer.ReachedOut = reachedOut.Value;
+            if (leadCreated.HasValue) offer.LeadCreated = leadCreated.Value;
+            offer.UpdatedAt = now;
+        }
+        else if (string.Equals(kind, KindQuestion, StringComparison.OrdinalIgnoreCase))
+        {
+            var question = await _db.Questions.FirstOrDefaultAsync(q => q.Id == id, ct);
+            if (question is null) return false;
+            if (reachedOut.HasValue) question.ReachedOut = reachedOut.Value;
+            if (leadCreated.HasValue) question.LeadCreated = leadCreated.Value;
+            question.UpdatedAt = now;
+        }
+        else
+        {
+            return false;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    private static string Iso(DateTimeOffset value) =>
+        value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
+}

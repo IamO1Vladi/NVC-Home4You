@@ -91,6 +91,7 @@ const FactorySheetPage = lazy(() => import('./pages/FactorySheetPage.jsx'))
 // signed-out visitor reaching it sees a sign-in prompt and no data.
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
 const AdminReviewsPage = lazy(() => import('./pages/AdminReviewsPage.jsx'))
+const AdminLeadsPage = lazy(() => import('./pages/AdminLeadsPage.jsx'))
 const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 
@@ -406,6 +407,7 @@ function AppShell() {
                   /admin is the menu: it used to drop straight into the review queue, which
                   left the other sections reachable only by typing their URL. */}
               <Route path="/admin" element={<AdminHomePage />} />
+              <Route path="/admin/leads" element={<AdminLeadsPage />} />
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />
               <Route path="/admin/cases" element={<AdminCasesPage />} />

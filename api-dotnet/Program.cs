@@ -75,6 +75,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.SqlCasesPageService>();
     builder.Services.AddScoped<Services.SqlLeadService>();
     builder.Services.AddScoped<Services.LeadImportService>();
+    builder.Services.AddScoped<Services.LeadAdminService>();
 }
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------

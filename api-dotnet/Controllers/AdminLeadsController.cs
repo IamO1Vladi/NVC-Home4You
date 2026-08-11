@@ -1,0 +1,69 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Services;
+
+namespace Controllers;
+
+// The leads work queue. Same protection as every other admin surface: the "AdminOnly"
+// policy (Entra ID plus the optional ADMIN_ALLOWED_USERS allow-list), and unreachable
+// altogether when admin auth is not configured, because Program.cs then registers no
+// authentication and [Authorize] rejects everything rather than falling open.
+//
+// This one holds customer contact details for every enquiry ever received, so it is the
+// most sensitive thing behind that policy so far.
+[ApiController]
+[Route("api/admin/leads")]
+[Authorize(Policy = "AdminOnly")]
+public class AdminLeadsController : ControllerBase
+{
+    private readonly LeadAdminService _svc;
+
+    public AdminLeadsController(LeadAdminService svc)
+    {
+        _svc = svc;
+    }
+
+    // reached=false -> the outstanding queue (default), true -> already handled,
+    // all -> everything.
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] string? reached, CancellationToken ct)
+    {
+        bool? filter = (reached ?? "").Trim().ToLowerInvariant() switch
+        {
+            "true" => true,
+            "all" => null,
+            _ => false,
+        };
+
+        var items = await _svc.ListAsync(filter, ct);
+        // A work queue must never be served stale: a lead someone just ticked has to be
+        // gone when the next person looks.
+        Response.Headers["Cache-Control"] = "no-store";
+        return Ok(items);
+    }
+
+    [HttpGet("counts")]
+    public async Task<IActionResult> Counts(CancellationToken ct)
+    {
+        Response.Headers["Cache-Control"] = "no-store";
+        return Ok(await _svc.CountsAsync(ct));
+    }
+
+    public record UpdateLeadFlags(bool? ReachedOut, bool? LeadCreated);
+
+    // Both flags are optional so one box can be ticked without restating the other, which
+    // would otherwise silently undo a change someone else made a second earlier.
+    [HttpPost("{kind}/{id:int}")]
+    public async Task<IActionResult> Update(string kind, int id, [FromBody] UpdateLeadFlags body, CancellationToken ct)
+    {
+        if (body is null || (body.ReachedOut is null && body.LeadCreated is null))
+            return BadRequest(new { error = "Nothing to update." });
+
+        var ok = await _svc.SetFlagsAsync(kind, id, body.ReachedOut, body.LeadCreated, ct);
+        return ok
+            ? Ok(new { ok = true, kind, id, reachedOut = body.ReachedOut, leadCreated = body.LeadCreated })
+            : NotFound();
+    }
+}

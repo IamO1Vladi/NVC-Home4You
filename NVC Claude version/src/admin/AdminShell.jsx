@@ -20,7 +20,7 @@ const LANG_KEY = 'nvc_admin_lang_v1'
 const TEXT = {
   bg: {
     brand: 'Администрация',
-    nav: { home: 'Начало', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
+    nav: { home: 'Начало', leads: 'Запитвания', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
     errorHint: 'Проверете интернет връзката си и опитайте отново.',
@@ -34,7 +34,7 @@ const TEXT = {
   },
   en: {
     brand: 'Admin',
-    nav: { home: 'Home', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
+    nav: { home: 'Home', leads: 'Leads', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
     errorHint: 'Check your internet connection and try again.',
@@ -79,6 +79,13 @@ const Icon = {
       <path d="M8.6 7.4V5.6a2 2 0 0 1 2-2h2.8a2 2 0 0 1 2 2v1.8M2.8 12.4h18.4" />
     </>
   ),
+  // An inbox: leads arrive, get picked up, and leave the tray.
+  leads: (
+    <>
+      <path d="M3.2 13.4h4.1l1.4 2.6h6.6l1.4-2.6h4.1" />
+      <path d="M5.6 4.6h12.8l3 8.8V19a1.6 1.6 0 0 1-1.6 1.6H4.2A1.6 1.6 0 0 1 2.6 19v-5.6z" />
+    </>
+  ),
 }
 
 function NavIcon({ name }) {
@@ -92,6 +99,9 @@ function NavIcon({ name }) {
 
 const SECTIONS = [
   { key: 'home', to: '/admin' },
+  // Leads sit directly after Home: it is the one section with work waiting in it, and
+  // the only one someone opens every morning.
+  { key: 'leads', to: '/admin/leads' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
@@ -103,6 +113,7 @@ const SECTIONS = [
 function useAdminChrome(state) {
   const [me, setMe] = React.useState(null)
   const [pending, setPending] = React.useState(0)
+  const [outstandingLeads, setOutstandingLeads] = React.useState(0)
 
   React.useEffect(() => {
     let alive = true
@@ -118,17 +129,20 @@ function useAdminChrome(state) {
     adminGet('/api/admin/reviews/counts')
       .then((counts) => { if (alive) setPending(Number(counts?.pending) || 0) })
       .catch(() => { /* a missing badge is better than a broken page */ })
+    adminGet('/api/admin/leads/counts')
+      .then((counts) => { if (alive) setOutstandingLeads(Number(counts?.notReachedOut) || 0) })
+      .catch(() => { /* same */ })
     return () => { alive = false }
   }, [state])
 
-  return { me, pending }
+  return { me, pending, outstandingLeads }
 }
 
 export default function AdminShell({
   lang, setLang, active, title, subtitle, state, onRetry, actions, children,
 }) {
   const t = TEXT[lang] ?? TEXT.bg
-  const { me, pending } = useAdminChrome(state)
+  const { me, pending, outstandingLeads } = useAdminChrome(state)
 
   if (state === 'unauthorized') {
     // The server redirects here with ?authError=... when the Entra callback fails, rather
@@ -167,6 +181,9 @@ export default function AdminShell({
       <span className="adm-nav-label">{t.nav[key]}</span>
       {key === 'reviews' && pending > 0
         ? <span className="adm-dot" aria-label={`${pending}`}>{pending}</span>
+        : null}
+      {key === 'leads' && outstandingLeads > 0
+        ? <span className="adm-dot" aria-label={`${outstandingLeads}`}>{outstandingLeads}</span>
         : null}
     </Link>
   ))

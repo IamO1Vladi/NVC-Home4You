@@ -187,6 +187,34 @@ public class QbMeta
     public int? totalNumberOfRecordsProcessed { get; set; }
 }
 
+// Admin-only projection of a lead. Offers and questions are separate tables but one work
+// queue, so they share a shape; Kind says which table a row came from and is required
+// alongside Id to address it, because the two id sequences overlap.
+public class AdminLeadDto
+{
+    public string Kind { get; set; } = "";
+    public int Id { get; set; }
+    public int? QuickbaseRecordId { get; set; }
+    public string Name { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string ModelId { get; set; } = "";
+    public string Locale { get; set; } = "";
+    public bool ReachedOut { get; set; }
+    public bool LeadCreated { get; set; }
+    public string CreatedAt { get; set; } = "";
+    public string? UpdatedAt { get; set; }
+}
+
+public class LeadCountsDto
+{
+    public int NotReachedOut { get; set; }
+    public int ReachedOut { get; set; }
+    public int Offers { get; set; }
+    public int Questions { get; set; }
+}
+
 // Admin-only projection of a review. Unlike PublicReviewDto it exposes every status and
 // the submitter's email, because moderators need both to make a publish decision.
 public class AdminReviewDto {

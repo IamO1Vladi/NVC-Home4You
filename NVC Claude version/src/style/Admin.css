@@ -30,6 +30,9 @@
   /* A darker cut of the accent for anything that is small text. The brand teal is 3.36:1 on
      white — fine for a 3px indicator bar, not for an 11.5px tab label under it. */
   --adm-accent-ink: #0b7686;
+  /* Tinted background for accent-coloured badges, kept light enough that
+     --adm-accent-ink stays readable on it. */
+  --adm-accent-soft: #e6f6f8;
   --adm-shadow: 0 6px 20px rgba(16, 22, 30, .06);
   --adm-shadow-lift: 0 12px 28px rgba(16, 22, 30, .12);
 }
@@ -1046,4 +1049,112 @@ label.btn { cursor: pointer; }
 
   .adm-images { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
   .adm-card { padding: 14px; }
+}
+
+/* ===== Leads =================================================================
+   The one section that is a work queue rather than a catalogue, so it is built
+   to be scanned: an unhandled lead carries a coloured edge and its age, and the
+   two checkboxes are the only controls on the card. */
+
+.adm-lead-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  flex-wrap: wrap;
+}
+
+.adm-search {
+  flex: 1 1 260px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 10px;
+  background: var(--adm-card);
+  color: var(--adm-ink);
+  font-size: 14px;
+}
+.adm-search:focus-visible {
+  outline: 2px solid var(--adm-accent);
+  outline-offset: 1px;
+  border-color: var(--adm-accent);
+}
+
+/* The left edge is the whole scan: a lead still waiting is marked, a handled one
+   is not, so the queue reads without anyone parsing a badge. */
+.adm-lead.is-open { border-left: 3px solid var(--adm-warn); }
+
+.adm-lead-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.adm-lead-who { display: inline-flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.adm-lead-when { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+
+.adm-badge-offer    { background: var(--adm-accent-soft, #e6f6f8); color: var(--adm-accent-ink); }
+.adm-badge-question { background: var(--adm-line); color: var(--adm-muted); }
+
+/* Age only appears on unhandled leads, where it is the reason to act. */
+.adm-age { color: var(--adm-warn); font-weight: 700; }
+
+.adm-lead-contact {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.adm-lead-contact a { color: var(--adm-accent-ink); text-decoration: none; overflow-wrap: anywhere; }
+.adm-lead-contact a:hover { text-decoration: underline; }
+
+.adm-lead-msg { margin: 10px 0 0; }
+.adm-lead-msg p {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--adm-ink);
+}
+
+.adm-linkbtn {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--adm-accent-ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.adm-lead-flags {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--adm-line);
+}
+/* 44px so the label and the box are one comfortable target on a phone — this is
+   the control the whole page exists for. */
+.adm-lead-flags .adm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+}
+.adm-lead-flags .adm-check input { width: 18px; height: 18px; accent-color: var(--adm-accent); cursor: pointer; }
+.adm-lead-flags .adm-check input:disabled { cursor: progress; opacity: .5; }
+
+@media (max-width: 720px) {
+  .adm-lead-top { flex-direction: column; gap: 6px; }
+  .adm-lead-when { white-space: normal; }
+  .adm-lead-flags { gap: 8px 20px; }
 }
