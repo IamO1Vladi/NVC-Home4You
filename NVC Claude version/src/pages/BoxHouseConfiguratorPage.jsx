@@ -2225,7 +2225,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             {config.variant === 'balcony' ? (
               <div className="bhc-group">
                 <div className="bhc-section-title">{labels.deckingColor}</div>
-                <div className="bhc-swatch-grid bhc-swatch-grid--4">
+                <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
                   {catalog.deckingColorOptions.map((item) => (
                     <ThumbChoiceButton key={item.key} active={config.deckingColor === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setFieldAndFocus('deckingColor', item.key, 'deckingColor')} />
                   ))}
@@ -3590,7 +3590,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             value={selectedDeckingColor?.label || '-'}
             swatch={selectedDeckingColor?.swatch}
           >
-            <div className="bhc-thumb-choice-grid">
+            <div className="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact">
               {catalog.deckingColorOptions.map((item) => (
                 <ThumbChoiceButton key={item.key} active={config.deckingColor === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setField('deckingColor', item.key)} />
               ))}
@@ -3862,7 +3862,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             categoryLabel={labels.bathroomUvPanel}
             showAllLabel={labels.showAllOptions}
             pageSize={optionPageSize}
-            gridClassName="bhc-thumb-choice-grid"
+            gridClassName="bhc-thumb-choice-grid bhc-thumb-choice-grid--compact"
             renderOption={(item) => (
               <ThumbChoiceButton key={item.key} active={config.bathroomUvPanel === item.key} label={item.code} image={asset(item.thumbImage)} swatch={item.swatch} onClick={() => setField('bathroomUvPanel', item.key)} />
             )}
