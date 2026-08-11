@@ -3535,8 +3535,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
             onToggle={toggleSection}
             onNext={goToNextSection}
             nextLabel={labels.nextSection}
-          onNext={goToNextSection}
-          nextLabel={labels.nextSection}
             title={labels.terrace}
             value={selectedTerrace?.label || '-'}
             badge={terracePrice ? `+${euro(terracePrice, locale)}` : labels.includedShort}
