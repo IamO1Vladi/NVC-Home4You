@@ -104,8 +104,62 @@ nav .active{color:#fff;background:#ffffff12}
   background:#141820; border:1px solid #ffffff1a;border-radius:16px;padding:16px; box-shadow:0 20px 40px rgba(0,0,0,.35);
 }
 
-.mobile-drawer{padding:12px 0}
-.mobile-drawer .drawer-card{padding:12px}
+/* ===== Mobile drawer =====
+   Every tappable row is at least 48px tall with a visible divider, so a fingertip
+   can't straddle two links at once. */
+.mobile-scrim{
+  position:fixed;inset:0;z-index:40; /* under the sticky header (z-index:50) */
+  background:rgba(6,8,12,.5);
+  -webkit-tap-highlight-color:transparent;
+}
+.mobile-drawer{
+  padding:8px 0 16px;
+  max-height:calc(100dvh - 110px); /* fallback; Header.jsx overrides with the measured bar height */
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+.mobile-drawer .drawer-card{padding:6px}
+
+.drawer-list{list-style:none;margin:0;padding:0}
+.drawer-link{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:48px;padding:12px 14px;
+  border-radius:12px;
+  color:var(--text);font-weight:600;font-size:16px;line-height:1.25;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.drawer-list > li + li,
+.drawer-sublist > li + li{
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.drawer-link:active{background:#ffffff14}
+.drawer-link.active{
+  background:#ffffff14;
+  color:#fff;
+  box-shadow:inset 3px 0 0 var(--brand-teal);
+}
+
+/* <summary> is a button in disguise: kill the default marker so the row lays out
+   like every other link, and spin the chevron when the group is open. */
+.drawer-group > summary{list-style:none}
+.drawer-group > summary::-webkit-details-marker{display:none}
+.drawer-summary{width:100%}
+.drawer-chevron{flex:none;opacity:.7;transition:transform .18s ease}
+.drawer-group[open] > .drawer-summary .drawer-chevron{transform:rotate(180deg)}
+
+.drawer-sublist{list-style:none;margin:4px 0 8px;padding:0 0 0 10px}
+.drawer-sublink{font-weight:500;color:var(--silver);font-size:15px}
+
+.drawer-cta{width:100%;margin:10px 0 4px}
+
+:root[data-theme='light'] .drawer-list > li + li,
+:root[data-theme='light'] .drawer-sublist > li + li{ border-top-color:#0000000f }
+:root[data-theme='light'] .drawer-link{ color:#111827 }
+:root[data-theme='light'] .drawer-link:active{ background:#0000000d }
+:root[data-theme='light'] .drawer-link.active{ background:#0000000d; color:#111827 }
+:root[data-theme='light'] .drawer-sublink{ color:#374151 }
 
 main{min-height:calc(100vh - 64px)}
 section{padding:48px 0}
@@ -446,7 +500,8 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 /* ===== Compact sizing for header controls (mobile) ===== */
 :root {
   /* Set the mobile size you want for the hamburger & toggles */
-  --menu-sz: 36px;                 /* try 36; use 40 if you prefer a bit larger */
+  --menu-sz: 40px;                 /* toggle height; the hamburger gets its own 44px below */
+  --hamburger-sz: 44px;            /* minimum comfortable touch target */
   --toggle-fs-mobile: 12px;        /* compact font for lang chip */
   --toggle-px-mobile: 8px;         /* compact horizontal padding */
   --toggle-radius-mobile: 8px;     /* compact rounding */
@@ -482,10 +537,10 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
     justify-content: center;
   }
 
-  /* Hamburger -> same square size */
+  /* Hamburger -> square, and never below the 44px touch-target minimum */
   .hamburger {
-    width: var(--menu-sz);
-    height: var(--menu-sz);
+    width: var(--hamburger-sz);
+    height: var(--hamburger-sz);
     padding: 0;
     border: none;
     background: transparent;
@@ -493,12 +548,16 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
     align-items: center;
     justify-content: center;
     line-height: 1;
+    border-radius: 10px;
+    -webkit-tap-highlight-color: transparent;
   }
+  .hamburger[aria-expanded='true'] { background: #ffffff14; }
+  .theme-light .hamburger[aria-expanded='true'] { background: #0000000d; }
 
   /* Scale the hamburger glyph nicely inside the square */
   .hamburger .nav-icon {
-    width: calc(var(--menu-sz) - 12px);   /* e.g., 24px if menu-sz=36px */
-    height: calc(var(--menu-sz) - 12px);
+    width: 24px;
+    height: 24px;
   }
 
   /* Remove any faint borders in light mode */
