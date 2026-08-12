@@ -1,7 +1,13 @@
 # Next phase — what is left on Quickbase, and the admin panel
 
+> **Superseded 2026-08-12 by [HANDOFF-2026-08-12.md](HANDOFF-2026-08-12.md).** The table
+> below still lists leads as living on Quickbase. They no longer do: the SQL tables are
+> live, 252 rows are imported, and `/admin/leads` ships. Read the handoff for current state
+> and the settled Leads-table design; this file is kept for the sections it still owns
+> (saved configurator links, factory sheet, order tracking).
+
 Written 2026-08-06, at the end of the session that moved gallery, cases and all images off
-Quickbase. Start here tomorrow; `DEPLOY.md` has the release mechanics and
+Quickbase. `DEPLOY.md` has the release mechanics and
 `ROADMAP-datalayer-admin.md` has the history of how the data layer got here.
 
 ## Where today ended

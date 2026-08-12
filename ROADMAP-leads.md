@@ -1,5 +1,16 @@
 # Leads — the last thing on Quickbase
 
+> **Largely done, 2026-08-11 — see [HANDOFF-2026-08-12.md](HANDOFF-2026-08-12.md).**
+> Phase 1 (the silent-failure fix) shipped, Phase 0's schema dump exists as
+> `dotnet run -- lead-schema`, and Phases 2–3 shipped together: the SQL tables are live with
+> 252 rows imported, and `/admin/leads` is a working queue rather than the read-only view
+> planned here. What remains from this file is the **cutover** — flipping
+> `DATA_SOURCE_LEADS=sql` and moving the workflow — plus the Lead/LeadActivity design, which
+> the handoff specifies.
+>
+> One correction to the text below: the checkbox field ids are **not** the same on both
+> tables. Offers use 13/14, questions use 9/10.
+
 Written 2026-08-06, after the admin panel got its navigation and the editors became dialogs.
 `ROADMAP-next.md` has the wider picture and what else is left; this file is only about
 offers and questions, because they turned out to need a different plan from everything
