@@ -17,8 +17,12 @@
 **/.env.*
 !**/.env.example
 
-# Local editor / agent config
-**/.claude/
+# Local editor / agent config. Skills are the exception: settings.local.json is one
+# machine's preferences, but a skill is shared knowledge about how this repo works —
+# the same reason HANDOFF and scripts/catalogue/README.md are committed. Ignored, it
+# would vanish on a fresh clone and reach nobody.
+**/.claude/*
+!**/.claude/skills/
 **/.vs/
 
 # SPA build output. Vite builds the frontend straight into the API's web root, and
