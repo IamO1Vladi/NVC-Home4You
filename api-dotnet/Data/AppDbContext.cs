@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Question> Questions => Set<Question>();
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
+    public DbSet<LeadAttachment> LeadAttachments => Set<LeadAttachment>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -180,6 +181,25 @@ public class AppDbContext : DbContext
             // in a thread shares the conversation id — that is the entire point of it.
             e.HasIndex(a => a.ConversationId)
              .HasFilter("[ConversationId] IS NOT NULL");
+        });
+
+        b.Entity<LeadAttachment>(e =>
+        {
+            // Cascade, like the thread itself: an attachment row has no meaning without
+            // the message it hung off. The blob object is a separate concern and is
+            // deliberately NOT deleted here — same decision as GalleryAdminService, which
+            // removes rows and leaves the bytes.
+            e.HasOne(a => a.Activity)
+             .WithMany(x => x.Attachments)
+             .HasForeignKey(a => a.LeadActivityId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(a => a.LeadActivityId);
+
+            // One blob object backs exactly one attachment row, so a re-submitted upload
+            // cannot quietly create a second row pointing at the same bytes — which would
+            // make deleting one of them orphan the other.
+            e.HasIndex(a => a.BlobKey).IsUnique();
         });
 
         b.Entity<Review>(e =>

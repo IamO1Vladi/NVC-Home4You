@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace Data.Entities;
@@ -53,4 +54,8 @@ public class LeadActivity
     // When the row was written. Kept alongside OccurredAt precisely because they differ,
     // and "when did we learn this" is an audit question the other column cannot answer.
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    // Files that came with this message. See LeadAttachment for why they hang off the
+    // activity rather than the lead.
+    public List<LeadAttachment> Attachments { get; set; } = new();
 }
