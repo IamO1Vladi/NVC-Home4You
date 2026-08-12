@@ -80,6 +80,10 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.LeadPipelineService>();
     builder.Services.AddScoped<Services.LeadMailService>();
 
+    // Owns its own container client rather than sharing the images one — see LeadFileStore
+    // for why that separation is the point rather than an accident.
+    builder.Services.AddSingleton<Services.LeadFileStore>();
+
     // Singleton so the Graph token is cached across every caller — the poller wakes every
     // two minutes and would otherwise mint a token each time.
     builder.Services.AddSingleton<Services.GraphTokens>();

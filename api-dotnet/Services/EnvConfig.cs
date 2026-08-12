@@ -238,6 +238,21 @@ public class EnvConfig
 
     public bool InboundMailConfigured => InboundMailEnabled && GraphConfigured && SqlConfigured;
 
+    // --- Lead attachments -------------------------------------------------------------
+    // A DIFFERENT container from images, and it must stay that way. /api/img is
+    // unauthenticated because it serves the public site, so anything sharing the images
+    // container is reachable by anyone who guesses a path — which is fine for a house
+    // photo and not fine for a customer's contract. Overridable, but the default is
+    // deliberately not "images".
+    public string LeadFilesContainer
+    {
+        get
+        {
+            var raw = (_cfg["BLOB_LEAD_FILES_CONTAINER"] ?? "").Trim();
+            return string.IsNullOrWhiteSpace(raw) ? "lead-files" : raw;
+        }
+    }
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 
