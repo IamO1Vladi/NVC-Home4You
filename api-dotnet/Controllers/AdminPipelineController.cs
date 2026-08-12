@@ -25,12 +25,15 @@ public class AdminPipelineController : ControllerBase
     private readonly LeadPipelineService _read;
     private readonly LeadService _leads;
     private readonly LeadDraftService _drafts;
+    private readonly LeadMailService _mail;
 
-    public AdminPipelineController(LeadPipelineService read, LeadService leads, LeadDraftService drafts)
+    public AdminPipelineController(
+        LeadPipelineService read, LeadService leads, LeadDraftService drafts, LeadMailService mail)
     {
         _read = read;
         _leads = leads;
         _drafts = drafts;
+        _mail = mail;
     }
 
     // The signed-in salesperson, as the UPN everything here records them by. Matches the
@@ -131,6 +134,37 @@ public class AdminPipelineController : ControllerBase
             id, body.Type, body.Subject, body.Body, CurrentUpn, occurred, ct: ct);
 
         return activity is null ? NotFound() : Ok(new { ok = true, id = activity.Id });
+    }
+
+    // --- Replying --------------------------------------------------------------------
+
+    public record ReplyRequest(string? Subject, string Body);
+
+    // Sends from the shared mailbox and writes the message into the thread. Separate from
+    // the activities endpoint on purpose: this one has effects outside the database and
+    // must not look like a local write that can simply be retried.
+    [HttpPost("{id:int}/reply")]
+    public async Task<IActionResult> Reply(int id, [FromBody] ReplyRequest body, CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.Body))
+            return BadRequest(new { errors = new[] { "The reply cannot be empty." } });
+
+        var result = await _mail.SendReplyAsync(id, body.Subject, body.Body, CurrentUpn, ct);
+
+        return result.Outcome switch
+        {
+            LeadMailService.SendOutcome.Sent => Ok(new { ok = true, activityId = result.ActivityId }),
+            LeadMailService.SendOutcome.LeadNotFound => NotFound(),
+
+            // A lead with no address is the operator's problem to solve, not a server
+            // fault — 400 with the reason, so the panel can say "reply by phone".
+            LeadMailService.SendOutcome.NoAddress => BadRequest(new { errors = new[] { result.Error } }),
+
+            LeadMailService.SendOutcome.NotConfigured =>
+                StatusCode(503, new { errors = new[] { result.Error } }),
+
+            _ => StatusCode(502, new { errors = new[] { result.Error } }),
+        };
     }
 
     // --- Drafting --------------------------------------------------------------------

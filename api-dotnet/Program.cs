@@ -78,6 +78,15 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.LeadAdminService>();
     builder.Services.AddScoped<Services.LeadService>();
     builder.Services.AddScoped<Services.LeadPipelineService>();
+    builder.Services.AddScoped<Services.LeadMailService>();
+
+    // Singleton so the Graph token is cached across every caller — the poller wakes every
+    // two minutes and would otherwise mint a token each time.
+    builder.Services.AddSingleton<Services.GraphTokens>();
+
+    // Registered unconditionally; it checks its own config and returns immediately when
+    // inbound mail is off, which keeps the "is this on?" decision in one place.
+    builder.Services.AddHostedService<Services.LeadMailPoller>();
     builder.Services.AddScoped<Services.LeadDraftContextBuilder>();
     builder.Services.AddScoped<Services.LeadDraftService>();
 }

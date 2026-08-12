@@ -181,6 +181,15 @@ public class AppDbContext : DbContext
             // in a thread shares the conversation id — that is the entire point of it.
             e.HasIndex(a => a.ConversationId)
              .HasFilter("[ConversationId] IS NOT NULL");
+
+            // One mailbox message becomes at most one activity. This is the constraint
+            // the inbound poller leans on: it has no memory between runs, so a restart
+            // replays whatever the mailbox still holds, and without this every replay
+            // would duplicate the thread. Filtered because hand-logged notes have no
+            // message id and must not all collide on NULL.
+            e.HasIndex(a => a.ExternalMessageId)
+             .IsUnique()
+             .HasFilter("[ExternalMessageId] IS NOT NULL");
         });
 
         b.Entity<LeadAttachment>(e =>

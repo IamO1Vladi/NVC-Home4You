@@ -226,6 +226,18 @@ public class EnvConfig
     // point; sweep it against real threads before paying for more.
     public string DraftEffort => (_cfg["DRAFT_EFFORT"] ?? "medium").Trim().ToLowerInvariant();
 
+    // --- Inbound lead mail ------------------------------------------------------------
+    // OFF by default, and deliberately a separate switch from GraphConfigured rather than
+    // implied by it. Sending needs only Mail.Send; reading the mailbox needs Mail.Read
+    // plus an Application Access Policy scoping the app to contact@ — without that policy
+    // application permissions are tenant-wide and the app could read every mailbox in the
+    // company. Turning this on before that policy exists is the mistake worth making
+    // impossible to do by accident, so it takes an explicit opt-in.
+    public bool InboundMailEnabled =>
+        (_cfg["INBOUND_MAIL_ENABLED"] ?? "").Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
+
+    public bool InboundMailConfigured => InboundMailEnabled && GraphConfigured && SqlConfigured;
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 

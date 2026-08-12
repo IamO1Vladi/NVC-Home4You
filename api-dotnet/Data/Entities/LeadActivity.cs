@@ -47,6 +47,16 @@ public class LeadActivity
     // this is the hook it will use.
     [MaxLength(400)] public string? ConversationId { get; set; }
 
+    // The Graph message id, on anything that came from or went to a mailbox.
+    //
+    // This is the poller's dedupe key, and without it the feature is broken in a way that
+    // only shows up after a restart: the poller has no memory of its own, so on every
+    // start it would re-import the same replies and the thread would fill with duplicates.
+    // A timestamp watermark is not enough — mail arrives out of order and a redeploy mid-
+    // poll would straddle it. The unique index is what actually enforces this, so two
+    // poll cycles racing each other cannot both insert the same message.
+    [MaxLength(400)] public string? ExternalMessageId { get; set; }
+
     // When it actually happened, which is not when it was typed in: a call logged the next
     // morning belongs at the time of the call, or the thread tells the wrong story.
     public DateTimeOffset OccurredAt { get; set; } = DateTimeOffset.UtcNow;

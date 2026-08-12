@@ -23,11 +23,18 @@ public class EmailService
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<EmailService> _logger;
 
-    public EmailService(EnvConfig env, IHttpClientFactory httpFactory, ILogger<EmailService> logger)
+    private readonly GraphTokens _tokens;
+
+    public EmailService(
+        EnvConfig env, IHttpClientFactory httpFactory, ILogger<EmailService> logger, GraphTokens? tokens = null)
     {
         _env = env;
         _httpFactory = httpFactory;
         _logger = logger;
+
+        // Optional so the existing signature-rendering tests, which never reach the
+        // network, can keep constructing this with three arguments.
+        _tokens = tokens ?? new GraphTokens(env, httpFactory);
     }
 
     public bool IsConfigured => _env.EmailConfigured;
@@ -157,32 +164,9 @@ public class EmailService
         }
     }
 
-    private async Task<string> GetGraphTokenAsync(CancellationToken ct)
-    {
-        var http = _httpFactory.CreateClient();
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            $"https://login.microsoftonline.com/{Uri.EscapeDataString(_env.GraphTenantId)}/oauth2/v2.0/token")
-        {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["client_id"] = _env.GraphClientId,
-                ["client_secret"] = _env.GraphClientSecret,
-                ["scope"] = "https://graph.microsoft.com/.default",
-                ["grant_type"] = "client_credentials",
-            }),
-        };
-
-        using var response = await http.SendAsync(request, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Graph token request failed: {(int)response.StatusCode} {body}");
-
-        using var doc = JsonDocument.Parse(body);
-        if (doc.RootElement.TryGetProperty("access_token", out var tokenEl) && tokenEl.GetString() is { Length: > 0 } token)
-            return token;
-        throw new InvalidOperationException("Graph token response did not contain an access_token.");
-    }
+    // Now shared with LeadMailService and the inbound poller, and cached there — a second
+    // copy of the token endpoint here would drift the moment either one changed.
+    private Task<string> GetGraphTokenAsync(CancellationToken ct) => _tokens.GetAsync(ct);
 
     // Minimal localized transactional email. Kept plain and inline-styled so it
     // renders in every mail client without external assets.
