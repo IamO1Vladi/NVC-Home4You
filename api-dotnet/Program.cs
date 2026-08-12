@@ -77,6 +77,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.LeadImportService>();
     builder.Services.AddScoped<Services.LeadAdminService>();
     builder.Services.AddScoped<Services.LeadService>();
+    builder.Services.AddScoped<Services.LeadPipelineService>();
     builder.Services.AddScoped<Services.LeadDraftContextBuilder>();
     builder.Services.AddScoped<Services.LeadDraftService>();
 }

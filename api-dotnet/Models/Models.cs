@@ -207,6 +207,87 @@ public class AdminLeadDto
     public string? UpdatedAt { get; set; }
 }
 
+// One lead with its thread — the detail view behind the pipeline.
+//
+// Note the route naming: /api/admin/leads is the ENQUIRY queue (offers + questions, the
+// Quickbase workflow), and this lives at /api/admin/pipeline. The two are genuinely
+// different resources and the older route was there first; collapsing them would either
+// break the existing page or overload one path with two shapes.
+public class LeadDetailDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string OwnerUpn { get; set; } = "";
+    public string Locale { get; set; } = "";
+    public string Country { get; set; } = "";
+    public string BuildLocation { get; set; } = "";
+    public string ProjectName { get; set; } = "";
+    public string NextStep { get; set; } = "";
+    public string Notes { get; set; } = "";
+
+    // The catalogue model, resolved. HouseId is the FK; HouseTitle saves the panel a
+    // second round trip just to render a name.
+    public int? HouseId { get; set; }
+    public string HouseTitle { get; set; } = "";
+    public string CustomModel { get; set; } = "";
+
+    // Where it came from, so the panel can link back to the original enquiry. Both null
+    // for a cold-call lead.
+    public int? OfferId { get; set; }
+    public int? QuestionId { get; set; }
+
+    public string CreatedAt { get; set; } = "";
+    public string? LastActivityAt { get; set; }
+
+    public List<LeadActivityDto> Activities { get; set; } = new();
+}
+
+public class LeadActivityDto
+{
+    public int Id { get; set; }
+    public string Type { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string Body { get; set; } = "";
+
+    // Empty means the customer — the panel renders the two sides differently, so this is
+    // the field the whole chat layout hangs off.
+    public string ActorUpn { get; set; } = "";
+    public bool FromCustomer { get; set; }
+
+    public string OccurredAt { get; set; } = "";
+    public List<LeadAttachmentDto> Attachments { get; set; } = new();
+}
+
+public class LeadAttachmentDto
+{
+    public int Id { get; set; }
+    public string FileName { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public long SizeBytes { get; set; }
+
+    // Deliberately no blob key or public URL. Attachments are fetched through an
+    // authenticated endpoint, because /api/img is unauthenticated and would make a
+    // customer's survey or contract reachable by anyone who guessed the path.
+    public string DownloadUrl { get; set; } = "";
+}
+
+// The pipeline board: one entry per lead, grouped by status in the UI.
+public class LeadSummaryDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string OwnerUpn { get; set; } = "";
+    public string ModelLabel { get; set; } = "";
+    public string NextStep { get; set; } = "";
+    public string CreatedAt { get; set; } = "";
+    public string? LastActivityAt { get; set; }
+    public int ActivityCount { get; set; }
+}
+
 public class LeadCountsDto
 {
     public int NotReachedOut { get; set; }

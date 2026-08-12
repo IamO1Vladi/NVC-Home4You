@@ -249,6 +249,78 @@ public class LeadService
     }
 
     /// <summary>
+    /// Assigns or unassigns the lead, and records the handover in the thread.
+    ///
+    /// Null clears it. An unassigned lead is a real state — the one nobody has picked up —
+    /// so "unassign" has to be expressible rather than implied by an empty string.
+    /// </summary>
+    public async Task<bool> SetOwnerAsync(int leadId, string? ownerUpn, string? actorUpn, CancellationToken ct = default)
+    {
+        var lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
+        if (lead is null) return false;
+
+        var next = string.IsNullOrWhiteSpace(ownerUpn) ? null : ownerUpn.Trim();
+        if (string.Equals(lead.OwnerUpn, next, StringComparison.OrdinalIgnoreCase)) return true;
+
+        var from = lead.OwnerUpn;
+        lead.OwnerUpn = next;
+        lead.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // Written to the thread because "who was supposed to be handling this?" is a
+        // question that gets asked about leads that went cold, and the Owner column only
+        // ever holds the current answer.
+        var now = DateTimeOffset.UtcNow;
+        _db.LeadActivities.Add(new LeadActivity
+        {
+            LeadId = leadId,
+            Type = LeadActivityTypes.StatusChange,
+            Body = $"owner: {from ?? "unassigned"} → {next ?? "unassigned"}",
+            ActorUpn = actorUpn,
+            OccurredAt = now,
+        });
+
+        if (lead.LastActivityAt is null || now > lead.LastActivityAt) lead.LastActivityAt = now;
+
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>
+    /// The free-text fields sales maintains by hand. Null leaves a field alone, so one
+    /// box can be edited without restating the rest and clobbering a colleague's change.
+    ///
+    /// Deliberately NOT written to the thread: these are working notes that get corrected
+    /// constantly, and an activity per keystroke-save would drown the actual conversation.
+    /// </summary>
+    public async Task<bool> UpdateFieldsAsync(
+        int leadId,
+        string? nextStep,
+        string? notes,
+        string? projectName,
+        string? buildLocation,
+        string? country,
+        CancellationToken ct = default)
+    {
+        var lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
+        if (lead is null) return false;
+
+        if (nextStep is not null) lead.NextStep = Trimmed(nextStep);
+        if (notes is not null) lead.Notes = Trimmed(notes);
+        if (projectName is not null) lead.ProjectName = Trimmed(projectName);
+        if (buildLocation is not null) lead.BuildLocation = Trimmed(buildLocation);
+        if (country is not null) lead.Country = Trimmed(country);
+
+        lead.UpdatedAt = DateTimeOffset.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    // An emptied box means "clear this", which is null in the database — storing "" would
+    // make a cleared field and a never-filled one look different in every query.
+    private static string? Trimmed(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>
     /// One lead with its thread, oldest first — the detail view.
     /// </summary>
     public async Task<Lead?> GetAsync(int id, CancellationToken ct = default) =>
