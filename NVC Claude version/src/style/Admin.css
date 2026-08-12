@@ -1457,3 +1457,29 @@ label.btn { cursor: pointer; }
 .adm-deal-fields textarea,
 .adm-newdeal-grid input,
 .adm-search { font-size: 16px; }
+
+/* The filter checkbox sits in the toolbar beside the search box. */
+.adm-filter-check { gap: 8px; white-space: nowrap; }
+.adm-filter-check .adm-count { margin-left: 2px; }
+
+/* Next step: the one line that says what happens next, so it gets a label and real
+   weight instead of sitting in the same grey as everything else. */
+.adm-next-step { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.adm-next-step-tag {
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: .85;
+}
+.adm-newdeal-notes { display: grid; gap: 4px; margin-top: 12px; }
+.adm-newdeal-notes textarea {
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 16px;
+  background: var(--adm-card);
+  color: inherit;
+  resize: vertical;
+}

@@ -108,5 +108,15 @@ public class Lead
     // page load. Maintained by LeadService alongside the activity insert.
     public DateTimeOffset? LastActivityAt { get; set; }
 
+    // When the deal reached Won or Lost. Null while it is still in play, and cleared again
+    // if someone reopens it.
+    //
+    // A column rather than a computed thing, because "closed three days ago" is the whole
+    // basis of the archive rule and deriving it from the thread would mean scanning
+    // activities for the last status change on every board query. Distinct from UpdatedAt,
+    // which moves whenever anyone edits a note — a closed deal must not un-archive itself
+    // because somebody fixed a typo.
+    public DateTimeOffset? ClosedAt { get; set; }
+
     public List<LeadActivity> Activities { get; set; } = new();
 }

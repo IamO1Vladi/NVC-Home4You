@@ -32,24 +32,48 @@ public class LeadPipelineService
     private const int MaxRows = 1000;
 
     /// <summary>
+    /// How long a Won or Lost deal stays on the working board before it archives itself.
+    /// </summary>
+    public static readonly TimeSpan ArchiveAfter = TimeSpan.FromDays(3);
+
+    /// <summary>
     /// The board. Optionally narrowed to one status, or to the open stages only.
     /// </summary>
     public async Task<List<LeadSummaryDto>> ListAsync(string? status, string? ownerUpn, CancellationToken ct)
     {
         var query = _db.Leads.AsNoTracking().Include(l => l.House).AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(status))
+        // A deal that has been Won or Lost for more than this drops off the board. Won and
+        // Lost are not "done" the moment they are set — there is usually paperwork, a
+        // deposit, a polite last email — so it stays visible for a few days and then gets
+        // out of the way on its own. Nothing deletes it; the archive view still has it.
+        var archivedBefore = DateTimeOffset.UtcNow - ArchiveAfter;
+
+        if (string.IsNullOrWhiteSpace(status) || status.Equals("open", StringComparison.OrdinalIgnoreCase))
         {
-            // "open" is the useful default view — everything still in play. Spelling it
-            // as a pseudo-status keeps the caller from having to list four stages.
-            if (status.Equals("open", StringComparison.OrdinalIgnoreCase))
+            // "open" is the useful default view — everything still in play. Spelling it as
+            // a pseudo-status keeps the caller from having to list four stages.
+            if (!string.IsNullOrWhiteSpace(status))
                 query = query.Where(l => LeadStatuses.Open.Contains(l.Status));
-            else if (LeadStatuses.IsValid(status))
-                query = query.Where(l => l.Status == status);
+            else
+                // No filter at all still means "the working board": recently closed deals
+                // are included, long-closed ones are not. Someone asking for everything
+                // wants what they are working on, not two years of history.
+                query = query.Where(l => l.ClosedAt == null || l.ClosedAt > archivedBefore);
+        }
+        else if (status.Equals("archived", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(l => l.ClosedAt != null && l.ClosedAt <= archivedBefore);
+        }
+        else if (LeadStatuses.IsValid(status))
+        {
+            query = query.Where(l => l.Status == status);
+        }
+        else
+        {
             // An unrecognised status narrows to nothing rather than silently listing
             // everything, which would look like the filter worked.
-            else
-                return new List<LeadSummaryDto>();
+            return new List<LeadSummaryDto>();
         }
 
         if (!string.IsNullOrWhiteSpace(ownerUpn))

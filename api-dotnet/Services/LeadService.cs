@@ -230,6 +230,12 @@ public class LeadService
         lead.Status = status;
         lead.UpdatedAt = DateTimeOffset.UtcNow;
 
+        // Stamped on the way into a terminal stage, cleared on the way back out. The
+        // archive countdown starts here rather than at UpdatedAt, so editing a note on a
+        // closed deal cannot quietly pull it back onto the board.
+        if (!LeadStatuses.IsOpen(status)) lead.ClosedAt ??= DateTimeOffset.UtcNow;
+        else lead.ClosedAt = null;
+
         var now = DateTimeOffset.UtcNow;
         _db.LeadActivities.Add(new LeadActivity
         {

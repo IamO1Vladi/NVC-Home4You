@@ -1,6 +1,7 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
+import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminSend, UnauthorizedError } from '../admin/adminApi.js'
 
 // The deals pipeline: every lead with an owner, a stage and a conversation.
@@ -14,7 +15,7 @@ const TEXT = {
   bg: {
     title: 'Сделки',
     subtitle: 'Всеки клиент с историята на разговора. Отговорите се записват тук автоматично.',
-    tabs: { open: 'Активни', mine: 'Мои', all: 'Всички' },
+    tabs: { open: 'Активни', mine: 'Мои', all: 'Всички', archived: 'Архив' },
     empty: 'Няма сделки в този изглед.',
     newDeal: 'Нова сделка',
     newDealHint: 'За клиенти, които не са писали през сайта — обаждане, изложение, препоръка.',
@@ -36,7 +37,9 @@ const TEXT = {
     them: 'Клиент', us: 'Ние',
     reply: 'Отговор', replyPlaceholder: 'Напишете отговора си…',
     send: 'Изпрати', sending: 'Изпращане…',
-    logNote: 'Запиши бележка', note: 'Бележка', call: 'Обаждане',
+    logNote: '+ Бележка',
+    logNoteHint: 'Записва текста в разговора, без да го изпраща на клиента.',
+    archivedEmpty: 'Няма архивирани сделки.', note: 'Бележка', call: 'Обаждане',
     draft: 'Чернова с AI', drafting: 'Пиша чернова…',
     draftHint: 'Черновата е предложение — прочетете и редактирайте, преди да изпратите.',
     quiet: 'без активност', days: 'дни', today: 'днес', yesterday: 'вчера',
@@ -48,7 +51,7 @@ const TEXT = {
   en: {
     title: 'Deals',
     subtitle: 'Every customer with their conversation. Replies land here automatically.',
-    tabs: { open: 'Active', mine: 'Mine', all: 'All' },
+    tabs: { open: 'Active', mine: 'Mine', all: 'All', archived: 'Archived' },
     empty: 'No deals in this view.',
     newDeal: 'New deal',
     newDealHint: 'For customers who did not come through the site — a call, a trade fair, a referral.',
@@ -70,7 +73,9 @@ const TEXT = {
     them: 'Customer', us: 'Us',
     reply: 'Reply', replyPlaceholder: 'Write your reply…',
     send: 'Send', sending: 'Sending…',
-    logNote: 'Log a note', note: 'Note', call: 'Call',
+    logNote: '+ Note',
+    logNoteHint: 'Saves the text to the conversation without emailing the customer.',
+    archivedEmpty: 'Nothing archived yet.', note: 'Note', call: 'Call',
     draft: 'Draft with AI', drafting: 'Drafting…',
     draftHint: 'A draft is a suggestion — read it and edit before sending.',
     quiet: 'quiet for', days: 'days', today: 'today', yesterday: 'yesterday',
@@ -87,7 +92,19 @@ const TABS = [
   { key: 'open', query: 'status=open' },
   { key: 'mine', query: 'owner=mine' },
   { key: 'all', query: '' },
+  // Won or lost for more than three days. Out of the way by default, never deleted.
+  { key: 'archived', query: 'status=archived' },
 ]
+
+// Everything a new deal can carry, in the order someone would say it out loud.
+const NEW_DEAL_FIELDS = [
+  ['name', 'fName'], ['email', 'fEmail'], ['phone', 'fPhone'], ['customModel', 'fModel'],
+  ['projectName', 'dProject'], ['country', 'dCountry'], ['customerAddress', 'dAddress'],
+  ['buildLocation', 'dBuild'], ['nextStep', 'dNext'],
+]
+
+const emptyDeal = () =>
+  Object.fromEntries(NEW_DEAL_FIELDS.map(([f]) => [f, '']).concat([['notes', '']]))
 
 // How long since anything happened, in the words someone would actually use. The board
 // sorts on this, so it has to be legible at a glance or the ordering looks arbitrary.
@@ -167,7 +184,7 @@ export default function AdminPipelinePage() {
   const [mobilePane, setMobilePane] = React.useState('list')
   const [fields, setFields] = React.useState(null)
   const [savedAt, setSavedAt] = React.useState(0)
-  const [draftLead, setDraftLead] = React.useState({ name: '', email: '', phone: '', customModel: '' })
+  const [draftLead, setDraftLead] = React.useState(emptyDeal)
   const [board, setBoard] = React.useState([])
   const [selectedId, setSelectedId] = React.useState(null)
   const [lead, setLead] = React.useState(null)
@@ -302,7 +319,7 @@ export default function AdminPipelinePage() {
     if (!name) { setError(t.nameRequired); return }
     const result = await adminSend('/api/admin/pipeline', 'POST', { ...draftLead, name })
     setCreating(false)
-    setDraftLead({ name: '', email: '', phone: '', customModel: '' })
+    setDraftLead(emptyDeal())
     await loadBoard(tab)
     // Straight into the new thread — the point of creating it was to talk to someone.
     if (result?.id) setParams({ deal: String(result.id) })
@@ -333,35 +350,61 @@ export default function AdminPipelinePage() {
       </nav>
 
       <div className="adm-pipeline-toolbar">
-        <button type="button" className="btn" onClick={() => setCreating((v) => !v)}>
-          {creating ? t.cancel : `+ ${t.newDeal}`}
+        <button type="button" className="btn" onClick={() => setCreating(true)}>
+          + {t.newDeal}
         </button>
-        {!creating ? <span className="adm-small adm-muted">{t.newDealHint}</span> : null}
+        <span className="adm-small adm-muted">{t.newDealHint}</span>
       </div>
 
-      {creating ? (
-        <div className="adm-card adm-newdeal">
-          <div className="adm-newdeal-grid">
-            {[['name', t.fName], ['email', t.fEmail], ['phone', t.fPhone], ['customModel', t.fModel]].map(([field, label]) => (
-              <label key={field}>
-                <span className="adm-small">{label}{field === 'name' ? ' *' : ''}</span>
-                <input
-                  type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
-                  value={draftLead[field]}
-                  onChange={(e) => setDraftLead((d) => ({ ...d, [field]: e.target.value }))}
-                />
-              </label>
-            ))}
-          </div>
-          <button type="button" className="btn" onClick={createDeal} disabled={!draftLead.name.trim() || busy !== ''}>
-            {t.create}
-          </button>
+      <AdminModal
+        open={creating}
+        title={t.newDeal}
+        subtitle={t.newDealHint}
+        closeLabel={t.cancel}
+        onClose={() => setCreating(false)}
+        footer={(
+          <>
+            <button type="button" className="btn ghost" onClick={() => setCreating(false)}>
+              {t.cancel}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={createDeal}
+              disabled={!draftLead.name.trim() || busy !== ''}
+            >
+              {t.create}
+            </button>
+          </>
+        )}
+      >
+        <div className="adm-newdeal-grid">
+          {NEW_DEAL_FIELDS.map(([field, labelKey]) => (
+            <label key={field}>
+              <span className="adm-small">{t[labelKey]}{field === 'name' ? ' *' : ''}</span>
+              <input
+                type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                value={draftLead[field]}
+                onChange={(e) => setDraftLead((d) => ({ ...d, [field]: e.target.value }))}
+              />
+            </label>
+          ))}
         </div>
-      ) : null}
+        <label className="adm-newdeal-notes">
+          <span className="adm-small">{t.dNotes}</span>
+          <textarea
+            rows={3}
+            value={draftLead.notes}
+            onChange={(e) => setDraftLead((d) => ({ ...d, notes: e.target.value }))}
+          />
+        </label>
+      </AdminModal>
 
       <div className={`adm-pipeline is-mobile-${mobilePane}`}>
         <ul className="adm-pipeline-list">
-          {board.length === 0 ? <li className="adm-empty"><p>{t.empty}</p></li> : null}
+          {board.length === 0
+            ? <li className="adm-empty"><p>{tab === 'archived' ? t.archivedEmpty : t.empty}</p></li>
+            : null}
           {board.map((row) => (
             <li key={row.id}>
               <button
@@ -431,7 +474,10 @@ export default function AdminPipelinePage() {
               </header>
 
               {lead.nextStep ? (
-                <p className="adm-next-step"><strong>{t.nextStep}:</strong> {lead.nextStep}</p>
+                <p className="adm-next-step">
+                  <span className="adm-next-step-tag">{t.nextStep}</span>
+                  <strong>{lead.nextStep}</strong>
+                </p>
               ) : null}
 
               <button
@@ -505,7 +551,13 @@ export default function AdminPipelinePage() {
                   <button type="button" className="btn ghost" onClick={draft} disabled={busy !== ''}>
                     {busy === 'draft' ? t.drafting : t.draft}
                   </button>
-                  <button type="button" className="adm-linkbtn" onClick={logNote} disabled={!reply.trim() || busy !== ''}>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    title={t.logNoteHint}
+                    onClick={logNote}
+                    disabled={!reply.trim() || busy !== ''}
+                  >
                     {t.logNote}
                   </button>
                 </div>

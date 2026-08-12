@@ -18,6 +18,14 @@ const TEXT = {
     allClear: 'Няма нищо за одобрение в момента.',
     open: 'Отвори',
     cards: {
+      leads: {
+        name: 'Запитвания',
+        blurb: 'Новите запитвания от сайта. Създайте сделка, за да започнете разговор.',
+      },
+      pipeline: {
+        name: 'Сделки',
+        blurb: 'Клиентите, с които говорите — история, оферти и отговори на едно място.',
+      },
       reviews: {
         name: 'Отзиви',
         blurb: 'Одобрявайте нови отзиви от клиенти, преди да се появят на сайта.',
@@ -34,6 +42,9 @@ const TEXT = {
     stats: {
       pending: (n) => `${n} ${n === 1 ? 'чака' : 'чакат'} одобрение`,
       noPending: 'Всичко е прегледано',
+      waiting: (n) => `${n} ${n === 1 ? 'чака' : 'чакат'} обработка`,
+      allHandled: 'Няма нови запитвания',
+      deals: (n) => `${n} ${n === 1 ? 'активна сделка' : 'активни сделки'}`,
       models: (n) => `${n} ${n === 1 ? 'модел' : 'модела'}`,
       cases: (n) => `${n} ${n === 1 ? 'проект' : 'проекта'}`,
       drafts: (n) => `${n} в чернова`,
@@ -53,6 +64,14 @@ const TEXT = {
     allClear: 'Nothing is waiting for approval.',
     open: 'Open',
     cards: {
+      leads: {
+        name: 'Leads',
+        blurb: 'New enquiries from the site. Create a deal to start a conversation.',
+      },
+      pipeline: {
+        name: 'Deals',
+        blurb: 'The customers you are talking to — history, quotes and replies in one place.',
+      },
       reviews: {
         name: 'Reviews',
         blurb: 'Approve new customer reviews before they appear on the site.',
@@ -92,20 +111,29 @@ export default function AdminHomePage() {
   const [counts, setCounts] = React.useState({})
   const [houses, setHouses] = React.useState([])
   const [cases, setCases] = React.useState([])
+  const [outstanding, setOutstanding] = React.useState(0)
+  const [deals, setDeals] = React.useState(0)
 
   const load = React.useCallback(async () => {
     setState('loading')
     try {
-      const [countRes, houseRes, caseRes, who] = await Promise.all([
+      // The two lead calls tolerate failure on purpose: this page is a menu, and a
+      // section whose count could not be fetched should still be reachable rather than
+      // taking the whole screen to the error state.
+      const [countRes, houseRes, caseRes, who, leadCounts, openDeals] = await Promise.all([
         adminGet('/api/admin/reviews/counts'),
         adminGet('/api/admin/gallery'),
         adminGet('/api/admin/cases'),
         adminGet('/api/admin/me').catch(() => null),
+        adminGet('/api/admin/leads/counts').catch(() => null),
+        adminGet('/api/admin/pipeline?status=open').catch(() => null),
       ])
       setCounts(countRes ?? {})
       setHouses(houseRes ?? [])
       setCases(caseRes ?? [])
       setMe(who)
+      setOutstanding(Number(leadCounts?.notReachedOut) || 0)
+      setDeals(Array.isArray(openDeals) ? openDeals.length : 0)
       setState('ready')
     } catch (err) {
       setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error')
@@ -131,6 +159,23 @@ export default function AdminHomePage() {
       onRetry={load}
     >
       <div className="adm-tiles">
+        <HomeTile
+          to="/admin/leads"
+          icon="leads"
+          name={t.cards.leads.name}
+          blurb={t.cards.leads.blurb}
+          open={t.open}
+          urgent={outstanding > 0}
+          stat={outstanding > 0 ? t.stats.waiting(outstanding) : t.stats.allHandled}
+        />
+        <HomeTile
+          to="/admin/pipeline"
+          icon="pipeline"
+          name={t.cards.pipeline.name}
+          blurb={t.cards.pipeline.blurb}
+          open={t.open}
+          stat={t.stats.deals(deals)}
+        />
         <HomeTile
           to="/admin/reviews"
           icon="reviews"
@@ -171,6 +216,18 @@ export default function AdminHomePage() {
 }
 
 const TILE_ICON = {
+  leads: (
+    <>
+      <path d="M3.2 13.4h4.1l1.4 2.6h6.6l1.4-2.6h4.1" />
+      <path d="M5.6 4.6h12.8l3 8.8V19a1.6 1.6 0 0 1-1.6 1.6H4.2A1.6 1.6 0 0 1 2.6 19v-5.6z" />
+    </>
+  ),
+  pipeline: (
+    <>
+      <path d="M3.4 6.2a1.8 1.8 0 0 1 1.8-1.8h9.6a1.8 1.8 0 0 1 1.8 1.8v5a1.8 1.8 0 0 1-1.8 1.8H8.2l-3.4 2.8v-2.8a1.4 1.4 0 0 1-1.4-1.4z" />
+      <path d="M19 9.4a1.6 1.6 0 0 1 1.6 1.6v4.4a1.6 1.6 0 0 1-1.6 1.6v2.4l-2.8-2.4h-3.6" />
+    </>
+  ),
   reviews: <path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z" />,
   gallery: (
     <>

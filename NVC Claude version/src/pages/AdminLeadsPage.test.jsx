@@ -91,7 +91,7 @@ describe('AdminLeadsPage', () => {
 
     await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
 
-    const boxes = screen.getAllByRole('checkbox')
+    const boxes = screen.getAllByRole('checkbox', { name: /Свързахме се|Reached out/ })
     await userEvent.click(boxes[0])
 
     await waitFor(() => {
@@ -110,7 +110,7 @@ describe('AdminLeadsPage', () => {
 
     await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
 
-    const box = screen.getAllByRole('checkbox')[0]
+    const box = screen.getAllByRole('checkbox', { name: /Свързахме се|Reached out/ })[0]
     await userEvent.click(box)
 
     // The screen must never claim a lead was handled when the database disagrees.
@@ -179,13 +179,17 @@ describe('AdminLeadsPage', () => {
     const user = userEvent.setup()
     render(<AdminLeadsPage />)
 
+    const box = await screen.findByRole('checkbox', { name: /Скрий тези със сделка|Hide ones with a deal/ })
+
+    // Off by default: everything is listed, and only the enquiry without a deal offers
+    // the button.
+    expect(box).not.toBeChecked()
     await waitFor(() => expect(screen.getByRole('link', { name: /Отвори сделката|Open deal/ })).toBeInTheDocument())
+    expect(screen.getAllByRole('button', { name: /Създай сделка|Create deal/ }).length).toBe(1)
 
-    await user.click(screen.getByRole('button', { name: /Само без сделка|Needs a deal/ }))
-
-    await waitFor(() => {
-      expect(screen.queryByRole('link', { name: /Отвори сделката|Open deal/ })).not.toBeInTheDocument()
-    })
+    // Checked hides the ones already dealt with, leaving only work still to do.
+    await user.click(box)
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Отвори сделката|Open deal/ })).not.toBeInTheDocument())
     expect(screen.getAllByRole('button', { name: /Създай сделка|Create deal/ }).length).toBe(1)
   })
 })

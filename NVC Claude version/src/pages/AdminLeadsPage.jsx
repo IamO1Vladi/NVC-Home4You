@@ -17,7 +17,7 @@ const TEXT = {
     tabs: { open: 'За обработка', done: 'Обработени', all: 'Всички' },
     reachedOut: 'Свързахме се',
     createDeal: 'Създай сделка',
-    onlyNoDeal: 'Само без сделка',
+    onlyNoDeal: 'Скрий тези със сделка',
     noDealNone: 'Всяко запитване тук вече има сделка.',
     openDeal: 'Отвори сделката',
     creating: 'Създавам…',
@@ -46,7 +46,7 @@ const TEXT = {
     tabs: { open: 'To handle', done: 'Handled', all: 'All' },
     reachedOut: 'Reached out',
     createDeal: 'Create deal',
-    onlyNoDeal: 'Needs a deal',
+    onlyNoDeal: 'Hide ones with a deal',
     noDealNone: 'Every enquiry here already has a deal.',
     openDeal: 'Open deal',
     creating: 'Creating…',
@@ -131,6 +131,9 @@ export default function AdminLeadsPage() {
   const [counts, setCounts] = React.useState({})
   const [state, setState] = React.useState('loading') // loading | ready | error | unauthorized
   const [query, setQuery] = React.useState('')
+  // Off by default. Hiding rows on first load makes the queue look emptier than it is,
+  // and the count on the label already answers "how many still need doing?" without
+  // anyone having to click anything.
   const [onlyNoDeal, setOnlyNoDeal] = React.useState(false)
   // Keyed by kind+id so the two id sequences cannot collide and disable the wrong row.
   const [busy, setBusy] = React.useState(() => new Set())
@@ -256,15 +259,15 @@ export default function AdminLeadsPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button
-          type="button"
-          className={`adm-chip${onlyNoDeal ? ' is-active' : ''}`}
-          aria-pressed={onlyNoDeal}
-          onClick={() => setOnlyNoDeal((v) => !v)}
-        >
-          {t.onlyNoDeal}
+        <label className="adm-check adm-filter-check">
+          <input
+            type="checkbox"
+            checked={onlyNoDeal}
+            onChange={(e) => setOnlyNoDeal(e.target.checked)}
+          />
+          <span>{t.onlyNoDeal}</span>
           {needsDeal > 0 ? <span className="adm-count">{needsDeal}</span> : null}
-        </button>
+        </label>
         <span className="adm-muted adm-small">{visible.length} {t.count}</span>
       </div>
 
