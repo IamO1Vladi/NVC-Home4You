@@ -15,6 +15,23 @@ python gen_catalog.py  # write src/content/shared/boxConfiguratorOptions.js
 
 Requires `pymupdf` and `pillow`.
 
+## Shipping the catalogue as a public download
+
+The catalogue is also served from `public/modular-builds/` as the "Бокс" brochure
+on the modular houses page. Do not put the Canva export there directly — it is
+82.5MB, because Canva encodes photographs as lossless PNG (76MB of the file).
+
+```bash
+python compress_brochure.py "<source.pdf>" "../../public/modular-builds/Разгъваеми “Бокс” Къща.pdf"
+```
+
+That re-encodes the photography and leaves the drawings alone: 82.5MB -> 16.5MB
+with no visible change. It renders every page before and after and reports any
+that moved, because the two failure modes here are both visible and neither is
+obvious in advance — flattening cut-outs onto white leaves rectangles on the
+warm off-white pages, and JPEG rings around the dimension text on the drawing
+pages.
+
 ## How the pairing works
 
 Each swatch grid prints a code next to its artwork. `extract.py` matches images
