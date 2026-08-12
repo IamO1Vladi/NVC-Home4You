@@ -2237,8 +2237,6 @@
 body.bhc-config-active .mobile-dock { display: none !important; }
 @media (max-width: 767px) {
   body.bhc-config-active { padding-bottom: 0 !important; }
-  /* Lift the floating contact launcher clear of the in-page nav bar. */
-  body.bhc-config-active .contact-dock { bottom: calc(96px + env(safe-area-inset-bottom)); }
 }
 
 /* Let the last decisions scroll clear of the fixed bottom nav bar. */
