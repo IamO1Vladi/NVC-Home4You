@@ -10,7 +10,7 @@ import { ThemeProvider } from './context/ThemeContext.jsx'
 import { ModalActionsProvider } from './context/ModalActions.jsx'
 import { I18nProvider, useI18n } from './i18n/I18nContext.jsx'
 import ServicesPage from './pages/ServicesPage.jsx'
-import { paths, getLocaleFromPath, getLocalizedPath } from './routes/paths.js'
+import { paths, getLocaleFromPath, getLocalizedPath, getPageKeyByPath } from './routes/paths.js'
 import { getHomeContent } from './content/home/index.js'
 import SEO from './components/SEO.jsx'
 import { getRouteSeo } from './seo/routeMeta.js'
@@ -122,6 +122,11 @@ function AppShell() {
 
   // Internal tools render full-screen without the marketing header/footer/widgets.
   const isInternal = location.pathname.startsWith('/internal/') || location.pathname.startsWith('/admin')
+
+  // The configurator and the floor planner are hands-on tools with their own fixed
+  // corner controls, so the floating chat launcher covers them instead of helping.
+  const toolPageKey = getPageKeyByPath(location.pathname)
+  const isBuilderTool = toolPageKey === 'boxConfigurator' || toolPageKey === 'planner'
 
   const [offerOpen, setOfferOpen] = useState(false)
   const [questionOpen, setQuestionOpen] = useState(false)
@@ -444,7 +449,7 @@ function AppShell() {
             </form>
           </Modal>
 
-          {!isInternal && <ContactDock labels={{ contact: ui.common.contactLabel, whatsapp: ui.common.whatsAppChatLabel, viber: ui.common.viberChatLabel }} />}
+          {!isInternal && !isBuilderTool && <ContactDock labels={{ contact: ui.common.contactLabel, whatsapp: ui.common.whatsAppChatLabel, viber: ui.common.viberChatLabel }} />}
 
           {!isInternal && <MobileDock content={ui.home.mobileDock} />}
           {toast.show && (
