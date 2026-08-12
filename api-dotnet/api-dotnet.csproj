@@ -35,6 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.40.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
     <PackageReference Include="Microsoft.Bcl.Memory" Version="9.0.15" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
@@ -97,8 +98,7 @@
       <ResolvedFileToPublish Include="@(_SpaBuildOutput)" RelativePath="wwwroot\%(RecursiveDir)%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
     </ItemGroup>
 
-    <Error Condition="'@(_SpaBuildOutput)' == ''"
-           Text="wwwroot is empty, so this publish would ship an API with no site. Run 'npm run build' in $(SpaRoot), or drop /p:SkipSpaBuild=true." />
+    <Error Condition="'@(_SpaBuildOutput)' == ''" Text="wwwroot is empty, so this publish would ship an API with no site. Run 'npm run build' in $(SpaRoot), or drop /p:SkipSpaBuild=true." />
 
     <Message Importance="high" Text="SPA staged for publish: @(_SpaBuildOutput-&gt;Count()) files." />
   </Target>

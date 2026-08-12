@@ -209,6 +209,23 @@ public class EnvConfig
     public string LeadNotifyEmail => (_cfg["LEAD_NOTIFY_EMAIL"]
         ?? "nlekov@nvc-home4you.eu,vvladimirov@nvc-home4you.eu,tbonin@nvc-home4you.eu").Trim();
 
+    // --- AI-drafted replies ---------------------------------------------------------
+    // Billed separately from any Claude subscription: this is an API key from
+    // console.anthropic.com, and it joins the six-monthly renewal list.
+    //
+    // Unset means the draft button is simply absent, the same fail-closed shape as
+    // AdminAuthConfigured and BlobConfigured. Drafting is an assist, so losing it must
+    // never stop sales replying by hand.
+    public string AnthropicApiKey => (_cfg["ANTHROPIC_API_KEY"] ?? "").Trim();
+
+    public bool DraftsConfigured => !string.IsNullOrWhiteSpace(AnthropicApiKey) && SqlConfigured;
+
+    // Effort is the cost dial, and drafting a reply from a thread is not the kind of
+    // deep-reasoning work that wants a high setting — the model is summarising a
+    // conversation and matching a tone, not solving anything. Medium is the starting
+    // point; sweep it against real threads before paying for more.
+    public string DraftEffort => (_cfg["DRAFT_EFFORT"] ?? "medium").Trim().ToLowerInvariant();
+
     private int GetInt(string key, int defaultValue) =>
         int.TryParse(_cfg[key], out var value) && value > 0 ? value : defaultValue;
 
