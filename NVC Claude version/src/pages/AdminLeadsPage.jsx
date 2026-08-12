@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import { adminGet, adminSend, UnauthorizedError } from '../admin/adminApi.js'
 
@@ -15,7 +16,11 @@ const TEXT = {
     subtitle: 'Оферти и въпроси от сайта. Отметнете, когато се свържете с клиента.',
     tabs: { open: 'За обработка', done: 'Обработени', all: 'Всички' },
     reachedOut: 'Свързахме се',
-    leadCreated: 'Създаден Lead',
+    createDeal: 'Създай сделка',
+    onlyNoDeal: 'Само без сделка',
+    noDealNone: 'Всяко запитване тук вече има сделка.',
+    openDeal: 'Отвори сделката',
+    creating: 'Създавам…',
     offer: 'Оферта',
     question: 'Въпрос',
     search: 'Търсене по име, имейл или текст',
@@ -40,7 +45,11 @@ const TEXT = {
     subtitle: 'Quote requests and questions from the site. Tick one once you have contacted them.',
     tabs: { open: 'To handle', done: 'Handled', all: 'All' },
     reachedOut: 'Reached out',
-    leadCreated: 'Lead created',
+    createDeal: 'Create deal',
+    onlyNoDeal: 'Needs a deal',
+    noDealNone: 'Every enquiry here already has a deal.',
+    openDeal: 'Open deal',
+    creating: 'Creating…',
     offer: 'Offer',
     question: 'Question',
     search: 'Search by name, email or text',
@@ -115,12 +124,14 @@ function Message({ text, t }) {
 export default function AdminLeadsPage() {
   const [lang, setLang] = useAdminLang()
   const t = TEXT[lang] ?? TEXT.bg
+  const navigate = useNavigate()
 
   const [tab, setTab] = React.useState('open')
   const [items, setItems] = React.useState([])
   const [counts, setCounts] = React.useState({})
   const [state, setState] = React.useState('loading') // loading | ready | error | unauthorized
   const [query, setQuery] = React.useState('')
+  const [onlyNoDeal, setOnlyNoDeal] = React.useState(false)
   // Keyed by kind+id so the two id sequences cannot collide and disable the wrong row.
   const [busy, setBusy] = React.useState(() => new Set())
   const [actionError, setActionError] = React.useState('')
@@ -170,13 +181,40 @@ export default function AdminLeadsPage() {
     }
   }
 
+  async function createDeal(lead) {
+    const key = `${lead.kind}-${lead.id}`
+    setBusy((prev) => new Set(prev).add(key))
+    setActionError('')
+    try {
+      const result = await adminSend('/api/admin/pipeline/promote', 'POST', {
+        kind: lead.kind, id: lead.id,
+      })
+      // Straight into the conversation. Promoting is never the goal in itself — the
+      // person clicking this wants to reply, and making them find the deal afterwards
+      // is a step that exists only because the two pages are separate.
+      if (result?.id) navigate(`/admin/pipeline?deal=${result.id}`)
+    } catch (err) {
+      if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
+      setActionError(t.savingError)
+    } finally {
+      setBusy((prev) => { const next = new Set(prev); next.delete(key); return next })
+    }
+  }
+
   const needle = query.trim().toLowerCase()
-  const visible = needle
+  const searched = needle
     ? items.filter((l) => [l.name, l.email, l.phone, l.message]
         .filter(Boolean).some((v) => String(v).toLowerCase().includes(needle)))
     : items
 
-  const emptyText = needle
+  // "Which of these still need me to do something?" — the question this page is opened
+  // to answer once replying moved into the deals view.
+  const needsDeal = items.filter((l) => !l.dealId).length
+  const visible = onlyNoDeal ? searched.filter((l) => !l.dealId) : searched
+
+  const emptyText = onlyNoDeal && !needle
+    ? t.noDealNone
+    : needle
     ? t.emptySearch
     : tab === 'open' ? t.emptyOpen : tab === 'done' ? t.emptyDone : t.emptyAll
 
@@ -218,6 +256,15 @@ export default function AdminLeadsPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <button
+          type="button"
+          className={`adm-chip${onlyNoDeal ? ' is-active' : ''}`}
+          aria-pressed={onlyNoDeal}
+          onClick={() => setOnlyNoDeal((v) => !v)}
+        >
+          {t.onlyNoDeal}
+          {needsDeal > 0 ? <span className="adm-count">{needsDeal}</span> : null}
+        </button>
         <span className="adm-muted adm-small">{visible.length} {t.count}</span>
       </div>
 
@@ -264,15 +311,25 @@ export default function AdminLeadsPage() {
                     />
                     <span>{t.reachedOut}</span>
                   </label>
-                  <label className="adm-check">
-                    <input
-                      type="checkbox"
-                      checked={!!l.leadCreated}
+                  {/* Was a hand-ticked "Lead created" checkbox inherited from Quickbase,
+                      which only ever recorded that someone had done the work elsewhere.
+                      Now it does the work: one click creates the deal and its thread. Once
+                      one exists the control becomes a link, so the same enquiry cannot be
+                      promoted twice by someone who forgot they already had. */}
+                  {l.dealId ? (
+                    <Link className="adm-linkbtn" to={`/admin/pipeline?deal=${l.dealId}`}>
+                      {t.openDeal}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn ghost adm-btn-sm"
                       disabled={isBusy}
-                      onChange={(e) => setFlag(l, 'leadCreated', e.target.checked)}
-                    />
-                    <span>{t.leadCreated}</span>
-                  </label>
+                      onClick={() => createDeal(l)}
+                    >
+                      {isBusy ? t.creating : t.createDeal}
+                    </button>
+                  )}
                 </div>
               </li>
             )

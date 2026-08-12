@@ -65,6 +65,67 @@ public class AdminPipelineController : ControllerBase
         return Ok(lead);
     }
 
+    // --- Creating a deal --------------------------------------------------------------
+
+    public record PromoteRequest(string Kind, int Id);
+
+    /// <summary>
+    /// Turns an enquiry from the queue into a deal with a conversation.
+    ///
+    /// This is the normal way a deal is born, and it is what the "Lead created" checkbox
+    /// inherited from Quickbase always meant — the difference is that it now actually
+    /// creates something instead of recording that someone did it by hand.
+    /// </summary>
+    [HttpPost("promote")]
+    public async Task<IActionResult> Promote([FromBody] PromoteRequest body, CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.Kind))
+            return BadRequest(new { errors = new[] { "An enquiry is required." } });
+
+        var result = await _leads.PromoteAsync(body.Kind, body.Id, CurrentUpn, ct);
+
+        if (result.Outcome == LeadService.PromotionOutcome.NotFound) return NotFound();
+
+        // AlreadyExisted is a success, not a conflict: the usual cause is a double click,
+        // and the right answer is to hand back the deal that already exists so the panel
+        // opens it rather than showing an error for something that worked.
+        return Ok(new
+        {
+            ok = true,
+            id = result.Lead!.Id,
+            created = result.Outcome == LeadService.PromotionOutcome.Created,
+        });
+    }
+
+    public record NewLead(string Name, string? Email, string? Phone, string? CustomModel, string? Country, string? Locale);
+
+    /// <summary>
+    /// A deal with no website enquiry behind it — the phone call, the trade fair, the
+    /// builder who already knows us. See Lead.OfferId for why that has to be possible.
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] NewLead body, CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.Name))
+            return BadRequest(new { errors = new[] { "A name is required." } });
+
+        var lead = await _leads.CreateAsync(new Lead
+        {
+            Name = body.Name.Trim(),
+            Email = string.IsNullOrWhiteSpace(body.Email) ? null : body.Email.Trim(),
+            Phone = string.IsNullOrWhiteSpace(body.Phone) ? null : body.Phone.Trim(),
+            CustomModel = string.IsNullOrWhiteSpace(body.CustomModel) ? null : body.CustomModel.Trim(),
+            Country = string.IsNullOrWhiteSpace(body.Country) ? null : body.Country.Trim(),
+            Locale = string.IsNullOrWhiteSpace(body.Locale) ? null : body.Locale.Trim(),
+
+            // Whoever typed it in owns it. A cold-call lead with no owner would sit at the
+            // top of the quietest-first board forever, which is the opposite of useful.
+            OwnerUpn = CurrentUpn,
+        }, ct);
+
+        return Ok(new { ok = true, id = lead.Id });
+    }
+
     // --- Moving the lead along -------------------------------------------------------
 
     public record StatusChange(string Status);

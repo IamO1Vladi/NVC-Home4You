@@ -20,7 +20,7 @@ const openOffer = {
 const openQuestion = {
   kind: 'question', id: 1, name: 'Maria S', email: 'maria@example.com', phone: '',
   message: 'Do you deliver to Greece?', modelId: '', locale: 'el',
-  reachedOut: false, leadCreated: false, createdAt: '2026-08-01T09:00:00Z',
+  reachedOut: false, leadCreated: true, dealId: 42, createdAt: '2026-08-01T09:00:00Z',
 }
 
 function mockApi({ items = [openOffer, openQuestion], status = 200, updateStatus = 200 } = {}) {
@@ -41,6 +41,7 @@ function mockApi({ items = [openOffer, openQuestion], status = 200, updateStatus
     if (u.includes('/api/admin/me')) return json({ name: 'Vladi', email: 'vladi@nvc-home4you.eu' })
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 2, reachedOut: 5, offers: 4, questions: 3 })
+    if (u.includes('/api/admin/pipeline/promote')) return json({ ok: true, id: 77, created: true })
     if (/\/api\/admin\/leads\/(offer|question)\/\d+/.test(u)) return json({ ok: true }, updateStatus)
     return json(items)
   })
@@ -143,5 +144,48 @@ describe('AdminLeadsPage', () => {
 
     await waitFor(() =>
       expect(screen.getByText('Няма запитвания за обработка. Всичко е поето.')).toBeInTheDocument())
+  })
+
+  it('offers to create a deal for an enquiry that has none, and to open the one it has', async () => {
+    // The control replaced a hand-ticked "Lead created" checkbox that only recorded that
+    // someone had done the work elsewhere. Now it does the work.
+    mockApi()
+    render(<AdminLeadsPage />)
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Създай сделка|Create deal/ }).length).toBe(1))
+    expect(screen.getByRole('link', { name: /Отвори сделката|Open deal/ })).toBeInTheDocument()
+  })
+
+  it('creates the deal from the enquiry it was clicked on', async () => {
+    const { calls } = mockApi()
+    const user = userEvent.setup()
+    render(<AdminLeadsPage />)
+
+    const button = (await screen.findAllByRole('button', { name: /Създай сделка|Create deal/ }))[0]
+    await user.click(button)
+
+    await waitFor(() => {
+      const promoted = calls.find((c) => c.url.includes('/api/admin/pipeline/promote'))
+      expect(promoted).toBeTruthy()
+      // The offer, not the question — the question already has a deal.
+      expect(JSON.parse(promoted.body)).toEqual({ kind: 'offer', id: 1 })
+    })
+  })
+
+  it('filters down to the enquiries that still need a deal', async () => {
+    // "Which of these still need me to do something?" is what this page is opened to
+    // answer now that replying happens in the deals view.
+    mockApi()
+    const user = userEvent.setup()
+    render(<AdminLeadsPage />)
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /Отвори сделката|Open deal/ })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /Само без сделка|Needs a deal/ }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: /Отвори сделката|Open deal/ })).not.toBeInTheDocument()
+    })
+    expect(screen.getAllByRole('button', { name: /Създай сделка|Create deal/ }).length).toBe(1)
   })
 })

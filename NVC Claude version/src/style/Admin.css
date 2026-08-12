@@ -1310,3 +1310,44 @@ label.btn { cursor: pointer; }
   .adm-bubble { max-width: 92%; }
   .adm-thread { max-height: none; }
 }
+
+/* Creating a deal that never came through the site. */
+.adm-pipeline-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.adm-newdeal { display: grid; gap: 12px; padding: 16px; margin-bottom: 12px; }
+.adm-newdeal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.adm-newdeal-grid label { display: grid; gap: 4px; }
+.adm-newdeal-grid input {
+  min-height: 40px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+}
+/* Smaller than the primary action, because on the enquiry queue this sits inline with
+   the "reached out" checkbox and must not out-shout it. */
+.adm-btn-sm { min-height: 36px; padding: 0 12px; font-size: 14px; }
+
+/* A filter chip. Distinct from .adm-tabs — tabs swap what is loaded, a chip narrows
+   what is already on screen, and making them look the same taught people to expect
+   a round trip that never happens. */
+.adm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 999px;
+  background: var(--adm-card);
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.adm-chip:hover { border-color: var(--adm-accent); }
+.adm-chip.is-active {
+  background: var(--adm-accent-soft);
+  border-color: var(--adm-accent);
+  color: var(--adm-accent-ink);
+  font-weight: 600;
+}

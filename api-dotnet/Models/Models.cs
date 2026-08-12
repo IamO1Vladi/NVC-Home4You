@@ -203,6 +203,12 @@ public class AdminLeadDto
     public string Locale { get; set; } = "";
     public bool ReachedOut { get; set; }
     public bool LeadCreated { get; set; }
+
+    // The deal this enquiry became, if it has. Null means the queue offers "create a
+    // deal"; a value means it offers "open it" instead — which is what stops someone
+    // promoting the same enquiry twice and wondering why nothing happened.
+    public int? DealId { get; set; }
+
     public string CreatedAt { get; set; } = "";
     public string? UpdatedAt { get; set; }
 }

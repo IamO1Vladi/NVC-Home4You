@@ -1,4 +1,5 @@
 import React from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import { adminGet, adminSend, UnauthorizedError } from '../admin/adminApi.js'
 
@@ -15,6 +16,10 @@ const TEXT = {
     subtitle: 'Всеки клиент с историята на разговора. Отговорите се записват тук автоматично.',
     tabs: { open: 'Активни', mine: 'Мои', all: 'Всички' },
     empty: 'Няма сделки в този изглед.',
+    newDeal: 'Нова сделка',
+    newDealHint: 'За клиенти, които не са писали през сайта — обаждане, изложение, препоръка.',
+    fName: 'Име', fEmail: 'Имейл', fPhone: 'Телефон', fModel: 'Какво търси',
+    create: 'Създай', cancel: 'Откажи', nameRequired: 'Името е задължително.',
     pick: 'Изберете сделка отляво.',
     status: {
       new: 'Нова', contacted: 'Свързахме се', quoted: 'Оферта',
@@ -40,6 +45,10 @@ const TEXT = {
     subtitle: 'Every customer with their conversation. Replies land here automatically.',
     tabs: { open: 'Active', mine: 'Mine', all: 'All' },
     empty: 'No deals in this view.',
+    newDeal: 'New deal',
+    newDealHint: 'For customers who did not come through the site — a call, a trade fair, a referral.',
+    fName: 'Name', fEmail: 'Email', fPhone: 'Phone', fModel: 'What they want',
+    create: 'Create', cancel: 'Cancel', nameRequired: 'A name is required.',
     pick: 'Pick a deal on the left.',
     status: {
       new: 'New', contacted: 'Contacted', quoted: 'Quoted',
@@ -138,7 +147,10 @@ export default function AdminPipelinePage() {
   const [lang, setLang] = useAdminLang()
   const t = TEXT[lang] ?? TEXT.bg
 
+  const [params, setParams] = useSearchParams()
   const [tab, setTab] = React.useState('open')
+  const [creating, setCreating] = React.useState(false)
+  const [draftLead, setDraftLead] = React.useState({ name: '', email: '', phone: '', customModel: '' })
   const [board, setBoard] = React.useState([])
   const [selectedId, setSelectedId] = React.useState(null)
   const [lead, setLead] = React.useState(null)
@@ -171,12 +183,18 @@ export default function AdminPipelinePage() {
         if (!alive) return
         // Opening straight into the lead that needs attention saves a click on the view
         // someone opens every morning; the board is already sorted quietest-first.
-        setSelectedId((current) => (current && rows.some((r) => r.id === current) ? current : rows[0]?.id ?? null))
+        // A ?deal= from the enquiry queue wins over both the current selection and the
+        // default. A freshly promoted deal is often NOT in the current tab's rows yet,
+        // so this deliberately does not check membership — otherwise clicking "create
+        // deal" would land you on someone else's conversation.
+        const linked = Number(params.get('deal')) || null
+        setSelectedId((current) => linked
+          || (current && rows.some((r) => r.id === current) ? current : rows[0]?.id ?? null))
         setState('ready')
       })
       .catch((err) => { if (alive) setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error') })
     return () => { alive = false }
-  }, [loadBoard, tab])
+  }, [loadBoard, tab, params])
 
   React.useEffect(() => {
     let alive = true
@@ -244,6 +262,17 @@ export default function AdminPipelinePage() {
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
+  const createDeal = () => run('save', async () => {
+    const name = draftLead.name.trim()
+    if (!name) { setError(t.nameRequired); return }
+    const result = await adminSend('/api/admin/pipeline', 'POST', { ...draftLead, name })
+    setCreating(false)
+    setDraftLead({ name: '', email: '', phone: '', customModel: '' })
+    await loadBoard(tab)
+    // Straight into the new thread — the point of creating it was to talk to someone.
+    if (result?.id) setParams({ deal: String(result.id) })
+  }, t.saveError)
+
   return (
     <AdminShell
       lang={lang}
@@ -267,6 +296,33 @@ export default function AdminPipelinePage() {
           </button>
         ))}
       </nav>
+
+      <div className="adm-pipeline-toolbar">
+        <button type="button" className="btn" onClick={() => setCreating((v) => !v)}>
+          {creating ? t.cancel : `+ ${t.newDeal}`}
+        </button>
+        {!creating ? <span className="adm-small adm-muted">{t.newDealHint}</span> : null}
+      </div>
+
+      {creating ? (
+        <div className="adm-card adm-newdeal">
+          <div className="adm-newdeal-grid">
+            {[['name', t.fName], ['email', t.fEmail], ['phone', t.fPhone], ['customModel', t.fModel]].map(([field, label]) => (
+              <label key={field}>
+                <span className="adm-small">{label}{field === 'name' ? ' *' : ''}</span>
+                <input
+                  type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                  value={draftLead[field]}
+                  onChange={(e) => setDraftLead((d) => ({ ...d, [field]: e.target.value }))}
+                />
+              </label>
+            ))}
+          </div>
+          <button type="button" className="btn" onClick={createDeal} disabled={!draftLead.name.trim() || busy !== ''}>
+            {t.create}
+          </button>
+        </div>
+      ) : null}
 
       <div className="adm-pipeline">
         <ul className="adm-pipeline-list">

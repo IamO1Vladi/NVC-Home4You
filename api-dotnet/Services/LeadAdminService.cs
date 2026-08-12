@@ -60,6 +60,22 @@ public class LeadAdminService
             .Take(MaxRows)
             .ToListAsync(ct);
 
+        // Which of these already became deals. Two small lookups rather than a join per
+        // row: the page renders a different control depending on the answer, and asking
+        // per enquiry would be a query per card.
+        var offerIds = offers.Select(o => o.Id).ToList();
+        var questionIds = questions.Select(q => q.Id).ToList();
+
+        var dealByOffer = await _db.Leads.AsNoTracking()
+            .Where(l => l.OfferId != null && offerIds.Contains(l.OfferId.Value))
+            .Select(l => new { OfferId = l.OfferId!.Value, l.Id })
+            .ToDictionaryAsync(x => x.OfferId, x => x.Id, ct);
+
+        var dealByQuestion = await _db.Leads.AsNoTracking()
+            .Where(l => l.QuestionId != null && questionIds.Contains(l.QuestionId.Value))
+            .Select(l => new { QuestionId = l.QuestionId!.Value, l.Id })
+            .ToDictionaryAsync(x => x.QuestionId, x => x.Id, ct);
+
         var combined = offers.Select(o => new AdminLeadDto
         {
             Kind = KindOffer,
@@ -73,6 +89,7 @@ public class LeadAdminService
             Locale = o.Locale ?? "",
             ReachedOut = o.ReachedOut,
             LeadCreated = o.LeadCreated,
+            DealId = dealByOffer.TryGetValue(o.Id, out var offerDeal) ? offerDeal : null,
             CreatedAt = Iso(o.CreatedAt),
             UpdatedAt = o.UpdatedAt is null ? null : Iso(o.UpdatedAt.Value),
         }).Concat(questions.Select(q => new AdminLeadDto
@@ -88,6 +105,7 @@ public class LeadAdminService
             Locale = q.Locale ?? "",
             ReachedOut = q.ReachedOut,
             LeadCreated = q.LeadCreated,
+            DealId = dealByQuestion.TryGetValue(q.Id, out var questionDeal) ? questionDeal : null,
             CreatedAt = Iso(q.CreatedAt),
             UpdatedAt = q.UpdatedAt is null ? null : Iso(q.UpdatedAt.Value),
         }));
