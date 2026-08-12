@@ -16,6 +16,7 @@ import '../style/Admin.css'
 // come (leads) without the tab strip overflowing off-screen the way the old one did.
 
 const LANG_KEY = 'nvc_admin_lang_v1'
+const THEME_KEY = 'nvc_admin_theme_v1'
 
 const TEXT = {
   bg: {
@@ -31,6 +32,8 @@ const TEXT = {
     signOut: 'Изход',
     menu: 'Меню',
     language: 'Език',
+    theme: 'Тема',
+    themes: { auto: 'Авто', light: 'Светла', dark: 'Тъмна' },
   },
   en: {
     brand: 'Admin',
@@ -45,7 +48,31 @@ const TEXT = {
     signOut: 'Sign out',
     menu: 'Menu',
     language: 'Language',
+    theme: 'Theme',
+    themes: { auto: 'Auto', light: 'Light', dark: 'Dark' },
   },
+}
+
+export function useAdminTheme() {
+  const [theme, setTheme] = React.useState(() => {
+    if (typeof window === 'undefined') return 'auto'
+    try {
+      const saved = localStorage.getItem(THEME_KEY)
+      return saved === 'light' || saved === 'dark' ? saved : 'auto'
+    } catch { return 'auto' }
+  })
+
+  React.useEffect(() => {
+    try { localStorage.setItem(THEME_KEY, theme) } catch { /* private mode */ }
+    if (typeof document === 'undefined') return
+    // 'auto' removes the attribute entirely rather than setting a value, so the
+    // prefers-color-scheme media query is what decides — which is the whole point of
+    // auto, and what a data-adm-theme="auto" would have quietly broken.
+    if (theme === 'auto') delete document.documentElement.dataset.admTheme
+    else document.documentElement.dataset.admTheme = theme
+  }, [theme])
+
+  return [theme, setTheme]
 }
 
 export function useAdminLang() {
@@ -153,6 +180,7 @@ export default function AdminShell({
   lang, setLang, active, title, subtitle, state, onRetry, actions, children,
 }) {
   const t = TEXT[lang] ?? TEXT.bg
+  const [theme, setTheme] = useAdminTheme()
   const { me, pending, outstandingLeads } = useAdminChrome(state)
 
   if (state === 'unauthorized') {
@@ -220,6 +248,24 @@ export default function AdminShell({
                 onClick={() => setLang(code)}
               >
                 {code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          {/* Auto follows the operating system, which is the right default and was the
+              only behaviour until now — but someone on a dark laptop who wants a light
+              panel had no way to say so. */}
+          <div className="adm-lang adm-theme" role="group" aria-label={t.theme}>
+            {['auto', 'light', 'dark'].map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={theme === mode ? 'is-active' : ''}
+                aria-pressed={theme === mode}
+                title={t.themes[mode]}
+                onClick={() => setTheme(mode)}
+              >
+                {t.themes[mode]}
               </button>
             ))}
           </div>

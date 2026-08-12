@@ -19,6 +19,11 @@ const TEXT = {
     newDeal: 'Нова сделка',
     newDealHint: 'За клиенти, които не са писали през сайта — обаждане, изложение, препоръка.',
     fName: 'Име', fEmail: 'Имейл', fPhone: 'Телефон', fModel: 'Какво търси',
+    details: 'Детайли', hideDetails: 'Скрий детайлите',
+    dProject: 'Проект', dCountry: 'Държава', dAddress: 'Адрес на клиента',
+    dBuild: 'Място на строеж', dNext: 'Следваща стъпка', dNotes: 'Бележки',
+    saved: 'Запазено',
+    backToList: '← Сделки',
     create: 'Създай', cancel: 'Откажи', nameRequired: 'Името е задължително.',
     pick: 'Изберете сделка отляво.',
     status: {
@@ -48,6 +53,11 @@ const TEXT = {
     newDeal: 'New deal',
     newDealHint: 'For customers who did not come through the site — a call, a trade fair, a referral.',
     fName: 'Name', fEmail: 'Email', fPhone: 'Phone', fModel: 'What they want',
+    details: 'Details', hideDetails: 'Hide details',
+    dProject: 'Project', dCountry: 'Country', dAddress: 'Customer address',
+    dBuild: 'Build location', dNext: 'Next step', dNotes: 'Notes',
+    saved: 'Saved',
+    backToList: '← Deals',
     create: 'Create', cancel: 'Cancel', nameRequired: 'A name is required.',
     pick: 'Pick a deal on the left.',
     status: {
@@ -150,6 +160,13 @@ export default function AdminPipelinePage() {
   const [params, setParams] = useSearchParams()
   const [tab, setTab] = React.useState('open')
   const [creating, setCreating] = React.useState(false)
+  const [showDetails, setShowDetails] = React.useState(false)
+  // Phones get one pane at a time. Stacking the board above a conversation means
+  // scrolling past every other deal to reach the message you opened, which is the whole
+  // screen working against you on the device most of the team actually uses.
+  const [mobilePane, setMobilePane] = React.useState('list')
+  const [fields, setFields] = React.useState(null)
+  const [savedAt, setSavedAt] = React.useState(0)
   const [draftLead, setDraftLead] = React.useState({ name: '', email: '', phone: '', customModel: '' })
   const [board, setBoard] = React.useState([])
   const [selectedId, setSelectedId] = React.useState(null)
@@ -205,6 +222,18 @@ export default function AdminPipelinePage() {
     return () => { alive = false }
   }, [loadLead, selectedId])
 
+  React.useEffect(() => {
+    if (!lead) { setFields(null); return }
+    setFields({
+      projectName: lead.projectName || '',
+      country: lead.country || '',
+      customerAddress: lead.customerAddress || '',
+      buildLocation: lead.buildLocation || '',
+      nextStep: lead.nextStep || '',
+      notes: lead.notes || '',
+    })
+  }, [lead?.id])
+
   // Newest message in view when a thread opens or grows. A chat that opens at the top of
   // a six-month history shows the least useful part of it.
   React.useEffect(() => {
@@ -259,6 +288,12 @@ export default function AdminPipelinePage() {
     if (!body) return
     await adminSend(`/api/admin/pipeline/${selectedId}/activities`, 'POST', { type: 'note', body })
     setReply('')
+    await Promise.all([loadLead(selectedId), loadBoard(tab)])
+  }, t.saveError)
+
+  const saveFields = () => run('save', async () => {
+    await adminSend(`/api/admin/pipeline/${selectedId}/fields`, 'POST', fields)
+    setSavedAt(Date.now())
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
@@ -324,7 +359,7 @@ export default function AdminPipelinePage() {
         </div>
       ) : null}
 
-      <div className="adm-pipeline">
+      <div className={`adm-pipeline is-mobile-${mobilePane}`}>
         <ul className="adm-pipeline-list">
           {board.length === 0 ? <li className="adm-empty"><p>{t.empty}</p></li> : null}
           {board.map((row) => (
@@ -333,7 +368,7 @@ export default function AdminPipelinePage() {
                 type="button"
                 className={`adm-pipeline-item${row.id === selectedId ? ' is-active' : ''}`}
                 aria-current={row.id === selectedId ? 'true' : undefined}
-                onClick={() => setSelectedId(row.id)}
+                onClick={() => { setSelectedId(row.id); setMobilePane('thread') }}
               >
                 <span className="adm-name">{row.name || '—'}</span>
                 <span className={`adm-badge adm-stage-${row.status}`}>{t.status[row.status] ?? row.status}</span>
@@ -353,6 +388,14 @@ export default function AdminPipelinePage() {
             <div className="adm-empty"><p>{t.pick}</p></div>
           ) : (
             <>
+              <button
+                type="button"
+                className="adm-linkbtn adm-back"
+                onClick={() => setMobilePane('list')}
+              >
+                {t.backToList}
+              </button>
+
               <header className="adm-deal-head">
                 <div>
                   <h2>{lead.name || '—'}</h2>
@@ -389,6 +432,50 @@ export default function AdminPipelinePage() {
 
               {lead.nextStep ? (
                 <p className="adm-next-step"><strong>{t.nextStep}:</strong> {lead.nextStep}</p>
+              ) : null}
+
+              <button
+                type="button"
+                className="adm-linkbtn adm-details-toggle"
+                aria-expanded={showDetails}
+                onClick={() => setShowDetails((v) => !v)}
+              >
+                {showDetails ? t.hideDetails : t.details}
+              </button>
+
+              {showDetails && fields ? (
+                <div className="adm-deal-fields">
+                  <div className="adm-newdeal-grid">
+                    {[
+                      ['projectName', t.dProject], ['country', t.dCountry],
+                      ['customerAddress', t.dAddress], ['buildLocation', t.dBuild],
+                      ['nextStep', t.dNext],
+                    ].map(([field, label]) => (
+                      <label key={field}>
+                        <span className="adm-small">{label}</span>
+                        <input
+                          type="text"
+                          value={fields[field]}
+                          onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <label>
+                    <span className="adm-small">{t.dNotes}</span>
+                    <textarea
+                      rows={3}
+                      value={fields.notes}
+                      onChange={(e) => setFields((f) => ({ ...f, notes: e.target.value }))}
+                    />
+                  </label>
+                  <div className="adm-composer-actions">
+                    <button type="button" className="btn ghost adm-btn-sm" onClick={saveFields} disabled={busy !== ''}>
+                      {t.save}
+                    </button>
+                    {savedAt ? <span className="adm-small adm-muted">{t.saved}</span> : null}
+                  </div>
+                </div>
               ) : null}
 
               <ol className="adm-thread">

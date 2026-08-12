@@ -42,10 +42,16 @@
    with the base 0px and put the sticky save bar back underneath the tab bar. Usages carry
    a 0px fallback for the signed-out screen, which renders .adm-page with no .adm-app. */
 
+/* Dark applies two ways, and the duplication below is deliberate: CSS cannot share one
+   custom-property block between a media query and an attribute selector.
+     - the OS asks for it AND the user has not overridden it
+     - the user picked it explicitly in the toggle
+   The :not([data-adm-theme="light"]) guard is what lets someone on a dark laptop choose
+   light and actually get it, rather than the media query winning forever. */
 @media (prefers-color-scheme: dark) {
-  .adm-app,
-  .adm-page,
-  .adm-modal-portal {
+  :root:not([data-adm-theme="light"]) .adm-app,
+  :root:not([data-adm-theme="light"]) .adm-page,
+  :root:not([data-adm-theme="light"]) .adm-modal-portal {
     --adm-bg: #0e141b;
     --adm-card: #161f29;
     --adm-ink: #e8eef5;
@@ -60,9 +66,38 @@
     --adm-stop-bg: #2a1614;
     --adm-accent: #35bcd0;
     --adm-accent-ink: #4ecfe2;
+    /* Was missing entirely, so it stayed the light #e6f6f8 in dark mode: every surface
+       built on it -- selected rows, our own chat bubbles, active filter chips, the offer
+       badge -- rendered near-white under light text. A dark tint of the same accent. */
+    --adm-accent-soft: #10323a;
     --adm-shadow: 0 6px 20px rgba(0, 0, 0, .3);
     --adm-shadow-lift: 0 12px 28px rgba(0, 0, 0, .45);
   }
+}
+
+:root[data-adm-theme="dark"] .adm-app,
+:root[data-adm-theme="dark"] .adm-page,
+:root[data-adm-theme="dark"] .adm-modal-portal {
+    --adm-bg: #0e141b;
+    --adm-card: #161f29;
+    --adm-ink: #e8eef5;
+    --adm-muted: #94a3b4;
+    --adm-line: #24303d;
+    --adm-line-firm: #3a4b5c;
+    --adm-ok: #2fb56d;
+    --adm-ok-bg: #11261a;
+    --adm-warn: #d99442;
+    --adm-warn-bg: #241a10;
+    --adm-stop: #e8776e;
+    --adm-stop-bg: #2a1614;
+    --adm-accent: #35bcd0;
+    --adm-accent-ink: #4ecfe2;
+    /* Was missing entirely, so it stayed the light #e6f6f8 in dark mode: every surface
+       built on it -- selected rows, our own chat bubbles, active filter chips, the offer
+       badge -- rendered near-white under light text. A dark tint of the same accent. */
+    --adm-accent-soft: #10323a;
+    --adm-shadow: 0 6px 20px rgba(0, 0, 0, .3);
+    --adm-shadow-lift: 0 12px 28px rgba(0, 0, 0, .45);
 }
 
 .adm-app {
@@ -1351,3 +1386,74 @@ label.btn { cursor: pointer; }
   color: var(--adm-accent-ink);
   font-weight: 600;
 }
+
+/* The theme switch reuses the language switch's chrome — same shape, same place, so it
+   reads as one settings cluster rather than a new control someone has to learn. Slightly
+   smaller text because the labels are words rather than two letters. */
+.adm-theme button { font-size: 12px; letter-spacing: 0; text-transform: none; }
+
+@media (max-width: 720px) {
+  /* On a phone the top bar is tight; the words would wrap and push the sign-out button
+     off. Only the active one is shown, which still says what mode you are in. */
+  .adm-theme button:not(.is-active) { display: none; }
+}
+
+/* The standing facts about a deal — collapsed by default, because the thread is what
+   someone opens a deal to read and these are reference material they edit occasionally. */
+.adm-details-toggle { align-self: flex-start; }
+.adm-deal-fields { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--adm-line); border-radius: 10px; }
+.adm-deal-fields label { display: grid; gap: 4px; }
+.adm-deal-fields input,
+.adm-deal-fields textarea {
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--adm-card);
+  color: inherit;
+}
+.adm-deal-fields input { min-height: 40px; }
+.adm-deal-fields textarea { resize: vertical; }
+
+/* ── Pipeline on a phone ──────────────────────────────────────────────────────
+   The team works from phones, so this is the primary layout rather than a
+   fallback. One pane at a time: the board, or the conversation you tapped. */
+.adm-back { display: none; }
+
+@media (max-width: 900px) {
+  .adm-pipeline { grid-template-columns: 1fr; gap: 0; }
+
+  /* Only one pane is mounted-visible at a time. Hiding rather than unmounting keeps
+     the list's scroll position, so coming back from a thread lands where you left. */
+  .adm-pipeline.is-mobile-thread .adm-pipeline-list { display: none; }
+  .adm-pipeline.is-mobile-list .adm-pipeline-detail { display: none; }
+
+  .adm-pipeline-list { max-height: none; }
+  .adm-pipeline-detail { border: 0; padding: 0; }
+
+  .adm-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* Room for a thumb, and room for the bottom tab bar not to sit on the send button. */
+  .adm-pipeline-item { min-height: 56px; padding: 12px 14px; }
+  .adm-composer { padding-bottom: calc(12px + var(--adm-tabbar-h, 0px)); }
+  .adm-composer-actions .btn { min-height: 46px; flex: 1 1 auto; }
+
+  .adm-deal-head { flex-direction: column; gap: 8px; }
+  .adm-deal-controls { width: 100%; }
+  .adm-deal-controls select { flex: 1 1 auto; min-height: 46px; }
+
+  .adm-newdeal-grid { grid-template-columns: 1fr; }
+}
+
+/* 16px is the threshold below which iOS Safari zooms the viewport on focus — which then
+   leaves the page zoomed after the keyboard closes. Applies at every width because the
+   zoom is triggered by the computed size, not the breakpoint. */
+.adm-composer textarea,
+.adm-deal-fields input,
+.adm-deal-fields textarea,
+.adm-newdeal-grid input,
+.adm-search { font-size: 16px; }
