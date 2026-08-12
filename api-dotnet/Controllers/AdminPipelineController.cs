@@ -86,11 +86,20 @@ public class AdminPipelineController : ControllerBase
 
     // Null clears the owner. An unassigned lead is a real state — it is the one nobody
     // has picked up — so "unassign" must be expressible.
+    //
+    // "me" resolves here rather than in the browser. The panel would otherwise have to
+    // fetch its own UPN just to claim a lead, and a client-supplied identity is something
+    // the server should never take at face value anyway.
     [HttpPost("{id:int}/owner")]
     public async Task<IActionResult> SetOwner(int id, [FromBody] OwnerChange body, CancellationToken ct)
     {
-        var ok = await _leads.SetOwnerAsync(id, body?.OwnerUpn, CurrentUpn, ct);
-        return ok ? Ok(new { ok = true, id, ownerUpn = body?.OwnerUpn }) : NotFound();
+        var requested = body?.OwnerUpn;
+        var owner = string.Equals(requested, "me", System.StringComparison.OrdinalIgnoreCase)
+            ? CurrentUpn
+            : requested;
+
+        var ok = await _leads.SetOwnerAsync(id, owner, CurrentUpn, ct);
+        return ok ? Ok(new { ok = true, id, ownerUpn = owner }) : NotFound();
     }
 
     public record FieldsChange(string? NextStep, string? Notes, string? ProjectName, string? BuildLocation, string? Country);

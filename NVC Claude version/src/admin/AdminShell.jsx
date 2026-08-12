@@ -20,7 +20,7 @@ const LANG_KEY = 'nvc_admin_lang_v1'
 const TEXT = {
   bg: {
     brand: 'Администрация',
-    nav: { home: 'Начало', leads: 'Запитвания', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
+    nav: { home: 'Начало', leads: 'Запитвания', pipeline: 'Сделки', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
     errorHint: 'Проверете интернет връзката си и опитайте отново.',
@@ -34,7 +34,7 @@ const TEXT = {
   },
   en: {
     brand: 'Admin',
-    nav: { home: 'Home', leads: 'Leads', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
+    nav: { home: 'Home', leads: 'Leads', pipeline: 'Deals', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
     errorHint: 'Check your internet connection and try again.',
@@ -86,6 +86,14 @@ const Icon = {
       <path d="M5.6 4.6h12.8l3 8.8V19a1.6 1.6 0 0 1-1.6 1.6H4.2A1.6 1.6 0 0 1 2.6 19v-5.6z" />
     </>
   ),
+  // Two speech bubbles: the pipeline is where the conversation lives, and the icon has
+  // to say "talking to someone" rather than repeat the inbox next to it.
+  pipeline: (
+    <>
+      <path d="M3.4 6.2a1.8 1.8 0 0 1 1.8-1.8h9.6a1.8 1.8 0 0 1 1.8 1.8v5a1.8 1.8 0 0 1-1.8 1.8H8.2l-3.4 2.8v-2.8a1.4 1.4 0 0 1-1.4-1.4z" />
+      <path d="M19 9.4a1.6 1.6 0 0 1 1.6 1.6v4.4a1.6 1.6 0 0 1-1.6 1.6v2.4l-2.8-2.4h-3.6" />
+    </>
+  ),
 }
 
 function NavIcon({ name }) {
@@ -102,6 +110,9 @@ const SECTIONS = [
   // Leads sit directly after Home: it is the one section with work waiting in it, and
   // the only one someone opens every morning.
   { key: 'leads', to: '/admin/leads' },
+  // Straight after the enquiry queue, because that is the journey: an enquiry arrives in
+  // Leads, and the conversation that follows it lives here.
+  { key: 'pipeline', to: '/admin/pipeline' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },

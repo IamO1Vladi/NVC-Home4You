@@ -1158,3 +1158,155 @@ label.btn { cursor: pointer; }
   .adm-lead-when { white-space: normal; }
   .adm-lead-flags { gap: 8px 20px; }
 }
+
+/* ── Pipeline: the board and the conversation ─────────────────────────────────
+   One screen, two panes. Sales works a lead by reading the thread and replying,
+   so bouncing back to a list between replies is what would make this feel slow.
+   Below 900px the list collapses above the thread instead of beside it — a chat
+   in half a phone viewport is unusable. */
+.adm-pipeline {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.adm-pipeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Scrolls independently so a long board never pushes the composer off-screen. */
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.adm-pipeline-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: 1px solid var(--adm-line);
+  border-radius: 10px;
+  background: var(--adm-card);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.adm-pipeline-item:hover { border-color: var(--adm-line-firm); }
+.adm-pipeline-item.is-active {
+  border-color: var(--adm-accent);
+  background: var(--adm-accent-soft);
+}
+
+.adm-pipeline-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;   /* lets long words wrap instead of stretching the grid column */
+  background: var(--adm-card);
+  border: 1px solid var(--adm-line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.adm-deal-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+.adm-deal-head h2 { margin: 0 0 2px; font-size: 19px; }
+.adm-deal-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.adm-deal-controls select { min-height: 40px; border-radius: 8px; border: 1px solid var(--adm-line-firm); padding: 0 10px; }
+
+.adm-next-step {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--adm-warn-bg);
+  color: var(--adm-warn);
+  font-size: 14px;
+}
+
+/* The thread. Scrolls on its own so the composer stays put while you read back. */
+.adm-thread {
+  list-style: none;
+  margin: 0;
+  padding: 4px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.adm-thread-row { display: flex; }
+.adm-thread-row.is-us { justify-content: flex-end; }
+
+.adm-bubble {
+  max-width: min(80%, 620px);
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--adm-bg);
+  border: 1px solid var(--adm-line);
+}
+/* Ours tinted, theirs plain — the two sides have to be tellable apart at a glance
+   without reading the label, which is what makes a long thread scannable. */
+.adm-thread-row.is-us .adm-bubble {
+  background: var(--adm-accent-soft);
+  border-color: var(--adm-accent);
+}
+
+.adm-bubble-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+.adm-bubble-who { font-weight: 600; }
+.adm-bubble-head time { margin-left: auto; color: var(--adm-muted); }
+.adm-bubble-subject { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+
+/* pre-wrap so the paragraph breaks a customer typed survive, without letting a
+   pasted configurator summary blow the column out sideways. */
+.adm-bubble-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.adm-bubble-files { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+
+/* Status moves are punctuation in the conversation, not part of it. */
+.adm-thread-meta {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: baseline;
+  color: var(--adm-muted);
+  font-size: 12px;
+}
+
+.adm-composer { display: grid; gap: 8px; }
+.adm-composer textarea {
+  width: 100%;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  resize: vertical;
+}
+.adm-composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* Stage colours: won and lost need to read differently from everything in play,
+   because "is this still alive?" is the question the board answers first. */
+.adm-stage-new { background: var(--adm-accent-soft); color: var(--adm-accent-ink); }
+.adm-stage-contacted, .adm-stage-quoted, .adm-stage-negotiating {
+  background: var(--adm-warn-bg); color: var(--adm-warn);
+}
+.adm-stage-won { background: var(--adm-ok-bg); color: var(--adm-ok); }
+.adm-stage-lost { background: var(--adm-stop-bg); color: var(--adm-stop); }
+
+@media (max-width: 900px) {
+  .adm-pipeline { grid-template-columns: 1fr; }
+  .adm-pipeline-list { max-height: 30vh; }
+  .adm-bubble { max-width: 92%; }
+  .adm-thread { max-height: none; }
+}
