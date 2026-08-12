@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
     public DbSet<CaseImage> CaseImages => Set<CaseImage>();
     public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<Question> Questions => Set<Question>();
+    public DbSet<Lead> Leads => Set<Lead>();
+    public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -114,6 +116,70 @@ public class AppDbContext : DbContext
             e.HasIndex(q => q.QuickbaseRecordId)
              .IsUnique()
              .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+        });
+
+        b.Entity<Lead>(e =>
+        {
+            // The pipeline view groups by status and sorts within it; the owner filter
+            // ("mine") is the other thing sales does every day.
+            e.HasIndex(l => new { l.Status, l.LastActivityAt });
+            e.HasIndex(l => new { l.OwnerUpn, l.Status });
+
+            // One enquiry produces at most one lead. Without this, a double-clicked
+            // "create lead" button quietly makes two, and the second one starts collecting
+            // its own half of the conversation — the kind of split history nobody notices
+            // until they are looking at a thread with pieces missing.
+            //
+            // Filtered for the usual reason: SQL Server treats NULLs as equal in a unique
+            // index, so an unfiltered one would allow exactly ONE lead with no offer
+            // origin, and every cold-call lead after the first would fail to insert.
+            e.HasIndex(l => l.OfferId)
+             .IsUnique()
+             .HasFilter("[OfferId] IS NOT NULL");
+
+            e.HasIndex(l => l.QuestionId)
+             .IsUnique()
+             .HasFilter("[QuestionId] IS NOT NULL");
+
+            // Restrict, not Cascade: deleting a house must not silently delete the sales
+            // history of everyone who ever asked about it. A house that has leads against
+            // it needs those repointed first, and the admin panel should say so rather
+            // than the database taking the decision.
+            e.HasOne(l => l.House)
+             .WithMany()
+             .HasForeignKey(l => l.HouseId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            // Same reasoning, more sharply: the offer is the evidence the lead exists at
+            // all. SetNull would leave a lead claiming a website origin it can no longer
+            // point at.
+            e.HasOne(l => l.Offer)
+             .WithMany()
+             .HasForeignKey(l => l.OfferId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(l => l.Question)
+             .WithMany()
+             .HasForeignKey(l => l.QuestionId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<LeadActivity>(e =>
+        {
+            // Deleting a lead takes its thread with it — unlike the FKs above, the
+            // activities have no meaning without the lead they hang off.
+            e.HasOne(a => a.Lead)
+             .WithMany(l => l.Activities)
+             .HasForeignKey(a => a.LeadId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // The thread, in order. Every read of this table is "one lead, oldest first".
+            e.HasIndex(a => new { a.LeadId, a.OccurredAt });
+
+            // How inbound mail will find its way home (phase 2). Not unique: every message
+            // in a thread shares the conversation id — that is the entire point of it.
+            e.HasIndex(a => a.ConversationId)
+             .HasFilter("[ConversationId] IS NOT NULL");
         });
 
         b.Entity<Review>(e =>
