@@ -163,7 +163,7 @@ public class AdminPipelineController : ControllerBase
         return ok ? Ok(new { ok = true, id, ownerUpn = owner }) : NotFound();
     }
 
-    public record FieldsChange(string? NextStep, string? Notes, string? ProjectName, string? BuildLocation, string? Country);
+    public record FieldsChange(string? NextStep, string? Notes, string? ProjectName, string? BuildLocation, string? CustomerAddress, string? Country);
 
     [HttpPost("{id:int}/fields")]
     public async Task<IActionResult> SetFields(int id, [FromBody] FieldsChange body, CancellationToken ct)
@@ -171,7 +171,7 @@ public class AdminPipelineController : ControllerBase
         if (body is null) return BadRequest(new { errors = new[] { "Nothing to update." } });
 
         var ok = await _leads.UpdateFieldsAsync(
-            id, body.NextStep, body.Notes, body.ProjectName, body.BuildLocation, body.Country, ct);
+            id, body.NextStep, body.Notes, body.ProjectName, body.BuildLocation, body.CustomerAddress, body.Country, ct);
 
         return ok ? Ok(new { ok = true, id }) : NotFound();
     }

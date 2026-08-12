@@ -117,6 +117,7 @@ public class LeadPipelineService
             OwnerUpn = lead.OwnerUpn ?? "",
             Locale = lead.Locale ?? "",
             Country = lead.Country ?? "",
+            CustomerAddress = lead.CustomerAddress ?? "",
             BuildLocation = lead.BuildLocation ?? "",
             ProjectName = lead.ProjectName ?? "",
             NextStep = lead.NextStep ?? "",

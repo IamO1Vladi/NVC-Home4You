@@ -298,6 +298,7 @@ public class LeadService
         string? notes,
         string? projectName,
         string? buildLocation,
+        string? customerAddress,
         string? country,
         CancellationToken ct = default)
     {
@@ -308,6 +309,7 @@ public class LeadService
         if (notes is not null) lead.Notes = Trimmed(notes);
         if (projectName is not null) lead.ProjectName = Trimmed(projectName);
         if (buildLocation is not null) lead.BuildLocation = Trimmed(buildLocation);
+        if (customerAddress is not null) lead.CustomerAddress = Trimmed(customerAddress);
         if (country is not null) lead.Country = Trimmed(country);
 
         lead.UpdatedAt = DateTimeOffset.UtcNow;

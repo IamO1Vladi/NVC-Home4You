@@ -83,14 +83,37 @@ public class LeadMailService
         {
             var token = await _tokens.GetAsync(ct);
 
-            // Two calls, not sendMail. sendMail returns nothing, and we need the
-            // conversationId Graph assigns — it is the only durable handle that ties a
-            // future reply back to this lead. Creating the message first hands us both
-            // that and the message id before anything leaves the building.
-            var (messageId, conversationId) = await CreateDraftAsync(
-                token, lead.Email!, resolvedSubject, body, ct);
+            string? messageId = null;
+            string? conversationId = null;
 
-            await SendDraftAsync(token, messageId, ct);
+            // Preferred path: create the message, then send it. sendMail returns nothing,
+            // and the conversationId Graph assigns is the only durable handle tying a
+            // future reply back to this lead — creating it first hands us that before
+            // anything leaves the building.
+            //
+            // But creating a message needs Mail.ReadWrite, while sending needs only
+            // Mail.Send. Those are different grants, and an installation that has one
+            // without the other must still be able to REPLY — losing inbound threading is
+            // a degraded feature, losing the ability to answer a customer is a broken one.
+            try
+            {
+                (messageId, conversationId) = await CreateDraftAsync(
+                    token, lead.Email!, resolvedSubject, body, ct);
+
+                await SendDraftAsync(token, messageId, ct);
+            }
+            catch (GraphException ex) when (ex.IsPermissionProblem)
+            {
+                _log.LogWarning(
+                    "Mail.ReadWrite is not granted for {Mailbox}, so the reply was sent without " +
+                    "capturing a conversation id. The reply is delivered; the customer's answer " +
+                    "will not thread back automatically until Mail.ReadWrite is granted.",
+                    _env.GraphSender);
+
+                await SendDirectAsync(token, lead.Email!, resolvedSubject, body, ct);
+                messageId = null;
+                conversationId = null;
+            }
 
             var now = DateTimeOffset.UtcNow;
             var activity = new LeadActivity
@@ -123,7 +146,75 @@ public class LeadMailService
             // Logged loudly: if the send succeeded and the write failed, the customer has
             // a reply that the thread does not show, and only this log says so.
             _log.LogError(ex, "Reply to lead {LeadId} failed", leadId);
-            return new SendResult(SendOutcome.Failed, null, "The reply was not sent. Try again.");
+
+            // A permission failure will not fix itself on a retry, and "try again" sends
+            // someone clicking a button that cannot work. Name the cause instead.
+            var message = ex is GraphException graph && graph.IsPermissionProblem
+                ? "The mailbox refused the send. Check that Mail.Send is granted and the access policy covers this mailbox."
+                : "The reply was not sent. Try again.";
+
+            return new SendResult(SendOutcome.Failed, null, message);
+        }
+    }
+
+    /// <summary>
+    /// A Graph call that failed, carrying enough to decide what to do about it.
+    ///
+    /// Exists so the caller can tell "you are not allowed to do that" apart from "that did
+    /// not work" — the first has a fallback, the second does not, and a bare
+    /// InvalidOperationException made them indistinguishable.
+    /// </summary>
+    public sealed class GraphException : Exception
+    {
+        public GraphException(System.Net.HttpStatusCode status, string message) : base(message)
+        {
+            Status = status;
+        }
+
+        public System.Net.HttpStatusCode Status { get; }
+
+        // 403 is the documented answer for a missing application permission. 401 is
+        // included because a token minted before a grant was added comes back
+        // unauthorized rather than forbidden, and the fallback is right in both cases.
+        public bool IsPermissionProblem =>
+            Status == System.Net.HttpStatusCode.Forbidden || Status == System.Net.HttpStatusCode.Unauthorized;
+    }
+
+    /// <summary>
+    /// Sends without creating a message first. Needs only Mail.Send.
+    ///
+    /// The fallback: no conversationId comes back, so a reply to this message will not
+    /// thread automatically. The customer still gets their answer, which is the part that
+    /// cannot be allowed to fail.
+    /// </summary>
+    private async Task SendDirectAsync(
+        string token, string toAddress, string subject, string body, CancellationToken ct)
+    {
+        var payload = new
+        {
+            message = new
+            {
+                subject,
+                body = new { contentType = "HTML", content = body },
+                toRecipients = new[] { new { emailAddress = new { address = toAddress } } },
+            },
+            saveToSentItems = true,
+        };
+
+        var http = _httpFactory.CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}/sendMail")
+        {
+            Content = JsonContent.Create(payload),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            throw new GraphException(response.StatusCode, $"Graph sendMail failed: {(int)response.StatusCode} {raw}");
         }
     }
 
@@ -152,7 +243,7 @@ public class LeadMailService
         using var response = await http.SendAsync(request, ct);
         var raw = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Graph create message failed: {(int)response.StatusCode} {raw}");
+            throw new GraphException(response.StatusCode, $"Graph create message failed: {(int)response.StatusCode} {raw}");
 
         using var doc = JsonDocument.Parse(raw);
         var id = doc.RootElement.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
@@ -176,7 +267,7 @@ public class LeadMailService
         if (!response.IsSuccessStatusCode)
         {
             var raw = await response.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException($"Graph send failed: {(int)response.StatusCode} {raw}");
+            throw new GraphException(response.StatusCode, $"Graph send failed: {(int)response.StatusCode} {raw}");
         }
     }
 

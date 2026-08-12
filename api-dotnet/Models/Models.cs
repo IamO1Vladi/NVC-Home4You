@@ -229,6 +229,7 @@ public class LeadDetailDto
     public string OwnerUpn { get; set; } = "";
     public string Locale { get; set; } = "";
     public string Country { get; set; } = "";
+    public string CustomerAddress { get; set; } = "";
     public string BuildLocation { get; set; } = "";
     public string ProjectName { get; set; } = "";
     public string NextStep { get; set; } = "";

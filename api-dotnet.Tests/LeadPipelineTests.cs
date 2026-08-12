@@ -288,7 +288,7 @@ public class LeadPipelineTests
             Name = "Ivan", NextStep = "Call Monday", Notes = "Prefers evenings", Country = "Bulgaria",
         });
 
-        await svc.UpdateFieldsAsync(lead.Id, nextStep: "Send quote", notes: null, projectName: null, buildLocation: null, country: null);
+        await svc.UpdateFieldsAsync(lead.Id, nextStep: "Send quote", notes: null, projectName: null, buildLocation: null, customerAddress: null, country: null);
 
         var saved = await db.Leads.SingleAsync();
         Assert.Equal("Send quote", saved.NextStep);
@@ -304,7 +304,7 @@ public class LeadPipelineTests
         var svc = new LeadService(db);
         var lead = await svc.CreateAsync(new Lead { Name = "Ivan", NextStep = "Call Monday" });
 
-        await svc.UpdateFieldsAsync(lead.Id, nextStep: "   ", notes: null, projectName: null, buildLocation: null, country: null);
+        await svc.UpdateFieldsAsync(lead.Id, nextStep: "   ", notes: null, projectName: null, buildLocation: null, customerAddress: null, country: null);
 
         Assert.Null((await db.Leads.SingleAsync()).NextStep);
     }
@@ -318,8 +318,50 @@ public class LeadPipelineTests
         var svc = new LeadService(db);
         var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
 
-        await svc.UpdateFieldsAsync(lead.Id, "a", "b", "c", "d", "e");
+        await svc.UpdateFieldsAsync(lead.Id, "a", "b", "c", "d", "e", "f");
 
         Assert.Equal(0, await db.LeadActivities.CountAsync());
+    }
+
+    [Fact]
+    public async Task Where_the_customer_is_and_where_the_house_goes_are_kept_apart()
+    {
+        // Routinely different places — the buyer lives in Sofia, the plot is in the
+        // mountains — and delivery, permitting and site access all hang off the second.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: null, notes: null, projectName: null,
+            buildLocation: "Borovets, plot 42", customerAddress: "Sofia, ul. Vitosha 1", country: null);
+
+        var saved = await db.Leads.SingleAsync();
+        Assert.Equal("Borovets, plot 42", saved.BuildLocation);
+        Assert.Equal("Sofia, ul. Vitosha 1", saved.CustomerAddress);
+    }
+
+    [Fact]
+    public async Task The_detail_view_returns_every_field_sales_maintains()
+    {
+        // The panel edits these, so a field missing from the projection reads as an empty
+        // box and gets silently overwritten with blank on the next save.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead
+        {
+            Name = "Ivan", ProjectName = "Cabin", Country = "Bulgaria",
+            CustomerAddress = "Sofia", BuildLocation = "Borovets",
+            NextStep = "Call Monday", Notes = "Prefers evenings",
+        });
+
+        var detail = await new LeadPipelineService(db).GetAsync(lead.Id, CancellationToken.None);
+
+        Assert.Equal("Cabin", detail!.ProjectName);
+        Assert.Equal("Bulgaria", detail.Country);
+        Assert.Equal("Sofia", detail.CustomerAddress);
+        Assert.Equal("Borovets", detail.BuildLocation);
+        Assert.Equal("Call Monday", detail.NextStep);
+        Assert.Equal("Prefers evenings", detail.Notes);
     }
 }
