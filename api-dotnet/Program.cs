@@ -79,6 +79,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.LeadService>();
     builder.Services.AddScoped<Services.LeadPipelineService>();
     builder.Services.AddScoped<Services.LeadMailService>();
+    builder.Services.AddScoped<Services.LeadFollowUpService>();
 
     // Owns its own container client rather than sharing the images one — see LeadFileStore
     // for why that separation is the point rather than an accident.

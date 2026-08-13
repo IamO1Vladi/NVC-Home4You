@@ -306,6 +306,7 @@ public class LeadService
         string? buildLocation,
         string? customerAddress,
         string? country,
+        string? nextContactAt = null,
         CancellationToken ct = default)
     {
         var lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
@@ -318,8 +319,48 @@ public class LeadService
         if (customerAddress is not null) lead.CustomerAddress = Trimmed(customerAddress);
         if (country is not null) lead.Country = Trimmed(country);
 
+        // Same rule as every field above — null leaves it alone, blank clears it. The
+        // caller is expected to have refused an unparseable date already (see
+        // TryParseFollowUpDate); reaching here with one clears the date rather than
+        // storing a wrong one, because a follow-up on the wrong day is worse than none.
+        if (nextContactAt is not null)
+        {
+            TryParseFollowUpDate(nextContactAt, out var parsed);
+            lead.NextContactAt = parsed;
+        }
+
         lead.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>
+    /// Reads a follow-up date off the wire. Blank is a real answer — it means "no date" —
+    /// so only genuinely unreadable input is a failure.
+    /// </summary>
+    /// <remarks>
+    /// AssumeUniversal, so "2026-08-20" from a date input becomes midnight UTC rather than
+    /// midnight in whatever timezone the server happens to run in. Without it the same
+    /// lead is due on different days depending on where it was saved, and a report that
+    /// disagrees with itself is a report nobody uses twice.
+    /// </remarks>
+    public static bool TryParseFollowUpDate(string? raw, out DateTimeOffset? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(raw)) return true;
+
+        if (!DateTimeOffset.TryParse(
+                raw, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal
+                | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                out var parsed))
+        {
+            return false;
+        }
+
+        // Truncated to the day it was agreed for. A follow-up is a day, never a minute,
+        // and keeping a stray time makes "due today" start at an arbitrary hour.
+        value = new DateTimeOffset(parsed.UtcDateTime.Date, TimeSpan.Zero);
         return true;
     }
 

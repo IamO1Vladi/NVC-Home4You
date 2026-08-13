@@ -4,6 +4,7 @@ using Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace apidotnet.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813072357_AddEnquiryArchive")]
+    partial class AddEnquiryArchive
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -348,9 +351,6 @@ namespace apidotnet.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<DateTimeOffset?>("NextContactAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<string>("NextStep")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -387,9 +387,6 @@ namespace apidotnet.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("HouseId");
-
-                    b.HasIndex("NextContactAt")
-                        .HasFilter("[NextContactAt] IS NOT NULL");
 
                     b.HasIndex("OfferId")
                         .IsUnique()

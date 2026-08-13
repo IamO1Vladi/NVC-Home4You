@@ -37,6 +37,37 @@ public class LeadPipelineService
     public static readonly TimeSpan ArchiveAfter = TimeSpan.FromDays(3);
 
     /// <summary>
+    /// Every open lead whose follow-up date has arrived or passed, most overdue first.
+    ///
+    /// Its own method rather than another branch of ListAsync, because the ordering is the
+    /// opposite of the board's and the reason for it is different: the board asks "who has
+    /// nobody spoken to?", this asks "who did we PROMISE to speak to?". A promise with a
+    /// date on it outranks a silence.
+    ///
+    /// Won and Lost are excluded whatever their date says. Chasing a lead that closed last
+    /// week is the fastest way to teach people to ignore the report.
+    /// </summary>
+    public async Task<List<LeadSummaryDto>> ListDueAsync(DateTimeOffset asOf, string? ownerUpn, CancellationToken ct)
+    {
+        var query = _db.Leads
+            .AsNoTracking()
+            .Include(l => l.House)
+            .Where(l => l.NextContactAt != null
+                     && l.NextContactAt <= asOf
+                     && LeadStatuses.Open.Contains(l.Status));
+
+        if (!string.IsNullOrWhiteSpace(ownerUpn))
+            query = query.Where(l => l.OwnerUpn == ownerUpn);
+
+        var leads = await query
+            .OrderBy(l => l.NextContactAt)
+            .Take(MaxRows)
+            .ToListAsync(ct);
+
+        return await ToSummariesAsync(leads, ct);
+    }
+
+    /// <summary>
     /// The board. Optionally narrowed to one status, or to the open stages only.
     /// </summary>
     public async Task<List<LeadSummaryDto>> ListAsync(string? status, string? ownerUpn, CancellationToken ct)
@@ -87,6 +118,13 @@ public class LeadPipelineService
             .Take(MaxRows)
             .ToListAsync(ct);
 
+        return await ToSummariesAsync(leads, ct);
+    }
+
+    // Shared by both list methods so the two views cannot drift into showing different
+    // things about the same lead.
+    private async Task<List<LeadSummaryDto>> ToSummariesAsync(List<Lead> leads, CancellationToken ct)
+    {
         var ids = leads.Select(l => l.Id).ToList();
         var counts = await _db.LeadActivities
             .AsNoTracking()
@@ -103,6 +141,7 @@ public class LeadPipelineService
             OwnerUpn = l.OwnerUpn ?? "",
             ModelLabel = ModelLabel(l),
             NextStep = l.NextStep ?? "",
+            NextContactAt = l.NextContactAt is null ? null : Iso(l.NextContactAt.Value),
             CreatedAt = Iso(l.CreatedAt),
             LastActivityAt = l.LastActivityAt is null ? null : Iso(l.LastActivityAt.Value),
             ActivityCount = counts.TryGetValue(l.Id, out var n) ? n : 0,
@@ -145,6 +184,7 @@ public class LeadPipelineService
             BuildLocation = lead.BuildLocation ?? "",
             ProjectName = lead.ProjectName ?? "",
             NextStep = lead.NextStep ?? "",
+            NextContactAt = lead.NextContactAt is null ? null : Iso(lead.NextContactAt.Value),
             Notes = lead.Notes ?? "",
             HouseId = lead.HouseId,
             HouseTitle = lead.House?.Title ?? "",

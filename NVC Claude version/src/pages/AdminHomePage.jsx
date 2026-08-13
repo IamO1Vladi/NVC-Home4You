@@ -20,10 +20,10 @@ const TEXT = {
     cards: {
       leads: {
         name: 'Запитвания',
-        blurb: 'Новите запитвания от сайта. Създайте сделка, за да започнете разговор.',
+        blurb: 'Новите запитвания от сайта. Създайте лийд, за да започнете разговор.',
       },
       pipeline: {
-        name: 'Сделки',
+        name: 'Лийдове',
         blurb: 'Клиентите, с които говорите — история, оферти и отговори на едно място.',
       },
       reviews: {
@@ -44,7 +44,7 @@ const TEXT = {
       noPending: 'Всичко е прегледано',
       waiting: (n) => `${n} ${n === 1 ? 'чака' : 'чакат'} обработка`,
       allHandled: 'Няма нови запитвания',
-      deals: (n) => `${n} ${n === 1 ? 'активна сделка' : 'активни сделки'}`,
+      deals: (n) => `${n} ${n === 1 ? 'активен лийд' : 'активни лийда'}`,
       models: (n) => `${n} ${n === 1 ? 'модел' : 'модела'}`,
       cases: (n) => `${n} ${n === 1 ? 'проект' : 'проекта'}`,
       drafts: (n) => `${n} в чернова`,
@@ -65,11 +65,11 @@ const TEXT = {
     open: 'Open',
     cards: {
       leads: {
-        name: 'Leads',
-        blurb: 'New enquiries from the site. Create a deal to start a conversation.',
+        name: 'Inquiries',
+        blurb: 'New enquiries from the site. Create a lead to start a conversation.',
       },
       pipeline: {
-        name: 'Deals',
+        name: 'Leads',
         blurb: 'The customers you are talking to — history, quotes and replies in one place.',
       },
       reviews: {
@@ -88,6 +88,11 @@ const TEXT = {
     stats: {
       pending: (n) => `${n} waiting for approval`,
       noPending: 'All reviewed',
+      // The English side inherited neither of these when the leads sections were added,
+      // so an EN user saw "undefined" the moment either tile had a number to show.
+      waiting: (n) => `${n} waiting to be handled`,
+      allHandled: 'No new inquiries',
+      deals: (n) => `${n} active ${n === 1 ? 'lead' : 'leads'}`,
       models: (n) => `${n} ${n === 1 ? 'model' : 'models'}`,
       cases: (n) => `${n} ${n === 1 ? 'case' : 'cases'}`,
       drafts: (n) => `${n} in draft`,
@@ -160,7 +165,7 @@ export default function AdminHomePage() {
     >
       <div className="adm-tiles">
         <HomeTile
-          to="/admin/leads"
+          to="/admin/inquiries"
           icon="leads"
           name={t.cards.leads.name}
           blurb={t.cards.leads.blurb}

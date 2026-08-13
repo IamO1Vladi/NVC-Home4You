@@ -42,6 +42,16 @@ public class Offer
     public bool ReachedOut { get; set; }      // Quickbase fid 13 — "reached out to?"
     public bool LeadCreated { get; set; }     // Quickbase fid 14 — "Lead created"
 
+    // When someone put this enquiry away. An enquiry is finished once we have contacted
+    // the person and the conversation has moved into a lead — after that it is history,
+    // and leaving it in the queue means the queue stops meaning "work to do".
+    //
+    // A TIMESTAMP rather than a bool, and nothing ever deletes an enquiry: this is the
+    // only record that a person asked us something on a particular day, and the usual
+    // reason to reach for delete (a test submission, a duplicate) is exactly the case
+    // where being able to put it back matters.
+    public DateTimeOffset? ArchivedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Mirrors Quickbase's "Date Modified", so a re-import can pull only what changed.

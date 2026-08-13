@@ -89,7 +89,36 @@ public class EmailService
         }
     }
 
-    private static IReadOnlyCollection<string> ParseRecipients(string? raw) =>
+    /// <summary>
+    /// An internal report to our own people — the overdue follow-up list today, whatever
+    /// else later.
+    ///
+    /// No Reply-To: there is no customer in this conversation, and pointing replies at one
+    /// would send "thanks, got it" to somebody who never asked. Best-effort like the two
+    /// above, because a mail failure must never take down the page that asked for it.
+    /// </summary>
+    public async Task<bool> TrySendInternalReportAsync(
+        IReadOnlyCollection<string> toEmails, string subject, string html, CancellationToken ct = default)
+    {
+        if (!IsConfigured || toEmails.Count == 0) return false;
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            await SendAsync(toEmails, subject, html, replyTo: null, timeout.Token);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Internal report email failed");
+            return false;
+        }
+    }
+
+    // Public because callers need to validate what a person typed into a "send this to"
+    // box against the same rule the configured list is read with — two different notions
+    // of "is that an address?" is how one of them ends up silently dropping recipients.
+    public static IReadOnlyCollection<string> ParseRecipients(string? raw) =>
         (raw ?? "")
             .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(x => x.Contains('@'))

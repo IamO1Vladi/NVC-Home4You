@@ -26,18 +26,24 @@ public class AdminLeadsController : ControllerBase
     }
 
     // reached=false -> the outstanding queue (default), true -> already handled,
-    // all -> everything.
+    // all -> everything still in the queue, archived -> the things put away.
+    //
+    // Archived is spelled as a value of the same parameter rather than a second flag,
+    // because it is the same choice from the panel's side: four tabs, one at a time.
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? reached, CancellationToken ct)
     {
-        bool? filter = (reached ?? "").Trim().ToLowerInvariant() switch
+        var raw = (reached ?? "").Trim().ToLowerInvariant();
+        var archived = raw == "archived";
+
+        bool? filter = raw switch
         {
             "true" => true,
-            "all" => null,
+            "all" or "archived" => null,
             _ => false,
         };
 
-        var items = await _svc.ListAsync(filter, ct);
+        var items = await _svc.ListAsync(filter, ct, archived);
         // A work queue must never be served stale: a lead someone just ticked has to be
         // gone when the next person looks.
         Response.Headers["Cache-Control"] = "no-store";
@@ -65,5 +71,19 @@ public class AdminLeadsController : ControllerBase
         return ok
             ? Ok(new { ok = true, kind, id, reachedOut = body.ReachedOut, leadCreated = body.LeadCreated })
             : NotFound();
+    }
+
+    public record ArchiveRequest(bool Archived);
+
+    // Its own endpoint rather than another optional flag on the update above. Archiving is
+    // the one action here that takes a row out of everybody's view, so it is worth being
+    // impossible to trigger by accident from a payload that meant to tick a checkbox.
+    [HttpPost("{kind}/{id:int}/archive")]
+    public async Task<IActionResult> Archive(string kind, int id, [FromBody] ArchiveRequest body, CancellationToken ct)
+    {
+        if (body is null) return BadRequest(new { errors = new[] { "Nothing to update." } });
+
+        var ok = await _svc.SetArchivedAsync(kind, id, body.Archived, ct);
+        return ok ? Ok(new { ok = true, kind, id, archived = body.Archived }) : NotFound();
     }
 }

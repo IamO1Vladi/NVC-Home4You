@@ -154,4 +154,112 @@ public class LeadAdminTests
 
         Assert.Equal(5, all.Count);
     }
+
+    // --- The archive ------------------------------------------------------------------
+    //
+    // An inquiry is finished once we have called the person and the conversation has moved
+    // into a lead. Until then it sits in a queue that is only useful if everything in it
+    // still needs doing — which is what all of these are about.
+
+    [Fact]
+    public async Task An_archived_inquiry_leaves_every_view_of_the_queue()
+    {
+        // Including "All". A list that still shows what somebody deliberately put away is
+        // the one that would make people stop trusting the archive.
+        using var db = await Seeded();
+        var svc = new LeadAdminService(db);
+        var target = db.Offers.Single(o => o.Name == "Old offer");
+
+        Assert.True(await svc.SetArchivedAsync("offer", target.Id, true, CancellationToken.None));
+
+        Assert.DoesNotContain(await svc.ListAsync(false, CancellationToken.None), l => l.Name == "Old offer");
+        Assert.DoesNotContain(await svc.ListAsync(null, CancellationToken.None), l => l.Name == "Old offer");
+        Assert.DoesNotContain(await svc.ListAsync(true, CancellationToken.None), l => l.Name == "Old offer");
+    }
+
+    [Fact]
+    public async Task The_archive_view_shows_what_the_queue_no_longer_does()
+    {
+        using var db = await Seeded();
+        var svc = new LeadAdminService(db);
+        var target = db.Offers.Single(o => o.Name == "Old offer");
+
+        await svc.SetArchivedAsync("offer", target.Id, true, CancellationToken.None);
+
+        var archived = await svc.ListAsync(null, CancellationToken.None, archived: true);
+
+        var row = Assert.Single(archived);
+        Assert.Equal("Old offer", row.Name);
+        Assert.NotNull(row.ArchivedAt);
+    }
+
+    [Fact]
+    public async Task Restoring_puts_an_inquiry_back_in_the_queue()
+    {
+        // Nothing here is ever deleted, so archiving has to be a round trip.
+        using var db = await Seeded();
+        var svc = new LeadAdminService(db);
+        var target = db.Offers.Single(o => o.Name == "Old offer");
+
+        await svc.SetArchivedAsync("offer", target.Id, true, CancellationToken.None);
+        await svc.SetArchivedAsync("offer", target.Id, false, CancellationToken.None);
+
+        Assert.Contains(await svc.ListAsync(false, CancellationToken.None), l => l.Name == "Old offer");
+        Assert.Empty(await svc.ListAsync(null, CancellationToken.None, archived: true));
+    }
+
+    [Fact]
+    public async Task Archiving_twice_does_not_rewrite_when_it_happened()
+    {
+        // The timestamp is the record of when this was put away; a second click is a
+        // no-op, not a new date.
+        using var db = NewDb();
+        db.Offers.Add(new Offer { Id = 1, Name = "A", ArchivedAt = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero) });
+        await db.SaveChangesAsync();
+
+        await new LeadAdminService(db).SetArchivedAsync("offer", 1, true, CancellationToken.None);
+
+        Assert.Equal(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), db.Offers.Single().ArchivedAt);
+    }
+
+    [Fact]
+    public async Task An_archived_inquiry_stops_counting_towards_the_work_waiting()
+    {
+        // The badge in the panel's navigation reads NotReachedOut. An archived row still
+        // adding to it would send someone looking for work that is not there.
+        using var db = await Seeded();
+        var svc = new LeadAdminService(db);
+        var target = db.Offers.Single(o => o.Name == "Old offer");
+
+        await svc.SetArchivedAsync("offer", target.Id, true, CancellationToken.None);
+        var counts = await svc.CountsAsync(CancellationToken.None);
+
+        Assert.Equal(2, counts.NotReachedOut);   // was 3
+        Assert.Equal(1, counts.Archived);
+        Assert.Equal(2, counts.Offers);          // the working queue, not the table
+    }
+
+    [Fact]
+    public async Task Archiving_addresses_a_question_by_kind_because_the_ids_overlap()
+    {
+        using var db = NewDb();
+        db.Offers.Add(new Offer { Id = 1, Name = "The offer" });
+        db.Questions.Add(new Question { Id = 1, Name = "The question" });
+        await db.SaveChangesAsync();
+
+        await new LeadAdminService(db).SetArchivedAsync("question", 1, true, CancellationToken.None);
+
+        Assert.Null(db.Offers.Single().ArchivedAt);
+        Assert.NotNull(db.Questions.Single().ArchivedAt);
+    }
+
+    [Fact]
+    public async Task Archiving_an_unknown_inquiry_reports_failure()
+    {
+        using var db = NewDb();
+        var svc = new LeadAdminService(db);
+
+        Assert.False(await svc.SetArchivedAsync("offer", 999, true, CancellationToken.None));
+        Assert.False(await svc.SetArchivedAsync("wombat", 1, true, CancellationToken.None));
+    }
 }

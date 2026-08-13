@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Data.Entities;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Services;
 
@@ -26,14 +28,17 @@ public class AdminPipelineController : ControllerBase
     private readonly LeadService _leads;
     private readonly LeadDraftService _drafts;
     private readonly LeadMailService _mail;
+    private readonly LeadFollowUpService _followUps;
 
     public AdminPipelineController(
-        LeadPipelineService read, LeadService leads, LeadDraftService drafts, LeadMailService mail)
+        LeadPipelineService read, LeadService leads, LeadDraftService drafts,
+        LeadMailService mail, LeadFollowUpService followUps)
     {
         _read = read;
         _leads = leads;
         _drafts = drafts;
         _mail = mail;
+        _followUps = followUps;
     }
 
     // The signed-in salesperson, as the UPN everything here records them by. Matches the
@@ -43,7 +48,8 @@ public class AdminPipelineController : ControllerBase
         User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name;
 
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] string? status, [FromQuery] string? owner, CancellationToken ct)
+    public async Task<IActionResult> List(
+        [FromQuery] string? status, [FromQuery] string? owner, [FromQuery] bool due, CancellationToken ct)
     {
         // "mine" saves the panel from having to know its own user's UPN to filter by it.
         var ownerFilter = string.Equals(owner, "mine", System.StringComparison.OrdinalIgnoreCase)
@@ -51,7 +57,55 @@ public class AdminPipelineController : ControllerBase
             : owner;
 
         Response.Headers["Cache-Control"] = "no-store";
-        return Ok(await _read.ListAsync(status, ownerFilter, ct));
+
+        // due=true is a different question from any status filter — "who did we promise to
+        // contact by now?" — so it takes over rather than combining. Combining it with a
+        // stage would produce a report that is quietly incomplete.
+        return Ok(due
+            ? await _read.ListDueAsync(System.DateTimeOffset.UtcNow, ownerFilter, ct)
+            : await _read.ListAsync(status, ownerFilter, ct));
+    }
+
+    public record ReportRequest(string? To);
+
+    /// <summary>
+    /// Emails the overdue follow-up list, with every lead in it linking back here.
+    ///
+    /// Recipients come from the request, not from configuration: the person pressing the
+    /// button decides who reads it, and defaulting to the whole sales list would make a
+    /// stray click mail three colleagues. The panel prefills their own address.
+    /// </summary>
+    [HttpPost("due/report")]
+    public async Task<IActionResult> SendDueReport([FromBody] ReportRequest? body, CancellationToken ct)
+    {
+        var recipients = string.IsNullOrWhiteSpace(body?.To)
+            ? _followUps.DefaultRecipients(CurrentUpn)
+            : EmailService.ParseRecipients(body!.To);
+
+        // The panel's own origin, so a link in the mail lands back on the host the person
+        // is actually signed in to rather than one written down in a setting months ago.
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+        var result = await _followUps.SendDueReportAsync(recipients, baseUrl, CurrentUpn, ct);
+
+        return result.Outcome switch
+        {
+            LeadFollowUpService.ReportOutcome.Sent =>
+                Ok(new { ok = true, count = result.Count, recipients = result.Recipients }),
+
+            // Not an error: there was genuinely nothing to send, and saying so is more
+            // useful than an empty inbox item.
+            LeadFollowUpService.ReportOutcome.NothingDue =>
+                Ok(new { ok = true, count = 0, recipients = result.Recipients }),
+
+            LeadFollowUpService.ReportOutcome.NoRecipients =>
+                BadRequest(new { errors = new[] { result.Error } }),
+
+            LeadFollowUpService.ReportOutcome.NotConfigured =>
+                StatusCode(503, new { errors = new[] { result.Error } }),
+
+            _ => StatusCode(502, new { errors = new[] { result.Error } }),
+        };
     }
 
     [HttpGet("{id:int}")]
@@ -97,7 +151,9 @@ public class AdminPipelineController : ControllerBase
         });
     }
 
-    public record NewLead(string Name, string? Email, string? Phone, string? CustomModel, string? Country, string? Locale);
+    public record NewLead(
+        string Name, string? Email, string? Phone, string? CustomModel, string? Country,
+        string? Locale, string? NextContactAt);
 
     /// <summary>
     /// A deal with no website enquiry behind it — the phone call, the trade fair, the
@@ -109,8 +165,12 @@ public class AdminPipelineController : ControllerBase
         if (body is null || string.IsNullOrWhiteSpace(body.Name))
             return BadRequest(new { errors = new[] { "A name is required." } });
 
+        if (!LeadService.TryParseFollowUpDate(body.NextContactAt, out var nextContact))
+            return BadRequest(new { errors = new[] { "That is not a date we can read." } });
+
         var lead = await _leads.CreateAsync(new Lead
         {
+            NextContactAt = nextContact,
             Name = body.Name.Trim(),
             Email = string.IsNullOrWhiteSpace(body.Email) ? null : body.Email.Trim(),
             Phone = string.IsNullOrWhiteSpace(body.Phone) ? null : body.Phone.Trim(),
@@ -163,15 +223,24 @@ public class AdminPipelineController : ControllerBase
         return ok ? Ok(new { ok = true, id, ownerUpn = owner }) : NotFound();
     }
 
-    public record FieldsChange(string? NextStep, string? Notes, string? ProjectName, string? BuildLocation, string? CustomerAddress, string? Country);
+    public record FieldsChange(
+        string? NextStep, string? Notes, string? ProjectName, string? BuildLocation,
+        string? CustomerAddress, string? Country, string? NextContactAt);
 
     [HttpPost("{id:int}/fields")]
     public async Task<IActionResult> SetFields(int id, [FromBody] FieldsChange body, CancellationToken ct)
     {
         if (body is null) return BadRequest(new { errors = new[] { "Nothing to update." } });
 
+        // Refused here rather than absorbed. A date the server cannot read would otherwise
+        // save as "no follow-up", and the lead would silently drop out of the one report
+        // that exists to catch it.
+        if (!LeadService.TryParseFollowUpDate(body.NextContactAt, out _))
+            return BadRequest(new { errors = new[] { "That is not a date we can read." } });
+
         var ok = await _leads.UpdateFieldsAsync(
-            id, body.NextStep, body.Notes, body.ProjectName, body.BuildLocation, body.CustomerAddress, body.Country, ct);
+            id, body.NextStep, body.Notes, body.ProjectName, body.BuildLocation,
+            body.CustomerAddress, body.Country, body.NextContactAt, ct);
 
         return ok ? Ok(new { ok = true, id }) : NotFound();
     }
@@ -208,18 +277,45 @@ public class AdminPipelineController : ControllerBase
 
     // --- Replying --------------------------------------------------------------------
 
-    public record ReplyRequest(string? Subject, string Body);
-
     // Sends from the shared mailbox and writes the message into the thread. Separate from
     // the activities endpoint on purpose: this one has effects outside the database and
     // must not look like a local write that can simply be retried.
+    //
+    // Form-encoded rather than JSON, because a reply can carry files and a reply that
+    // carries files must be ONE request. Uploading first and sending second would leave a
+    // file in the thread whenever the send then failed — an attachment sales believes the
+    // customer has and the customer has never seen.
     [HttpPost("{id:int}/reply")]
-    public async Task<IActionResult> Reply(int id, [FromBody] ReplyRequest body, CancellationToken ct)
+    [RequestSizeLimit((LeadFileStore.MaxEmailBytes * 2) + (1024 * 1024))]
+    public async Task<IActionResult> Reply(
+        int id,
+        [FromForm] string? subject,
+        [FromForm] string? body,
+        [FromForm] List<IFormFile>? files,
+        CancellationToken ct)
     {
-        if (body is null || string.IsNullOrWhiteSpace(body.Body))
+        if (string.IsNullOrWhiteSpace(body))
             return BadRequest(new { errors = new[] { "The reply cannot be empty." } });
 
-        var result = await _mail.SendReplyAsync(id, body.Subject, body.Body, CurrentUpn, ct);
+        var picked = files ?? new List<IFormFile>();
+
+        var errors = ValidateAttachments(picked);
+        if (errors.Count > 0) return BadRequest(new { errors });
+
+        var attachments = new List<LeadMailService.OutgoingFile>();
+        foreach (var file in picked)
+        {
+            if (file.Length == 0) continue;
+
+            var fileName = System.IO.Path.GetFileName(file.FileName);
+            LeadFileStore.IsAllowed(fileName, out var contentType);
+
+            using var stream = new System.IO.MemoryStream();
+            await file.CopyToAsync(stream, ct);
+            attachments.Add(new LeadMailService.OutgoingFile(fileName, contentType, stream.ToArray()));
+        }
+
+        var result = await _mail.SendReplyAsync(id, subject, body, CurrentUpn, attachments, ct);
 
         return result.Outcome switch
         {
@@ -235,6 +331,51 @@ public class AdminPipelineController : ControllerBase
 
             _ => StatusCode(502, new { errors = new[] { result.Error } }),
         };
+    }
+
+    /// <summary>
+    /// Everything wrong with the files on a reply, checked BEFORE anything is sent.
+    ///
+    /// Order matters here: an oversized file discovered by Graph mid-send costs the reply
+    /// someone typed as well as the attachment, because there is no draft left to go back
+    /// to. Refusing up front turns that into a sentence they can act on.
+    /// </summary>
+    private static List<string> ValidateAttachments(IEnumerable<IFormFile> files)
+    {
+        var errors = new List<string>();
+        long total = 0;
+
+        foreach (var file in files)
+        {
+            if (file.Length == 0) continue;
+
+            // Path components stripped: the browser chose this string, and it is a label
+            // rather than a location.
+            var fileName = System.IO.Path.GetFileName(file.FileName ?? "");
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                errors.Add("One of the files has no name.");
+                continue;
+            }
+
+            // Allow-listed by extension, exactly as on the upload endpoint. The browser's
+            // content type is ignored: it is trivially spoofed and tells us nothing.
+            if (!LeadFileStore.IsAllowed(fileName, out _))
+                errors.Add($"'{System.IO.Path.GetExtension(fileName)}' files are not accepted.");
+
+            total += file.Length;
+        }
+
+        // The total, not just each file: four 2 MB drawings pass every per-file check and
+        // still bounce off Graph's message size limit.
+        if (total > LeadFileStore.MaxEmailBytes)
+        {
+            errors.Add(
+                $"Files sent with a reply must total under {LeadFileStore.MaxEmailBytes / (1024 * 1024)} MB. " +
+                "Attach bigger ones with a note instead, or send a link.");
+        }
+
+        return errors;
     }
 
     // --- Drafting --------------------------------------------------------------------

@@ -91,6 +91,19 @@ public class Lead
     // own words. Everything else describes the past.
     [MaxLength(1000)] public string? NextStep { get; set; }
 
+    // WHEN that next step is due. NextStep says what to do; this says when, and it is the
+    // difference between a note nobody reads again and a lead that comes back to find you.
+    //
+    // A DATE, stored at midnight UTC. Follow-ups are agreed in days ("I'll call you
+    // Tuesday"), never in minutes, and a time component would make "is this due?" depend
+    // on which hour of Tuesday it is — so a lead due today is overdue from the start of
+    // that day, which is what makes a morning report useful.
+    //
+    // Nullable, and most leads have it null: a date on every lead would be a date nobody
+    // trusts. The overdue report is only as good as the restraint people show filling
+    // this in.
+    public DateTimeOffset? NextContactAt { get; set; }
+
     // Standing context about the customer, distinct from the thread — "prefers to be called
     // after 6", "brother-in-law is the actual decision maker". NVARCHAR(MAX): it accretes,
     // and it is never indexed or filtered on.

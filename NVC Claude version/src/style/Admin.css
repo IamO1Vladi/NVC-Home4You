@@ -1145,6 +1145,45 @@ label.btn { cursor: pointer; }
 .adm-lead-contact a { color: var(--adm-accent-ink); text-decoration: none; overflow-wrap: anywhere; }
 .adm-lead-contact a:hover { text-decoration: underline; }
 
+/* The email address is a button that opens the conversation, so it has to LOOK like the
+   link it replaced — anything else and nobody would think to press it. The margin-top
+   from .adm-linkbtn is undone: here it sits in a row with the phone number, not under a
+   paragraph. */
+.adm-write {
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  text-decoration: none;
+  font-size: inherit;
+  min-height: 32px;
+}
+.adm-write:hover span { text-decoration: underline; }
+.adm-write:disabled { opacity: .5; cursor: progress; }
+.adm-write-ico { width: 15px; height: 15px; flex: none; opacity: .75; }
+
+/* Archiving is the quiet action on the row: available on every one, never competing with
+   the button that starts the conversation. */
+.adm-archive { color: var(--adm-muted); }
+.adm-archive:hover { color: var(--adm-ink); }
+
+/* Undo after archiving, instead of an "are you sure?" before it. Reversible and frequent
+   is exactly the combination a confirmation dialog handles badly. */
+.adm-undo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--adm-line);
+  border-radius: 10px;
+  background: var(--adm-card);
+  font-size: 14px;
+}
+.adm-undo .adm-linkbtn { margin-top: 0; font-size: 14px; font-weight: 600; }
+
 .adm-lead-msg { margin: 10px 0 0; }
 .adm-lead-msg p {
   margin: 0;
@@ -1307,7 +1346,24 @@ label.btn { cursor: pointer; }
   line-height: 1.5;
 }
 
-.adm-bubble-files { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+.adm-bubble-files { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+
+/* A file in the thread reads as a thing to open, not as a word that happens to be a
+   link — most of these arrive from customers and get clicked on a phone. */
+.adm-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  background: var(--adm-card);
+  color: var(--adm-accent-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.adm-file:hover { border-color: var(--adm-accent); text-decoration: underline; }
+.adm-file svg { width: 15px; height: 15px; flex: none; opacity: .8; }
 
 /* Status moves are punctuation in the conversation, not part of it. */
 .adm-thread-meta {
@@ -1329,6 +1385,57 @@ label.btn { cursor: pointer; }
   resize: vertical;
 }
 .adm-composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+.adm-attach-btn { display: inline-flex; align-items: center; gap: 7px; }
+.adm-attach-btn svg { width: 17px; height: 17px; flex: none; }
+
+/* Picked but not yet sent. Deliberately between the box and the buttons, where nobody
+   can press Send while believing they attached nothing. */
+.adm-attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.adm-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 5px 6px 5px 11px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 999px;
+  background: var(--adm-card);
+  font-size: 13px;
+}
+.adm-attach-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.adm-attach-x {
+  border: 0;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  background: var(--adm-line);
+  color: var(--adm-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.adm-attach-x:hover { background: var(--adm-stop-bg); color: var(--adm-stop); }
+.adm-attach-x:disabled { cursor: not-allowed; opacity: .5; }
+
+/* When the next contact is due. Late is the only state that shouts — a date in the
+   future is information, a date in the past is work. */
+.adm-due { color: var(--adm-muted); font-size: 12px; }
+.adm-due.is-late { color: var(--adm-warn); font-weight: 700; }
+
+.adm-report-note { color: var(--adm-ok); font-weight: 600; }
+
+/* The full-screen reader: the thread gets the width of the modal, and the standing
+   notes follow it — the two things read before picking a lead back up. */
+.adm-reader { display: grid; gap: 18px; }
+.adm-reader .adm-thread { max-height: none; }
+.adm-reader-notes {
+  border-top: 1px solid var(--adm-line);
+  padding-top: 12px;
+}
+.adm-reader-notes h3 { margin: 0 0 6px; color: var(--adm-muted); text-transform: uppercase; letter-spacing: .04em; }
+.adm-reader-notes p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 
 /* Stage colours: won and lost need to read differently from everything in play,
    because "is this still alive?" is the question the board answers first. */

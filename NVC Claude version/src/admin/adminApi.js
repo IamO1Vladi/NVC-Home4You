@@ -43,6 +43,12 @@ export const adminSend = (url, method, body) =>
 
 export const adminDelete = (url) => fetch(url, { method: 'DELETE' }).then(handle)
 
+// For endpoints that take text and files in ONE request — the lead reply, where sending
+// the message and its attachments separately would let one succeed and the other fail.
+// No Content-Type header, for the same reason as adminUpload below.
+export const adminSendForm = (url, form) =>
+  fetch(url, { method: 'POST', headers: { Accept: 'application/json' }, body: form }).then(handle)
+
 // Multipart, so no Content-Type header — the browser has to set the multipart boundary
 // itself, and setting it by hand produces a request the server cannot parse.
 export function adminUpload(url, file, fields = {}) {

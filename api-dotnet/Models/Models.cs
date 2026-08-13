@@ -204,9 +204,15 @@ public class AdminLeadDto
     public bool ReachedOut { get; set; }
     public bool LeadCreated { get; set; }
 
-    // The deal this enquiry became, if it has. Null means the queue offers "create a
-    // deal"; a value means it offers "open it" instead — which is what stops someone
+    // Set once someone has put this enquiry away. Null is the working queue.
+    public string? ArchivedAt { get; set; }
+
+    // The lead this enquiry became, if it has. Null means the queue offers "create a
+    // lead"; a value means it offers "open it" instead — which is what stops someone
     // promoting the same enquiry twice and wondering why nothing happened.
+    //
+    // Named DealId because that is what the pipeline was called when this was written;
+    // the panel now says "lead" for the same thing. See the note on LeadDetailDto.
     public int? DealId { get; set; }
 
     public string CreatedAt { get; set; } = "";
@@ -233,6 +239,11 @@ public class LeadDetailDto
     public string BuildLocation { get; set; } = "";
     public string ProjectName { get; set; } = "";
     public string NextStep { get; set; } = "";
+
+    // When the next contact is due, as an ISO date at midnight UTC. Null for the many
+    // leads nobody has promised anything to yet.
+    public string? NextContactAt { get; set; }
+
     public string Notes { get; set; } = "";
 
     // The catalogue model, resolved. HouseId is the FK; HouseTitle saves the panel a
@@ -290,15 +301,19 @@ public class LeadSummaryDto
     public string OwnerUpn { get; set; } = "";
     public string ModelLabel { get; set; } = "";
     public string NextStep { get; set; } = "";
+    public string? NextContactAt { get; set; }
     public string CreatedAt { get; set; } = "";
     public string? LastActivityAt { get; set; }
     public int ActivityCount { get; set; }
 }
 
+// Counts of the enquiry queue. Everything except Archived counts the WORKING queue only —
+// see LeadAdminService.CountsAsync for why an archived row must not reach the nav badge.
 public class LeadCountsDto
 {
     public int NotReachedOut { get; set; }
     public int ReachedOut { get; set; }
+    public int Archived { get; set; }
     public int Offers { get; set; }
     public int Questions { get; set; }
 }

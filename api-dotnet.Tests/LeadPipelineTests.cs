@@ -364,4 +364,158 @@ public class LeadPipelineTests
         Assert.Equal("Call Monday", detail.NextStep);
         Assert.Equal("Prefers evenings", detail.Notes);
     }
+
+    // --- The overdue list -------------------------------------------------------------
+    //
+    // A different question from the board's. The board asks "who has nobody spoken to?";
+    // this asks "who did we PROMISE to speak to?" — and a promise with a date on it
+    // outranks a silence.
+
+    private static Lead DueLead(string name, int daysAgo, string status = LeadStatuses.Contacted, string? owner = null)
+    {
+        var lead = NewLead(name, status, DateTimeOffset.UtcNow.AddDays(-1), owner);
+        lead.NextContactAt = new DateTimeOffset(DateTimeOffset.UtcNow.UtcDateTime.Date, TimeSpan.Zero).AddDays(-daysAgo);
+        return lead;
+    }
+
+    [Fact]
+    public async Task The_due_list_holds_exactly_the_leads_whose_date_has_arrived()
+    {
+        using var db = NewDb();
+        db.Leads.AddRange(
+            DueLead("Due today", 0),
+            DueLead("Overdue", 5),
+            DueLead("Due next week", -7),
+            NewLead("No date at all", LeadStatuses.Contacted, DateTimeOffset.UtcNow.AddDays(-40)));
+        await db.SaveChangesAsync();
+
+        var due = await new LeadPipelineService(db).ListDueAsync(DateTimeOffset.UtcNow, null, CancellationToken.None);
+
+        Assert.Equal(2, due.Count);
+        Assert.Contains(due, l => l.Name == "Due today");
+        Assert.Contains(due, l => l.Name == "Overdue");
+    }
+
+    [Fact]
+    public async Task The_most_overdue_promise_comes_first()
+    {
+        // The report is worked top to bottom, so the ordering is the apology schedule.
+        using var db = NewDb();
+        db.Leads.AddRange(DueLead("A little late", 1), DueLead("Very late", 12), DueLead("Due today", 0));
+        await db.SaveChangesAsync();
+
+        var due = await new LeadPipelineService(db).ListDueAsync(DateTimeOffset.UtcNow, null, CancellationToken.None);
+
+        Assert.Equal("Very late", due.First().Name);
+        Assert.Equal("Due today", due.Last().Name);
+    }
+
+    [Fact]
+    public async Task A_closed_lead_is_never_chased_whatever_its_date_says()
+    {
+        // Chasing a lead that closed last week is the fastest way to teach people to
+        // ignore the report.
+        using var db = NewDb();
+        db.Leads.AddRange(
+            DueLead("Won long ago", 30, LeadStatuses.Won),
+            DueLead("Lost long ago", 30, LeadStatuses.Lost),
+            DueLead("Still in play", 30));
+        await db.SaveChangesAsync();
+
+        var due = await new LeadPipelineService(db).ListDueAsync(DateTimeOffset.UtcNow, null, CancellationToken.None);
+
+        var row = Assert.Single(due);
+        Assert.Equal("Still in play", row.Name);
+    }
+
+    [Fact]
+    public async Task The_due_list_narrows_to_one_owner_like_the_board_does()
+    {
+        using var db = NewDb();
+        db.Leads.AddRange(
+            DueLead("Mine", 2, owner: "me@x.eu"),
+            DueLead("Someone else's", 2, owner: "colleague@x.eu"));
+        await db.SaveChangesAsync();
+
+        var due = await new LeadPipelineService(db).ListDueAsync(DateTimeOffset.UtcNow, "me@x.eu", CancellationToken.None);
+
+        var row = Assert.Single(due);
+        Assert.Equal("Mine", row.Name);
+    }
+
+    [Fact]
+    public async Task The_due_date_travels_on_both_projections()
+    {
+        // The board shows the label and the report links the row; both read the same
+        // field, so both DTOs have to carry it.
+        using var db = NewDb();
+        db.Leads.Add(DueLead("Ivan", 3));
+        await db.SaveChangesAsync();
+        var id = db.Leads.Single().Id;
+
+        var pipeline = new LeadPipelineService(db);
+        var summary = (await pipeline.ListDueAsync(DateTimeOffset.UtcNow, null, CancellationToken.None)).Single();
+        var detail = await pipeline.GetAsync(id, CancellationToken.None);
+
+        Assert.False(string.IsNullOrEmpty(summary.NextContactAt));
+        Assert.Equal(summary.NextContactAt, detail!.NextContactAt);
+    }
+
+    // --- Reading the date off the wire --------------------------------------------------
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void No_date_is_a_real_answer_not_an_error(string? raw)
+    {
+        Assert.True(LeadService.TryParseFollowUpDate(raw, out var value));
+        Assert.Null(value);
+    }
+
+    [Fact]
+    public void A_date_from_the_panel_lands_on_midnight_utc()
+    {
+        // "2026-08-20" saved in Sofia and in Lisbon has to be the same follow-up day, or
+        // the report disagrees with itself depending on where a lead was last edited.
+        Assert.True(LeadService.TryParseFollowUpDate("2026-08-20", out var value));
+
+        Assert.Equal(new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero), value);
+    }
+
+    [Fact]
+    public void A_stray_time_component_is_truncated_to_the_day()
+    {
+        Assert.True(LeadService.TryParseFollowUpDate("2026-08-20T15:45:00Z", out var value));
+
+        Assert.Equal(new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero), value);
+    }
+
+    [Fact]
+    public void Gibberish_is_refused_rather_than_saved_as_no_date()
+    {
+        // Absorbing it would silently drop the lead out of the one report that exists to
+        // catch it.
+        Assert.False(LeadService.TryParseFollowUpDate("next tuesday-ish", out _));
+    }
+
+    [Fact]
+    public async Task Saving_fields_can_set_and_clear_the_follow_up_date()
+    {
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        await svc.UpdateFieldsAsync(lead.Id, null, null, null, null, null, null, "2026-08-20");
+        Assert.NotNull((await db.Leads.SingleAsync()).NextContactAt);
+
+        // Blank clears — an emptied date box means "no promise outstanding".
+        await svc.UpdateFieldsAsync(lead.Id, null, null, null, null, null, null, "");
+        Assert.Null((await db.Leads.SingleAsync()).NextContactAt);
+
+        // And null leaves it alone, like every other field on this endpoint.
+        await svc.UpdateFieldsAsync(lead.Id, null, null, null, null, null, null, "2026-08-20");
+        await svc.UpdateFieldsAsync(lead.Id, "call them", null, null, null, null, null, null);
+        Assert.NotNull((await db.Leads.SingleAsync()).NextContactAt);
+    }
 }

@@ -30,6 +30,10 @@ public class Question
     public bool ReachedOut { get; set; }      // Quickbase fid 13 — "reached out to?"
     public bool LeadCreated { get; set; }     // Quickbase fid 14 — "Lead created"
 
+    // See Offer.ArchivedAt — same field, same reasoning, and archived rows are hidden from
+    // every other view of the queue.
+    public DateTimeOffset? ArchivedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? UpdatedAt { get; set; }

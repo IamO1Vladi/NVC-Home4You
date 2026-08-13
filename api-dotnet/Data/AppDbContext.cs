@@ -101,6 +101,11 @@ public class AppDbContext : DbContext
             // Sales filters on "not yet contacted", which is the whole point of the flag.
             e.HasIndex(o => new { o.ReachedOut, o.CreatedAt });
 
+            // Filtered to the archived rows, because they are the minority and the only
+            // query that wants them asks for exactly them. The working queue's extra
+            // "and not archived" predicate rides on the index above.
+            e.HasIndex(o => o.ArchivedAt).HasFilter("[ArchivedAt] IS NOT NULL");
+
             // Same idempotent-import guarantee as everywhere else: unique where present,
             // filtered so rows created natively in SQL (which have no Quickbase id) do
             // not all collide on NULL.
@@ -113,6 +118,7 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(q => q.CreatedAt);
             e.HasIndex(q => new { q.ReachedOut, q.CreatedAt });
+            e.HasIndex(q => q.ArchivedAt).HasFilter("[ArchivedAt] IS NOT NULL");
 
             e.HasIndex(q => q.QuickbaseRecordId)
              .IsUnique()
@@ -125,6 +131,11 @@ public class AppDbContext : DbContext
             // ("mine") is the other thing sales does every day.
             e.HasIndex(l => new { l.Status, l.LastActivityAt });
             e.HasIndex(l => new { l.OwnerUpn, l.Status });
+
+            // The overdue report: "which leads were due before now?". Filtered because
+            // most leads carry no follow-up date at all, and an index over a column that
+            // is mostly NULL is mostly wasted pages.
+            e.HasIndex(l => l.NextContactAt).HasFilter("[NextContactAt] IS NOT NULL");
 
             // One enquiry produces at most one lead. Without this, a double-clicked
             // "create lead" button quietly makes two, and the second one starts collecting

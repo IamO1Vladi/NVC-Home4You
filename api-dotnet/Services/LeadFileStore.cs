@@ -45,6 +45,19 @@ public sealed class LeadFileStore
     // so refusing here gives a clear error instead of a send that fails later.
     public const long MaxBytes = 20L * 1024 * 1024;
 
+    // The ceiling for files that go OUT with a reply, which is a different and much lower
+    // number than what may be stored against a thread.
+    //
+    // 3 MB is Graph's own limit for attaching a file to a message in a single request;
+    // past it the API requires an upload session, which is a different protocol and a
+    // meaningful amount of machinery for a case sales can solve in one sentence ("I have
+    // put it on a link"). Checked before anything is sent, because finding out at send
+    // time means a lost draft.
+    //
+    // The total counts too: Graph rejects a message whose parts together exceed its size
+    // limit, so four 2 MB drawings pass every per-file check and still bounce.
+    public const long MaxEmailBytes = 3L * 1024 * 1024;
+
     // Allow-list, not a block-list. A block-list of "dangerous" types is a game you lose:
     // the useful set here is small and known, so anything outside it is refused rather
     // than guessed about.

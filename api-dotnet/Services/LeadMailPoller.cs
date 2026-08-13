@@ -36,16 +36,18 @@ public class LeadMailPoller : BackgroundService
     private readonly EnvConfig _env;
     private readonly IHttpClientFactory _httpFactory;
     private readonly GraphTokens _tokens;
+    private readonly LeadFileStore _files;
     private readonly ILogger<LeadMailPoller> _log;
 
     public LeadMailPoller(
         IServiceScopeFactory scopes, EnvConfig env, IHttpClientFactory httpFactory,
-        GraphTokens tokens, ILogger<LeadMailPoller> log)
+        GraphTokens tokens, LeadFileStore files, ILogger<LeadMailPoller> log)
     {
         _scopes = scopes;
         _env = env;
         _httpFactory = httpFactory;
         _tokens = tokens;
+        _files = files;
         _log = log;
     }
 
@@ -168,6 +170,33 @@ public class LeadMailPoller : BackgroundService
                 OccurredAt = message.ReceivedAt,
             };
 
+            // The plot survey, the bank confirmation, the photo of where it is going —
+            // customers send these constantly, and until now they stayed in the mailbox
+            // while the panel showed a message that referred to a file nobody in the
+            // panel could open.
+            //
+            // Everything about this is best-effort: a file we cannot fetch or cannot
+            // store must never cost us the message it came with. That is why it is inside
+            // its own try and why a failure only logs.
+            if (message.HasAttachments)
+            {
+                try
+                {
+                    foreach (var file in await FetchAttachmentsAsync(token, message.Id, leadId, ct))
+                        activity.Attachments.Add(file);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _log.LogError(ex,
+                        "Could not file the attachments on inbound message {MessageId}; " +
+                        "the message itself is still being recorded", message.Id);
+                }
+            }
+
             db.LeadActivities.Add(activity);
 
             var lead = await db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
@@ -200,7 +229,132 @@ public class LeadMailPoller : BackgroundService
         && address.Equals(_env.GraphSender, StringComparison.OrdinalIgnoreCase);
 
     private record MailMessage(string Id, string? ConversationId, string? Subject, string Body,
-        string? FromAddress, DateTimeOffset ReceivedAt);
+        string? FromAddress, DateTimeOffset ReceivedAt, bool HasAttachments);
+
+    /// <summary>
+    /// Pulls the files off one inbound message and into blob storage, returning the rows
+    /// to hang on its thread entry.
+    ///
+    /// Two things here are load-bearing:
+    ///
+    /// INLINE PARTS ARE SKIPPED. Every corporate signature carries two or three logos as
+    /// attachments with isInline set. Filing them would attach "image001.png" to every
+    /// message in every thread, and the real survey would be lost among them.
+    ///
+    /// THE ALLOW-LIST IS THE SAME ONE THE UPLOAD BUTTON USES. A file arriving by email is
+    /// no more trustworthy than one someone picked in a file dialog — less, since nobody
+    /// chose it — so a .exe or an .html from a stranger is refused at the same gate.
+    /// </summary>
+    private async Task<List<LeadAttachment>> FetchAttachmentsAsync(
+        string token, string messageId, int leadId, CancellationToken ct)
+    {
+        var stored = new List<LeadAttachment>();
+
+        // Storage off means the bytes have nowhere to go. Not an error: the panel is
+        // perfectly usable without attachments, and a row pointing at nothing would be
+        // worse than none.
+        if (!_files.IsConfigured) return stored;
+
+        var http = _httpFactory.CreateClient();
+
+        // contentBytes is deliberately NOT selected: it would download every file,
+        // including the ones about to be rejected for size or type, in one response.
+        var listUrl =
+            $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}" +
+            $"/messages/{Uri.EscapeDataString(messageId)}/attachments" +
+            "?$select=id,name,contentType,size,isInline";
+
+        using var listRequest = new HttpRequestMessage(HttpMethod.Get, listUrl);
+        listRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var listResponse = await http.SendAsync(listRequest, ct);
+        var listRaw = await listResponse.Content.ReadAsStringAsync(ct);
+
+        if (!listResponse.IsSuccessStatusCode)
+            throw new InvalidOperationException(
+                $"Graph list attachments failed: {(int)listResponse.StatusCode} {listRaw}");
+
+        using var doc = JsonDocument.Parse(listRaw);
+        if (!doc.RootElement.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.Array)
+            return stored;
+
+        foreach (var item in value.EnumerateArray())
+        {
+            var type = item.TryGetProperty("@odata.type", out var typeEl) ? typeEl.GetString() : null;
+
+            // itemAttachment (a forwarded email) and referenceAttachment (a OneDrive
+            // link) have no bytes to fetch. Ignored rather than half-handled.
+            if (!string.Equals(type, "#microsoft.graph.fileAttachment", StringComparison.Ordinal)) continue;
+
+            if (item.TryGetProperty("isInline", out var inlineEl) && inlineEl.ValueKind == JsonValueKind.True) continue;
+
+            var id = item.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+            var name = item.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name)) continue;
+
+            // Path components stripped for the same reason as on upload: the sender chose
+            // this string and it is a label, never a location.
+            var fileName = System.IO.Path.GetFileName(name!);
+            if (!LeadFileStore.IsAllowed(fileName, out var contentType))
+            {
+                _log.LogInformation(
+                    "Skipped inbound attachment {FileName} on message {MessageId}: type not accepted",
+                    fileName, messageId);
+                continue;
+            }
+
+            var size = item.TryGetProperty("size", out var sizeEl) && sizeEl.TryGetInt64(out var bytes)
+                ? bytes
+                : 0;
+
+            if (size > LeadFileStore.MaxBytes)
+            {
+                _log.LogInformation(
+                    "Skipped inbound attachment {FileName} on message {MessageId}: {Size} bytes is over the limit",
+                    fileName, messageId, size);
+                continue;
+            }
+
+            var contentUrl =
+                $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}" +
+                $"/messages/{Uri.EscapeDataString(messageId)}/attachments/{Uri.EscapeDataString(id!)}/$value";
+
+            using var contentRequest = new HttpRequestMessage(HttpMethod.Get, contentUrl);
+            contentRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var contentResponse = await http.SendAsync(contentRequest, ct);
+            if (!contentResponse.IsSuccessStatusCode)
+            {
+                _log.LogWarning(
+                    "Could not download attachment {FileName} on message {MessageId}: {Status}",
+                    fileName, messageId, (int)contentResponse.StatusCode);
+                continue;
+            }
+
+            var key = LeadFileStore.MintKey(leadId, fileName);
+            await using (var stream = await contentResponse.Content.ReadAsStreamAsync(ct))
+            {
+                await _files.UploadAsync(key, stream, contentType, ct);
+            }
+
+            stored.Add(new LeadAttachment
+            {
+                FileName = fileName,
+                BlobKey = key,
+                ContentType = contentType,
+                // Graph's `size` counts the MIME-encoded part, so it runs a third above
+                // the real file. Preferred anyway when the response does not say: an
+                // approximate "1.4 MB" in the panel beats a confident zero.
+                SizeBytes = contentResponse.Content.Headers.ContentLength ?? size,
+
+                // Null is the customer, exactly as on LeadActivity.ActorUpn. Nobody on
+                // our side put this here.
+                UploadedByUpn = null,
+            });
+        }
+
+        return stored;
+    }
 
     private async Task<List<MailMessage>> FetchRecentAsync(string token, CancellationToken ct)
     {
@@ -210,7 +364,7 @@ public class LeadMailPoller : BackgroundService
         var url =
             $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}/messages" +
             $"?$filter={filter}" +
-            $"&$select=id,conversationId,subject,body,from,receivedDateTime" +
+            $"&$select=id,conversationId,subject,body,from,receivedDateTime,hasAttachments" +
             $"&$orderby=receivedDateTime desc&$top={PageSize}";
 
         var http = _httpFactory.CreateClient();
@@ -271,7 +425,8 @@ public class LeadMailPoller : BackgroundService
                 item.TryGetProperty("subject", out var subEl) ? subEl.GetString() : null,
                 body,
                 from,
-                received));
+                received,
+                item.TryGetProperty("hasAttachments", out var hasEl) && hasEl.ValueKind == JsonValueKind.True));
         }
 
         return results;

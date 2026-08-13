@@ -3,24 +3,41 @@ import { Link, useNavigate } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import { adminGet, adminSend, UnauthorizedError } from '../admin/adminApi.js'
 
-// The leads work queue — offers and questions in one list, which is how sales actually
-// thinks about them: "who has not been called back?" is the same question for both.
+// The inquiry queue — quote requests and questions from the site in one list, which is how
+// sales actually thinks about them: "who has not been called back?" is the same question
+// for both.
 //
 // This replaces a Quickbase workflow rather than adding a report, so it is built to be
-// worked from daily: the outstanding queue is the default view, the oldest lead is at the
-// top because that is the one going cold, and ticking a box is one click with no dialog.
+// worked from daily: the outstanding queue is the default view, the oldest inquiry is at
+// the top because that is the one going cold, and ticking a box is one click with no dialog.
+//
+// An INQUIRY is not a LEAD, and the panel now says so. An inquiry is an immutable event —
+// somebody filled in a form on a particular day. A lead is the relationship that may grow
+// out of it, and lives in the next section along. Everything on this page is about moving
+// the first into the second and then getting it out of the way.
+//
+// The API still calls this /api/admin/leads: it was named before the distinction was, and
+// renaming a route is churn with nothing in it for the people using the panel.
 
 const TEXT = {
   bg: {
     title: 'Запитвания',
     subtitle: 'Оферти и въпроси от сайта. Отметнете, когато се свържете с клиента.',
-    tabs: { open: 'За обработка', done: 'Обработени', all: 'Всички' },
+    tabs: { open: 'За обработка', done: 'Обработени', all: 'Всички', archived: 'Архив' },
     reachedOut: 'Свързахме се',
-    createDeal: 'Създай сделка',
-    onlyNoDeal: 'Скрий тези със сделка',
-    noDealNone: 'Всяко запитване тук вече има сделка.',
-    openDeal: 'Отвори сделката',
+    createLead: 'Създай лийд',
+    write: 'Пиши на клиента',
+    writeHint: 'Създава лийд и отваря разговора — отговорът се изпраща оттам.',
+    onlyNoLead: 'Скрий тези с лийд',
+    noLeadNone: 'Всяко запитване тук вече има лийд.',
+    openLead: 'Отвори лийда',
     creating: 'Създавам…',
+    archive: 'Архивирай',
+    archiveHint: 'Скрива запитването от списъка. Не се изтрива нищо.',
+    archived: 'Архивирано.',
+    restore: 'Върни',
+    undo: 'Отмени',
+    archivedOn: 'Архивирано на',
     offer: 'Оферта',
     question: 'Въпрос',
     search: 'Търсене по име, имейл или текст',
@@ -28,6 +45,7 @@ const TEXT = {
     emptyOpen: 'Няма запитвания за обработка. Всичко е поето.',
     emptyDone: 'Все още няма обработени запитвания.',
     emptyAll: 'Все още няма запитвания.',
+    emptyArchived: 'Архивът е празен.',
     emptySearch: 'Няма съвпадения за това търсене.',
     savingError: 'Промяната не беше запазена.',
     waiting: 'чака',
@@ -41,22 +59,31 @@ const TEXT = {
     count: 'запитвания',
   },
   en: {
-    title: 'Leads',
+    title: 'Inquiries',
     subtitle: 'Quote requests and questions from the site. Tick one once you have contacted them.',
-    tabs: { open: 'To handle', done: 'Handled', all: 'All' },
+    tabs: { open: 'To handle', done: 'Handled', all: 'All', archived: 'Archive' },
     reachedOut: 'Reached out',
-    createDeal: 'Create deal',
-    onlyNoDeal: 'Hide ones with a deal',
-    noDealNone: 'Every enquiry here already has a deal.',
-    openDeal: 'Open deal',
+    createLead: 'Create lead',
+    write: 'Write to them',
+    writeHint: 'Creates the lead and opens the conversation — the reply is sent from there.',
+    onlyNoLead: 'Hide ones with a lead',
+    noLeadNone: 'Every inquiry here already has a lead.',
+    openLead: 'Open lead',
     creating: 'Creating…',
+    archive: 'Archive',
+    archiveHint: 'Takes the inquiry out of the list. Nothing is deleted.',
+    archived: 'Archived.',
+    restore: 'Restore',
+    undo: 'Undo',
+    archivedOn: 'Archived on',
     offer: 'Offer',
     question: 'Question',
     search: 'Search by name, email or text',
     searchLabel: 'Search',
-    emptyOpen: 'Nothing waiting. Every lead has been picked up.',
-    emptyDone: 'No handled leads yet.',
-    emptyAll: 'No leads yet.',
+    emptyOpen: 'Nothing waiting. Every inquiry has been picked up.',
+    emptyDone: 'No handled inquiries yet.',
+    emptyAll: 'No inquiries yet.',
+    emptyArchived: 'The archive is empty.',
     emptySearch: 'Nothing matches that search.',
     savingError: 'That change was not saved.',
     waiting: 'waiting',
@@ -67,7 +94,7 @@ const TEXT = {
     noMessage: '(no message)',
     showAll: 'Show full message',
     showLess: 'Show less',
-    count: 'leads',
+    count: 'inquiries',
   },
 }
 
@@ -75,10 +102,13 @@ const TABS = [
   { key: 'open', reached: 'false' },
   { key: 'done', reached: 'true' },
   { key: 'all', reached: 'all' },
+  // Everything that has been put away. Last, because it is the one tab nobody opens
+  // daily — and separate from the three above, which all show the working queue.
+  { key: 'archived', reached: 'archived' },
 ]
 
-// How old a lead is, in the words someone would actually use. The outstanding queue lives
-// or dies on this being obvious at a glance.
+// How old an inquiry is, in the words someone would actually use. The outstanding queue
+// lives or dies on this being obvious at a glance.
 function age(iso, t) {
   if (!iso) return ''
   const then = new Date(iso)
@@ -99,7 +129,7 @@ function formatDate(iso, lang) {
 }
 
 // Long configurator summaries are the common case for offers, so the message is clamped
-// and opened on demand rather than pushing every other lead off the screen.
+// and opened on demand rather than pushing every other inquiry off the screen.
 const MESSAGE_CLAMP = 220
 
 function Message({ text, t }) {
@@ -121,7 +151,7 @@ function Message({ text, t }) {
   )
 }
 
-export default function AdminLeadsPage() {
+export default function AdminInquiriesPage() {
   const [lang, setLang] = useAdminLang()
   const t = TEXT[lang] ?? TEXT.bg
   const navigate = useNavigate()
@@ -134,10 +164,14 @@ export default function AdminLeadsPage() {
   // Off by default. Hiding rows on first load makes the queue look emptier than it is,
   // and the count on the label already answers "how many still need doing?" without
   // anyone having to click anything.
-  const [onlyNoDeal, setOnlyNoDeal] = React.useState(false)
+  const [onlyNoLead, setOnlyNoLead] = React.useState(false)
   // Keyed by kind+id so the two id sequences cannot collide and disable the wrong row.
   const [busy, setBusy] = React.useState(() => new Set())
   const [actionError, setActionError] = React.useState('')
+  // What was just archived, so it can be put straight back. An undo beats an "are you
+  // sure?": archiving is reversible and frequent, and a dialog in front of a frequent
+  // reversible action is a dialog people learn to dismiss without reading.
+  const [undoable, setUndoable] = React.useState(null)
 
   const load = React.useCallback(async (which) => {
     setState('loading')
@@ -157,6 +191,10 @@ export default function AdminLeadsPage() {
   }, [])
 
   React.useEffect(() => { load(tab) }, [load, tab])
+
+  // Switching tabs is a new context; an undo banner for a row you can no longer see is
+  // just clutter.
+  React.useEffect(() => { setUndoable(null) }, [tab])
 
   async function setFlag(lead, field, value) {
     const key = `${lead.kind}-${lead.id}`
@@ -184,7 +222,12 @@ export default function AdminLeadsPage() {
     }
   }
 
-  async function createDeal(lead) {
+  // One click creates the lead and lands in its conversation. Promoting is never the goal
+  // in itself — the person clicking this wants to reply, and making them find the lead
+  // afterwards is a step that exists only because the two pages are separate.
+  async function writeTo(lead) {
+    if (lead.dealId) { navigate(`/admin/pipeline?lead=${lead.dealId}`); return }
+
     const key = `${lead.kind}-${lead.id}`
     setBusy((prev) => new Set(prev).add(key))
     setActionError('')
@@ -192,10 +235,23 @@ export default function AdminLeadsPage() {
       const result = await adminSend('/api/admin/pipeline/promote', 'POST', {
         kind: lead.kind, id: lead.id,
       })
-      // Straight into the conversation. Promoting is never the goal in itself — the
-      // person clicking this wants to reply, and making them find the deal afterwards
-      // is a step that exists only because the two pages are separate.
-      if (result?.id) navigate(`/admin/pipeline?deal=${result.id}`)
+      if (result?.id) navigate(`/admin/pipeline?lead=${result.id}`)
+    } catch (err) {
+      if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
+      setActionError(t.savingError)
+    } finally {
+      setBusy((prev) => { const next = new Set(prev); next.delete(key); return next })
+    }
+  }
+
+  async function setArchived(lead, archived) {
+    const key = `${lead.kind}-${lead.id}`
+    setBusy((prev) => new Set(prev).add(key))
+    setActionError('')
+    try {
+      await adminSend(`/api/admin/leads/${lead.kind}/${lead.id}/archive`, 'POST', { archived })
+      setUndoable(archived ? { kind: lead.kind, id: lead.id, name: lead.name } : null)
+      await load(tab)
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setActionError(t.savingError)
@@ -211,15 +267,18 @@ export default function AdminLeadsPage() {
     : items
 
   // "Which of these still need me to do something?" — the question this page is opened
-  // to answer once replying moved into the deals view.
-  const needsDeal = items.filter((l) => !l.dealId).length
-  const visible = onlyNoDeal ? searched.filter((l) => !l.dealId) : searched
+  // to answer once replying moved into the leads view.
+  const needsLead = items.filter((l) => !l.dealId).length
+  const visible = onlyNoLead ? searched.filter((l) => !l.dealId) : searched
 
-  const emptyText = onlyNoDeal && !needle
-    ? t.noDealNone
+  const emptyText = onlyNoLead && !needle
+    ? t.noLeadNone
     : needle
     ? t.emptySearch
-    : tab === 'open' ? t.emptyOpen : tab === 'done' ? t.emptyDone : t.emptyAll
+    : tab === 'open' ? t.emptyOpen
+    : tab === 'done' ? t.emptyDone
+    : tab === 'archived' ? t.emptyArchived
+    : t.emptyAll
 
   return (
     <AdminShell
@@ -233,7 +292,10 @@ export default function AdminLeadsPage() {
     >
       <nav className="adm-tabs" aria-label={t.title}>
         {TABS.map(({ key }) => {
-          const badge = key === 'open' ? counts.notReachedOut : key === 'done' ? counts.reachedOut : null
+          const badge = key === 'open' ? counts.notReachedOut
+            : key === 'done' ? counts.reachedOut
+            : key === 'archived' ? counts.archived
+            : null
           return (
             <button
               key={key}
@@ -262,16 +324,29 @@ export default function AdminLeadsPage() {
         <label className="adm-check adm-filter-check">
           <input
             type="checkbox"
-            checked={onlyNoDeal}
-            onChange={(e) => setOnlyNoDeal(e.target.checked)}
+            checked={onlyNoLead}
+            onChange={(e) => setOnlyNoLead(e.target.checked)}
           />
-          <span>{t.onlyNoDeal}</span>
-          {needsDeal > 0 ? <span className="adm-count">{needsDeal}</span> : null}
+          <span>{t.onlyNoLead}</span>
+          {needsLead > 0 ? <span className="adm-count">{needsLead}</span> : null}
         </label>
         <span className="adm-muted adm-small">{visible.length} {t.count}</span>
       </div>
 
       {actionError ? <div className="adm-alert">{actionError}</div> : null}
+
+      {undoable ? (
+        <div className="adm-undo" role="status">
+          <span>{t.archived} {undoable.name ? <strong>{undoable.name}</strong> : null}</span>
+          <button
+            type="button"
+            className="adm-linkbtn"
+            onClick={() => setArchived(undoable, false)}
+          >
+            {t.undo}
+          </button>
+        </div>
+      ) : null}
 
       {visible.length === 0 ? (
         <div className="adm-empty"><p>{emptyText}</p></div>
@@ -281,7 +356,7 @@ export default function AdminLeadsPage() {
             const key = `${l.kind}-${l.id}`
             const isBusy = busy.has(key)
             return (
-              <li key={key} className={`adm-card adm-lead${l.reachedOut ? '' : ' is-open'}`}>
+              <li key={key} className={`adm-card adm-lead${l.reachedOut || l.archivedAt ? '' : ' is-open'}`}>
                 <div className="adm-lead-top">
                   <div className="adm-lead-who">
                     <span className="adm-name">{l.name || '—'}</span>
@@ -292,14 +367,38 @@ export default function AdminLeadsPage() {
                   </div>
                   <div className="adm-lead-when adm-small">
                     <span className="adm-muted">{formatDate(l.createdAt, lang)}</span>
-                    {!l.reachedOut ? <span className="adm-age">{age(l.createdAt, t)} {t.waiting}</span> : null}
+                    {!l.reachedOut && !l.archivedAt
+                      ? <span className="adm-age">{age(l.createdAt, t)} {t.waiting}</span>
+                      : null}
                   </div>
                 </div>
 
                 <div className="adm-lead-contact adm-small">
-                  {l.email ? <a href={`mailto:${l.email}`}>{l.email}</a> : null}
+                  {/* The address is a BUTTON, not a mailto. A mail client opens a reply
+                      that lands in somebody's personal Sent items and never reaches the
+                      thread — the one place the next person to pick this up will look.
+                      Clicking here creates the lead and opens the conversation instead. */}
+                  {l.email ? (
+                    <button
+                      type="button"
+                      className="adm-linkbtn adm-write"
+                      title={t.writeHint}
+                      disabled={isBusy}
+                      onClick={() => writeTo(l)}
+                    >
+                      <svg viewBox="0 0 24 24" className="adm-write-ico" fill="none" stroke="currentColor"
+                           strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                        <path d="m3.8 6.6 8.2 6 8.2-6" />
+                      </svg>
+                      <span>{l.email}</span>
+                    </button>
+                  ) : null}
                   {l.phone ? <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a> : null}
                   {l.modelId ? <span className="adm-muted">{t.model}: {l.modelId}</span> : null}
+                  {l.archivedAt ? (
+                    <span className="adm-muted">{t.archivedOn} {formatDate(l.archivedAt, lang)}</span>
+                  ) : null}
                 </div>
 
                 <Message text={l.message} t={t} />
@@ -316,21 +415,46 @@ export default function AdminLeadsPage() {
                   </label>
                   {/* Was a hand-ticked "Lead created" checkbox inherited from Quickbase,
                       which only ever recorded that someone had done the work elsewhere.
-                      Now it does the work: one click creates the deal and its thread. Once
-                      one exists the control becomes a link, so the same enquiry cannot be
+                      Now it does the work: one click creates the lead and its thread. Once
+                      one exists the control becomes a link, so the same inquiry cannot be
                       promoted twice by someone who forgot they already had. */}
                   {l.dealId ? (
-                    <Link className="adm-linkbtn" to={`/admin/pipeline?deal=${l.dealId}`}>
-                      {t.openDeal}
+                    <Link className="adm-linkbtn" to={`/admin/pipeline?lead=${l.dealId}`}>
+                      {t.openLead}
                     </Link>
                   ) : (
                     <button
                       type="button"
                       className="btn ghost adm-btn-sm"
                       disabled={isBusy}
-                      onClick={() => createDeal(l)}
+                      onClick={() => writeTo(l)}
                     >
-                      {isBusy ? t.creating : t.createDeal}
+                      {isBusy ? t.creating : t.createLead}
+                    </button>
+                  )}
+
+                  {/* Archiving is what finishes an inquiry: contacted, lead created, out
+                      of the queue. Offered on every row rather than only the finished
+                      ones, because the other common case is a test submission or a
+                      duplicate — and nothing here is ever deleted. */}
+                  {l.archivedAt ? (
+                    <button
+                      type="button"
+                      className="adm-linkbtn"
+                      disabled={isBusy}
+                      onClick={() => setArchived(l, false)}
+                    >
+                      {t.restore}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="adm-linkbtn adm-archive"
+                      title={t.archiveHint}
+                      disabled={isBusy}
+                      onClick={() => setArchived(l, true)}
+                    >
+                      {t.archive}
                     </button>
                   )}
                 </div>

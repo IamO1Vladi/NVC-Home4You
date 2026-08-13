@@ -13,7 +13,14 @@ import '../style/Admin.css'
 // The navigation is a sidebar on desktop and a bottom tab bar on phones. That is deliberate:
 // the people using this are not developers, and a bottom bar is the one navigation pattern
 // every phone app has already taught them. It also leaves room for the sections still to
-// come (leads) without the tab strip overflowing off-screen the way the old one did.
+// come without the tab strip overflowing off-screen the way the old one did.
+//
+// TWO WORDS THAT USED TO BE ONE. An "inquiry" (запитване) is the form somebody filled in on
+// the site; a "lead" is the person we are now talking to. The panel called the first one
+// "leads" and the second one "deals", which meant every conversation about the panel needed
+// a translation step first. The nav keys below are still `leads` and `pipeline` because that
+// is what the API routes are called — renaming those is a separate change with nothing in it
+// for the people using this.
 
 const LANG_KEY = 'nvc_admin_lang_v1'
 const THEME_KEY = 'nvc_admin_theme_v1'
@@ -21,7 +28,7 @@ const THEME_KEY = 'nvc_admin_theme_v1'
 const TEXT = {
   bg: {
     brand: 'Администрация',
-    nav: { home: 'Начало', leads: 'Запитвания', pipeline: 'Сделки', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
+    nav: { home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
     errorHint: 'Проверете интернет връзката си и опитайте отново.',
@@ -37,7 +44,7 @@ const TEXT = {
   },
   en: {
     brand: 'Admin',
-    nav: { home: 'Home', leads: 'Leads', pipeline: 'Deals', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
+    nav: { home: 'Home', leads: 'Inquiries', pipeline: 'Leads', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
     errorHint: 'Check your internet connection and try again.',
@@ -134,11 +141,11 @@ function NavIcon({ name }) {
 
 const SECTIONS = [
   { key: 'home', to: '/admin' },
-  // Leads sit directly after Home: it is the one section with work waiting in it, and
+  // Inquiries sit directly after Home: it is the one section with work waiting in it, and
   // the only one someone opens every morning.
-  { key: 'leads', to: '/admin/leads' },
-  // Straight after the enquiry queue, because that is the journey: an enquiry arrives in
-  // Leads, and the conversation that follows it lives here.
+  { key: 'leads', to: '/admin/inquiries' },
+  // Straight after the enquiry queue, because that is the journey: an inquiry arrives, it
+  // becomes a lead, and the conversation that follows it lives here.
   { key: 'pipeline', to: '/admin/pipeline' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },

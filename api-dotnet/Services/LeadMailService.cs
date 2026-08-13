@@ -28,20 +28,28 @@ public class LeadMailService
     private readonly EnvConfig _env;
     private readonly IHttpClientFactory _httpFactory;
     private readonly GraphTokens _tokens;
+    private readonly LeadFileStore _files;
     private readonly ILogger<LeadMailService> _log;
 
     public LeadMailService(
         AppDbContext db, EnvConfig env, IHttpClientFactory httpFactory,
-        GraphTokens tokens, ILogger<LeadMailService> log)
+        GraphTokens tokens, LeadFileStore files, ILogger<LeadMailService> log)
     {
         _db = db;
         _env = env;
         _httpFactory = httpFactory;
         _tokens = tokens;
+        _files = files;
         _log = log;
     }
 
     public bool IsConfigured => _env.GraphConfigured;
+
+    /// <summary>
+    /// A file travelling out with a reply, held in memory because it has to be base64'd
+    /// into the Graph request anyway and is capped at a few megabytes.
+    /// </summary>
+    public record OutgoingFile(string FileName, string ContentType, byte[] Content);
 
     public enum SendOutcome { Sent, NotConfigured, LeadNotFound, NoAddress, Failed }
 
@@ -60,7 +68,8 @@ public class LeadMailService
     /// missing thread entry, which is visible and fixable; a lie in the record is neither.
     /// </summary>
     public async Task<SendResult> SendReplyAsync(
-        int leadId, string? subject, string body, string? actorUpn, CancellationToken ct = default)
+        int leadId, string? subject, string body, string? actorUpn,
+        IReadOnlyList<OutgoingFile>? attachments = null, CancellationToken ct = default)
     {
         if (!IsConfigured)
             return new SendResult(SendOutcome.NotConfigured, null, "Email is not configured.");
@@ -100,6 +109,14 @@ public class LeadMailService
                 (messageId, conversationId) = await CreateDraftAsync(
                     token, lead.Email!, resolvedSubject, body, ct);
 
+                // Onto the draft rather than into its creation payload: attaching
+                // separately is what keeps one oversized file from failing the whole
+                // message creation, and it is the documented route for anything but the
+                // smallest parts.
+                if (attachments is { Count: > 0 })
+                    foreach (var file in attachments)
+                        await AttachToDraftAsync(token, messageId, file, ct);
+
                 await SendDraftAsync(token, messageId, ct);
             }
             catch (GraphException ex) when (ex.IsPermissionProblem)
@@ -110,7 +127,7 @@ public class LeadMailService
                     "will not thread back automatically until Mail.ReadWrite is granted.",
                     _env.GraphSender);
 
-                await SendDirectAsync(token, lead.Email!, resolvedSubject, body, ct);
+                await SendDirectAsync(token, lead.Email!, resolvedSubject, body, attachments, ct);
                 messageId = null;
                 conversationId = null;
             }
@@ -127,6 +144,41 @@ public class LeadMailService
                 ExternalMessageId = messageId,
                 OccurredAt = now,
             };
+            // Stored only now, and only if the send worked. A file recorded against a
+            // reply that never left would show sales an attachment the customer does not
+            // have — the same lie the send-first ordering above exists to avoid.
+            //
+            // A storage failure here is logged and swallowed: the customer has the file,
+            // and losing the whole thread entry over a copy of it would be the worse
+            // trade by a distance.
+            if (attachments is { Count: > 0 })
+            {
+                foreach (var file in attachments)
+                {
+                    try
+                    {
+                        var key = LeadFileStore.MintKey(leadId, file.FileName);
+                        using var stream = new System.IO.MemoryStream(file.Content);
+                        await _files.UploadAsync(key, stream, file.ContentType, ct);
+
+                        activity.Attachments.Add(new LeadAttachment
+                        {
+                            FileName = file.FileName,
+                            BlobKey = key,
+                            ContentType = file.ContentType,
+                            SizeBytes = file.Content.LongLength,
+                            UploadedByUpn = actorUpn,
+                        });
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        _log.LogError(ex,
+                            "Reply to lead {LeadId} was sent with {FileName}, but the copy could " +
+                            "not be stored — the thread will not show it", leadId, file.FileName);
+                    }
+                }
+            }
+
             _db.LeadActivities.Add(activity);
 
             var tracked = await _db.Leads.FirstAsync(l => l.Id == leadId, ct);
@@ -188,7 +240,8 @@ public class LeadMailService
     /// cannot be allowed to fail.
     /// </summary>
     private async Task SendDirectAsync(
-        string token, string toAddress, string subject, string body, CancellationToken ct)
+        string token, string toAddress, string subject, string body,
+        IReadOnlyList<OutgoingFile>? attachments, CancellationToken ct)
     {
         var payload = new
         {
@@ -197,6 +250,11 @@ public class LeadMailService
                 subject,
                 body = new { contentType = "HTML", content = body },
                 toRecipients = new[] { new { emailAddress = new { address = toAddress } } },
+
+                // Inline in the payload here, because this path has no message to attach
+                // to afterwards — that is exactly the permission it is missing. The size
+                // ceiling enforced by the caller is what keeps this request legal.
+                attachments = attachments?.Select(FileAttachment).ToArray(),
             },
             saveToSentItems = true,
         };
@@ -253,6 +311,43 @@ public class LeadMailService
             throw new InvalidOperationException("Graph create message returned no id.");
 
         return (id!, conversationId);
+    }
+
+    /// <summary>
+    /// One file, in the shape Graph expects wherever an attachment may appear.
+    /// </summary>
+    private static object FileAttachment(OutgoingFile file) => new Dictionary<string, object>
+    {
+        // The type discriminator is not optional: without it Graph cannot tell a file
+        // from a reference to one, and rejects the whole message.
+        ["@odata.type"] = "#microsoft.graph.fileAttachment",
+        ["name"] = file.FileName,
+        ["contentType"] = file.ContentType,
+        ["contentBytes"] = Convert.ToBase64String(file.Content),
+    };
+
+    /// <summary>
+    /// Hangs one file on a message that has been created but not yet sent.
+    /// </summary>
+    private async Task AttachToDraftAsync(
+        string token, string messageId, OutgoingFile file, CancellationToken ct)
+    {
+        var http = _httpFactory.CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}/messages/{Uri.EscapeDataString(messageId)}/attachments")
+        {
+            Content = JsonContent.Create(FileAttachment(file)),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            throw new GraphException(response.StatusCode,
+                $"Graph attach '{file.FileName}' failed: {(int)response.StatusCode} {raw}");
+        }
     }
 
     private async Task SendDraftAsync(string token, string messageId, CancellationToken ct)

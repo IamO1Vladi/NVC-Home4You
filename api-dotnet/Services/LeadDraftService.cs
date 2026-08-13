@@ -160,6 +160,15 @@ public class LeadDraftService
           to you below. If the customer asks about something you have not been told, say
           the colleague will confirm it rather than guessing. A number you invent becomes
           a promise the company has to keep.
+        - You are given the model this enquiry is about, and a price list of the rest of
+          the range. Both are the live catalogue, so USE them: quote those prices, answer
+          from that description, and suggest another model by name and price when the
+          customer's budget or size points somewhere else. Being unhelpfully vague about
+          something you were told is its own failure.
+        - Prices in the list are the catalogue price for the model as standard. If the
+          customer is asking about options, transport, groundwork or anything the list
+          does not cover, say the figure is for the standard model and that a colleague
+          will confirm the rest — do not add anything up.
         - Reply in the customer's language, given as the locale below: bg = Bulgarian,
           el = Greek, en = English. If no locale is given, match the language of the
           customer's own most recent message.
@@ -190,6 +199,24 @@ public class LeadDraftService
             sb.AppendLine();
             sb.AppendLine("What they are asking about (use these figures, do not invent others):");
             sb.AppendLine(context.ModelSummary);
+
+            if (!string.IsNullOrWhiteSpace(context.ModelDetail))
+            {
+                sb.AppendLine();
+                sb.AppendLine("Catalogue description of that model:");
+                sb.AppendLine(context.ModelDetail);
+            }
+        }
+
+        // After the model they asked about, never instead of it. The one they named is
+        // the answer; the range is context for "what else do you have?".
+        if (!string.IsNullOrWhiteSpace(context.PriceList))
+        {
+            sb.AppendLine();
+            sb.AppendLine(
+                "The rest of the range, current catalogue prices for the standard model " +
+                "(you may quote these; anything not listed here, a colleague confirms):");
+            sb.AppendLine(context.PriceList);
         }
 
         if (context.Notes.Count > 0)

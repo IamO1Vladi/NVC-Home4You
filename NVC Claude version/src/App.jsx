@@ -91,7 +91,7 @@ const FactorySheetPage = lazy(() => import('./pages/FactorySheetPage.jsx'))
 // signed-out visitor reaching it sees a sign-in prompt and no data.
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
 const AdminReviewsPage = lazy(() => import('./pages/AdminReviewsPage.jsx'))
-const AdminLeadsPage = lazy(() => import('./pages/AdminLeadsPage.jsx'))
+const AdminInquiriesPage = lazy(() => import('./pages/AdminInquiriesPage.jsx'))
 const AdminPipelinePage = lazy(() => import('./pages/AdminPipelinePage.jsx'))
 const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
@@ -413,7 +413,12 @@ function AppShell() {
                   /admin is the menu: it used to drop straight into the review queue, which
                   left the other sections reachable only by typing their URL. */}
               <Route path="/admin" element={<AdminHomePage />} />
-              <Route path="/admin/leads" element={<AdminLeadsPage />} />
+              <Route path="/admin/inquiries" element={<AdminInquiriesPage />} />
+              {/* /admin/leads used to BE this queue, so a bookmark pointing here means
+                  "the enquiries", not the pipeline that now carries the name. Redirect
+                  rather than reuse: sending someone to a page that looks similar and holds
+                  different records is worse than moving them. */}
+              <Route path="/admin/leads" element={<Navigate to="/admin/inquiries" replace />} />
               <Route path="/admin/pipeline" element={<AdminPipelinePage />} />
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />

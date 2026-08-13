@@ -207,4 +207,61 @@ public class LeadDraftServiceTests
 
         Assert.DoesNotContain("do not invent others", turn);
     }
+
+    // --- Answering with the catalogue -------------------------------------------------
+
+    [Fact]
+    public void The_prompt_tells_the_drafter_to_use_the_figures_it_is_given()
+    {
+        // The other half of "never invent a price". Being vague about something we DID
+        // hand over is its own failure — it is the reason every price question used to
+        // come back as "a colleague will confirm".
+        Assert.Contains("price list", LeadDraftService.SystemPrompt);
+        Assert.Contains("quote those prices", LeadDraftService.SystemPrompt);
+    }
+
+    [Fact]
+    public void The_prompt_keeps_the_quoted_figure_to_the_standard_model()
+    {
+        // Options, transport and groundwork are not in the list, and a drafter adding
+        // them up produces a total the company then has to honour.
+        Assert.Contains("do not add anything up", LeadDraftService.SystemPrompt);
+    }
+
+    [Fact]
+    public void The_user_turn_carries_the_range_and_the_models_own_description()
+    {
+        var context = SampleContext() with
+        {
+            ModelDetail = "Two bedrooms, insulated to 100mm.",
+            PriceList = "- Nova 40 — 18900 EUR (modular)",
+        };
+
+        var turn = LeadDraftService.BuildUserTurn(context, null);
+
+        Assert.Contains("Two bedrooms, insulated to 100mm.", turn);
+        Assert.Contains("Nova 40", turn);
+        Assert.Contains("18900", turn);
+    }
+
+    [Fact]
+    public void The_model_they_asked_about_comes_before_the_rest_of_the_range()
+    {
+        // The one they named is the answer; the range is context for "what else do you
+        // have?". Leading with the list buries the reply's actual subject.
+        var context = SampleContext() with { PriceList = "- Nova 40 — 18900 EUR (modular)" };
+
+        var turn = LeadDraftService.BuildUserTurn(context, null);
+
+        Assert.True(turn.IndexOf("Nova 60", StringComparison.Ordinal)
+                  < turn.IndexOf("Nova 40", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void With_no_catalogue_at_all_the_turn_grows_no_empty_heading()
+    {
+        var turn = LeadDraftService.BuildUserTurn(SampleContext(), null);
+
+        Assert.DoesNotContain("rest of the range", turn);
+    }
 }

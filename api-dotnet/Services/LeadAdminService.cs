@@ -36,10 +36,31 @@ public class LeadAdminService
     // silently truncated in practice, capped so a runaway table cannot take the page down.
     private const int MaxRows = 1000;
 
-    public async Task<List<AdminLeadDto>> ListAsync(bool? reachedOut, CancellationToken ct)
+    /// <summary>
+    /// The queue. <paramref name="reachedOut"/> narrows to outstanding or handled (null is
+    /// both), and <paramref name="archived"/> switches between the working queue and the
+    /// things that have been put away.
+    /// </summary>
+    /// <remarks>
+    /// Archived rows are excluded from EVERY other view, not just from the outstanding tab.
+    /// A queue that still lists what someone deliberately put away is a queue people stop
+    /// trusting, and "All" was the view where that would have shown up first.
+    /// </remarks>
+    public async Task<List<AdminLeadDto>> ListAsync(bool? reachedOut, CancellationToken ct, bool archived = false)
     {
         var offerQuery = _db.Offers.AsNoTracking().AsQueryable();
         var questionQuery = _db.Questions.AsNoTracking().AsQueryable();
+
+        if (archived)
+        {
+            offerQuery = offerQuery.Where(o => o.ArchivedAt != null);
+            questionQuery = questionQuery.Where(q => q.ArchivedAt != null);
+        }
+        else
+        {
+            offerQuery = offerQuery.Where(o => o.ArchivedAt == null);
+            questionQuery = questionQuery.Where(q => q.ArchivedAt == null);
+        }
 
         if (reachedOut.HasValue)
         {
@@ -89,6 +110,7 @@ public class LeadAdminService
             Locale = o.Locale ?? "",
             ReachedOut = o.ReachedOut,
             LeadCreated = o.LeadCreated,
+            ArchivedAt = o.ArchivedAt is null ? null : Iso(o.ArchivedAt.Value),
             DealId = dealByOffer.TryGetValue(o.Id, out var offerDeal) ? offerDeal : null,
             CreatedAt = Iso(o.CreatedAt),
             UpdatedAt = o.UpdatedAt is null ? null : Iso(o.UpdatedAt.Value),
@@ -105,6 +127,7 @@ public class LeadAdminService
             Locale = q.Locale ?? "",
             ReachedOut = q.ReachedOut,
             LeadCreated = q.LeadCreated,
+            ArchivedAt = q.ArchivedAt is null ? null : Iso(q.ArchivedAt.Value),
             DealId = dealByQuestion.TryGetValue(q.Id, out var questionDeal) ? questionDeal : null,
             CreatedAt = Iso(q.CreatedAt),
             UpdatedAt = q.UpdatedAt is null ? null : Iso(q.UpdatedAt.Value),
@@ -112,24 +135,31 @@ public class LeadAdminService
 
         // Outstanding work is sorted oldest first: an untouched lead from three weeks ago
         // is the one at risk, and newest-first would bury it under today's arrivals.
-        // Everything else reads as a history, so it is newest first.
-        var ordered = reachedOut == false
+        // Everything else — including the archive — reads as a history, so it is newest
+        // first.
+        var ordered = !archived && reachedOut == false
             ? combined.OrderBy(l => l.CreatedAt)
             : combined.OrderByDescending(l => l.CreatedAt);
 
         return ordered.Take(MaxRows).ToList();
     }
 
+    // Every count except Archived is a count of the WORKING queue. The badge in the panel's
+    // navigation reads NotReachedOut, and an archived enquiry that still added to it would
+    // send someone looking for work that is not there.
     public async Task<LeadCountsDto> CountsAsync(CancellationToken ct) => new()
     {
         NotReachedOut =
-            await _db.Offers.AsNoTracking().CountAsync(o => !o.ReachedOut, ct) +
-            await _db.Questions.AsNoTracking().CountAsync(q => !q.ReachedOut, ct),
+            await _db.Offers.AsNoTracking().CountAsync(o => !o.ReachedOut && o.ArchivedAt == null, ct) +
+            await _db.Questions.AsNoTracking().CountAsync(q => !q.ReachedOut && q.ArchivedAt == null, ct),
         ReachedOut =
-            await _db.Offers.AsNoTracking().CountAsync(o => o.ReachedOut, ct) +
-            await _db.Questions.AsNoTracking().CountAsync(q => q.ReachedOut, ct),
-        Offers = await _db.Offers.AsNoTracking().CountAsync(ct),
-        Questions = await _db.Questions.AsNoTracking().CountAsync(ct),
+            await _db.Offers.AsNoTracking().CountAsync(o => o.ReachedOut && o.ArchivedAt == null, ct) +
+            await _db.Questions.AsNoTracking().CountAsync(q => q.ReachedOut && q.ArchivedAt == null, ct),
+        Archived =
+            await _db.Offers.AsNoTracking().CountAsync(o => o.ArchivedAt != null, ct) +
+            await _db.Questions.AsNoTracking().CountAsync(q => q.ArchivedAt != null, ct),
+        Offers = await _db.Offers.AsNoTracking().CountAsync(o => o.ArchivedAt == null, ct),
+        Questions = await _db.Questions.AsNoTracking().CountAsync(q => q.ArchivedAt == null, ct),
     };
 
     // Null leaves a flag alone, so the caller can tick one box without having to restate
@@ -155,6 +185,48 @@ public class LeadAdminService
             if (question is null) return false;
             if (reachedOut.HasValue) question.ReachedOut = reachedOut.Value;
             if (leadCreated.HasValue) question.LeadCreated = leadCreated.Value;
+            question.UpdatedAt = now;
+        }
+        else
+        {
+            return false;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>
+    /// Puts an enquiry away, or brings it back.
+    ///
+    /// Deliberately NOT automatic on "create a lead". The two are different claims: a lead
+    /// says the conversation moved somewhere else, archiving says a person looked at this
+    /// row and decided it is finished with. Doing it on their behalf would empty the
+    /// handled list underneath someone who was still working through it.
+    ///
+    /// False means "no such enquiry", the same as SetFlagsAsync.
+    /// </summary>
+    public async Task<bool> SetArchivedAsync(string kind, int id, bool archived, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        // Re-archiving must not move the timestamp: it is the record of when this was put
+        // away, and a second click should be a no-op rather than a rewrite of history.
+        DateTimeOffset? stamp = archived ? now : null;
+
+        if (string.Equals(kind, KindOffer, StringComparison.OrdinalIgnoreCase))
+        {
+            var offer = await _db.Offers.FirstOrDefaultAsync(o => o.Id == id, ct);
+            if (offer is null) return false;
+            if (archived && offer.ArchivedAt is not null) return true;
+            offer.ArchivedAt = stamp;
+            offer.UpdatedAt = now;
+        }
+        else if (string.Equals(kind, KindQuestion, StringComparison.OrdinalIgnoreCase))
+        {
+            var question = await _db.Questions.FirstOrDefaultAsync(q => q.Id == id, ct);
+            if (question is null) return false;
+            if (archived && question.ArchivedAt is not null) return true;
+            question.ArchivedAt = stamp;
             question.UpdatedAt = now;
         }
         else
