@@ -12,11 +12,11 @@ namespace Controllers;
 [Route("api/config-email")]
 public class ConfigEmailController : ControllerBase
 {
-    private readonly SavedConfigService _saved;
+    private readonly ISavedConfigStore _saved;
     private readonly EmailService _email;
     private readonly ILogger<ConfigEmailController> _logger;
 
-    public ConfigEmailController(SavedConfigService saved, EmailService email, ILogger<ConfigEmailController> logger)
+    public ConfigEmailController(ISavedConfigStore saved, EmailService email, ILogger<ConfigEmailController> logger)
     {
         _saved = saved;
         _email = email;

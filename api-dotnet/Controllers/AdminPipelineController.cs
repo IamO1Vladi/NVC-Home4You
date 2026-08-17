@@ -225,7 +225,8 @@ public class AdminPipelineController : ControllerBase
 
     public record FieldsChange(
         string? NextStep, string? Notes, string? ProjectName, string? BuildLocation,
-        string? CustomerAddress, string? Country, string? NextContactAt);
+        string? CustomerAddress, string? Country, string? NextContactAt,
+        string? CategoryKey, int? HouseId, string? CustomModel);
 
     [HttpPost("{id:int}/fields")]
     public async Task<IActionResult> SetFields(int id, [FromBody] FieldsChange body, CancellationToken ct)
@@ -238,9 +239,18 @@ public class AdminPipelineController : ControllerBase
         if (!LeadService.TryParseFollowUpDate(body.NextContactAt, out _))
             return BadRequest(new { errors = new[] { "That is not a date we can read." } });
 
+        // 0 is how a cleared <select> arrives, and it is not a house id. Treated as "no
+        // model" rather than passed through to fail a foreign key.
+        var clearHouse = body.HouseId is 0;
+        var houseId = body.HouseId is > 0 ? body.HouseId : null;
+
+        if (houseId is not null && !await _leads.HouseExistsAsync(houseId.Value, ct))
+            return BadRequest(new { errors = new[] { "That model is not in the catalogue." } });
+
         var ok = await _leads.UpdateFieldsAsync(
             id, body.NextStep, body.Notes, body.ProjectName, body.BuildLocation,
-            body.CustomerAddress, body.Country, body.NextContactAt, ct);
+            body.CustomerAddress, body.Country, body.NextContactAt,
+            body.CategoryKey, houseId, clearHouse, body.CustomModel, ct);
 
         return ok ? Ok(new { ok = true, id }) : NotFound();
     }

@@ -1,13 +1,11 @@
 import React from 'react'
 import SEO from '../../components/SEO.jsx'
-import { LocalBusinessJSONLD } from '../../components/StructuredData.jsx'
 import HomePage from '../../pages/HomePage.jsx'
 import enHome from '../../content/en/home.js'
 
 export default function EnHomeRoute() {
   return (
     <>
-      <LocalBusinessJSONLD />
       <SEO
         title="Modular builds, modular houses and prefab homes | NVC Home4You"
         description="Modular builds, modular houses and prefab homes in Bulgaria and Europe. Explore models, delivery and custom solutions from NVC Home4You."

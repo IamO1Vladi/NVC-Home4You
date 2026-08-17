@@ -79,6 +79,13 @@ export const paths = {
     en: '/services',
     el: '/ypiresies',
   },
+  // Transliterated like every other Bulgarian slug (see the note at the top of this file);
+  // the Greek is the readable Latin form of τιμές.
+  prices: {
+    bg: '/bg/ceni',
+    en: '/en/prices',
+    el: '/el/times',
+  },
   privacy: {
     bg: '/bg/poveritelnost-i-biskvitki',
     en: '/en/privacy-and-cookies',

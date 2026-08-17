@@ -279,6 +279,26 @@ const META = {
         'Δείτε όλη τη γκάμα προϊόντων και υπηρεσιών της NVC Home4You — δομικά σπίτια, εσωτερικοί χώροι, πόρτες, παράδοση και άλλα.',
     },
   },
+  // The one page that targets a transactional query head-on. Competitors all rank for
+  // "цени" with a price list; the title leads with the number because a search result
+  // showing a real starting price is what earns the click.
+  prices: {
+    en: {
+      title: 'Prefab House Prices 2026 | From €14,840 incl. VAT | NVC Home4You',
+      description:
+        'What a finished box house costs: unit price, on-site assembly and VAT for the 37, 58 and 73 m² models. Transparent totals, and what is not included.',
+    },
+    bg: {
+      title: 'Цени на сглобяеми къщи 2026 | От 14 840 € с ДДС | NVC Home4You',
+      description:
+        'Колко струва завършена сглобяема къща: цена на модула, монтаж на място и ДДС за моделите 37, 58 и 73 м². Ясни крайни суми и какво не е включено.',
+    },
+    el: {
+      title: 'Τιμές προκατασκευασμένων σπιτιών 2026 | Από 14.840 € με ΦΠΑ | NVC Home4You',
+      description:
+        'Πόσο κοστίζει ένα ολοκληρωμένο σπίτι: τιμή μονάδας, συναρμολόγηση και ΦΠΑ για τα μοντέλα 37, 58 και 73 τ.μ. Καθαρά σύνολα και τι δεν περιλαμβάνεται.',
+    },
+  },
   privacy: {
     en: {
       title: 'Privacy & Cookie Policy | NVC Home4You',
@@ -303,7 +323,7 @@ function absolute(path) {
   return `${SITE_URL}${path}`
 }
 
-function buildHreflangs(pageKey) {
+export function buildHreflangs(pageKey) {
   const localized = paths[pageKey]
   if (!localized) return []
   const arr = []

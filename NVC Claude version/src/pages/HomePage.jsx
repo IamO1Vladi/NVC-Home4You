@@ -5,6 +5,7 @@ import WhyUs from '../components/WhyUs.jsx'
 import GlideServices from '../components/GlideServices.jsx'
 import ServiceTiles from '../components/ServiceTiles.jsx'
 import Testimonials from '../components/Testimonials.jsx'
+import ConfiguratorStrip from '../components/ConfiguratorStrip.jsx'
 import { LocalBusinessJSONLD } from '../components/StructuredData.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 
@@ -19,6 +20,7 @@ export default function HomePage({ locale = 'en', bundle }) {
       <Hero locale={locale} content={content.hero} onOpenOffer={openOffer} onOpenQuestion={openQuestion} />
       <ServiceTiles locale={locale} content={content.serviceTiles} />
       <GlideServices locale={locale} content={content.glideServices} />
+      <ConfiguratorStrip locale={locale} />
       <Steps content={content.steps} />
       <WhyUs content={content.whyUs} />
       <Testimonials locale={locale} content={content.testimonials} />

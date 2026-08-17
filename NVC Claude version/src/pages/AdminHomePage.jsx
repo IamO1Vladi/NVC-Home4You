@@ -18,6 +18,14 @@ const TEXT = {
     allClear: 'Няма нищо за одобрение в момента.',
     open: 'Отвори',
     cards: {
+      customers: {
+        name: 'Клиенти',
+        blurb: 'Клиентите, които са купили — с фабриката, цената и фактурите.',
+      },
+      factories: {
+        name: 'Фабрики',
+        blurb: 'Доставчиците, от които сме купували. Избират се при въвеждане на продажба.',
+      },
       leads: {
         name: 'Запитвания',
         blurb: 'Новите запитвания от сайта. Създайте лийд, за да започнете разговор.',
@@ -64,6 +72,14 @@ const TEXT = {
     allClear: 'Nothing is waiting for approval.',
     open: 'Open',
     cards: {
+      customers: {
+        name: 'Customers',
+        blurb: 'The people who bought — with the factory, the price and the invoices.',
+      },
+      factories: {
+        name: 'Factories',
+        blurb: 'The suppliers we have bought from. Picked when a sale is recorded.',
+      },
       leads: {
         name: 'Inquiries',
         blurb: 'New enquiries from the site. Create a lead to start a conversation.',
@@ -182,6 +198,20 @@ export default function AdminHomePage() {
           stat={t.stats.deals(deals)}
         />
         <HomeTile
+          to="/admin/customers"
+          icon="customers"
+          name={t.cards.customers.name}
+          blurb={t.cards.customers.blurb}
+          open={t.open}
+        />
+        <HomeTile
+          to="/admin/factories"
+          icon="factories"
+          name={t.cards.factories.name}
+          blurb={t.cards.factories.blurb}
+          open={t.open}
+        />
+        <HomeTile
           to="/admin/reviews"
           icon="reviews"
           name={t.cards.reviews.name}
@@ -221,6 +251,19 @@ export default function AdminHomePage() {
 }
 
 const TILE_ICON = {
+  customers: (
+    <>
+      <circle cx="9.2" cy="8.4" r="3.4" />
+      <path d="M2.8 20.2a6.4 6.4 0 0 1 12.8 0" />
+      <path d="M16.4 5.4a3.4 3.4 0 0 1 0 6.6M17.6 14.6a6.4 6.4 0 0 1 3.6 5.6" />
+    </>
+  ),
+  factories: (
+    <>
+      <path d="M3 20.4V10.6l5.4 3.2V10.6l5.4 3.2V10.6l5.4 3.2v6.6z" />
+      <path d="M19.2 13.8V4.6h-2.8v7.6M3 20.4h18" />
+    </>
+  ),
   leads: (
     <>
       <path d="M3.2 13.4h4.1l1.4 2.6h6.6l1.4-2.6h4.1" />

@@ -28,7 +28,10 @@ const THEME_KEY = 'nvc_admin_theme_v1'
 const TEXT = {
   bg: {
     brand: 'Администрация',
-    nav: { home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти' },
+    nav: {
+      home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
+      factories: 'Фабрики', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
+    },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
     errorHint: 'Проверете интернет връзката си и опитайте отново.',
@@ -44,7 +47,10 @@ const TEXT = {
   },
   en: {
     brand: 'Admin',
-    nav: { home: 'Home', leads: 'Inquiries', pipeline: 'Leads', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases' },
+    nav: {
+      home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
+      factories: 'Factories', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
+    },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
     errorHint: 'Check your internet connection and try again.',
@@ -128,6 +134,24 @@ const Icon = {
       <path d="M19 9.4a1.6 1.6 0 0 1 1.6 1.6v4.4a1.6 1.6 0 0 1-1.6 1.6v2.4l-2.8-2.4h-3.6" />
     </>
   ),
+  // People, not another speech bubble: a customer has finished talking to us. Two figures
+  // because it sits directly under the single-conversation pipeline icon and has to read
+  // as a different thing at tab-bar size.
+  customers: (
+    <>
+      <circle cx="9.2" cy="8.4" r="3.4" />
+      <path d="M2.8 20.2a6.4 6.4 0 0 1 12.8 0" />
+      <path d="M16.4 5.4a3.4 3.4 0 0 1 0 6.6M17.6 14.6a6.4 6.4 0 0 1 3.6 5.6" />
+    </>
+  ),
+  // A building with a chimney. Deliberately not a box or a house outline — those are the
+  // product, and this is who made it.
+  factories: (
+    <>
+      <path d="M3 20.4V10.6l5.4 3.2V10.6l5.4 3.2V10.6l5.4 3.2v6.6z" />
+      <path d="M19.2 13.8V4.6h-2.8v7.6M3 20.4h18" />
+    </>
+  ),
 }
 
 function NavIcon({ name }) {
@@ -147,6 +171,11 @@ const SECTIONS = [
   // Straight after the enquiry queue, because that is the journey: an inquiry arrives, it
   // becomes a lead, and the conversation that follows it lives here.
   { key: 'pipeline', to: '/admin/pipeline' },
+  // The rest of the same journey: a lead that buys becomes a customer, and the factory
+  // that built what they bought is the reference table the purchase points at. Factories
+  // last of the two because it is a directory somebody sets up once and then mostly reads.
+  { key: 'customers', to: '/admin/customers' },
+  { key: 'factories', to: '/admin/factories' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },

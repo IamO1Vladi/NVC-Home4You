@@ -1,13 +1,11 @@
 import React from 'react'
 import SEO from '../../components/SEO.jsx'
-import { LocalBusinessJSONLD } from '../../components/StructuredData.jsx'
 import HomePage from '../../pages/HomePage.jsx'
 import elHome from '../../content/el/home.js'
 
 export default function ElHomeRoute() {
   return (
     <>
-      <LocalBusinessJSONLD />
       <SEO
         title="Δομικές κατασκευές, δομικά σπίτια και προκατασκευασμένα σπίτια | NVC Home4You"
         description="Δομικές κατασκευές, δομικά σπίτια και προκατασκευασμένα σπίτια σε Βουλγαρία και Ευρώπη. Δείτε μοντέλα, παράδοση και εξατομικευμένες λύσεις από την NVC Home4You."

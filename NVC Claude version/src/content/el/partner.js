@@ -1,4 +1,9 @@
-const url = 'https://nvc-home4you.eu/el/partner'
+// The Greek slug, not the English one. This said '/el/partner' — a URL the router does not
+// register and the server answers with a 404 — so the page's own canonical, og:url and
+// hreflang="el" all pointed at a dead page. Every other locale transliterates its slug
+// (paths.js: partner = /bg/stani-partnjor, /en/partner, /el/ginete-synergatis); this file
+// was the one that kept the English path.
+const url = 'https://nvc-home4you.eu/el/ginete-synergatis'
 
 export default {
   seo: {

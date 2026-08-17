@@ -82,6 +82,11 @@ header{
    they then paint over the nav's dropdown menu. Only the site nav header lives outside
    <main>; neutralize the inheritance for every hero header inside it. */
 main header{
+  /* position first, and it was the omission that mattered: the bare `header` rule above
+     also sets position:sticky/top:0, so every in-page <header> quietly stuck itself to the
+     top of the viewport and rode down the page as you scrolled. Resetting only z-index and
+     backdrop-filter fixed the painting bug and left the sticking one. */
+  position:static;
   z-index:auto;
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
@@ -1366,3 +1371,198 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
   background:linear-gradient(90deg, rgba(57,181,213,.10), rgba(76,141,245,.10));
   border-color:rgba(76,141,245,.22);
 }
+
+/* ===================================================================================
+   Prices page.
+
+   Two views of one dataset: cards that sell (a photo of the real model with its finished
+   price) and a table that compares. Built narrow-first, because this page answers a query
+   people type on a phone — the desktop layout is the enhancement, not the baseline.
+   =================================================================================== */
+
+.prices-page { max-width: 1120px; margin: 0 auto; padding: clamp(1.25rem, 1rem + 2vw, 3.5rem) 1rem 5rem; }
+
+.prices-hero { display: grid; gap: .7rem; margin-bottom: 1.75rem; }
+.prices-hero h1 { margin: 0; text-wrap: balance; }
+.prices-lead { margin: 0; max-width: 62ch; opacity: .85; line-height: 1.6; }
+.prices-from { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; margin: .25rem 0 0; }
+.prices-from-label { font-size: .95rem; opacity: .75; }
+.prices-from-value { font-size: clamp(1.6rem, 1.2rem + 1.8vw, 2.3rem); font-variant-numeric: tabular-nums; }
+
+/* Segmented control. Full width on a phone so both options are comfortable thumb targets,
+   shrink-wrapped once there is room. */
+.prices-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(128, 128, 128, .28);
+  border-radius: 999px;
+}
+.prices-toggle-btn {
+  min-height: 44px;              /* the accessible tap-target floor */
+  padding: 0 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: .95rem;
+  cursor: pointer;
+  transition: background-color .18s ease, color .18s ease;
+}
+.prices-toggle-btn.is-on { background: rgba(128, 128, 128, .18); font-weight: 650; }
+.prices-toggle-btn:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+
+/* --- Model cards ------------------------------------------------------------------- */
+
+.prices-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+@media (min-width: 620px) { .prices-cards { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; } }
+
+.prices-card-model {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid rgba(128, 128, 128, .28);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(128, 128, 128, .03);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+/* Hover is decoration only — every number is already on the card. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .prices-card-model:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0, 0, 0, .12); }
+}
+
+.prices-card-media { aspect-ratio: 16 / 10; background: rgba(128, 128, 128, .1); }
+.prices-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.prices-card-body { padding: 1rem 1.1rem 1.15rem; display: grid; gap: .7rem; align-content: start; }
+.prices-card-title { margin: 0; font-size: 1.25rem; }
+
+.prices-breakdown { margin: 0; display: grid; gap: .35rem; }
+.prices-breakdown > div { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+.prices-breakdown dt { font-size: .85rem; opacity: .75; }
+.prices-breakdown dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.prices-card-total {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  margin: 0; padding-top: .65rem;
+  border-top: 1px solid rgba(128, 128, 128, .28);
+}
+.prices-card-total-label { font-size: .85rem; opacity: .75; }
+.prices-card-total strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+
+/* --- Comparison table ---------------------------------------------------------------- */
+
+.prices-section-head { font-size: 1.15rem; margin: 0 0 .75rem; }
+.prices-table-wrap { margin-bottom: 2.5rem; }
+.prices-table-scroll { overflow-x: auto; }
+.prices-table { width: 100%; border-collapse: collapse; }
+.prices-table th, .prices-table td { padding: .7rem .85rem; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, .25); }
+.prices-table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; opacity: .7; white-space: nowrap; }
+.prices-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prices-model-name { display: block; font-size: 1.02rem; }
+.prices-variant { display: block; font-size: .8rem; font-weight: 400; opacity: .7; }
+.prices-table .is-total { font-weight: 700; }
+/* The rows matching the toggle above, so the two views stay visibly connected. */
+.prices-table tr.is-selected { background: rgba(128, 128, 128, .07); }
+.prices-vat-note { margin: .8rem 0 0; opacity: .72; font-size: .875rem; line-height: 1.5; max-width: 70ch; }
+
+/* Under 700px a five-column price table is unreadable however far it scrolls, so each row
+   becomes its own block and the column headings move beside the figures. */
+@media (max-width: 700px) {
+  .prices-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .prices-table, .prices-table tbody, .prices-table tr, .prices-table th, .prices-table td { display: block; }
+  .prices-table tr {
+    border: 1px solid rgba(128, 128, 128, .28);
+    border-radius: 12px;
+    padding: .85rem 1rem;
+    margin-bottom: .75rem;
+  }
+  .prices-table th, .prices-table td { border-bottom: 0; padding: .2rem 0; }
+  .prices-table tbody th { padding-bottom: .5rem; margin-bottom: .4rem; border-bottom: 1px solid rgba(128, 128, 128, .25); }
+  .prices-table td { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+  .prices-table td::before { content: attr(data-label); font-size: .82rem; opacity: .72; }
+  .prices-table td.is-total { margin-top: .4rem; padding-top: .5rem; border-top: 1px solid rgba(128, 128, 128, .25); }
+}
+
+/* --- What is and is not included ------------------------------------------------------ */
+
+.prices-scope {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem 2.5rem;
+  margin-bottom: 2.5rem;
+}
+.prices-scope h2 { font-size: 1.1rem; margin: 0 0 .6rem; }
+.prices-list { margin: 0; padding-left: 1.15rem; display: grid; gap: .4rem; line-height: 1.55; }
+.prices-foundation { margin: .8rem 0 0; font-size: .925rem; opacity: .8; line-height: 1.55; }
+
+.prices-others { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem; }
+.prices-card { border: 1px solid rgba(128, 128, 128, .28); border-radius: 12px; padding: 1.25rem; display: grid; gap: .6rem; align-content: start; }
+.prices-card h2 { font-size: 1.1rem; margin: 0; }
+.prices-card p { margin: 0; line-height: 1.55; opacity: .88; }
+.prices-card .btn { justify-self: start; margin-top: .3rem; }
+
+.prices-cta { border-top: 1px solid rgba(128, 128, 128, .25); padding-top: 2rem; display: grid; gap: .6rem; }
+.prices-cta h2 { margin: 0; }
+.prices-cta p { margin: 0; max-width: 58ch; opacity: .88; line-height: 1.55; }
+.prices-cta-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .5rem; }
+
+/* An FAQ entry filtered out by the tab or the search box. Hidden, not unmounted — the
+   FAQPage structured data declares every question, and schema must describe content the
+   page actually contains. Content behind tabs and accordions is indexed; content that is
+   not in the HTML is not. */
+.faqp-item.is-filtered { display: none; }
+
+/* Sections on the prices page: cards, then that section's own table directly beneath,
+   because box houses and wagons do different arithmetic and a single combined table
+   forced the reader to keep checking which rule a row followed. */
+.prices-section { margin-bottom: 3rem; }
+.prices-section-intro { margin: -.35rem 0 1.1rem; max-width: 64ch; opacity: .8; line-height: 1.55; font-size: .95rem; }
+.prices-section .prices-table-scroll { margin-top: 1.5rem; }
+.prices-card-media { display: block; }
+.prices-card-title { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.prices-state { opacity: .75; margin: 0 0 2rem; }
+
+/* The configurator strip on the home page: three model cards that ARE the way in. */
+.cfg-strip .cfg-strip-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.cfg-strip-kicker{margin:0 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;opacity:.65}
+.cfg-strip-title{margin:0;font-size:clamp(22px,3.5vw,30px)}
+.cfg-strip-lead{margin:6px 0 0;opacity:.82;max-width:56ch;line-height:1.5}
+.cfg-strip-all{font-weight:600;opacity:.9;white-space:nowrap}
+.cfg-strip-all:hover{opacity:1;text-decoration:underline}
+.cfg-strip-cards{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:640px){.cfg-strip-cards{grid-template-columns:repeat(3,1fr)}}
+.cfg-strip-card{
+  display:grid;grid-template-rows:auto 1fr;
+  border:1px solid rgba(128,128,128,.28);border-radius:16px;overflow:hidden;
+  background:rgba(128,128,128,.04);
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+  .cfg-strip-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.18)}
+}
+.cfg-strip-card img{width:100%;aspect-ratio:16/10;object-fit:cover}
+.cfg-strip-card-body{display:grid;gap:4px;padding:12px 14px 14px}
+.cfg-strip-card-name{font-weight:700;font-size:1.05rem}
+.cfg-strip-card-price{opacity:.85;font-variant-numeric:tabular-nums}
+.cfg-strip-card-cta{margin-top:4px;font-weight:600;opacity:.9}
+.cfg-strip-planner{margin:14px 0 0;opacity:.85}
+.cfg-strip-planner a:hover{text-decoration:underline}
+
+/* The whole price card is a target for its catalogue page, driven by the single title
+   link — an overlay rather than a second <a>, so assistive tech announces one link per
+   card instead of the image and the title separately. */
+.prices-card-model{position:relative}
+.prices-card-link::after{content:"";position:absolute;inset:0;border-radius:14px}
+.prices-card-link:focus-visible{outline:none}
+.prices-card-model:focus-within{outline:2px solid currentColor;outline-offset:2px}
+.prices-card-title{margin:0}
+.prices-card-media{cursor:pointer}

@@ -1,10 +1,14 @@
 # Next phase — what is left on Quickbase, and the admin panel
 
-> **Superseded 2026-08-12 by [HANDOFF-2026-08-12.md](HANDOFF-2026-08-12.md).** The table
-> below still lists leads as living on Quickbase. They no longer do: the SQL tables are
-> live, 252 rows are imported, and `/admin/leads` ships. Read the handoff for current state
-> and the settled Leads-table design; this file is kept for the sections it still owns
-> (saved configurator links, factory sheet, order tracking).
+> **Superseded — read [HANDOFF-2026-08-17.md](HANDOFF-2026-08-17.md) instead.**
+>
+> The store table below is wrong in two places now: **leads** moved to SQL on 2026-08-12,
+> and **saved configurator links** migrated on 2026-08-15. Section 1 (leads) and section 2
+> (saved configs) are both history.
+>
+> What this file still owns and nobody has done: **§3 factory sheet into the admin panel**
+> and **§5 order tracking**. §4 concluded there is no "website files" table but identified a
+> real want — an admin Documents section — which is also still open.
 
 Written 2026-08-06, at the end of the session that moved gallery, cases and all images off
 Quickbase. `DEPLOY.md` has the release mechanics and

@@ -252,6 +252,14 @@ public class LeadDetailDto
     public string HouseTitle { get; set; } = "";
     public string CustomModel { get; set; } = "";
 
+    // What kind of thing they want. May or may not be a gallery category — see
+    // Lead.CategoryKey — and the panel decides whether to offer a model list on that
+    // basis, so it is sent raw rather than normalised here.
+    public string CategoryKey { get; set; } = "";
+
+    public string Source { get; set; } = "";
+    public string LostReason { get; set; } = "";
+
     // Where it came from, so the panel can link back to the original enquiry. Both null
     // for a cold-call lead.
     public int? OfferId { get; set; }

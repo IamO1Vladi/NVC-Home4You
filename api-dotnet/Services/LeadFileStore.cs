@@ -99,14 +99,25 @@ public sealed class LeadFileStore
     /// "scan.pdf". The original name is kept in SQL for display and for re-sending, where
     /// it is data rather than a path.
     /// </summary>
-    public static string MintKey(int leadId, string fileName)
+    public static string MintKey(int leadId, string fileName) => MintKey("leads", leadId, fileName);
+
+    /// <summary>
+    /// The same minting rule under a different prefix, for the other things that keep
+    /// private documents here — currently purchase invoices ("customers/{id}/…").
+    ///
+    /// One container, separate prefixes. A second container would need its own name, its
+    /// own configuration key and its own "is it set up?" branch, all to hold files with
+    /// identical handling rules; the prefix carries the same separation for reading and
+    /// lifecycle purposes without any of that.
+    /// </summary>
+    public static string MintKey(string scope, int ownerId, string fileName)
     {
         var ext = Path.GetExtension(fileName);
         if (string.IsNullOrWhiteSpace(ext) || ext.Length > 12) ext = "";
 
         // Lower-cased so the key is stable across the case-insensitive filesystems people
         // upload from and the case-sensitive store it lands in.
-        return $"leads/{leadId}/{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+        return $"{scope}/{ownerId}/{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
     }
 
     public async Task UploadAsync(string key, Stream content, string contentType, CancellationToken ct)

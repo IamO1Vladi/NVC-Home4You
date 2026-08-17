@@ -1,6 +1,6 @@
 // src/pages/FAQPage.jsx
 import React, { useEffect, useMemo, useState } from 'react'
-import { m, AnimatePresence } from 'framer-motion'
+import { m } from 'framer-motion'
 
 const ALL_KEY = '__all__'
 
@@ -47,16 +47,29 @@ function FilterSelect({ options, value, onChange, label }) {
   )
 }
 
-function QAItem({ q, a, tag }) {
+// One question and its answer.
+//
+// THE ANSWER IS ALWAYS IN THE DOM, collapsed with height rather than unmounted. It used to
+// be `{open && <answer>}`, which meant a closed answer did not exist in the HTML at all —
+// and this page ships FAQPage structured data declaring all six answers. Google requires
+// content asserted in FAQPage markup to be present on the page, so the schema was claiming
+// text no crawler could find: markup ignored at best, a manual action at worst. It also left
+// the whole FAQ page prerendering to ~540 characters.
+//
+// Collapsed-behind-an-accordion is explicitly fine — Google indexes content in expandable
+// sections. Absent from the HTML is not.
+function QAItem({ q, a, tag, hidden = false }) {
   const [open, setOpen] = useState(false)
+  const answerId = React.useId()
 
   return (
-    <div className={'faqp-item' + (open ? ' open' : '')}>
+    <div className={'faqp-item' + (open ? ' open' : '') + (hidden ? ' is-filtered' : '')}>
       <button
         type="button"
         className="faqp-q"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        aria-controls={answerId}
       >
         <span className="faqp-qwrap">
           {tag ? <span className="faqp-tag">{tag}</span> : null}
@@ -74,18 +87,20 @@ function QAItem({ q, a, tag }) {
         </m.span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <m.div
-            className="faqp-a"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-          >
-            <div className="faqp-a-inner">{a}</div>
-          </m.div>
-        )}
-      </AnimatePresence>
+      {/* Rendered whether or not it is open; only its height changes. aria-hidden keeps a
+          screen reader from reading every collapsed answer, which is safe here because the
+          answers are plain strings with nothing focusable in them. */}
+      <m.div
+        id={answerId}
+        className="faqp-a"
+        aria-hidden={!open}
+        initial={false}
+        animate={{ height: open ? 'auto' : 0, opacity: open ? 1 : 0 }}
+        transition={{ duration: 0.2 }}
+        style={{ overflow: 'hidden' }}
+      >
+        <div className="faqp-a-inner">{a}</div>
+      </m.div>
     </div>
   )
 }
@@ -116,28 +131,27 @@ export default function FAQPage({ content }) {
     setTab((prev) => (keys.has(prev) ? prev : (groups.length ? '0' : ALL_KEY)))
   }, [options, groups.length])
 
+  // EVERY question is rendered, every time; the tab and the search box only decide which are
+  // shown. Filtering the array instead meant the page loaded on its first tab with two of
+  // the six questions in the DOM — while the FAQPage markup below declared all six. Schema
+  // has to describe content the page actually contains, and hiding the rest with CSS is the
+  // accepted way to do that: Google indexes content behind tabs and accordions.
   const list = useMemo(() => {
-    let items = []
-
-    if (tab === ALL_KEY) {
-      items = groups.flatMap((group) => {
-        const arr = Array.isArray(group?.items) ? group.items : []
-        return arr.map((item) => ({ ...item, _tag: group?.title || '' }))
-      })
-    } else {
-      const idx = Number(tab)
-      const group = groups[idx] || groups[0]
+    const all = groups.flatMap((group, index) => {
       const arr = Array.isArray(group?.items) ? group.items : []
-      items = arr.map((item) => ({ ...item, _tag: '' }))
-    }
+      return arr.map((item) => ({ ...item, _group: String(index), _tag: group?.title || '' }))
+    })
 
-    if (query.trim()) {
-      const ql = query.toLowerCase()
-      items = items.filter((item) => `${item.q || ''} ${item.a || ''}`.toLowerCase().includes(ql))
-    }
+    const ql = query.trim().toLowerCase()
 
-    return items
+    return all.map((item) => ({
+      ...item,
+      _visible: (tab === ALL_KEY || item._group === tab)
+        && (!ql || `${item.q || ''} ${item.a || ''}`.toLowerCase().includes(ql)),
+    }))
   }, [groups, tab, query])
+
+  const visibleCount = list.filter((item) => item._visible).length
 
   return (
     <main className="arx">
@@ -173,16 +187,20 @@ export default function FAQPage({ content }) {
             </div>
 
             <div className="faqp-list">
-              {list.length === 0 && (
+              {visibleCount === 0 && (
                 <div style={{ opacity: 0.75, paddingTop: 8 }}>{content.noResultsText}</div>
               )}
 
               {list.map((item, i) => (
                 <QAItem
-                  key={`${item.q || 'q'}-${tab}-${i}`}
+                  // Keyed on the question rather than the tab, so switching tabs hides and
+                  // shows the same elements instead of remounting them — which would reset
+                  // every answer somebody had opened.
+                  key={`${item.q || 'q'}-${i}`}
                   q={item.q}
                   a={item.a}
                   tag={tab === ALL_KEY ? item._tag : ''}
+                  hidden={!item._visible}
                 />
               ))}
             </div>

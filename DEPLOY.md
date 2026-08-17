@@ -60,6 +60,40 @@ This replaces the hand-written `DEPLOY PENDING` block that used to live at the t
    `wwwroot`, so the SPA can never ship stale. There is no `dist/` → `wwwroot` copy step
    any more — if you still have that in muscle memory, drop it.
 
+6b. **Refresh the prerendered pages** — needed whenever page copy, routes or the gallery
+   changed. Skip it and the deploy still works; it just ships the previous snapshots.
+
+   These are what give crawlers a page with content in it instead of an empty
+   `<div id="root">`. Unlike the SPA build, this one is **not** automatic: it needs the app
+   running, which a publish does not have.
+
+   **Build first, then start the app, then prerender — in that order.** The app reads
+   `index.html` once at startup, so a rebuild while it is running leaves it serving a page
+   that points at a JS bundle the build just deleted; React never boots and every snapshot
+   would be empty. The script refuses to write anything in that case rather than shipping 55
+   blank pages, so a mistake here costs a restart, not a bad release.
+
+   ```bash
+   cd "NVC Claude version" && npm run build
+   cd ../api-dotnet && DATA_SOURCE_GALLERY=sql DATA_SOURCE_CASES=sql DATA_SOURCE_REVIEWS=sql dotnet run
+   ```
+
+   **The DATA_SOURCE flags matter, and it is GALLERY, not HOUSES.** A local app without
+   them reads Quickbase while production reads SQL, so snapshots would freeze prices from
+   the wrong store — this actually happened with a corrected price on 2026-08-15. The
+   prerender script now compares the local catalogue against the live site and refuses to
+   run on a mismatch, so forgetting the flags fails loudly instead of silently.
+   then, in a second terminal:
+   ```bash
+   cd "NVC Claude version" && npm run prerender
+   ```
+
+   Expect `55/55 routes`. It writes to `api-dotnet/prerendered/`, which the publish picks
+   up (`StagePrerenderedForPublish`). Then stop the local app and publish as above.
+
+   Run it **against a local app, never against production** — snapshots taken from the live
+   site would bake in whatever is currently deployed, which is the version you are replacing.
+
 7. **Tag the deploy** so you can identify what's live later:
    ```bash
    git tag deploy-$(date +%Y-%m-%d) && git push --tags

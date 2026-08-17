@@ -69,6 +69,47 @@ public class EnvConfig
     public int F_Q_REACHED_OUT => GetInt("FID_Q_REACHED_OUT", 9);
     public int F_Q_LEAD_CREATED => GetInt("FID_Q_LEAD_CREATED", 10);
 
+    // --- The Quickbase CRM "Lead" table -----------------------------------------------
+    // A different table from the two above, and a different KIND of thing: offers and
+    // questions are website form submissions, this is the sales relationship sheet the
+    // team maintained by hand. It is what `import-crm-leads` reads into the Leads table.
+    //
+    // One-time import rather than a live source, so it has no DATA_SOURCE_ flag: after
+    // the import the panel is authoritative and this table stops being read.
+    //
+    // Field ids verified against the live table with `qb-peek` on 2026-08-13. Defaults
+    // are the real ids, so setting them is optional — but they are still readable from
+    // configuration, because a Quickbase field id is exactly the sort of thing that
+    // changes without anyone telling the repository.
+    public string TableCrmLeads => _cfg["QB_TABLE_CRM_LEADS"] ?? "";
+
+    public int F_CRM_FIRST_NAME => GetInt("FID_CRM_FIRST_NAME", 6);
+    public int F_CRM_LAST_NAME => GetInt("FID_CRM_LAST_NAME", 7);
+    public int F_CRM_EMAIL => GetInt("FID_CRM_EMAIL", 9);
+    public int F_CRM_PHONE => GetInt("FID_CRM_PHONE", 10);
+    public int F_CRM_PROJECT => GetInt("FID_CRM_PROJECT", 11);
+    public int F_CRM_COUNTRY => GetInt("FID_CRM_COUNTRY", 12);
+    public int F_CRM_SITE_ADDRESS => GetInt("FID_CRM_SITE_ADDRESS", 13);
+    public int F_CRM_LANGUAGE => GetInt("FID_CRM_LANGUAGE", 20);
+    public int F_CRM_CONTACT_METHOD => GetInt("FID_CRM_CONTACT_METHOD", 21);
+    public int F_CRM_SOURCE => GetInt("FID_CRM_SOURCE", 22);
+    public int F_CRM_INTEREST => GetInt("FID_CRM_INTEREST", 24);
+    public int F_CRM_SIZE => GetInt("FID_CRM_SIZE", 25);
+    public int F_CRM_BUDGET => GetInt("FID_CRM_BUDGET", 26);
+    public int F_CRM_TIMELINE => GetInt("FID_CRM_TIMELINE", 27);
+    public int F_CRM_NOTES => GetInt("FID_CRM_NOTES", 28);
+    public int F_CRM_DELIVERY_REGION => GetInt("FID_CRM_DELIVERY_REGION", 29);
+    public int F_CRM_STAGE => GetInt("FID_CRM_STAGE", 31);
+    public int F_CRM_STATUS => GetInt("FID_CRM_STATUS", 32);
+    public int F_CRM_OWNER => GetInt("FID_CRM_OWNER", 33);
+    public int F_CRM_NEXT_FOLLOWUP => GetInt("FID_CRM_NEXT_FOLLOWUP", 38);
+    public int F_CRM_LAST_CONTACT => GetInt("FID_CRM_LAST_CONTACT", 40);
+    public int F_CRM_NEXT_STEP => GetInt("FID_CRM_NEXT_STEP", 41);
+    public int F_CRM_CONVERTED => GetInt("FID_CRM_CONVERTED", 45);
+    public int F_CRM_CONVERTED_AT => GetInt("FID_CRM_CONVERTED_AT", 46);
+    public int F_CRM_LOST_REASON => GetInt("FID_CRM_LOST_REASON", 47);
+    public int F_CRM_HOUSE => GetInt("FID_CRM_HOUSE", 52);
+
     // Built-in Quickbase fields, identical on both lead tables. Needed by the import to
     // key rows and preserve when each lead actually arrived.
     public int F_LEAD_CREATED_ON => GetInt("FID_LEAD_CREATED_ON", 1);   // Date Created
@@ -290,7 +331,11 @@ public class EnvConfig
     public bool SqlConfigured => !string.IsNullOrWhiteSpace(SqlConnectionString);
 
     // Per-entity switch so tables can be cut over one at a time and reverted instantly.
-    // Env var shape: DATA_SOURCE_HOUSES=sql (anything else, or unset, means quickbase).
+    // Env var shape: DATA_SOURCE_<ENTITY>=sql (anything else, or unset, means quickbase).
+    // The entity is the string passed in, NOT the table name: the gallery is selected by
+    // DATA_SOURCE_GALLERY, not DATA_SOURCE_HOUSES. This example said HOUSES for a long time
+    // and cost an afternoon — a prerender run read Quickbase prices while production served
+    // SQL ones, and the flag that looked right did nothing.
     // Falls back to Quickbase whenever SQL isn't configured, so a half-set flag can
     // never take the site down.
     public DataSource DataSourceFor(string entity)

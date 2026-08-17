@@ -48,6 +48,10 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
   const aboutItems = [
     { key: 'about', label: aboutLabel, to: pathFor('about') },
     { key: 'cases', label: content?.nav?.cases || (currentLocale === 'bg' ? 'Казуси' : 'Cases'), to: pathFor('cases') },
+    // Moved out of the top bar when Prices went in. Eight top-level items was too many, and
+    // of the candidates the FAQ is the one nobody arrives intending to visit — it is support
+    // content, where Gallery and Prices are the two pages that sell.
+    { key: 'faq', label: content?.nav?.faq, to: pathFor('faq') },
   ]
   const isAboutActive = aboutItems.some((item) => item.to === location.pathname)
 
@@ -55,8 +59,8 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
   // see beats a link hidden one dropdown deep.
   const mobileItems = [
     { key: 'gallery', label: content?.nav?.gallery, to: pathFor('gallery') },
+    { key: 'prices', label: content?.nav?.prices, to: pathFor('prices') },
     ...aboutItems,
-    { key: 'faq', label: content?.nav?.faq, to: pathFor('faq') },
     { key: 'partner', label: content?.nav?.partner, to: pathFor('partner') },
     ...planningItems,
   ].filter((item) => item.label && item.to)
@@ -189,7 +193,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
           </div>
 
           <NavLink to={pathFor('gallery')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.gallery}</NavLink>
-          <NavLink to={pathFor('faq')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.faq}</NavLink>
+          <NavLink to={pathFor('prices')} className={({ isActive }) => ['link-btn', isActive && 'active'].filter(Boolean).join(' ')}>{content.nav.prices}</NavLink>
 
           <div className="menu" ref={aboutRef}>
             <button

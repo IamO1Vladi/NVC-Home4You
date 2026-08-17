@@ -2,68 +2,107 @@ NVC HOME4YOU — IMPROVEMENTS & IDEAS TRACKER
 ============================================
 (kept up to date as we work; [ ] = todo, [x] = done, [~] = in progress)
 
+Current state and what to do next -> HANDOFF-2026-08-17.md
+Release mechanics -> DEPLOY.md   (note the prerender step, §6b)
+Migration history -> ROADMAP-datalayer-admin.md
+
 RECENTLY DONE
 -------------
+[x] Saved configurator links on Azure SQL (2026-08-15)
+    The last table off Quickbase. Migration applied; import + flag flip still to run.
+    SQL misses fall back to Quickbase, because the codes are already in customers' inboxes.
+    Once DATA_SOURCE_SAVEDCONFIGS=sql is live and the import has run, Quickbase has no
+    live runtime path left.
+[x] Prices page — /bg/ceni, /en/prices, /el/times (2026-08-15)
+    The whole catalogue: 8 box houses + 6 wagons, cards and a table per section, priced
+    FROM the gallery so the page and the product pages can never disagree. Targets
+    "сглобяеми къщи цени", the highest-intent query in the market.
+    Box assembly is ADDED; a wagon's price already CONTAINS its EUR 1000 assembly.
+[x] Configurator strip on the home page (2026-08-15)
+    Three model cards with real photos and finished prices; tapping one opens the
+    configurator with that model preselected (?model=37|58|73).
+[x] SEO audit and fixes (2026-08-14/15) — see HANDOFF-2026-08-17.md
+    - 42 product pages were canonicalising to the HOMEPAGE. Fixed at request time.
+    - Body prerendering: 55/55 routes, ~140k chars of crawlable text where every URL
+      previously served 0. Competitors served 4,819-19,392.
+    - FAQ structured data declared 6 answers that were not in the DOM at all. Fixed.
+    - Bare domain was a fourth homepage; sitemap now generated from paths.js (it had
+      silently never listed the services page); HSTS; a Greek page canonicalised onto a 404.
+    - Still to do by hand: Search Console resubmit + re-index request.
+[x] Customers, factories and purchases in the admin panel (2026-08-14)
+    Customer identity (физическо/юридическо, ЕИК/ЕГН), purchases as a join to factories,
+    deposit/final price/left-to-pay, prepaid + final invoice attachments.
+    Migration applied to production 2026-08-14.
+[x] Leads pipeline (2026-08-12/13) — see HANDOFF-2026-08-12.md
+    Inquiry queue + lead pipeline with conversation threads, attachments both ways,
+    follow-up dates and an emailed due report, AI-drafted replies. 257 CRM leads imported.
 [x] Gallery + cases on Azure SQL, all images on Azure Blob as WebP (2026-08-06)
-    Live: DATA_SOURCE_GALLERY=sql, DATA_SOURCE_CASES=sql, IMAGES_VIA_APP=true.
-    Admin panel now does full CRUD for both, with image upload and a rich text editor.
     ~92 MB saved converting images to WebP. Tag deploy-2026-08-06.
-    Still on Quickbase: leads (offers/questions) and saved configurator links.
-    What is left -> ROADMAP-next.md. History -> ROADMAP-datalayer-admin.md.
-[x] Reviews migrated to Azure SQL + admin panel (2026-08-05, see HANDOFF.md)
-    Data layer work is tracked in ROADMAP-datalayer-admin.md, not here.
-    Publishing is now one action from VS Code - see DEPLOY.md.
+[x] Reviews migrated to Azure SQL + admin panel (2026-08-05)
 [x] Mobile-first redesign of the Box House configurator
-    (progress stepper, live preview hero, one-decision accordions, sticky price/nav bar)
-[x] Fix: window-size selector overflow on mobile in BG/EL (long "standard size" label)
-[x] Fix: configurator summary prefilled into the offer/question modal message again
-    (sessionStorage prefill now read by App.jsx; scoped to the configurator page only)
-[x] Homepage testimonials / social proof near CTAs (+ xUnit & Vitest test suites)
-[x] Pin vite to ^7 so npm ci works without --legacy-peer-deps
+[x] Homepage testimonials / social proof near CTAs
 
 HIGH PRIORITY — MEASURE & CONVERT
 ---------------------------------
-[x] 1. Funnel analytics events (merged to master, PR #1)
-       - request_quote_success enriched: lead_source, model_label, lead_value + EUR currency
-         (also passed to the Meta Pixel Lead event as value/currency)
-       - configurator_start / configurator_step / configurator_complete
-       - ask_question_success, configurator_pdf_export, configurator_copy_summary
-       - GTM container GTM-MSJR4ZGP tags configured and deployed live
-[x] 2. Save & resume / shareable configuration (Phases 1 & 2 shipped, PRs #2/#3)
-       [x] Auto-save config to localStorage + "Continue where you left off?" banner
-       [x] "Copy link" -> config compressed into URL hash (lz-string), Web Share API on mobile
-       [x] Attach the share link to the offer text that lands in Quickbase
-       [x] Phase 2 — short links (/c/{code}, Quickbase-backed) + "email me my config"
-           (live; email sends via Microsoft Graph / OAuth — M365 SMTP basic auth is disabled)
+[x] 1. Funnel analytics events (PR #1) — GTM-MSJR4ZGP live
+[x] 2. Save & resume / shareable configuration (PRs #2/#3)
 [ ] 3. Popular presets / quick-start bundles in the configurator
        (3-4 ready-made configurations to pick and tweak; fights choice overload)
-[x] 4. Speed-to-lead follow-up (PR #8 — deployed to Azure 2026-08-03)
-       [x] Instant autoresponder to the lead (config link) + internal "new lead" email to sales
-       [x] WhatsApp click-to-chat — expandable launcher next to Viber (+359 87 935 5269)
+       Partly addressed by the home-page configurator strip, which now makes the FIRST
+       choice for the visitor. Presets would take it further.
+[x] 4. Speed-to-lead follow-up (PR #8)
 [ ] 5. Financing / total-cost calculator
        (monthly payment estimate; clear "included vs quote-on-review" breakdown)
+       Cheaper now: the prices page already computes finished totals per model.
 
 COMPOUNDING BETS
 ----------------
-[ ] 6. Content/SEO engine: blog + guides + location pages
-       ("prefab house price Bulgaria", permits, timelines, choosing land, ...)
+[~] 6. Content/SEO engine: blog + guides + location pages
+       Technical SEO is done (see above). What is left is genuinely content:
+       - product pages are ~135 words, /en/modular-houses is 278
+       - the two comparison articles: "сглобяема къща или тухла",
+         "колко струва сглобяема къща" — low difficulty, high intent, and both
+         feed the prices page internally
 [ ] 7. Trust & proof: case studies with real timelines/photos, "homes delivered" counter,
        warranty/certifications page, embedded Google reviews
 [ ] 8. PWA: add service worker (vite-plugin-pwa) -> installable, fast repeat visits
-       (site.webmanifest already exists)
 
 FOUNDATION / POLISH
 -------------------
 [~]  9. Performance pass: Lighthouse / Core Web Vitals, image optimization, preconnect
-        Images are now WebP and capped at 2560px, served from our own origin with a year
-        of immutable caching (was: Quickbase, max-age=7200 private, never edge-cached).
+        Images are WebP, capped at 2560px, served from our origin with a year of immutable
+        caching. Prerendering now also means the first paint has real content.
         Still open: per-breakpoint srcset - a phone downloads the desktop-sized file.
 [ ] 10. Accessibility audit (EU Accessibility Act applies since June 2025)
-[ ] 11. Translation completeness audit for Greek (added recently; check gaps/fallbacks)
+[ ] 11. Translation completeness audit for Greek
 [x] 12. Dev hygiene: stop tracking api-dotnet bin/ and obj/ build artifacts in git
-        (done via git rm --cached; .gitignore already covered them. Merged to master.)
 [ ] 13. Upgrade path for @vitejs/plugin-react (v6 supports vite 8) — only when needed
 
-SETUP REMINDERS
----------------
-[x] Run `gh auth login` once (GitHub CLI is installed) so PRs can be opened directly
+ADMIN PANEL — WHAT IS STILL MISSING
+-----------------------------------
+The panel now covers: home, inquiries, leads, customers, factories, reviews, gallery, cases.
+
+[ ] 14. Audit log — who changed what, when.
+        Flagged when the concern was "you edit live pricing"; sharper now that the panel
+        holds ЕГН, ЕИК, deposits and invoices with no record of who touched them.
+[ ] 15. Factory sheet into the admin panel.
+        Still at /internal/factory-sheet, localStorage-only: the data exists in exactly one
+        browser and a cleared cache loses it. Doubly confusing now that a real Factories
+        section sits beside it in the nav.
+[ ] 16. Documents section (brochures via Blob) — changing a PDF still needs a developer
+        and a deploy. Shares everything with the image pipeline already built.
+
+INFRASTRUCTURE
+--------------
+[ ] 17. App SQL login is still `dbadmin`, the server administrator — far more privilege
+        than it needs. Carried since the start of the migration.
+[ ] 18. Managed identity for Blob instead of a stored account key.
+[ ] 19. Secret expiry ~2027-02-04: Entra client secret, Graph credentials, Quickbase token.
+        Each fails silently and partially. The Quickbase one stops mattering once saved
+        configs are live on SQL.
+
+DELIBERATELY NOT DOING
+----------------------
+- Homepage H1 stays the slogan "Защото домът не трябва да е лукс" even though it carries
+  no target keyword. It is brand copy in three languages; that is a business call.
+- Billing/invoicing stays in Quickbase — out of scope for the data migration.

@@ -18,6 +18,13 @@ public class Lead
 {
     public int Id { get; set; }
 
+    // The Quickbase record this row was imported from, if it was. Null for leads born in
+    // the panel, which is every lead created after the import.
+    //
+    // The whole reason `import-crm-leads` can be run twice: rows are matched on this, so a
+    // re-run updates in place instead of producing a second copy of 257 customers.
+    public int? QuickbaseRecordId { get; set; }
+
     // --- Where it came from ---------------------------------------------------------
     // BOTH NULLABLE, deliberately. The obvious modelling here is "a lead is always born
     // from a website enquiry", and it is wrong: the ones that arrive by phone, at a trade
@@ -68,6 +75,19 @@ public class Lead
 
     [MaxLength(400)] public string? CustomModel { get; set; }
 
+    // What KIND of thing they are after, which is a coarser question than which model and
+    // is usually answerable long before the model is.
+    //
+    // NOT constrained to HouseCategories, and that is the point rather than an oversight.
+    // Most of these are gallery categories — prefab, modular, wagon, garage — and for
+    // those the panel can offer the actual models to pick from. But the real enquiry mix
+    // also contains "Контейнер", "Logistics", "Interiors": things the company sells that
+    // the gallery has no filter for. Forcing those into a gallery key would file them
+    // under a category they do not belong to; refusing them would lose them. So the column
+    // takes either, and HouseCategories.IsValid decides whether a model dropdown makes
+    // sense — see the admin panel, which hides it when there is nothing to list.
+    [MaxLength(60)] public string? CategoryKey { get; set; }
+
     // --- Where it stands ------------------------------------------------------------
     // See LeadStatuses. Not an enum column: the string keys survive a migration, read
     // correctly in a raw SQL query, and don't renumber themselves when someone inserts a
@@ -108,6 +128,17 @@ public class Lead
     // after 6", "brother-in-law is the actual decision maker". NVARCHAR(MAX): it accretes,
     // and it is never indexed or filtered on.
     public string? Notes { get; set; }
+
+    // Where the lead came from — "Website form", "Facebook", "Walk-in". Free text rather
+    // than a closed set: it is a marketing question, the answers change whenever a
+    // campaign does, and nothing in the app behaves differently per value.
+    [MaxLength(60)] public string? Source { get; set; }
+
+    // Why a Lost lead was lost. Meaningless on any other status, and deliberately kept
+    // rather than folded into Notes: LeadStatuses says "why did we lose it" is the
+    // question worth being able to ask later, and a question you have to grep free text
+    // for is one nobody asks twice.
+    [MaxLength(120)] public string? LostReason { get; set; }
 
     // The language the customer wrote in, carried from the originating enquiry. Drives
     // which language we answer in, and later which language a drafted reply comes back in.

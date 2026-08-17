@@ -21,7 +21,10 @@ const DETAIL = {
   id: 1, name: 'Ivan Petrov', email: 'ivan@example.com', phone: '', status: 'quoted',
   ownerUpn: '', locale: 'bg', country: '', buildLocation: '', projectName: '',
   nextStep: 'Send revised quote', nextContactAt: '2026-08-10T00:00:00.0000000Z',
-  notes: 'Prefers calls after six.', houseId: 3, houseTitle: 'Nova 60', customModel: '',
+  notes: 'Prefers calls after six.', houseId: 3, houseTitle: 'Nova 60',
+  // "Logistics" is a real value from the imported CRM data and not a gallery category,
+  // which is what makes it the case the model dropdown has to disappear for.
+  customModel: '', categoryKey: 'modular',
   offerId: 7, questionId: null, createdAt: '2026-07-01T09:00:00Z', lastActivityAt: '2026-08-01T09:00:00Z',
   activities: [
     { id: 10, type: 'email_in', subject: 'Question', body: 'How much for the 60?', actorUpn: '', fromCustomer: true, occurredAt: '2026-07-01T09:00:00Z', attachments: [] },
@@ -31,9 +34,13 @@ const DETAIL = {
 }
 
 let calls = []
+// The detail payload the mock serves, so a test can swap in a lead whose category is not
+// one the gallery filters on — the case the model dropdown has to disappear for.
+let detail = DETAIL
 
 beforeEach(() => {
   calls = []
+  detail = DETAIL
   // jsdom has no layout engine, so scrollIntoView is undefined on every element.
   Element.prototype.scrollIntoView = vi.fn()
 
@@ -47,7 +54,14 @@ beforeEach(() => {
     if (u.includes('/api/admin/pipeline/1/reply')) return json({ ok: true, activityId: 99 })
     if (u.includes('/api/admin/pipeline/1/attachments')) return json({ ok: true, activityId: 98 })
     if (u.includes('/api/admin/pipeline/due/report')) return json({ ok: true, count: 2, recipients: ['me@x.eu'] })
-    if (u.match(/\/api\/admin\/pipeline\/\d+$/)) return json(DETAIL)
+    if (u.includes('/api/admin/gallery')) {
+      return json([
+        { id: 3, title: 'Nova 60', categoryKey: 'modular', isPublished: true },
+        { id: 4, title: 'Nova 40', categoryKey: 'modular', isPublished: true },
+        { id: 5, title: 'Site cabin', categoryKey: 'wagon', isPublished: true },
+      ])
+    }
+    if (u.match(/\/api\/admin\/pipeline\/\d+$/)) return json(detail)
     if (u.includes('/api/admin/pipeline')) return json(BOARD)
     return json({})
   }))
@@ -256,38 +270,189 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => expect(screen.getByText(/Изпратено: 2|Sent: 2/)).toBeInTheDocument())
   })
 
-  it('opens the whole conversation full screen, with the standing notes under it', async () => {
-    // A modal is a reading mode: the thread at full width, then the notes — what has
-    // been said, and what we know that was never said to the customer.
+  // --- The lead sheet ------------------------------------------------------------------
+
+  const openSheet = async (user) => {
+    await user.click(screen.getByRole('button', { name: /Детайли и разговор|Details & conversation/ }))
+    return screen.findByRole('dialog')
+  }
+
+  it('one button opens the conversation, the notes and the editable fields together', async () => {
+    // It used to take two controls sitting apart — a "Details" toggle that could only
+    // edit and an "Open full screen" that could only read — so the two things people
+    // actually do here were on opposite sides of the screen.
     const user = userEvent.setup()
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    await user.click(screen.getByRole('button', { name: /Отвори на цял екран|Open full screen/ }))
+    const dialog = await openSheet(user)
 
-    const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('How much for the 60?')).toBeInTheDocument()
     expect(within(dialog).getByText('It is 26500 EUR.')).toBeInTheDocument()
-    expect(within(dialog).getByText('Prefers calls after six.')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('Prefers calls after six.')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('Send revised quote')).toBeInTheDocument()
   })
 
-  it('saving the details sends the follow-up date with them', async () => {
+  it('there is no second way in, so there is no second place to edit the same field', async () => {
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    expect(screen.queryByRole('button', { name: /Отвори на цял екран|Open full screen/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Детайли$|^Details$/ })).not.toBeInTheDocument()
+  })
+
+  it('the next step and its date are the first thing in the sheet', async () => {
+    // The field people open this to write. Under six address boxes is how a follow-up
+    // date ends up never being set.
     const user = userEvent.setup()
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    await user.click(screen.getByRole('button', { name: /Детайли|^Details$/ }))
+    const dialog = await openSheet(user)
+    const boxes = Array.from(dialog.querySelectorAll('input, select, textarea'))
+
+    expect(boxes.indexOf(within(dialog).getByDisplayValue('Send revised quote')))
+      .toBeLessThan(boxes.indexOf(within(dialog).getByDisplayValue('Nova 60')))
+  })
+
+  it('saving from the sheet sends the follow-up date with the rest', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
 
     // Prefilled from the stored date, so saving without touching it cannot clear it.
-    const dateBox = document.querySelector('input[type="date"]')
+    const dateBox = dialog.querySelector('input[type="date"]')
     expect(dateBox).toHaveValue('2026-08-10')
 
     fireEvent.change(dateBox, { target: { value: '2026-08-21' } })
-    await user.click(screen.getByRole('button', { name: /Запази|^Save$/ }))
+    await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
 
     await waitFor(() => {
       const saved = calls.find((c) => c.url.includes('/fields') && c.method === 'POST')
       expect(JSON.parse(saved.body).nextContactAt).toBe('2026-08-21')
+      expect(JSON.parse(saved.body).nextStep).toBe('Send revised quote')
     })
+  })
+
+  // --- The merged "what they want" box ------------------------------------------------
+  //
+  // This used to be two controls asking the same question — a dropdown of catalogue models
+  // and a free-text box — and sales filled in whichever they reached first. It is now one
+  // box that suggests the models and accepts anything. What these tests hold down is that
+  // merging the CONTROLS did not merge the COLUMNS: HouseId is still a foreign key when the
+  // answer is a catalogue model, and still empty when it is not.
+
+  const modelBox = (dialog) =>
+    within(dialog).getByRole('combobox', { name: /Какво търси|What they want/ })
+
+  it('suggests the models in the chosen category, and only those', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    const list = dialog.querySelector('#leadModelOptions')
+    const titles = [...list.querySelectorAll('option')].map((o) => o.value)
+
+    expect(titles).toContain('Nova 60')
+    expect(titles).toContain('Nova 40')
+    // A wagon is not a modular house; suggesting it here would file the lead under a model
+    // from a category nobody chose.
+    expect(titles).not.toContain('Site cabin')
+  })
+
+  it('shows the linked model rather than making people guess it is linked', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    expect(modelBox(dialog)).toHaveValue('Nova 60')
+    expect(within(dialog).getByText(/свързан модел|linked model/)).toBeInTheDocument()
+  })
+
+  it('typing a catalogue model links it as a real foreign key', async () => {
+    detail = { ...DETAIL, houseId: null, houseTitle: '', customModel: '' }
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    fireEvent.change(modelBox(dialog), { target: { value: 'Nova 40' } })
+    await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.url.includes('/fields')).body)
+      // The FK, not the string. It is what makes "how many leads for the Nova 40?" a join.
+      expect(saved.houseId).toBe(4)
+      expect(saved.customModel).toBe('')
+    })
+  })
+
+  it('typing anything else is kept as free text, with no model attached', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    fireEvent.change(modelBox(dialog), { target: { value: 'Nova 60, but 2m longer' } })
+
+    expect(within(dialog).getByText(/свободен текст|free text/)).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.url.includes('/fields')).body)
+      expect(saved.customModel).toBe('Nova 60, but 2m longer')
+      // 0, not null: the server reads 0 as "clear it" and null as "leave it alone", so a
+      // lead that used to point at the Nova 60 would otherwise keep pointing at it.
+      expect(saved.houseId).toBe(0)
+    })
+  })
+
+  it('a near-miss is not silently linked to a model', async () => {
+    // Prefix matching would attach "Nova 6" to the Nova 60 — a wrong foreign key that
+    // nothing downstream can detect. Exact titles only.
+    detail = { ...DETAIL, houseId: null, houseTitle: '', customModel: '' }
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    fireEvent.change(modelBox(dialog), { target: { value: 'Nova 6' } })
+
+    expect(within(dialog).getByText(/свободен текст|free text/)).toBeInTheDocument()
+  })
+
+  it('a category the gallery has no models for still takes free text', async () => {
+    // "Logistics" is real imported CRM data. There is nothing to suggest, and the box
+    // carries the answer anyway — which is the whole reason it is a text box.
+    detail = { ...DETAIL, categoryKey: 'Logistics', houseId: null, houseTitle: '', customModel: 'Transport to Varna' }
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    expect(dialog.querySelectorAll('#leadModelOptions option')).toHaveLength(0)
+    expect(modelBox(dialog)).toHaveValue('Transport to Varna')
+  })
+
+  it('a category the gallery does not know is still offered, not silently dropped', async () => {
+    // It came from the customer. A dropdown that omits the current value rewrites the
+    // record the moment anyone presses Save.
+    detail = { ...DETAIL, categoryKey: 'Logistics' }
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    const category = within(dialog).getByRole('combobox', { name: /Категория|^Category$/ })
+
+    expect(category).toHaveValue('Logistics')
+    expect(within(category).getByRole('option', { name: 'Logistics' })).toBeInTheDocument()
   })
 })

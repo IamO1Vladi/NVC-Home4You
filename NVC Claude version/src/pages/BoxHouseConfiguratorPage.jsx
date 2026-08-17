@@ -793,12 +793,34 @@ export default function BoxHouseConfiguratorPage({ content }) {
   // "Email me my config" (Phase 2b): idle | sending | sent | invalid | error
   const [emailValue, setEmailValue] = React.useState('')
   const [emailState, setEmailState] = React.useState('idle')
-  const [config, setConfig] = React.useState(() => mergeIntoDefaults(sharedFromUrl))
+
+  // ?model=37|58|73 — the home page's model cards land here with the first choice already
+  // made. Validated against the catalogue so a mistyped key silently falls back to the
+  // default rather than seeding a config the pricing cannot resolve.
+  const modelFromUrl = React.useMemo(() => {
+    if (typeof window === 'undefined') return null
+    const wanted = new URLSearchParams(window.location.search).get('model')
+    return catalog.models.some((m) => m.key === wanted) ? wanted : null
+  }, [catalog.models])
+
+  const [config, setConfig] = React.useState(() => {
+    const base = mergeIntoDefaults(sharedFromUrl)
+    // A full shared config is a person's saved work; the model param is just an entry
+    // point. The work wins when both are somehow present.
+    if (modelFromUrl && !sharedFromUrl) {
+      const model = catalog.models.find((m) => m.key === modelFromUrl)
+      return { ...base, model: modelFromUrl, plan: model?.plans?.[0] || base.plan }
+    }
+    return base
+  })
   // Read any previously auto-saved configuration once, at mount, before the
   // auto-save effect below can overwrite it. Drives the resume banner — but a
-  // shared link wins, so the banner is suppressed when one is present.
+  // shared link wins, so the banner is suppressed when one is present. A model
+  // entry point also suppresses it: someone who just tapped "the 58" on the home
+  // page has stated what they want, and a banner offering last week's config on
+  // top of that choice would immediately undo it.
   const [resumeCandidate, setResumeCandidate] = React.useState(() =>
-    (sharedFromUrl || shortCodeFromUrl) ? null : loadSavedConfig()
+    (sharedFromUrl || shortCodeFromUrl || modelFromUrl) ? null : loadSavedConfig()
   )
 
   // Debounced auto-save of the in-progress configuration. Skipped while the

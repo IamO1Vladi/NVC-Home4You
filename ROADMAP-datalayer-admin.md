@@ -1,5 +1,12 @@
 # Roadmap — Data layer migration (Quickbase → SQL) + Admin panel
 
+> **HISTORY, not current state. Last accurate 2026-08-05.**
+> Current state and what is next -> [HANDOFF-2026-08-17.md](HANDOFF-2026-08-17.md).
+> This file is kept for *why* the architecture is shaped the way it is — the feature-flag
+> seam, the per-entity cutover, the image-key design — all of which still hold. The
+> checkboxes below were reconciled 2026-08-15; the prose around them still describes a world
+> where only reviews had migrated.
+
 Goal: move the site's data off the external Quickbase API onto a first-party
 Microsoft stack (SQL Server / Azure SQL + EF Core), for lower latency and a
 single-vendor operational story — and build the admin UI that has to exist
@@ -203,22 +210,25 @@ gallery image 1.9 MB, with no WebP negotiation. That is roadmap item #9, not thi
 - [x] `/admin` shell in the SPA: login, nav, not indexed (`robots`, no sitemap entry)
 - [x] **Review moderation** — approve/reject queue (replaces the pending/approved
       flow previously done in Quickbase). BG + EN.
-- [ ] **Houses/catalog CRUD** — prices, specs, plans (you edit these regularly;
-      PR #4 was a manual price change that could have been an admin edit)
-- [ ] **Cases + gallery CRUD** with image upload to Blob
-- [ ] **Leads view** — read-only list of offers/questions with export
-- [ ] Audit log (who changed what, when) — you're editing live pricing
+- [x] **Houses/catalog CRUD** — shipped as `/admin/gallery` (`AdminGalleryPage`).
+- [x] **Cases + gallery CRUD** with image upload to Blob — `/admin/cases`, `/admin/gallery`.
+- [x] **Leads view** — went far past read-only: an inquiry queue (`/admin/inquiries`) and a
+      full pipeline (`/admin/pipeline`) with threads, attachments, follow-up dates and AI
+      drafts. See HANDOFF-2026-08-12.md.
+- [ ] Audit log (who changed what, when) — **still open, and now more pressing**: the panel
+      holds ЕГН, ЕИК, deposits and invoices as of 2026-08-14.
 - [x] Admin tests (xUnit for endpoints/authz, Vitest for the UI)
       — `AdminAuthConfigTests`, `ReviewModerationTests`, `AdminReviewsPage.test.jsx`
 
 ## Phase 4 — Cutover
 
-- [~] Flip read entities to `sql` one at a time, lowest-risk first:
-      gallery → cases → houses → reviews
-      — **reviews went first**, out of the planned order: it was the only table needing an
-      admin UI anyway, so migrating it proved the seam and the panel together.
-- [~] Writes last, and **leads last of all** (see risks) — review writes are live on SQL;
-      leads remain entirely on Quickbase.
+- [x] Flip read entities to `sql` one at a time — **done for every content entity.**
+      Reviews went first, out of the planned order: it was the only table needing an admin
+      UI anyway, so migrating it proved the seam and the panel together. Gallery and cases
+      followed 2026-08-06.
+- [x] Writes last, and **leads last of all** (see risks) — leads became authoritative on
+      SQL 2026-08-12. Saved configurator links, the genuine last table, migrated
+      2026-08-15 (flag flip pending).
 - [ ] Soak on SQL with Quickbase still importable as rollback
 - [ ] Retire Quickbase per table; remove dead code + env vars only after soak
 
@@ -243,10 +253,9 @@ gallery image 1.9 MB, with no WebP negotiation. That is roadmap item #9, not thi
 
 ## Open decisions
 
-1. **Do leads migrate?** If sales works offers/questions inside Quickbase day to
-   day — and billing already stays there — it may be simplest to keep leads in
-   Quickbase too and migrate only content. Leaning **no**: PR #8's autoresponder
-   depends on those writes, and the upside is small.
+1. ~~**Do leads migrate?**~~ **Answered 2026-08-06: yes, and they did.** Sales works leads
+   daily, so this was a workflow to replace rather than a table to move. SQL has been
+   authoritative since 2026-08-12.
 2. **App SQL login.** The app still connects as `dbadmin` — the server administrator,
    far more privilege than it needs. Should become a contained user limited to
    read/write on the app's tables. Not urgent; shouldn't stay indefinitely.

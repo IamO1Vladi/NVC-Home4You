@@ -724,13 +724,22 @@
 }
 .adm-modal-body > .adm-form { margin-bottom: 0; }
 
+/* Two shapes of footer live here: the gallery and cases editors put their buttons inside
+   an .adm-form-actions row, the lead sheet and the two lead dialogs put them straight in.
+   Making the footer itself the flex row means both get the same alignment — and, below,
+   the same 44px touch targets on a phone, which the wrapped-only rule used to miss. */
 .adm-modal-foot {
   flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   padding: 14px 20px;
   border-top: 1px solid var(--adm-line);
   background: var(--adm-card);
 }
-.adm-modal-foot .adm-form-actions { margin: 0; align-items: center; }
+.adm-modal-foot .adm-form-actions { margin: 0; align-items: center; flex: 1 1 100%; }
 
 /* States the work is unsaved rather than leaving someone to remember it. */
 .adm-dirty {
@@ -803,7 +812,8 @@
   .adm-modal-head { padding: 13px 14px; }
   .adm-modal-body { padding: 14px; }
   .adm-modal-foot { padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); }
-  .adm-modal-foot .adm-form-actions .btn { flex: 1; min-height: 44px; }
+  .adm-modal-foot .adm-form-actions .btn,
+  .adm-modal-foot > .btn { flex: 1; min-height: 44px; }
 }
 
 /* --- Images --------------------------------------------------------------------------- */
@@ -1426,16 +1436,58 @@ label.btn { cursor: pointer; }
 
 .adm-report-note { color: var(--adm-ok); font-weight: 600; }
 
-/* The full-screen reader: the thread gets the width of the modal, and the standing
-   notes follow it — the two things read before picking a lead back up. */
-.adm-reader { display: grid; gap: 18px; }
-.adm-reader .adm-thread { max-height: none; }
-.adm-reader-notes {
-  border-top: 1px solid var(--adm-line);
-  padding-top: 12px;
+/* The one button that opens everything about a lead. It replaced two link-sized controls
+   sitting apart — a "Details" toggle and an "Open full screen" — and the whole point of
+   the change was that neither was easy to find, so this one is a real button. */
+.adm-open-sheet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
-.adm-reader-notes h3 { margin: 0 0 6px; color: var(--adm-muted); text-transform: uppercase; letter-spacing: .04em; }
-.adm-reader-notes p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.adm-open-sheet svg { width: 17px; height: 17px; flex: none; }
+
+/* The lead sheet: what happens next, the details, then the conversation. One scrolling
+   column — this is read top to bottom, not scanned. */
+.adm-sheet { display: grid; gap: 22px; }
+.adm-sheet .adm-thread { max-height: none; }
+
+.adm-sheet-head {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--adm-muted);
+}
+
+/* "What happens next" is boxed and first, because it is the field people open this to
+   write and the one most easily forgotten. */
+.adm-sheet-next {
+  padding: 14px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 12px;
+  background: var(--adm-accent-soft, var(--adm-bg));
+}
+.adm-sheet-next-grid { display: grid; gap: 12px; grid-template-columns: 1fr minmax(150px, 200px); }
+.adm-sheet-next-grid label { display: grid; gap: 4px; }
+
+.adm-sheet-notes { display: grid; gap: 4px; margin-top: 14px; }
+.adm-sheet-notes textarea {
+  width: 100%;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  resize: vertical;
+}
+
+/* Confirmation next to the button that caused it, rather than somewhere up the page. */
+.adm-saved { color: var(--adm-ok); font-weight: 600; margin-right: auto; }
+
+@media (max-width: 620px) {
+  .adm-sheet-next-grid { grid-template-columns: 1fr; }
+}
 
 /* Stage colours: won and lost need to read differently from everything in play,
    because "is this still alive?" is the question the board answers first. */
@@ -1505,13 +1557,12 @@ label.btn { cursor: pointer; }
   .adm-theme button:not(.is-active) { display: none; }
 }
 
-/* The standing facts about a deal — collapsed by default, because the thread is what
-   someone opens a deal to read and these are reference material they edit occasionally. */
-.adm-details-toggle { align-self: flex-start; }
-.adm-deal-fields { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--adm-line); border-radius: 10px; }
-.adm-deal-fields label { display: grid; gap: 4px; }
-.adm-deal-fields input,
-.adm-deal-fields textarea {
+/* Every field control in the lead sheet, wherever it sits in it. These used to live
+   under .adm-deal-fields, an inline block that unfolded inside the half-width pane; the
+   sheet replaced it, and the styling came along rather than being reinvented. */
+.adm-sheet input,
+.adm-sheet select,
+.adm-sheet textarea {
   border: 1px solid var(--adm-line-firm);
   border-radius: 8px;
   padding: 8px 10px;
@@ -1519,8 +1570,9 @@ label.btn { cursor: pointer; }
   background: var(--adm-card);
   color: inherit;
 }
-.adm-deal-fields input { min-height: 40px; }
-.adm-deal-fields textarea { resize: vertical; }
+.adm-sheet input,
+.adm-sheet select { min-height: 40px; }
+.adm-sheet textarea { resize: vertical; }
 
 /* ── Pipeline on a phone ──────────────────────────────────────────────────────
    The team works from phones, so this is the primary layout rather than a
@@ -1560,8 +1612,9 @@ label.btn { cursor: pointer; }
    leaves the page zoomed after the keyboard closes. Applies at every width because the
    zoom is triggered by the computed size, not the breakpoint. */
 .adm-composer textarea,
-.adm-deal-fields input,
-.adm-deal-fields textarea,
+.adm-sheet input,
+.adm-sheet select,
+.adm-sheet textarea,
 .adm-newdeal-grid input,
 .adm-search { font-size: 16px; }
 
@@ -1589,4 +1642,116 @@ label.btn { cursor: pointer; }
   background: var(--adm-card);
   color: inherit;
   resize: vertical;
+}
+
+/* ===================================================================================
+   Customers, purchases and the factory directory.
+
+   Two screens sharing most of their furniture with the lead sheet — .adm-newdeal-grid,
+   .adm-attach-list, .adm-badge — because they are the same kind of form and looking
+   different would imply they work differently. What is new here is the money readout and
+   the repeated purchase block.
+   =================================================================================== */
+
+/* A destructive link. Same shape as .adm-linkbtn so it sits in the same row, different
+   colour so "Delete" never looks like "Edit" at a glance. */
+.adm-danger { color: var(--adm-stop); }
+
+/* A field that needs the full width of the grid — the merged "what they want" box, which
+   holds a sentence rather than a word. */
+.adm-span-2 { grid-column: 1 / -1; }
+
+/* Which of the two things the merged box just did. Reserved height whether or not there
+   is anything to say, so typing into the field does not shunt the layout down a line. */
+.adm-model-state { display: block; min-height: 1.2em; margin-top: 2px; }
+
+.adm-search { display: grid; gap: 4px; margin-bottom: 16px; max-width: 520px; }
+.adm-search input {
+  min-height: 42px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 16px;
+  background: var(--adm-card);
+  color: inherit;
+}
+
+/* Person or company. A row of radios, because both options being visible is what makes
+   the identifier field below change for an obvious reason. */
+.adm-typepick { border: 0; padding: 0; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.adm-typepick legend { padding: 0; margin-bottom: 6px; float: left; width: 100%; }
+.adm-typepick label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+
+.adm-check { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; cursor: pointer; }
+.adm-check-hint { display: block; }
+
+/* --- The customer list ------------------------------------------------------------- */
+
+.adm-customer-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.adm-customer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+}
+.adm-customer-main { min-width: 0; }
+.adm-customer h2 { margin: 0 0 4px; font-size: 17px; }
+/* The name is the way into the record, so it is the biggest target on the row — but it
+   is still a button, because opening a dialog is not navigation. */
+.adm-customer-name { margin: 0; font-size: 17px; font-weight: 700; text-decoration: none; }
+.adm-customer-name:hover { text-decoration: underline; }
+.adm-customer-money { display: grid; gap: 2px; justify-items: end; text-align: right; }
+.adm-customer-actions { display: flex; gap: 12px; align-items: center; }
+.adm-customer-actions .adm-linkbtn { margin-top: 0; }
+/* Money still outstanding. Warn rather than stop: it is a thing to chase, not an error. */
+.adm-owing { color: var(--adm-warn); }
+
+/* --- One purchase inside the customer sheet ---------------------------------------- */
+
+.adm-purchase {
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: var(--adm-bg);
+}
+.adm-purchase-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.adm-purchase-head h4 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--adm-muted); }
+.adm-purchase-head .adm-linkbtn { margin-top: 0; }
+.adm-purchase-money { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--adm-line-firm); }
+.adm-purchase-money h5 { margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--adm-muted); }
+.adm-purchase .adm-sheet-notes { margin-top: 12px; }
+
+/* Left to pay. An <output>, styled to sit at the same height as the inputs beside it but
+   deliberately not looking like one — it is arithmetic, not a box to type in. */
+.adm-readout {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px dashed var(--adm-line-firm);
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.adm-invoices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 14px; }
+.adm-invoice-slot { display: grid; gap: 6px; justify-items: start; }
+.adm-invoice-slot .adm-attach-list { width: 100%; }
+
+/* --- The factory directory ---------------------------------------------------------- */
+
+.adm-factory-grid { list-style: none; margin: 0; padding: 0; }
+.adm-factory { display: grid; gap: 6px; align-content: start; }
+.adm-factory h2 { margin: 0; font-size: 17px; }
+.adm-factory-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+/* A supplier we no longer buy from is still readable, just clearly not in play. */
+.adm-factory.is-off { opacity: .62; }
+.adm-factory-actions { display: flex; gap: 12px; margin-top: 4px; }
+.adm-factory-actions .adm-linkbtn { margin-top: 0; }
+
+@media (max-width: 720px) {
+  /* One column, and the money moves under the name rather than being squeezed beside it. */
+  .adm-customer { grid-template-columns: minmax(0, 1fr); }
+  .adm-customer-money { justify-items: start; text-align: left; }
 }

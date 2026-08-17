@@ -20,6 +20,11 @@ public class AppDbContext : DbContext
     public DbSet<Lead> Leads => Set<Lead>();
     public DbSet<LeadActivity> LeadActivities => Set<LeadActivity>();
     public DbSet<LeadAttachment> LeadAttachments => Set<LeadAttachment>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Factory> Factories => Set<Factory>();
+    public DbSet<Purchase> Purchases => Set<Purchase>();
+    public DbSet<PurchaseFile> PurchaseFiles => Set<PurchaseFile>();
+    public DbSet<SavedConfig> SavedConfigs => Set<SavedConfig>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -137,6 +142,13 @@ public class AppDbContext : DbContext
             // is mostly NULL is mostly wasted pages.
             e.HasIndex(l => l.NextContactAt).HasFilter("[NextContactAt] IS NOT NULL");
 
+            // What makes the CRM import re-runnable. Same filtered-unique shape as every
+            // other imported table: unique where present, so leads created in the panel
+            // (which have no Quickbase id) do not all collide on NULL.
+            e.HasIndex(l => l.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+
             // One enquiry produces at most one lead. Without this, a double-clicked
             // "create lead" button quietly makes two, and the second one starts collecting
             // its own half of the conversation — the kind of split history nobody notices
@@ -220,6 +232,123 @@ public class AppDbContext : DbContext
             // cannot quietly create a second row pointing at the same bytes — which would
             // make deleting one of them orphan the other.
             e.HasIndex(a => a.BlobKey).IsUnique();
+        });
+
+        // Customers, factories and what passed between them. The shape to keep in mind:
+        // Customer and Factory never touch each other directly — Purchase is the join, and
+        // it is where every transactional fact lives.
+        b.Entity<Factory>(e =>
+        {
+            // The dropdown on a purchase: active suppliers, alphabetical. That pair is the
+            // whole query, and it runs on every customer form that opens.
+            e.HasIndex(f => new { f.IsActive, f.Name });
+
+            // Two factories with the same name is a data-entry mistake every time — the
+            // point of this table is one spelling per supplier — but it is NOT enforced in
+            // the database. Two genuinely different suppliers can share a name across
+            // countries, and a unique index would make that unrecordable. The admin service
+            // warns on a duplicate name instead and lets a person decide.
+        });
+
+        b.Entity<Customer>(e =>
+        {
+            // The customer list is "most recent first", which is how a work list reads.
+            e.HasIndex(c => c.CreatedAt);
+
+            // Finding a company by its ЕИК is a real lookup — an accountant rings with a
+            // number and no name. Filtered because most rows are individuals and carry
+            // none, so an unfiltered index would be mostly empty pages.
+            //
+            // NOT unique, deliberately: one company legitimately appears twice if it buys
+            // through two different branches, and more importantly a unique index here
+            // turns a typo into a save that fails with no way to tell which existing row
+            // it collided with. The panel warns on a duplicate instead.
+            e.HasIndex(c => c.Eik).HasFilter("[Eik] IS NOT NULL");
+
+            // NO INDEX ON PersonalId, on purpose. It is the most sensitive column in the
+            // database and nothing in the app looks a customer up by ЕГН — it is written
+            // onto an invoice and read back on one screen. An index would exist only to
+            // make a query nobody should be running fast.
+
+            // Restrict, not Cascade: deleting a lead must never take a paying customer with
+            // it. Same decision as Lead.OfferId — the sales record outranks the tidy-up.
+            e.HasOne(c => c.Lead)
+             .WithMany()
+             .HasForeignKey(c => c.LeadId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<Purchase>(e =>
+        {
+            // Every read of this table is "one customer, their purchases, newest first".
+            e.HasIndex(p => new { p.CustomerId, p.PurchasedAt });
+
+            // "What have we bought from this factory?" — the question the factory table
+            // exists to make askable.
+            e.HasIndex(p => p.FactoryId).HasFilter("[FactoryId] IS NOT NULL");
+
+            e.Property(p => p.DepositPaid).HasPrecision(18, 2);
+            e.Property(p => p.FinalPrice).HasPrecision(18, 2);
+
+            // Cascade: a purchase has no meaning without the customer who made it, and
+            // deleting a customer is already the deliberate, confirmed act (see
+            // CustomerAdminService, which refuses to do it silently).
+            e.HasOne(p => p.Customer)
+             .WithMany(c => c.Purchases)
+             .HasForeignKey(p => p.CustomerId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict, and this is the constraint that makes the factory table worth
+            // having. Cascade would delete a customer's purchase history because somebody
+            // removed a supplier they no longer use; SetNull would leave a sale claiming a
+            // factory it can no longer name. A factory with purchases against it is
+            // deactivated, not deleted — the panel says so rather than the database
+            // deciding.
+            e.HasOne(p => p.Factory)
+             .WithMany(f => f.Purchases)
+             .HasForeignKey(p => p.FactoryId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            // Same reasoning as Lead.HouseId: deleting a house must not silently delete the
+            // record of everyone who bought one.
+            e.HasOne(p => p.House)
+             .WithMany()
+             .HasForeignKey(p => p.HouseId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<PurchaseFile>(e =>
+        {
+            e.HasOne(f => f.Purchase)
+             .WithMany(p => p.Files)
+             .HasForeignKey(f => f.PurchaseId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // The form renders the two invoice slots side by side, so the read is always
+            // "this purchase, grouped by kind".
+            e.HasIndex(f => new { f.PurchaseId, f.Kind });
+
+            // One blob object backs exactly one row, so a re-submitted upload cannot make a
+            // second row over the same bytes — which would mean deleting one orphans the
+            // other. Same guarantee as LeadAttachment.
+            e.HasIndex(f => f.BlobKey).IsUnique();
+        });
+
+        b.Entity<SavedConfig>(e =>
+        {
+            // THE constraint on this table. Every read is "resolve this code", and two rows
+            // sharing one means a customer's saved link opens somebody else's configuration.
+            // Unique rather than merely indexed, so a collision fails the insert instead of
+            // silently creating an ambiguity — SavedConfigService retries on collision, and
+            // this is what makes that retry meaningful.
+            e.HasIndex(c => c.Code).IsUnique();
+
+            // Same idempotent-import guarantee as every other migrated table: unique where
+            // present, filtered so configs saved natively in SQL (which have no Quickbase
+            // id) do not all collide on NULL.
+            e.HasIndex(c => c.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
         });
 
         b.Entity<Review>(e =>

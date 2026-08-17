@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminSend, adminSendForm, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
+import { resolveModel } from '../admin/modelPicker.js'
 
 // The leads pipeline: every customer we are actually talking to, with an owner, a stage
 // and a conversation.
@@ -36,14 +37,24 @@ const TEXT = {
     reportSent: (n) => `Изпратено: ${n} ${n === 1 ? 'лийд' : 'лийда'}.`,
     reportNothing: 'Няма просрочени лийдове — нищо не беше изпратено.',
     reportError: 'Справката не беше изпратена.',
-    expand: 'Отвори на цял екран',
     close: 'Затвори',
-    notesTitle: 'Бележки',
-    noNotes: 'Няма бележки.',
+    category: 'Категория',
+    noCategory: '— не е избрана —',
+    model: 'Какво търси',
+    modelHint: 'Изберете модел от списъка или напишете свободно.',
+    modelLinked: (title) => `свързан модел: ${title}`,
+    modelFree: 'свободен текст — без връзка с модел от галерията',
+    categories: {
+      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', garage: 'Гараж',
+    },
     newDeal: 'Нов лийд',
     newDealHint: 'За клиенти, които не са писали през сайта — обаждане, изложение, препоръка.',
     fName: 'Име', fEmail: 'Имейл', fPhone: 'Телефон', fModel: 'Какво търси',
-    details: 'Детайли', hideDetails: 'Скрий детайлите',
+    details: 'Детайли',
+    sheet: 'Детайли и разговор',
+    nextTitle: 'Какво следва',
+    nextStepPlaceholder: 'Напр. „Да изпратя оферта до петък“',
+    notesPlaceholder: 'Какво знаем за клиента — предпочитано време за обаждане, кой решава…',
     dProject: 'Проект', dCountry: 'Държава', dAddress: 'Адрес на клиента',
     dBuild: 'Място на строеж', dNext: 'Следваща стъпка', dNotes: 'Бележки',
     saved: 'Запазено',
@@ -95,14 +106,24 @@ const TEXT = {
     reportSent: (n) => `Sent: ${n} ${n === 1 ? 'lead' : 'leads'}.`,
     reportNothing: 'Nothing is overdue — no report was sent.',
     reportError: 'The report was not sent.',
-    expand: 'Open full screen',
     close: 'Close',
-    notesTitle: 'Notes',
-    noNotes: 'No notes.',
+    category: 'Category',
+    noCategory: '— none chosen —',
+    model: 'What they want',
+    modelHint: 'Pick a model from the list, or write it out.',
+    modelLinked: (title) => `linked model: ${title}`,
+    modelFree: 'free text — not linked to a gallery model',
+    categories: {
+      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', garage: 'Garage',
+    },
     newDeal: 'New lead',
     newDealHint: 'For customers who did not come through the site — a call, a trade fair, a referral.',
     fName: 'Name', fEmail: 'Email', fPhone: 'Phone', fModel: 'What they want',
-    details: 'Details', hideDetails: 'Hide details',
+    details: 'Details',
+    sheet: 'Details & conversation',
+    nextTitle: 'What happens next',
+    nextStepPlaceholder: 'e.g. “Send the revised quote by Friday”',
+    notesPlaceholder: 'What we know about them — best time to call, who actually decides…',
     dProject: 'Project', dCountry: 'Country', dAddress: 'Customer address',
     dBuild: 'Build location', dNext: 'Next step', dNotes: 'Notes',
     saved: 'Saved',
@@ -138,6 +159,15 @@ const TEXT = {
 
 const STAGES = ['new', 'contacted', 'quoted', 'negotiating', 'won', 'lost']
 
+// The four categories the gallery filters on, and the only ones that can lead to a list of
+// models. Kept in step with galleryUtils.FILTER_IDS and HouseCategories on the server.
+//
+// A lead's category is NOT limited to these: "Контейнер", "Logistics" and "Interiors" are
+// real enquiries that the gallery has no filter for. That is precisely why this list is
+// separate from whatever a lead happens to hold — it answers "can we offer models for
+// this?", which is a different question from "what did they ask about?".
+const GALLERY_CATEGORIES = ['prefab', 'wagon', 'modular', 'garage']
+
 const TABS = [
   // First, because it is the one view that answers "what did I promise?" — and the one
   // the emailed report links straight into.
@@ -166,6 +196,7 @@ const emptyDeal = () =>
 function dateInputValue(iso) {
   return typeof iso === 'string' && iso.length >= 10 ? iso.slice(0, 10) : ''
 }
+
 
 // Whole days between the follow-up date and today, in UTC on both sides.
 function daysOverdue(iso) {
@@ -309,7 +340,6 @@ export default function AdminPipelinePage() {
   const [tab, setTab] = React.useState(() =>
     TABS.some((x) => x.key === params.get('view')) ? params.get('view') : 'open')
   const [creating, setCreating] = React.useState(false)
-  const [showDetails, setShowDetails] = React.useState(false)
   // Phones get one pane at a time. Stacking the board above a conversation means
   // scrolling past every other deal to reach the message you opened, which is the whole
   // screen working against you on the device most of the team actually uses.
@@ -321,6 +351,9 @@ export default function AdminPipelinePage() {
   const [selectedId, setSelectedId] = React.useState(null)
   const [lead, setLead] = React.useState(null)
   const [state, setState] = React.useState('loading')
+  // The catalogue, for the model dropdown. Fetched once for the page rather than per
+  // lead: it is the same list every time and changes about as often as the price list.
+  const [houses, setHouses] = React.useState([])
 
   const [reply, setReply] = React.useState('')
   // Picked but not yet sent. Held here rather than uploaded on selection, so a file can be
@@ -330,8 +363,9 @@ export default function AdminPipelinePage() {
   const [busy, setBusy] = React.useState('')      // '' | 'send' | 'draft' | 'save' | 'report'
   const [error, setError] = React.useState('')
 
-  // The full-screen reader, and the send-report dialog.
-  const [reading, setReading] = React.useState(false)
+  // The lead sheet — details, next step and the conversation on one screen — and the
+  // send-report dialog.
+  const [sheetOpen, setSheetOpen] = React.useState(false)
   const [reporting, setReporting] = React.useState(false)
   const [reportTo, setReportTo] = React.useState('')
   const [reportNote, setReportNote] = React.useState('')
@@ -394,14 +428,31 @@ export default function AdminPipelinePage() {
       buildLocation: lead.buildLocation || '',
       nextStep: lead.nextStep || '',
       nextContactAt: dateInputValue(lead.nextContactAt),
+      categoryKey: lead.categoryKey || '',
+      houseId: lead.houseId || 0,
+      customModel: lead.customModel || '',
+      // What the merged box shows. The linked model wins when there is one, because it is
+      // the more precise of the two and the one the box can link straight back up on save.
+      modelText: lead.houseTitle || lead.customModel || '',
       notes: lead.notes || '',
     })
   }, [lead?.id])
 
-  // Moving to another lead closes the reader: full-screen is a way of looking at ONE
-  // conversation, and keeping it up across a selection change would show lead A's
-  // header over lead B's thread for a frame.
-  React.useEffect(() => { setReading(false) }, [selectedId])
+  // Moving to another lead closes the sheet. It is a way of working on ONE customer, and
+  // keeping it open across a selection change would show lead A's header over lead B's
+  // fields — with a Save button under them.
+  React.useEffect(() => { setSheetOpen(false) }, [selectedId])
+
+  // Tolerates failure on purpose: without the catalogue the model dropdown falls back to
+  // the free-text box, which is worse than having it and far better than a page that will
+  // not load because the gallery endpoint hiccuped.
+  React.useEffect(() => {
+    let alive = true
+    adminGet('/api/admin/gallery')
+      .then((rows) => { if (alive) setHouses(Array.isArray(rows) ? rows : []) })
+      .catch(() => { /* the free-text field still works */ })
+    return () => { alive = false }
+  }, [])
 
   // Newest message in view when a thread opens or grows. A chat that opens at the top of
   // a six-month history shows the least useful part of it.
@@ -488,7 +539,11 @@ export default function AdminPipelinePage() {
   }, t.saveError)
 
   const saveFields = () => run('save', async () => {
-    await adminSend(`/api/admin/pipeline/${selectedId}/fields`, 'POST', fields)
+    // modelText is what the merged box displays; houseId and customModel are what the
+    // server stores. Stripped rather than sent and ignored, so the request says what it
+    // means.
+    const { modelText, ...body } = fields
+    await adminSend(`/api/admin/pipeline/${selectedId}/fields`, 'POST', body)
     setSavedAt(Date.now())
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
@@ -716,14 +771,24 @@ export default function AdminPipelinePage() {
                     </button>
                   ) : null}
 
-                  {/* A long thread in a half-width pane is the reason this exists; the
-                      reader shows the same conversation with the whole screen to do it. */}
+                  {/* ONE button, and a real one rather than a link.
+                      It used to be two link-sized controls sitting apart: a "Details"
+                      toggle that unfolded a form in a half-width pane, and an "Open full
+                      screen" that could only read. Which meant the two things people
+                      actually do here — read what was said, then write down what happens
+                      next — were on opposite sides of the screen and neither was easy to
+                      spot. Same screen now, and it is the one thing on this header you
+                      cannot miss. */}
                   <button
                     type="button"
-                    className="adm-linkbtn"
-                    onClick={() => setReading(true)}
+                    className="btn adm-open-sheet"
+                    onClick={() => setSheetOpen(true)}
                   >
-                    {t.expand}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
+                         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M4 8.4V5.2a1.2 1.2 0 0 1 1.2-1.2h3.2M20 8.4V5.2A1.2 1.2 0 0 0 18.8 4h-3.2M4 15.6v3.2A1.2 1.2 0 0 0 5.2 20h3.2M20 15.6v3.2a1.2 1.2 0 0 1-1.2 1.2h-3.2" />
+                    </svg>
+                    <span>{t.sheet}</span>
                   </button>
                 </div>
               </header>
@@ -736,84 +801,163 @@ export default function AdminPipelinePage() {
                 </p>
               ) : null}
 
-              <button
-                type="button"
-                className="adm-linkbtn adm-details-toggle"
-                aria-expanded={showDetails}
-                onClick={() => setShowDetails((v) => !v)}
-              >
-                {showDetails ? t.hideDetails : t.details}
-              </button>
-
-              {showDetails && fields ? (
-                <div className="adm-deal-fields">
-                  <div className="adm-newdeal-grid">
-                    {[
-                      ['projectName', t.dProject], ['country', t.dCountry],
-                      ['customerAddress', t.dAddress], ['buildLocation', t.dBuild],
-                      ['nextStep', t.dNext],
-                    ].map(([field, label]) => (
-                      <label key={field}>
-                        <span className="adm-small">{label}</span>
-                        <input
-                          type="text"
-                          value={fields[field]}
-                          onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
-                        />
-                      </label>
-                    ))}
-                    <label>
-                      <span className="adm-small">{t.nextContact}</span>
-                      <input
-                        type="date"
-                        title={t.nextContactHint}
-                        value={fields.nextContactAt}
-                        onChange={(e) => setFields((f) => ({ ...f, nextContactAt: e.target.value }))}
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    <span className="adm-small">{t.dNotes}</span>
-                    <textarea
-                      rows={3}
-                      value={fields.notes}
-                      onChange={(e) => setFields((f) => ({ ...f, notes: e.target.value }))}
-                    />
-                  </label>
-                  <div className="adm-composer-actions">
-                    <button type="button" className="btn ghost adm-btn-sm" onClick={saveFields} disabled={busy !== ''}>
-                      {t.save}
-                    </button>
-                    {savedAt ? <span className="adm-small adm-muted">{t.saved}</span> : null}
-                  </div>
-                </div>
-              ) : null}
-
               <Thread activities={lead.activities} t={t} lang={lang} endRef={threadEnd} />
 
-              {/* The whole conversation with the whole screen: the thread, then the
-                  standing notes — the two things someone reads before picking a lead
-                  back up. Reading only; replying happens in the pane, where the
-                  composer's draft/attach machinery already lives. */}
+              {/* The lead sheet: everything about this customer on one screen, editable.
+                  What happens next comes FIRST — it is the field people open this to
+                  write, and burying it under six address boxes is how a follow-up date
+                  ends up never being set. The conversation sits below it, because
+                  deciding the next step is usually a matter of rereading the last
+                  message. Replying still happens in the pane behind, where the
+                  draft/attach machinery lives. */}
               <AdminModal
-                open={reading}
+                open={sheetOpen && fields !== null}
                 title={lead.name || '—'}
                 subtitle={[
                   lead.houseTitle || lead.customModel || '',
-                  lead.nextStep || '',
+                  t.status[lead.status] ?? lead.status,
                 ].filter(Boolean).join(' · ')}
                 closeLabel={t.close}
-                onClose={() => setReading(false)}
+                onClose={() => setSheetOpen(false)}
+                footer={(
+                  <>
+                    {savedAt ? <span className="adm-small adm-saved">{t.saved}</span> : null}
+                    <button type="button" className="btn ghost" onClick={() => setSheetOpen(false)}>
+                      {t.close}
+                    </button>
+                    <button type="button" className="btn" onClick={saveFields} disabled={busy !== ''}>
+                      {t.save}
+                    </button>
+                  </>
+                )}
               >
-                <div className="adm-reader">
-                  <Thread activities={lead.activities} t={t} lang={lang} />
-                  <section className="adm-reader-notes">
-                    <h3 className="adm-small">{t.notesTitle}</h3>
-                    {lead.notes
-                      ? <p>{lead.notes}</p>
-                      : <p className="adm-muted"><em>{t.noNotes}</em></p>}
-                  </section>
-                </div>
+                {fields ? (
+                  <div className="adm-sheet">
+                    <section className="adm-sheet-next">
+                      <h3 className="adm-sheet-head">{t.nextTitle}</h3>
+                      <div className="adm-sheet-next-grid">
+                        <label>
+                          <span className="adm-small">{t.dNext}</span>
+                          <input
+                            type="text"
+                            placeholder={t.nextStepPlaceholder}
+                            value={fields.nextStep}
+                            onChange={(e) => setFields((f) => ({ ...f, nextStep: e.target.value }))}
+                          />
+                        </label>
+                        <label>
+                          <span className="adm-small">{t.nextContact}</span>
+                          <input
+                            type="date"
+                            title={t.nextContactHint}
+                            value={fields.nextContactAt}
+                            onChange={(e) => setFields((f) => ({ ...f, nextContactAt: e.target.value }))}
+                          />
+                        </label>
+                      </div>
+                    </section>
+
+                    <section>
+                      <h3 className="adm-sheet-head">{t.details}</h3>
+                      <div className="adm-newdeal-grid">
+                        {[
+                          ['projectName', t.dProject], ['country', t.dCountry],
+                          ['customerAddress', t.dAddress], ['buildLocation', t.dBuild],
+                        ].map(([field, label]) => (
+                          <label key={field}>
+                            <span className="adm-small">{label}</span>
+                            <input
+                              type="text"
+                              value={fields[field]}
+                              onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
+                            />
+                          </label>
+                        ))}
+
+                        {/* The category the lead already carries is always an option, even
+                            when it is not one of the gallery's four — it came from the
+                            customer, and a dropdown that silently drops the current value
+                            rewrites the record the moment anyone saves. */}
+                        <label>
+                          <span className="adm-small">{t.category}</span>
+                          <select
+                            value={fields.categoryKey}
+                            onChange={(e) => setFields((f) => ({
+                              ...f,
+                              categoryKey: e.target.value,
+                              // A model belongs to a category, so the text is re-resolved
+                              // against the new one. A title that is a real model in both
+                              // stays linked; anything else drops to free text rather than
+                              // lingering as a mismatch nobody notices.
+                              ...resolveModel(f.modelText, e.target.value, houses),
+                            }))}
+                          >
+                            <option value="">{t.noCategory}</option>
+                            {GALLERY_CATEGORIES.map((key) => (
+                              <option key={key} value={key}>{t.categories[key] ?? key}</option>
+                            ))}
+                            {fields.categoryKey && !GALLERY_CATEGORIES.includes(fields.categoryKey)
+                              ? <option value={fields.categoryKey}>{fields.categoryKey}</option>
+                              : null}
+                          </select>
+                        </label>
+
+                        {/* One box, suggestions where we have them. A <datalist> rather than
+                            a <select> because the answer is sometimes a catalogue model and
+                            sometimes a sentence, and a dropdown cannot hold the second kind
+                            while a text box with suggestions holds both.
+
+                            The list is empty for a category the gallery has no models for —
+                            a container, a logistics job, an interior fit-out — and the box
+                            simply behaves as free text, which is the same outcome the old
+                            conditional rendering produced with more moving parts. */}
+                        <label className="adm-span-2">
+                          <span className="adm-small">{t.model}</span>
+                          <input
+                            type="text"
+                            list="leadModelOptions"
+                            title={t.modelHint}
+                            value={fields.modelText}
+                            onChange={(e) => setFields((f) => ({
+                              ...f,
+                              ...resolveModel(e.target.value, f.categoryKey, houses),
+                            }))}
+                          />
+                          <datalist id="leadModelOptions">
+                            {houses
+                              .filter((h) => h.categoryKey === fields.categoryKey)
+                              .map((h) => <option key={h.id} value={h.title} />)}
+                          </datalist>
+
+                          {/* Which of the two things just happened, said out loud. The
+                              linking is the one part of this control a person cannot see,
+                              and an invisible foreign key is how a lead ends up attached to
+                              a house nobody meant to attach it to. */}
+                          <span className="adm-small adm-muted adm-model-state">
+                            {fields.houseId > 0
+                              ? `✓ ${t.modelLinked(fields.modelText)}`
+                              : (fields.modelText.trim() ? t.modelFree : ' ')}
+                          </span>
+                        </label>
+                      </div>
+
+                      <label className="adm-sheet-notes">
+                        <span className="adm-small">{t.dNotes}</span>
+                        <textarea
+                          rows={4}
+                          placeholder={t.notesPlaceholder}
+                          value={fields.notes}
+                          onChange={(e) => setFields((f) => ({ ...f, notes: e.target.value }))}
+                        />
+                      </label>
+                    </section>
+
+                    <section>
+                      <h3 className="adm-sheet-head">{t.thread}</h3>
+                      <Thread activities={lead.activities} t={t} lang={lang} />
+                    </section>
+                  </div>
+                ) : null}
               </AdminModal>
 
               {error ? <div className="adm-alert">{error}</div> : null}

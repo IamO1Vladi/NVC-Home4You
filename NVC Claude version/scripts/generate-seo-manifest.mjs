@@ -10,7 +10,7 @@ import { writeFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { paths } from '../src/routes/paths.js'
-import { getRouteSeo } from '../src/seo/routeMeta.js'
+import { getRouteSeo, buildHreflangs } from '../src/seo/routeMeta.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, '..')
@@ -68,6 +68,20 @@ for (const [pageKey, localized] of Object.entries(paths)) {
   }
 }
 
+// The bare domain.
+//
+// "/" only redirects to a locale IN THE BROWSER — App.jsx does it with <Navigate>, which a
+// crawler never runs. What a crawler actually got was HTTP 200, the default shell, a
+// self-canonical to "/", and no hreflang at all: a fourth copy of the homepage, word for
+// word identical to /en, sitting outside the language cluster and competing with it.
+//
+// It now carries the English home's tags with the canonical left pointing at /en, so the
+// duplicate resolves to the page that should rank, and "/" joins the hreflang cluster
+// instead of standing outside it. getRouteSeo already returns the absolute /en URL as both
+// url and canonical, so this needs no override — only the extra key.
+const homeEn = getRouteSeo(paths.home.en, 'en')
+if (homeEn) manifest['/'] = headTags(homeEn)
+
 const json = JSON.stringify(manifest, null, 2)
 
 // Vite now builds straight into the .NET web root, so there is a single target: the
@@ -81,3 +95,41 @@ if (!existsSync(dirname(target))) {
 writeFileSync(target, json, 'utf8')
 console.log(`SEO manifest -> ${target}`)
 console.log(`Done: ${Object.keys(manifest).length} routes.`)
+
+// --- sitemap.xml ---------------------------------------------------------------------
+//
+// Generated from paths.js for the same reason as the manifest: the hand-maintained
+// public/sitemap.xml had drifted. On 2026-08-14 it listed 48 URLs for 17 registered pages —
+// the services page (/services, /uslugi, /ypiresies) had NEVER been submitted in any
+// locale, and nothing in the build would ever have said so.
+//
+// Written after vite build, so it lands on top of whatever vite copied out of public/.
+// Gallery product URLs are not here; they are dynamic and served by
+// SitemapController at /sitemap-gallery.xml, which robots.txt lists as a second sitemap.
+const sitemapEntries = []
+for (const [pageKey, localized] of Object.entries(paths)) {
+  const alternates = buildHreflangs(pageKey)
+  if (!alternates.length) continue
+
+  for (const path of Object.values(localized)) {
+    if (typeof path !== 'string' || !path.startsWith('/')) continue
+
+    const links = alternates
+      .map((h) => `    <xhtml:link rel="alternate" hreflang="${escAttr(h.hrefLang)}" href="${escAttr(h.href)}" />`)
+      .join('\n')
+
+    sitemapEntries.push(`  <url>\n    <loc>${escAttr(SITE_URL + path)}</loc>\n${links}\n  </url>`)
+  }
+}
+
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${sitemapEntries.join('\n')}
+</urlset>
+`
+
+const sitemapTarget = resolve(root, '../api-dotnet/wwwroot/sitemap.xml')
+writeFileSync(sitemapTarget, sitemap, 'utf8')
+console.log(`Sitemap      -> ${sitemapTarget}`)
+console.log(`Done: ${sitemapEntries.length} URLs.`)

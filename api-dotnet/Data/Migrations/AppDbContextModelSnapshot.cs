@@ -179,6 +179,140 @@ namespace apidotnet.Data.Migrations
                     b.ToTable("CaseImages");
                 });
 
+            modelBuilder.Entity("Data.Entities.Customer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Eik")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<int?>("LeadId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PersonalId")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedByUpn")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Eik")
+                        .HasFilter("[Eik] IS NOT NULL");
+
+                    b.HasIndex("LeadId");
+
+                    b.ToTable("Customers");
+                });
+
+            modelBuilder.Entity("Data.Entities.Factory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UpdatedByUpn")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive", "Name");
+
+                    b.ToTable("Factories");
+                });
+
             modelBuilder.Entity("Data.Entities.House", b =>
                 {
                     b.Property<int>("Id")
@@ -311,6 +445,10 @@ namespace apidotnet.Data.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("nvarchar(400)");
 
+                    b.Property<string>("CategoryKey")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<DateTimeOffset?>("ClosedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -342,6 +480,10 @@ namespace apidotnet.Data.Migrations
                     b.Property<string>("Locale")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("LostReason")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -376,6 +518,13 @@ namespace apidotnet.Data.Migrations
                     b.Property<int?>("QuestionId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("QuickbaseRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -398,6 +547,10 @@ namespace apidotnet.Data.Migrations
                     b.HasIndex("QuestionId")
                         .IsUnique()
                         .HasFilter("[QuestionId] IS NOT NULL");
+
+                    b.HasIndex("QuickbaseRecordId")
+                        .IsUnique()
+                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
                     b.HasIndex("OwnerUpn", "Status");
 
@@ -574,6 +727,118 @@ namespace apidotnet.Data.Migrations
                     b.ToTable("Offers");
                 });
 
+            modelBuilder.Entity("Data.Entities.Purchase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CategoryKey")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("CustomModel")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("DepositPaid")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("FactoryId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("FinalPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("HouseId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("PurchasedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FactoryId")
+                        .HasFilter("[FactoryId] IS NOT NULL");
+
+                    b.HasIndex("HouseId");
+
+                    b.HasIndex("CustomerId", "PurchasedAt");
+
+                    b.ToTable("Purchases");
+                });
+
+            modelBuilder.Entity("Data.Entities.PurchaseFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("PurchaseId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UploadedByUpn")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlobKey")
+                        .IsUnique();
+
+                    b.HasIndex("PurchaseId", "Kind");
+
+                    b.ToTable("PurchaseFiles");
+                });
+
             modelBuilder.Entity("Data.Entities.Question", b =>
                 {
                     b.Property<int>("Id")
@@ -694,6 +959,57 @@ namespace apidotnet.Data.Migrations
                     b.ToTable("Reviews");
                 });
 
+            modelBuilder.Entity("Data.Entities.SavedConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ConfigJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("ModelLabel")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("QuickbaseRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReturnPath")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("QuickbaseRecordId")
+                        .IsUnique()
+                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+
+                    b.ToTable("SavedConfigs");
+                });
+
             modelBuilder.Entity("Data.Entities.CaseImage", b =>
                 {
                     b.HasOne("Data.Entities.Case", "Case")
@@ -703,6 +1019,16 @@ namespace apidotnet.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("Data.Entities.Customer", b =>
+                {
+                    b.HasOne("Data.Entities.Lead", "Lead")
+                        .WithMany()
+                        .HasForeignKey("LeadId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Lead");
                 });
 
             modelBuilder.Entity("Data.Entities.HouseImage", b =>
@@ -762,9 +1088,55 @@ namespace apidotnet.Data.Migrations
                     b.Navigation("Activity");
                 });
 
+            modelBuilder.Entity("Data.Entities.Purchase", b =>
+                {
+                    b.HasOne("Data.Entities.Customer", "Customer")
+                        .WithMany("Purchases")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Data.Entities.Factory", "Factory")
+                        .WithMany("Purchases")
+                        .HasForeignKey("FactoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Data.Entities.House", "House")
+                        .WithMany()
+                        .HasForeignKey("HouseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Factory");
+
+                    b.Navigation("House");
+                });
+
+            modelBuilder.Entity("Data.Entities.PurchaseFile", b =>
+                {
+                    b.HasOne("Data.Entities.Purchase", "Purchase")
+                        .WithMany("Files")
+                        .HasForeignKey("PurchaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Purchase");
+                });
+
             modelBuilder.Entity("Data.Entities.Case", b =>
                 {
                     b.Navigation("Images");
+                });
+
+            modelBuilder.Entity("Data.Entities.Customer", b =>
+                {
+                    b.Navigation("Purchases");
+                });
+
+            modelBuilder.Entity("Data.Entities.Factory", b =>
+                {
+                    b.Navigation("Purchases");
                 });
 
             modelBuilder.Entity("Data.Entities.House", b =>
@@ -780,6 +1152,11 @@ namespace apidotnet.Data.Migrations
             modelBuilder.Entity("Data.Entities.LeadActivity", b =>
                 {
                     b.Navigation("Attachments");
+                });
+
+            modelBuilder.Entity("Data.Entities.Purchase", b =>
+                {
+                    b.Navigation("Files");
                 });
 #pragma warning restore 612, 618
         }

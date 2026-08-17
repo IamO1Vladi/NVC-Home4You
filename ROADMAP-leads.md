@@ -1,6 +1,10 @@
 # Leads — the last thing on Quickbase
 
-> **Largely done, 2026-08-11 — see [HANDOFF-2026-08-12.md](HANDOFF-2026-08-12.md).**
+> **Done — see [HANDOFF-2026-08-12.md](HANDOFF-2026-08-12.md) for the leads migration,
+> and [HANDOFF-2026-08-17.md](HANDOFF-2026-08-17.md) for current state.**
+>
+> The cutover this file describes as remaining is complete: `DATA_SOURCE_LEADS=sql` went
+> live 2026-08-12.
 > Phase 1 (the silent-failure fix) shipped, Phase 0's schema dump exists as
 > `dotnet run -- lead-schema`, and Phases 2–3 shipped together: the SQL tables are live with
 > 252 rows imported, and `/admin/leads` is a working queue rather than the read-only view

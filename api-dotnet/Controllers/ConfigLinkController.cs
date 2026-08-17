@@ -9,8 +9,8 @@ namespace Controllers;
 [Route("api/config-link")]
 public class ConfigLinkController : ControllerBase
 {
-    private readonly SavedConfigService _svc;
-    public ConfigLinkController(SavedConfigService svc) { _svc = svc; }
+    private readonly ISavedConfigStore _svc;
+    public ConfigLinkController(ISavedConfigStore svc) { _svc = svc; }
 
     // Save a configuration and get back a short code + absolute /c/{code} URL.
     [HttpPost]

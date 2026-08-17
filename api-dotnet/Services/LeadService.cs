@@ -307,10 +307,23 @@ public class LeadService
         string? customerAddress,
         string? country,
         string? nextContactAt = null,
+        string? categoryKey = null,
+        int? houseId = null,
+        bool clearHouse = false,
+        string? customModel = null,
         CancellationToken ct = default)
     {
         var lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
         if (lead is null) return false;
+
+        if (categoryKey is not null) lead.CategoryKey = Trimmed(categoryKey);
+        if (customModel is not null) lead.CustomModel = Trimmed(customModel);
+
+        // "No model chosen" has to be expressible, and null already means "leave alone" on
+        // every other field here — so clearing takes its own flag rather than overloading
+        // one of the two meanings onto the same argument.
+        if (clearHouse) lead.HouseId = null;
+        else if (houseId is not null) lead.HouseId = houseId;
 
         if (nextStep is not null) lead.NextStep = Trimmed(nextStep);
         if (notes is not null) lead.Notes = Trimmed(notes);
@@ -333,6 +346,16 @@ public class LeadService
         await _db.SaveChangesAsync(ct);
         return true;
     }
+
+    /// <summary>
+    /// Whether a house id points at a real catalogue row.
+    ///
+    /// Checked before the save rather than relying on the foreign key, because a violated
+    /// FK surfaces as a 500 with nothing an editor can act on — and the realistic cause is
+    /// a model deleted from the gallery while somebody had the lead open.
+    /// </summary>
+    public Task<bool> HouseExistsAsync(int houseId, CancellationToken ct = default) =>
+        _db.Houses.AsNoTracking().AnyAsync(h => h.Id == houseId, ct);
 
     /// <summary>
     /// Reads a follow-up date off the wire. Blank is a real answer — it means "no date" —

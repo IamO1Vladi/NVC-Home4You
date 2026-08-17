@@ -75,11 +75,19 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.SqlCasesPageService>();
     builder.Services.AddScoped<Services.SqlLeadService>();
     builder.Services.AddScoped<Services.LeadImportService>();
+    builder.Services.AddScoped<Services.CrmLeadImportService>();
+    builder.Services.AddScoped<Services.LeadDuplicateService>();
     builder.Services.AddScoped<Services.LeadAdminService>();
     builder.Services.AddScoped<Services.LeadService>();
     builder.Services.AddScoped<Services.LeadPipelineService>();
     builder.Services.AddScoped<Services.LeadMailService>();
     builder.Services.AddScoped<Services.LeadFollowUpService>();
+
+    // Customers, the suppliers they were built by, and what passed between them.
+    builder.Services.AddScoped<Services.CustomerAdminService>();
+    builder.Services.AddScoped<Services.FactoryAdminService>();
+    builder.Services.AddScoped<Services.SqlSavedConfigService>();
+    builder.Services.AddScoped<Services.SavedConfigImportService>();
 
     // Owns its own container client rather than sharing the images one — see LeadFileStore
     // for why that separation is the point rather than an accident.
@@ -251,6 +259,10 @@ builder.Services.AddScoped<Services.ImageStore>(sp => new Services.ImageStore(
     sp.GetService<Services.BlobImageSource>()));
 
 builder.Services.AddScoped<Services.GalleryService>();
+
+// Per-product <head> tags for the gallery detail pages, resolved per request because
+// products are database rows rather than build-time routes. See GallerySeoService.
+builder.Services.AddScoped<Services.GallerySeoService>();
 builder.Services.AddScoped<Services.FormService>();
 builder.Services.AddScoped<Services.CasesPageService>();
 builder.Services.AddScoped<Services.ReviewService>();
@@ -306,6 +318,15 @@ builder.Services.AddScoped<Services.ILeadStore>(sp =>
 });
 
 builder.Services.AddScoped<Services.SavedConfigService>();
+
+// Read/write path for saved configurator links, chosen per request by
+// DATA_SOURCE_SAVEDCONFIGS. The SQL implementation falls back to Quickbase on a miss, so
+// this flag can be flipped before the import has run — see SqlSavedConfigService, and note
+// that these codes are already in customers' inboxes.
+builder.Services.AddScoped<Services.ISavedConfigStore>(sp =>
+    sp.GetRequiredService<Services.EnvConfig>().DataSourceFor("savedconfigs") == Services.DataSource.Sql
+        ? sp.GetRequiredService<Services.SqlSavedConfigService>()
+        : sp.GetRequiredService<Services.SavedConfigService>());
 builder.Services.AddScoped<Services.EmailService>();
 
 // Only useful when there is somewhere to import into; the CLI says so rather than failing
@@ -437,6 +458,273 @@ if (args.Length > 0 && args[0] == "lead-schema")
             Console.WriteLine($"  {f.id,4}  {f.fieldType,-16} {f.label}{(flags.Length > 0 ? $"  [{flags}]" : "")}");
         }
         Console.WriteLine($"  ({fields.Count} fields)");
+    }
+
+    return 0;
+}
+
+// `dotnet run -- import-crm-leads [--dry-run]`. Copies the Quickbase CRM Lead table into
+// the SQL Leads table. Idempotent on Quickbase record id, so it is safe to re-run.
+//
+// Distinct from `import-leads`, which carries website form submissions into Offers and
+// Questions. That one moves an inbox; this one moves the relationship sheet.
+// `dotnet run -- import-saved-configs [--dry-run]`
+//
+// The last table off Quickbase. Re-runnable: matched on QuickbaseRecordId, and a code that
+// already exists in SQL is left alone rather than overwritten — after the cutover those are
+// live rows saved natively, and a stale copy landing on one would break a link a customer
+// is holding.
+if (args.Length > 0 && args[0] == "import-saved-configs")
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.SavedConfigImportService>();
+
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING), so there is nothing to import into.");
+        return 1;
+    }
+
+    var cfgDryRun = args.Contains("--dry-run");
+    var cfgResult = await importer.ImportAsync(cfgDryRun, CancellationToken.None);
+
+    Console.WriteLine(cfgDryRun ? "DRY RUN — nothing was written." : "Import complete.");
+    Console.WriteLine($"  fetched from Quickbase : {cfgResult.Fetched}");
+    Console.WriteLine($"  inserted               : {cfgResult.Created}");
+    Console.WriteLine($"  updated in place       : {cfgResult.Updated}");
+    Console.WriteLine($"  skipped                : {cfgResult.Skipped}");
+
+    foreach (var problem in cfgResult.Problems) Console.WriteLine($"  ! {problem}");
+
+    // A skipped row is not a failed run — it is usually a code already live in SQL — but a
+    // run that imported nothing at all deserves a non-zero exit.
+    return cfgResult.Fetched == 0 && cfgResult.Problems.Count > 0 ? 1 : 0;
+}
+
+if (args.Length > 0 && args[0] == "import-crm-leads")
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.CrmLeadImportService>();
+
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING), so there is nothing to import into.");
+        return 1;
+    }
+
+    if (!importer.IsConfigured)
+    {
+        Console.Error.WriteLine(
+            "Quickbase is not configured. Needs QUICKBASE_REALM, QUICKBASE_TOKEN and QB_TABLE_CRM_LEADS.");
+        return 1;
+    }
+
+    var crmDryRun = args.Contains("--dry-run");
+    var crmResult = await importer.ImportAsync(crmDryRun, CancellationToken.None);
+
+    Console.WriteLine(crmDryRun ? "DRY RUN — nothing was written." : "Import complete.");
+    Console.WriteLine($"  fetched from Quickbase : {crmResult.Fetched}");
+    Console.WriteLine($"  inserted               : {crmResult.Inserted}");
+    Console.WriteLine($"  updated in place       : {crmResult.Updated}");
+    Console.WriteLine($"  skipped (unusable)     : {crmResult.Skipped}");
+    Console.WriteLine($"  linked to a house      : {crmResult.LinkedToHouse}");
+    Console.WriteLine($"  house link unresolved  : {crmResult.UnresolvedHouses}");
+    Console.WriteLine($"  with a follow-up date  : {crmResult.WithFollowUp}");
+    Console.WriteLine($"  with an owner          : {crmResult.WithOwner}");
+
+    Console.WriteLine();
+    Console.WriteLine("By stage:");
+    foreach (var pair in crmResult.ByStatus.OrderByDescending(p => p.Value))
+        Console.WriteLine($"  {pair.Value,5}  {pair.Key}");
+
+    Console.WriteLine();
+    Console.WriteLine("By category:");
+    foreach (var pair in crmResult.ByCategory.OrderByDescending(p => p.Value))
+        Console.WriteLine($"  {pair.Value,5}  {pair.Key}");
+
+    if (crmResult.Warnings.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"Warnings ({crmResult.Warnings.Count}):");
+        foreach (var warning in crmResult.Warnings.Take(40)) Console.WriteLine($"  {warning}");
+        if (crmResult.Warnings.Count > 40) Console.WriteLine($"  … and {crmResult.Warnings.Count - 40} more");
+    }
+
+    return 0;
+}
+
+// `dotnet run -- find-duplicate-leads`. Read-only: leads that look like the same customer
+// twice, which the CRM import made possible by creating 257 leads alongside the ones the
+// panel had already promoted from website enquiries.
+//
+// Reports only. Merging means choosing which name, owner and stage survive and moving a
+// conversation under a different row — decisions for somebody who knows the customer.
+if (args.Length > 0 && args[0] == "find-duplicate-leads")
+{
+    using var scope = app.Services.CreateScope();
+    var finder = scope.ServiceProvider.GetService<Services.LeadDuplicateService>();
+
+    if (finder is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING).");
+        return 1;
+    }
+
+    var report = await finder.FindAsync(CancellationToken.None);
+
+    static void PrintCluster(Services.LeadDuplicateService.Cluster cluster)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"--- same {cluster.Signal}: {cluster.Value} ---");
+        foreach (var lead in cluster.Leads)
+        {
+            Console.WriteLine(
+                $"  #{lead.Id,-5} {Truncate(lead.Name, 26),-26} {lead.Status,-12} " +
+                $"{lead.CreatedAt:yyyy-MM-dd}  {lead.ActivityCount,2} msg  {lead.Origin}");
+        }
+    }
+
+    static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..(max - 1)] + "…";
+
+    Console.WriteLine($"Scanned {report.Scanned} leads.");
+    Console.WriteLine();
+    Console.WriteLine($"LIKELY DUPLICATES — same email or phone: {report.Strong.Count} group(s), " +
+                      $"{report.DuplicateLeads} extra lead(s)");
+    foreach (var cluster in report.Strong) PrintCluster(cluster);
+
+    Console.WriteLine();
+    Console.WriteLine($"WORTH A LOOK — same name only, no shared email or phone: {report.Weak.Count} group(s)");
+    Console.WriteLine("  A shared name is a hint, not a finding. Check before merging anything here.");
+    foreach (var cluster in report.Weak) PrintCluster(cluster);
+
+    return 0;
+}
+
+// `dotnet run -- qb-peek <tableId> [rows]`. Read-only: every field on a table, then the
+// raw values of the first few records.
+//
+// The schema alone is not enough to build an import against, and finding that out late is
+// expensive. A "Text - Multiple Choice" field tells you nothing about whether its values
+// are "New/Contacted/Won" or "Нов/Свързан/Спечелен"; a User field comes back as an object
+// whose shape you have to see to map. Both are the kind of thing the handoff means by
+// "gotchas found the hard way" — so this exists to find them in one call rather than in a
+// half-finished import.
+if (args.Length > 0 && args[0] == "qb-peek")
+{
+    using var scope = app.Services.CreateScope();
+    var qb = scope.ServiceProvider.GetRequiredService<Services.QuickbaseApi>();
+
+    if (!qb.IsConfigured)
+    {
+        Console.Error.WriteLine("Quickbase is not configured (QUICKBASE_REALM / QUICKBASE_TOKEN).");
+        return 1;
+    }
+
+    var peekTable = args.Length > 1 ? args[1] : "";
+    if (string.IsNullOrWhiteSpace(peekTable))
+    {
+        Console.Error.WriteLine("Usage: dotnet run -- qb-peek <tableId> [rows]");
+        return 1;
+    }
+
+    var peekRows = args.Length > 2 && int.TryParse(args[2], out var n) ? Math.Clamp(n, 1, 20) : 3;
+
+    var peekFields = await qb.GetFieldsAsync(peekTable, CancellationToken.None);
+    Console.WriteLine($"=== {peekTable}: {peekFields.Count} fields ===");
+    foreach (var f in peekFields.OrderBy(f => f.id))
+        Console.WriteLine($"  {f.id,4}  {f.fieldType,-22} {f.label}");
+
+    var peekResult = await qb.QueryPageAsync(
+        peekTable, peekFields.Select(f => f.id), where: "", sortFid: 3, sortOrder: "DESC",
+        skip: 0, top: peekRows, CancellationToken.None);
+
+    var labels = peekFields.ToDictionary(f => f.id.ToString(), f => f.label ?? "");
+
+    Console.WriteLine();
+    Console.WriteLine($"=== newest {peekResult.data?.Count ?? 0} record(s) ===");
+    foreach (var record in peekResult.data ?? new List<Models.QbRec>())
+    {
+        Console.WriteLine("---");
+        foreach (var pair in record.OrderBy(p => int.TryParse(p.Key, out var k) ? k : 0))
+        {
+            var raw = pair.Value.value.GetRawText();
+            if (raw is "null" or "\"\"") continue;      // empty fields are noise here
+            var label = labels.TryGetValue(pair.Key, out var l) ? l : "";
+            Console.WriteLine($"  {pair.Key,4} {label,-28} {raw}");
+        }
+    }
+
+    return 0;
+}
+
+// `dotnet run -- qb-values <tableId> <fid,fid,...>`. Read-only: every distinct value of
+// the given fields, with counts.
+//
+// The companion to qb-peek. A sample of three records shows you the SHAPE of a
+// multiple-choice field; only the whole table shows you its VOCABULARY, and a status map
+// built from three rows silently drops every value that happened not to be in them.
+if (args.Length > 0 && args[0] == "qb-values")
+{
+    using var scope = app.Services.CreateScope();
+    var qb = scope.ServiceProvider.GetRequiredService<Services.QuickbaseApi>();
+
+    if (!qb.IsConfigured)
+    {
+        Console.Error.WriteLine("Quickbase is not configured (QUICKBASE_REALM / QUICKBASE_TOKEN).");
+        return 1;
+    }
+
+    if (args.Length < 3)
+    {
+        Console.Error.WriteLine("Usage: dotnet run -- qb-values <tableId> <fid,fid,...>");
+        return 1;
+    }
+
+    var valuesTable = args[1];
+    var valueFids = args[2]
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(x => int.TryParse(x, out var fid) ? fid : 0)
+        .Where(fid => fid > 0)
+        .ToArray();
+
+    var tally = valueFids.ToDictionary(fid => fid, _ => new Dictionary<string, int>(StringComparer.Ordinal));
+    var scanned = 0;
+
+    // Paged, for the reason QueryPageAsync exists: the 500-row cap is silent, and a
+    // vocabulary built from the first 500 rows of a growing table is a vocabulary with
+    // holes in it.
+    for (var skip = 0; ; skip += 500)
+    {
+        var page = await qb.QueryPageAsync(
+            valuesTable, valueFids.Append(3), where: "", sortFid: 3, sortOrder: "ASC",
+            skip: skip, top: 500, CancellationToken.None);
+
+        var batch = page.data ?? new List<Models.QbRec>();
+        if (batch.Count == 0) break;
+        scanned += batch.Count;
+
+        foreach (var record in batch)
+        {
+            foreach (var fid in valueFids)
+            {
+                if (!record.TryGetElement(fid, out var element)) continue;
+                var raw = element.GetRawText();
+                if (raw is "null" or "\"\"") continue;
+                tally[fid][raw] = tally[fid].TryGetValue(raw, out var count) ? count + 1 : 1;
+            }
+        }
+
+        if (batch.Count < 500) break;
+    }
+
+    Console.WriteLine($"=== {valuesTable}: {scanned} records scanned ===");
+    foreach (var fid in valueFids)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"--- field {fid} ({tally[fid].Count} distinct) ---");
+        foreach (var pair in tally[fid].OrderByDescending(p => p.Value).Take(60))
+            Console.WriteLine($"  {pair.Value,5}  {pair.Key}");
     }
 
     return 0;
@@ -591,6 +879,25 @@ if (args.Length > 0 && args[0] == "verify-images")
 // pipeline sees the original https request rather than App Service's internal http hop.
 app.UseForwardedHeaders();
 
+// HSTS, set by hand rather than via app.UseHsts().
+//
+// UseHsts() skips any request it considers insecure, and behind App Service's reverse
+// proxy the inbound hop is plain http — so the header silently never shipped. Written
+// directly, gated on the scheme UseForwardedHeaders has just corrected, it does.
+//
+// One year, subdomains included, and deliberately NOT preload: preload is a one-way door
+// (removal from the browser list takes months), and it is not ours to commit to from a
+// code change.
+app.Use(async (context, next) =>
+{
+    if (context.Request.IsHttps)
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+
+    await next();
+});
+
 app.UseCors();
 app.UseSwagger();
 app.UseSwaggerUI(c => {
@@ -613,6 +920,31 @@ app.UseStaticFiles(new StaticFileOptions
         {
             // The HTML entry point must always revalidate so new deploys go live immediately.
             headers.CacheControl = "no-cache";
+        }
+        else if (ctx.File.Name.Equals("sitemap.xml", StringComparison.OrdinalIgnoreCase)
+              || ctx.File.Name.Equals("robots.txt", StringComparison.OrdinalIgnoreCase))
+        {
+            // Crawler-facing files, and the "other static assets" default below is wrong for
+            // them in two ways.
+            //
+            // A WEEK IS TOO LONG. These change on every deploy that adds a route, and a stale
+            // sitemap is a set of pages Google is not told about. Worse, if a crawler or any
+            // intermediary ever caches a bad response, max-age=604800 holds that failure for
+            // seven days — which is exactly the shape of a sitemap error that will not clear.
+            //
+            // AND text/xml WITHOUT A CHARSET means us-ascii per RFC 3023, so a strict parser
+            // is entitled to ignore the <?xml encoding?> declaration. Harmless while every
+            // URL is transliterated ASCII; the moment a Cyrillic or Greek slug reaches this
+            // file it stops being harmless, and the failure would be a sitemap that silently
+            // stops parsing. Stated explicitly rather than left to the file extension.
+            //
+            // /sitemap-gallery.xml does not pass through here at all — SitemapController
+            // serves it, already as application/xml with an explicit charset and a 600s
+            // cache. This brings the static one into line with the one that works.
+            headers.CacheControl = "public, max-age=600";
+
+            if (ctx.File.Name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                ctx.Context.Response.ContentType = "application/xml; charset=utf-8";
         }
         else
         {
@@ -663,7 +995,7 @@ if (adminAuthReady)
 // configurator path it was saved from and 302 there with ?c={code}; the SPA reads the
 // query param and fetches the full config from /api/config-link/{code} to hydrate.
 // Falls back to the site root when the code is unknown.
-app.MapGet("/c/{code}", async (string code, Services.SavedConfigService svc, CancellationToken ct) =>
+app.MapGet("/c/{code}", async (string code, Services.ISavedConfigStore svc, CancellationToken ct) =>
 {
     if (!svc.IsConfigured) return Results.Redirect("/");
     var returnPath = await svc.GetReturnPathAsync(code, ct);
@@ -686,6 +1018,35 @@ const string seoEnd = "<!--SEO-END-->";
 var webRoot = app.Environment.WebRootPath ?? "";
 var indexPath = Path.Combine(webRoot, "index.html");
 var indexHtml = File.Exists(indexPath) ? await File.ReadAllTextAsync(indexPath) : "";
+
+// Prerendered page snapshots, produced by `npm run prerender` (scripts/prerender.mjs).
+//
+// The head injection below fixed <head>; this fixes <body>. Without it every URL answers
+// with an empty <div id="root">, so a crawler that does not execute JavaScript sees no
+// content at all — measured at 0 characters against 4,819-19,392 for every competitor.
+//
+// Loaded into memory once at startup rather than read per request: it is ~50 files that
+// only change on deploy, and touching the disk on every page view to serve them would be a
+// worse trade than the few MB.
+//
+// Read from OUTSIDE wwwroot on purpose. In the web root the static-file middleware would
+// serve each snapshot a second time at /prerendered/..., duplicating every page at a URL
+// nothing canonicals away.
+var prerendered = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+var prerenderDir = Path.Combine(app.Environment.ContentRootPath, "prerendered");
+if (Directory.Exists(prerenderDir))
+{
+    foreach (var file in Directory.EnumerateFiles(prerenderDir, "*.html", SearchOption.AllDirectories))
+    {
+        // "<dir>/bg/modulni-kysthi.html" -> "/bg/modulni-kysthi"; "_root.html" -> "/"
+        var rel = Path.GetRelativePath(prerenderDir, file)
+            .Replace(Path.DirectorySeparatorChar, '/');
+        rel = rel[..^".html".Length];
+
+        var key = rel == "_root" ? "/" : "/" + rel;
+        prerendered[key] = await File.ReadAllTextAsync(file);
+    }
+}
 
 var seoManifest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 var manifestPath = Path.Combine(webRoot, "seo-manifest.json");
@@ -745,10 +1106,58 @@ app.MapFallback(async context =>
         return;
     }
 
+    // A prerendered snapshot already carries both the injected head tags and the rendered
+    // body, so it is served as-is. Same bytes to everyone — serving a crawler something a
+    // visitor does not get is cloaking, and the whole point of the snapshot is that it IS
+    // the real page.
+    //
+    // The bypass header exists for one caller: the prerender script itself. Without it the
+    // generator navigates to a server that answers with the PREVIOUS snapshot and dutifully
+    // re-saves it, so the files feed on themselves and silently stop reflecting code
+    // changes — a fixed URL stays broken in the output forever, with a successful-looking
+    // run every time. Skipping the cache only falls back to the ordinary SPA shell, so
+    // there is nothing here worth abusing.
+    var bypassSnapshot = context.Request.Headers.ContainsKey("X-Prerender-Bypass");
+
+    if (!bypassSnapshot && prerendered.TryGetValue(path, out var snapshot))
+    {
+        await context.Response.WriteAsync(snapshot);
+        return;
+    }
+
     if (seoManifest.TryGetValue(path, out var tags))
     {
         if (start >= 0 && end > start)
             html = html[..(start + seoStart.Length)] + "\n    " + tags + "\n    " + html[end..];
+    }
+    else if (Services.GallerySlugs.TryParsePath(path, out _, out _))
+    {
+        // Gallery product pages. Not in the manifest and they cannot be — products are
+        // database rows that staff rename through the admin panel, so build-time tags
+        // would be stale the first time somebody edits a title. Resolved per request
+        // instead, off the 10-minute cache GalleryService already keeps.
+        //
+        // Without this branch the default shell block survives, and that block canonicals
+        // to "/" — which told Google every product page was a duplicate of the homepage
+        // while sitemap-gallery.xml submitted all of them.
+        var seo = context.RequestServices.GetRequiredService<Services.GallerySeoService>();
+        var (outcome, productTags) = await seo.TryBuildAsync(path, context.RequestAborted);
+
+        if (outcome == Services.GallerySeoService.Outcome.Resolved && start >= 0 && end > start)
+        {
+            html = html[..(start + seoStart.Length)] + "\n    " + productTags + "\n    " + html[end..];
+        }
+        else if (outcome == Services.GallerySeoService.Outcome.ProductNotFound)
+        {
+            // A product-shaped URL naming a product that does not exist — a retired model
+            // or a typo. Previously served as 200 with homepage metadata, which is a soft
+            // 404 for every dead product link ever shared.
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            const string goneTags =
+                "<title>Page not found | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" />";
+            if (start >= 0 && end > start)
+                html = html[..(start + seoStart.Length)] + "\n    " + goneTags + "\n    " + html[end..];
+        }
     }
     else if (!IsKnownSpaRoute(path))
     {

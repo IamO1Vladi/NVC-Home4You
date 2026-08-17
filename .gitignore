@@ -31,6 +31,12 @@
 # Deploys are Zip Deploy from the publish output, so nothing here needs committing.
 api-dotnet/wwwroot/
 
+# Prerendered page snapshots (scripts/prerender.mjs). Same category as wwwroot above:
+# generated from the app, never authored, and regenerated as a release step (DEPLOY.md
+# §6b) before the Zip Deploy picks them up. Committing them would put ~50 near-identical
+# 35 KB HTML files into every content-change diff.
+api-dotnet/prerendered/
+
 # Visual Studio publish profile user settings. These hold the App Service deployment
 # credential (<EncryptedPassword>) and are per-developer, per-machine — they must never
 # be committed. The .pubxml files themselves are shared and stay tracked.

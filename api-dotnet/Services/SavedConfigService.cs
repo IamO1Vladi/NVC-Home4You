@@ -14,7 +14,7 @@ namespace Services;
 // Quickbase table (mirrors FormService's use of QuickbaseClient with raw request bodies).
 // The config payload is treated as opaque JSON, so this service never depends on the
 // configurator's schema.
-public class SavedConfigService
+public class SavedConfigService : ISavedConfigStore
 {
     // Base62, minus visually ambiguous characters (0/O, 1/l/I) so codes stay readable
     // when typed or shared verbally.

@@ -1,5 +1,9 @@
 # Where things stand — 2026-08-05
 
+> **Historical — 2026-08-06.** Current state and what is next ->
+> [HANDOFF-2026-08-17.md](HANDOFF-2026-08-17.md).
+
+
 > **Superseded 2026-08-06.** Gallery, cases and every image have since moved off Quickbase and
 > are live. **Start at [ROADMAP-next.md](ROADMAP-next.md)**, which covers what is left
 > (leads, saved configs, factory sheet) and the state as of that release, `deploy-2026-08-06`.

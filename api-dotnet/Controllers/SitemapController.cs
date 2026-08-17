@@ -1,8 +1,5 @@
-using System;
-using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -19,15 +16,11 @@ namespace Controllers;
 [ApiController]
 public class SitemapController : ControllerBase
 {
-    private const string SiteUrl = "https://nvc-home4you.eu";
-
-    // Locale -> gallery base path. Must match the routes registered in src/App.jsx.
-    private static readonly (string Locale, string Prefix)[] Locales =
-    {
-        ("en", "/en/gallery/"),
-        ("bg", "/bg/galeriq/"),
-        ("el", "/el/gkaleri/"),
-    };
+    // Locales, slugs and item URLs all come from GallerySlugs, which is also what the
+    // request-time SEO tags use. They were separate copies until the second consumer
+    // appeared; a sitemap that slugifies differently from the page it points at advertises
+    // URLs the site answers with a 404.
+    private static readonly (string Locale, string Prefix)[] Locales = GallerySlugs.Locales;
 
     private readonly GalleryService _svc;
     public SitemapController(GalleryService svc) { _svc = svc; }
@@ -45,9 +38,7 @@ public class SitemapController : ControllerBase
         foreach (var item in items)
         {
             // Per-locale absolute URL for this item.
-            var urls = Locales.ToDictionary(
-                l => l.Locale,
-                l => SiteUrl + l.Prefix + Uri.EscapeDataString(SlugFor(item, l.Locale)));
+            var urls = Locales.ToDictionary(l => l.Locale, l => GallerySlugs.UrlFor(item, l.Locale));
 
             foreach (var (locale, _) in Locales)
             {
@@ -70,27 +61,4 @@ public class SitemapController : ControllerBase
         return Content(sb.ToString(), "application/xml", Encoding.UTF8);
     }
 
-    private static string SlugFor(GalleryItem item, string locale)
-    {
-        var title = locale switch
-        {
-            "bg" => !string.IsNullOrWhiteSpace(item.TitleBg) ? item.TitleBg : item.Title,
-            "el" => !string.IsNullOrWhiteSpace(item.TitleEl) ? item.TitleEl : item.Title,
-            _ => item.Title,
-        };
-        if (string.IsNullOrWhiteSpace(title))
-            title = item.Id.ToString(CultureInfo.InvariantCulture);
-        return Slugify(title);
-    }
-
-    // Mirrors slugify() / getItemSlug() in src/gallery/galleryUtils.js — keep the two in sync.
-    private static string Slugify(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return "model";
-        var s = value.Normalize(NormalizationForm.FormKD).ToLowerInvariant();
-        s = Regex.Replace(s, "[’'\"“”]", "");
-        s = Regex.Replace(s, @"[^\p{L}\p{N}]+", "-");
-        s = s.Trim('-');
-        return string.IsNullOrEmpty(s) ? "model" : s;
-    }
 }

@@ -79,6 +79,10 @@ const ElCasesRoute = lazy(() => import('./routes/el/ElCasesRoute.jsx'))
 const ElGalleryRoute = lazy(() => import('./routes/el/ElGalleryRoute.jsx'))
 const ElBoxHouseConfiguratorRoute = lazy(() => import('./routes/el/ElBoxHouseConfiguratorRoute.jsx'))
 
+const BgPricesRoute = lazy(() => import('./routes/bg/BgPricesRoute.jsx'))
+const EnPricesRoute = lazy(() => import('./routes/en/EnPricesRoute.jsx'))
+const ElPricesRoute = lazy(() => import('./routes/el/ElPricesRoute.jsx'))
+
 const EnPrivacyRoute = lazy(() => import('./routes/en/EnPrivacyRoute.jsx'))
 const BgPrivacyRoute = lazy(() => import('./routes/bg/BgPrivacyRoute.jsx'))
 const ElPrivacyRoute = lazy(() => import('./routes/el/ElPrivacyRoute.jsx'))
@@ -93,6 +97,8 @@ const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
 const AdminReviewsPage = lazy(() => import('./pages/AdminReviewsPage.jsx'))
 const AdminInquiriesPage = lazy(() => import('./pages/AdminInquiriesPage.jsx'))
 const AdminPipelinePage = lazy(() => import('./pages/AdminPipelinePage.jsx'))
+const AdminCustomersPage = lazy(() => import('./pages/AdminCustomersPage.jsx'))
+const AdminFactoriesPage = lazy(() => import('./pages/AdminFactoriesPage.jsx'))
 const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 
@@ -419,7 +425,18 @@ function AppShell() {
                   rather than reuse: sending someone to a page that looks similar and holds
                   different records is worse than moving them. */}
               <Route path="/admin/leads" element={<Navigate to="/admin/inquiries" replace />} />
+              {/* Prices. Targets the highest-intent query in the market; every competitor
+                  ranks for it and we had no page at all. */}
+              <Route path={paths.prices.bg} element={<BgPricesRoute />} />
+              <Route path={paths.prices.en} element={<EnPricesRoute />} />
+              <Route path={paths.prices.el} element={<ElPricesRoute />} />
+
               <Route path="/admin/pipeline" element={<AdminPipelinePage />} />
+              {/* After the pipeline, because that is the journey: an inquiry arrives, it
+                  becomes a lead, the lead buys something, and the factory that built it is
+                  the reference table the purchase points at. */}
+              <Route path="/admin/customers" element={<AdminCustomersPage />} />
+              <Route path="/admin/factories" element={<AdminFactoriesPage />} />
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />
               <Route path="/admin/cases" element={<AdminCasesPage />} />
