@@ -9,7 +9,8 @@ Migration history -> ROADMAP-datalayer-admin.md
 RECENTLY DONE
 -------------
 [x] Saved configurator links on Azure SQL (2026-08-15)
-    The last table off Quickbase. Migration applied; import + flag flip still to run.
+    The last table off Quickbase. Migration applied; import DONE 2026-08-17 (19 rows).
+    Only DATA_SOURCE_SAVEDCONFIGS=sql in App Service is left.
     SQL misses fall back to Quickbase, because the codes are already in customers' inboxes.
     Once DATA_SOURCE_SAVEDCONFIGS=sql is live and the import has run, Quickbase has no
     live runtime path left.
