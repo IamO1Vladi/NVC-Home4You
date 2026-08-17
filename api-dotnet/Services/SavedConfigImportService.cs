@@ -131,6 +131,19 @@ public sealed class SavedConfigImportService
                     existing.ModelLabel = AdminText.Clean(row.Get(_env.F_SAVEDCFG_MODEL));
                     existing.Locale = AdminText.Clean(row.Get(_env.F_SAVEDCFG_LOCALE));
                     existing.ReturnPath = AdminText.Clean(row.Get(_env.F_SAVEDCFG_PATH));
+
+                    // Email is only carried when FID_SAVEDCFG_EMAIL is configured — it has no
+                    // default, so a machine without it imports every other field and silently
+                    // leaves this one null. That happened on the first run (2026-08-17, 19
+                    // rows, all with Email null), and the update branch originally omitted
+                    // this line, which meant a re-run WITH the field set could never backfill
+                    // it. Guarded rather than unconditional so a re-run from a machine that
+                    // still lacks the id does not wipe values a better-configured run wrote.
+                    if (_env.F_SAVEDCFG_EMAIL is int updFid)
+                    {
+                        var email = AdminText.Clean(row.Get(updFid));
+                        if (email is not null) existing.Email = email;
+                    }
                 }
                 updated++;
             }
