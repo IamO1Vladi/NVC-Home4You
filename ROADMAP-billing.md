@@ -31,28 +31,57 @@ Purchase (existing, sales side)          OperatingExpense          Target
 
 ---
 
-## The pricing formula — CONFIRM BEFORE RELYING ON IT
+## The pricing formula — confirmed 2026-08-17
 
-As described: *price = (purchase lots + shipment cost to warehouse), times 2.7, plus 20%
-VAT because the goods cross the border from China.*
+**VAT applies to the landed value, not to the marked-up price**, and the landed value
+includes customs. Owner's words: *"the VAT is on the whole price — purchase lots, shipments
+and customs."* So:
 
-Two readings, and they differ by real money. With lots €10,000 and freight €2,000
-(base €12,000, ×2.7 = €32,400):
+```
+LandedBase = SUM(lot.Quantity × lot.UnitCost) + FreightCost + CustomsDuty + OtherCosts
+Price      = LandedBase × MarkupCoefficient  +  LandedBase × BorderVatRate
+```
 
-| Reading | Formula | Result |
+With lots $10,000, freight $2,000, customs $500 (base $12,500):
+`12,500 × 2.7 = 33,750`, plus `12,500 × 0.20 = 2,500`, giving **$36,250**.
+
+**Sanity check worth doing against a real container**, because it collapses to one number:
+since both terms multiply the same base, `Price = LandedBase × (2.7 + 0.20)` =
+**`LandedBase × 2.9`**. If that does not match how a real price was actually set, the
+formula above is wrong and this is where it shows.
+
+**`2.7` and `0.20` are data, not code.** They will change; the dashboard must reproduce
+last year's numbers with last year's coefficients. They live on `BuyCycle`, defaulted from
+the previous cycle at creation.
+
+**OPEN, for the accountant, and it changes the dashboard rather than the price:** is the
+border VAT reclaimed as input VAT? If it is, it is cash flow and not a cost, so it must not
+be subtracted in margin — even though it is charged on. The formula above is unaffected
+either way.
+
+## Currency — confirmed 2026-08-17
+
+**The buy side is USD. Everything else is EUR. Reports are EUR.** Goods come from China
+and are paid in dollars; sales, operating expenses and every dashboard figure are euros.
+
+So procurement amounts are **stored in USD as paid**, with the conversion rate recorded on
+the shipment, and EUR is **computed** — never stored, on the no-derived-values rule:
+
+| On `Shipment` | Type | Why |
 |---|---|---|
-| **A** | (base × 2.7) × 1.20 — VAT on the marked-up price | **€38,880** |
-| **B** | base × 2.7 + base × 0.20 — VAT on the border value | **€34,800** |
+| `UsdToEurRate` | decimal(18,6), required | The rate for **this** shipment. Six decimals because FX rates need them. |
+| `RateSource` | string(200)? | Where it came from — the bank's rate on the payment, the customs rate, a manual figure. Two shipments a week apart will disagree, and someone will ask why. |
+| `RateAt` | date? | Which day's rate it is. |
 
-Customs practice says import VAT is assessed on the border value (goods + freight), which
-is reading B's VAT base — but B then treats a recoverable input VAT as if it were part of
-the sale price. Reading A is the usual retail-price shape. **OPEN: which is it?** (Related
-OPEN, for the accountant: is the border VAT reclaimed as input VAT? If yes it is cash flow,
-not cost, and the dashboard must not count it in margin.)
+`PurchaseLot.UnitCost` and every `Shipment` cost column are USD. `Purchase` (sales) and
+`OperatingExpense` are EUR and need no rate — they are already in the reporting currency.
 
-**Either way, `2.7` and `0.20` are data, not code.** They will change; the dashboard must
-be able to reproduce last year's numbers with last year's coefficients. They live on
-`BuyCycle`, defaulted from the previous cycle at creation.
+**The rate belongs on the shipment, not in a global settings row.** One rate for the whole
+system would silently re-value historical containers every time it was updated, which is
+the same failure as storing a derived total: the number people read stops matching the
+number that was paid. A per-shipment rate makes every past cycle reproducible forever.
+
+**`Target.TargetValue` is EUR**, like every other reported figure.
 
 ---
 
@@ -88,15 +117,14 @@ instead of delete (`Factory` precedent), and **no stored derived values** — th
 | `ImportVatPaid` | decimal? | What the border **actually** assessed — a fact, recorded, not derived from the 20% (assessments differ from theory). |
 | `OtherCosts` | decimal? | Port fees, inland haulage, inspection — with `Notes` saying what. |
 | `OrderedAt` / `DepartedAt` / `ArrivedAt` | date? | Lead-time tracking falls out of these for free. No `Status` column — status is derivable from which dates are filled. |
+| `UsdToEurRate` | decimal(18,6), required | See **Currency** above. All cost columns on this table are **USD**; EUR is computed. |
+| `RateSource` / `RateAt` | string(200)? / date? | Where the rate came from, and for which day. |
 | `Notes`, audit fields | | |
 
 **No `GoodsCost` column.** It is `SUM(lot.Quantity × lot.UnitCost)` — stored, it becomes
 the copy people read while the lots drift.
 
-**OPEN — currency.** Factories in China are usually paid in USD. Proposal: all columns
-hold **EUR as actually paid** (what left the account), original currency in `Notes`. A
-proper `OriginalCurrency`/`OriginalAmount`/`Rate` triple is easy to add later if the
-answer is "we need to see the USD".
+**No EUR columns either**, for the same reason: `usd × UsdToEurRate`.
 
 ### ProductModel — the catalogue at factory cost
 
@@ -105,7 +133,7 @@ answer is "we need to see the USD".
 | `Id`, `Name` (string(200), required) | | |
 | `CategoryKey` | string(60) | Same loose key set as `PurchaseCategories` — houses, wagons, materials. |
 | `HouseId` | int?, FK → `House` | **The id-link to the gallery when the model is a catalogue model.** Retail price stays on the gallery row; this table holds cost only. Two free-standing price lists is the 73 m² incident. Null for materials. |
-| `FactoryPrice` | decimal? | The **current reference** price, used to prefill new lots. Editing it never rewrites history — see `PurchaseLot.UnitCost`. |
+| `FactoryPrice` | decimal? | **USD.** The **current reference** price, used to prefill new lots. Editing it never rewrites history — see `PurchaseLot.UnitCost`. |
 | `IsActive`, `Notes`, audit fields | | |
 
 ### PurchaseLot — the line item
@@ -114,7 +142,7 @@ answer is "we need to see the USD".
 |---|---|---|
 | `Id`, `ShipmentId` (required FK), `ProductModelId` (required FK) | | |
 | `Quantity` | int, required, > 0 | |
-| `UnitCost` | decimal, required | **Snapshot at purchase time**, prefilled from `ProductModel.FactoryPrice`, editable. A factory price correction next year must not silently reprice last year's containers. |
+| `UnitCost` | decimal, required | **USD**, and a **snapshot at purchase time** — prefilled from `ProductModel.FactoryPrice`, editable. A factory price correction next year must not silently reprice last year's containers. |
 | `Notes`, audit fields | | |
 
 No `LineTotal` — `Quantity × UnitCost`.
@@ -176,11 +204,13 @@ per period, updated in place, so the dashboard never has to pick between two ans
 
 ## The dashboard — everything derived, nothing stored
 
+Every figure below is **EUR**, converted with the shipment's own `UsdToEurRate`.
+
 | Metric | Computed from |
 |---|---|
-| Landed cost per shipment | lots + freight + duty (+ border VAT **only if** the accountant says it is a cost) |
+| Landed cost per shipment | (lots + freight + duty + other) × rate |
 | Landed cost per unit | shipment costs allocated across lots — **by value share** by default (**OPEN**: or by unit count?) |
-| Suggested retail | the cycle's formula, once A/B is confirmed |
+| Suggested retail | `LandedBase × (Markup + BorderVat)` — see the formula section |
 | Margin per model | gallery retail (by the `HouseId` link) vs landed cost |
 | Revenue per month/cycle/year | `Purchase.PurchasedAt` + `FinalPrice` |
 | Opex per period | `OperatingExpense.SpentAt` rollup |
@@ -214,9 +244,15 @@ records exist, not after.
 
 ## Open questions, gathered
 
-1. Pricing formula: reading **A or B**? And is border VAT reclaimed (cost vs cash flow)?
-2. Cycles per year, and their boundaries — can they overlap a month boundary?
-3. Currency: is "EUR as paid, USD in notes" enough, or is the USD amount itself needed?
-4. The opex category list — right set?
-5. "Sales needs improvement" — does the `SaleAllocation` sketch match the intent?
-6. Freight allocation per unit: by value share or by count?
+**Answered 2026-08-17:** the pricing formula (VAT on the landed value including customs —
+`base × 2.9` as one number, worth checking against a real container) and currency (buy side
+USD with a per-shipment rate, everything reported in EUR).
+
+Still open:
+
+1. Is border VAT reclaimed as input VAT? Changes the **dashboard** (cost vs cash flow), not
+   the price.
+2. Cycles per year, and their boundaries — can a cycle straddle a month boundary?
+3. The opex category list — right set?
+4. "Sales needs improvement" — does the `SaleAllocation` sketch match the intent?
+5. Freight allocation per unit: by value share or by count?
