@@ -103,14 +103,20 @@ The panel now covers: home, inquiries, leads, customers, factories, reviews, gal
 [ ] 16. Documents section (brochures via Blob) — changing a PDF still needs a developer
         and a deploy. Shares everything with the image pipeline already built.
 
-Requested by the owner 2026-08-17, leads/pipeline improvements (next up):
-[ ] 22. Lead details modal auto-closes on successful save.
-[ ] 23. Email writer becomes rich text (hyperlinks), auto-populated signature from the
-        signed-in user: their name + email from Entra, shared phone 024 371 650.
-[ ] 24. Filter leads by status.
-[ ] 25. Convert a lead to a customer (the panel has both ends; nothing connects them).
-[ ] 26. Assign a lead to a user. Lead.OwnerUpn already exists in the schema — the work
-        is the UI, a user list to pick from, and probably "my leads" filtering with #24.
+Requested by the owner 2026-08-17, leads/pipeline improvements —
+ALL FIVE BUILT SAME DAY on feature/leads-panel-improvements (awaiting merge + deploy):
+[x] 22. Lead details modal auto-closes on successful save. Failure keeps it open with
+        the error now shown INSIDE the sheet (it used to render behind the modal).
+[x] 23. Email writer is rich text (same RichTextEditor as the gallery), signature
+        auto-populated from /api/admin/me + shared phone 024 371 650, in the lead's
+        locale. Signature-only counts as empty; notes strip it; drafts re-append it.
+[x] 24. Board filters: status + activity window (today/7d/30d/stale 30+), client-side
+        within the current tab. Never closes the conversation being read.
+[x] 25. Convert lead -> customer: identity-only per the decision below, Customer.LeadId
+        linked, idempotent (second click opens the existing customer), lands on
+        /admin/customers?customer={id} which now opens that card on arrival.
+[x] 26. Assign a lead to anyone: owner dropdown fed by allow-list + existing owners +
+        self; current owner always expressible; unassign sends null.
 
 INFRASTRUCTURE
 --------------
