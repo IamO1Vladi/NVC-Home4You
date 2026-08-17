@@ -91,6 +91,70 @@ public class GallerySeoTests
         Assert.Equal("johns-cabin", GallerySlugs.Slugify("John’s Cabin"));
     }
 
+    // --- NFKC: accented letters stay letters --------------------------------------------
+    //
+    // The bug this replaced: NFKD decomposed an accented character into a base letter plus a
+    // combining mark, and the non-alphanumeric pass turned that mark into a hyphen — so the
+    // keyword was split down the middle in every Bulgarian and Greek slug.
+
+    [Theory]
+    // Bulgarian "й" is a letter in its own right, not an accent to be folded away.
+    [InlineData("Контейнерна къща", "контейнерна-къща")]
+    [InlineData("Панорамен офис контейнер", "панорамен-офис-контейнер")]
+    // Greek accents, which hit 12 of the 14 Greek product URLs.
+    [InlineData("Σπίτι τύπου Container", "σπίτι-τύπου-container")]
+    [InlineData("Αναπτυσσόμενη κατοικία", "αναπτυσσόμενη-κατοικία")]
+    [InlineData("Διώροφη κατοικία", "διώροφη-κατοικία")]
+    public void An_accented_letter_does_not_become_a_hyphen(string input, string expected)
+    {
+        Assert.Equal(expected, GallerySlugs.Slugify(input));
+    }
+
+    [Theory]
+    [InlineData("Контейнерна къща", "контеи-нерна-къща")]
+    [InlineData("Σπίτι τύπου Container", "σπι-τι-τυ-που-container")]
+    public void The_legacy_algorithm_still_reproduces_the_old_broken_slug(string input, string expected)
+    {
+        // Not nostalgia: this is what a stale URL is matched against so it can be redirected
+        // instead of 404ing. If this drifts, every gallery link ever shared breaks.
+        Assert.Equal(expected, GallerySlugs.LegacySlugify(input));
+    }
+
+    [Theory]
+    // The compatibility folding NFKD did is the part NFKC KEEPS, and every "…-37-m2" slug
+    // depends on it. If these changed, 26 correct URLs would have needed redirects too.
+    [InlineData("Expandable House – 37 m²", "expandable-house-37-m2")]
+    [InlineData("Container House – 6000mm*3000mm", "container-house-6000mm-3000mm")]
+    [InlineData("Two-storey expandable house - 74m²", "two-storey-expandable-house-74m2")]
+    [InlineData("Жилищен фургон 6000мм 3000мм", "жилищен-фургон-6000мм-3000мм")]
+    public void Slugs_with_no_accents_are_unchanged_by_the_switch(string input, string expected)
+    {
+        Assert.Equal(expected, GallerySlugs.Slugify(input));
+        // The whole point: identical under both, so these URLs did not move.
+        Assert.Equal(GallerySlugs.LegacySlugify(input), GallerySlugs.Slugify(input));
+    }
+
+    [Fact]
+    public void A_corrected_slug_differs_from_its_legacy_form()
+    {
+        // Guards the assumption the redirect rests on. If these ever matched, the lookup
+        // would resolve on the current algorithm and the redirect would never be reached.
+        Assert.NotEqual(
+            GallerySlugs.LegacySlugify("Контейнерна къща"),
+            GallerySlugs.Slugify("Контейнерна къща"));
+    }
+
+    [Fact]
+    public void PathFor_is_relative_and_locale_prefixed()
+    {
+        var item = new GalleryItem { Id = 5, Title = "Expandable House – 37 m²" };
+
+        // Relative, not absolute: a redirect has to work on localhost and on the live host,
+        // and hard-coding the site URL would send a developer to production mid-test.
+        Assert.Equal("/en/gallery/expandable-house-37-m2", GallerySlugs.PathFor(item, "en"));
+        Assert.StartsWith("/bg/galeriq/", GallerySlugs.PathFor(item, "bg"));
+    }
+
     [Fact]
     public void An_item_with_no_title_falls_back_to_its_id()
     {

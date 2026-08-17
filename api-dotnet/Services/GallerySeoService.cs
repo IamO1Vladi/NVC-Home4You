@@ -70,6 +70,38 @@ public sealed class GallerySeoService
         return (Outcome.Resolved, BuildTags(item, locale));
     }
 
+    /// <summary>
+    /// The current path for a product whose URL was minted under the pre-2026-08-17 slug
+    /// algorithm, or null if this path is not a stale slug for anything.
+    ///
+    /// Asked only after the current-slug lookup has already missed, so this is what stands
+    /// between "we corrected the slugs" and "every gallery URL ever shared or indexed now
+    /// 404s". Matching against the OLD algorithm rather than a hard-coded list of the 16
+    /// affected URLs means it keeps working for titles edited after the change, and there is
+    /// no list to forget to update.
+    /// </summary>
+    public async Task<string?> TryResolveLegacyAsync(string path, CancellationToken ct)
+    {
+        if (!GallerySlugs.TryParsePath(path, out var locale, out var slug)) return null;
+
+        IReadOnlyList<GalleryItem> items;
+        try { items = await _gallery.GetAsync(ct); }
+        catch { return null; }
+
+        var item = items.FirstOrDefault(
+            i => string.Equals(GallerySlugs.LegacySlugFor(i, locale), slug, StringComparison.OrdinalIgnoreCase));
+
+        if (item is null) return null;
+
+        // Unreachable in practice — an identical slug would have matched on the current
+        // algorithm and never got here — but a product page that redirects to itself is an
+        // infinite loop, so it is not worth leaving to reasoning.
+        if (string.Equals(GallerySlugs.SlugFor(item, locale), slug, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        return GallerySlugs.PathFor(item, locale);
+    }
+
     private static readonly Dictionary<string, string> OgLocale = new()
     {
         ["bg"] = "bg_BG",

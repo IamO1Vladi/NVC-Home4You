@@ -17,9 +17,24 @@ namespace Services;
 /// it client-side; a third copy inside the server would be the one nobody remembers.
 ///
 /// SLUG-PARITY COUPLING: the C# and JS implementations must stay byte-identical. Both do
-/// NFKD → lower-case → strip quotes → replace runs of non-alphanumerics with "-" → trim "-".
+/// NFKC → lower-case → strip quotes → replace runs of non-alphanumerics with "-" → trim "-".
 /// If they drift, sitemap URLs stop matching what the router accepts and every product page
 /// 404s. Covered by GallerySlugTests.
+///
+/// NFKC, NOT NFKD — changed 2026-08-17, and the difference is not cosmetic. NFKD DECOMPOSES
+/// an accented character into a base letter plus a combining mark, and a combining mark is
+/// not \p{L} or \p{N}, so the next step turned it into a HYPHEN. Bulgarian "й" became "и-"
+/// and every Greek accent became "-", splitting words down the middle:
+///
+///     Контейнерна къща     ->  контеи-нерна-къща         (keyword broken)
+///     Σπίτι τύπου Container ->  σπι-τι-τυ-που-container   (every word split)
+///
+/// NFKC composes instead, so those stay single letters. It still applies the same
+/// COMPATIBILITY folding NFKD did — "m²" becomes "m2" — which is load-bearing: every
+/// "…-37-m2" slug depends on it and none of them changed.
+///
+/// The old algorithm is kept as <see cref="LegacySlugify"/> so URLs minted under it still
+/// resolve, with a 301 to the corrected form. See GallerySeoService.TryResolveLegacyAsync.
 /// </summary>
 public static class GallerySlugs
 {
@@ -101,14 +116,37 @@ public static class GallerySlugs
 
     public static string SlugFor(GalleryItem item, string locale) => Slugify(TitleFor(item, locale));
 
+    /// <summary>The slug this item had under the pre-2026-08-17 algorithm.</summary>
+    public static string LegacySlugFor(GalleryItem item, string locale) =>
+        LegacySlugify(TitleFor(item, locale));
+
+    /// <summary>The site-relative path of one item in one locale.</summary>
+    public static string PathFor(GalleryItem item, string locale)
+    {
+        var prefix = Array.Find(Locales, l => l.Locale == locale).Prefix ?? "/en/gallery/";
+        return prefix + Uri.EscapeDataString(SlugFor(item, locale));
+    }
+
     /// <summary>
     /// Mirrors slugify() in src/gallery/galleryUtils.js — keep the two in sync.
     /// </summary>
-    public static string Slugify(string? value)
+    public static string Slugify(string? value) => Build(value, NormalizationForm.FormKC);
+
+    /// <summary>
+    /// The algorithm as it stood before 2026-08-17, kept ONLY so URLs already in the wild
+    /// still resolve — see the NFKC note on this class. Nothing should mint slugs with it.
+    ///
+    /// It has no JS counterpart on purpose. Redirecting a stale URL happens server-side,
+    /// before the SPA boots, and the SPA only ever builds links from current slugs — so a
+    /// second copy in the browser would be dead code that still had to be kept in parity.
+    /// </summary>
+    public static string LegacySlugify(string? value) => Build(value, NormalizationForm.FormKD);
+
+    private static string Build(string? value, NormalizationForm form)
     {
         if (string.IsNullOrWhiteSpace(value)) return "model";
 
-        var s = value.Normalize(NormalizationForm.FormKD).ToLowerInvariant();
+        var s = value.Normalize(form).ToLowerInvariant();
         s = Regex.Replace(s, "[’'\"“”]", "");
         s = Regex.Replace(s, @"[^\p{L}\p{N}]+", "-");
         s = s.Trim('-');

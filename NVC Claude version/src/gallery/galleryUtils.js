@@ -76,9 +76,19 @@ export function catFromItemCategory(raw) {
   return Array.from(new Set(codes))
 }
 
+// Mirrors GallerySlugs.Slugify in api-dotnet — the two must stay byte-identical or sitemap
+// URLs stop matching what this router accepts.
+//
+// NFKC, not NFKD (changed 2026-08-17). NFKD decomposed an accented character into a base
+// letter plus a combining mark, and the non-alphanumeric replace below then turned that mark
+// into a hyphen — so Bulgarian "й" became "и-" and Greek accents split words in half
+// ("Σπίτι τύπου" -> "σπι-τι-τυ-που"). NFKC composes instead, while still folding "m²" to
+// "m2" exactly as before, which is why no "…-37-m2" slug changed.
+//
+// Old URLs are 301'd server-side by GallerySeoService, so there is no legacy slugify here.
 export function slugify(value) {
   const base = String(value || '')
-    .normalize('NFKD')
+    .normalize('NFKC')
     .toLowerCase()
     .replace(/[’'"“”]/g, '')
     .replace(/[^\p{Letter}\p{Number}]+/gu, '-')

@@ -1206,6 +1206,17 @@ app.MapFallback(async context =>
         }
         else if (outcome == Services.GallerySeoService.Outcome.ProductNotFound)
         {
+            // Before calling it a 404: it may be a URL minted under the old slug algorithm,
+            // which decomposed accents into hyphens (see the NFKC note in GallerySlugs).
+            // Those are real products at a stale address, so they get a 301 to the corrected
+            // one rather than the 404 they would otherwise now return.
+            var moved = await seo.TryResolveLegacyAsync(path, context.RequestAborted);
+            if (moved is not null)
+            {
+                context.Response.Redirect(moved, permanent: true);
+                return;
+            }
+
             // A product-shaped URL naming a product that does not exist — a retired model
             // or a typo. Previously served as 200 with homepage metadata, which is a soft
             // 404 for every dead product link ever shared.
