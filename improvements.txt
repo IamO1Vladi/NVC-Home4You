@@ -108,8 +108,45 @@ INFRASTRUCTURE
         Each fails silently and partially. The Quickbase one stops mattering once saved
         configs are live on SQL.
 
+BILLING & PROCUREMENT — CAPTURED 2026-08-17, NOT DESIGNED YET
+-------------------------------------------------------------
+[ ] 21. Move the buy-side billing workflow off Quickbase; build expense submission.
+        Goal: an app colleagues and FIELD BUILDERS can use — submit operating expenses,
+        work the procurement data — on Azure SQL + the existing stack. This reverses the
+        "billing stays in Quickbase" line that sat in DELIBERATELY NOT DOING until today.
+
+        The Quickbase domain as described (check names against the real tables before
+        designing anything):
+        - Buy Cycle        one row per fiscal cycle in the year; a cycle has shipments
+        - Shipment         a single container: a house, several houses, wagons, or
+                           materials for a modular house
+        - Product Model    the catalogue models, holding the FACTORY price for what a
+                           container carries. Cost side — NOT the gallery's retail price
+        - Purchase Lot     how many of a product model a given shipment contains
+        - Sales            exists today, needs improvement (scope not yet defined)
+        - Operating Expenses  what the field-builder app would write
+
+        Settle before designing — the leads migration's lesson applies in full: this is
+        a WORKFLOW replacement, not a table move.
+        - Who works these tables in Quickbase daily, and what exactly do they do there?
+          The panel has to cover that workflow before any cutover.
+        - The existing Purchase entity (admin customers section) is the SALES side —
+          customer, deposit, invoices. Purchase Lot is the BUY side. The names collide;
+          the concepts must not. Naming needs deciding first, it is hard to change later.
+        - Product Model and the gallery share catalogue identity. Link by id; never
+          duplicate titles or carry a second price list — the 73 m² incident (two stores
+          disagreeing on one price for weeks) is what happens otherwise.
+        - Auth: AdminOnly is binary today, and field builders in /admin would see ЕГН,
+          ЕИК and invoices. Expense submission needs roles, and per-user attribution —
+          which makes the audit log (#14) a PREREQUISITE of this, not polish.
+        - One app or two? A role-gated section of /admin vs a separate lighter app for
+          the builders. Decides how much auth work there is.
+        - Import the history while the Quickbase token is alive (expires ~2027-02-04);
+          after that the import tooling loses its source.
+
 DELIBERATELY NOT DOING
 ----------------------
 - Homepage H1 stays the slogan "Защото домът не трябва да е лукс" even though it carries
   no target keyword. It is brand copy in three languages; that is a business call.
-- Billing/invoicing stays in Quickbase — out of scope for the data migration.
+- Billing/invoicing in Quickbase: WAS here ("out of scope for the data migration") —
+  superseded 2026-08-17 by #21 above. Kept as a line so the reversal is visible.
