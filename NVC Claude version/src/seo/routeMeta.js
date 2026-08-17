@@ -262,23 +262,8 @@ const META = {
         'Πραγματικά έργα και κριτικές πελατών από τις δομικές και προκατασκευασμένες κατασκευές της NVC Home4You σε όλη την ΕΕ.',
     },
   },
-  services: {
-    en: {
-      title: 'Services | NVC Home4You',
-      description:
-        'Explore the full range of products and services from NVC Home4You — modular homes, interiors, doors, delivery and more.',
-    },
-    bg: {
-      title: 'Услуги | NVC Home4You',
-      description:
-        'Разгледайте пълната гама продукти и услуги на NVC Home4You — модулни къщи, интериори, врати, доставка и още.',
-    },
-    el: {
-      title: 'Υπηρεσίες | NVC Home4You',
-      description:
-        'Δείτε όλη τη γκάμα προϊόντων και υπηρεσιών της NVC Home4You — δομικά σπίτια, εσωτερικοί χώροι, πόρτες, παράδοση και άλλα.',
-    },
-  },
+  // `services` removed 2026-08-17 with the page itself — see paths.js.
+  //
   // The one page that targets a transactional query head-on. Competitors all rank for
   // "цени" with a price list; the title leads with the number because a search result
   // showing a real starting price is what earns the click.

@@ -90,19 +90,58 @@ describe('self-referential SEO URLs', () => {
     }
   })
 
-  it('every registered path is either locale-prefixed or a known bare slug', () => {
-    // Nearly every page is /{locale}/slug. `services` is the exception on purpose — its
-    // three paths are bare (/uslugi, /services, /ypiresies) and distinguished by the slug
-    // itself rather than a prefix. Pinned as an exception rather than dropped from the
-    // check, so a NEW page cannot quietly acquire a bare path by accident.
-    const bareByDesign = new Set(['services'])
-
+  it('every registered path is locale-prefixed', () => {
+    // Every page is /{locale}/slug. `services` used to be an allowed exception here — its
+    // paths were bare (/uslugi, /services, /ypiresies) — and it was removed on 2026-08-17
+    // along with the page, so there is no exception list any more. Keep it that way: a bare
+    // path is now a failure, not a special case to add a name to.
     for (const [pageKey, localized] of Object.entries(paths)) {
-      if (bareByDesign.has(pageKey)) continue
       for (const [locale, path] of Object.entries(localized)) {
         if (typeof path !== 'string') continue
         expect(path, `${pageKey}.${locale}`).toMatch(/^\/(bg|en|el)(\/|$)/)
       }
     }
+  })
+
+  // The gap that let a soft 404 reach the sitemap.
+  //
+  // The check above and `registeredPaths()` both read paths.js, so they can only prove that
+  // paths.js agrees with itself. Nothing compared it against the routes App.jsx actually
+  // registers — and /uslugi sat in paths.js for months with no <Route> for it, which meant
+  // the sitemap advertised a URL that rendered the "Page not found" body under an HTTP 200.
+  // Invisible to every test here, and to anyone browsing the site, because nothing linked
+  // to it.
+  //
+  // Matching source text is crude, but the alternative is rendering the router and crawling
+  // it, and this catches the failure that actually happened.
+  //
+  // A route is registered either of two ways, and both count. Most use the paths.js constant
+  // (`path={paths.faq.el}`), but the three gallery routes are literal wildcards
+  // (`path="/bg/galeriq/*"`) because they carry a slug — and React Router matches the bare
+  // path against a trailing `/*` too, so those are genuinely routed.
+  it('every path in paths.js has a route registered in App.jsx', () => {
+    const appSource = readFileSync(join(here, 'App.jsx'), 'utf8')
+
+    const byConstant = new Set(
+      [...appSource.matchAll(/paths\.(\w+)\.(bg|en|el)/g)].map((m) => `${m[1]}.${m[2]}`),
+    )
+    const byLiteral = new Set(
+      [...appSource.matchAll(/path="([^"]+)"/g)].map((m) => m[1].replace(/\/\*$/, '')),
+    )
+
+    const unrouted = []
+    for (const [pageKey, localized] of Object.entries(paths)) {
+      for (const [locale, path] of Object.entries(localized)) {
+        if (typeof path !== 'string') continue
+        if (byConstant.has(`${pageKey}.${locale}`) || byLiteral.has(path)) continue
+        unrouted.push(`${pageKey}.${locale} (${path})`)
+      }
+    }
+
+    expect(
+      unrouted,
+      `paths.js registers these with no route in App.jsx, so the sitemap advertises URLs ` +
+        `that render the 404 body under a 200:\n  ${unrouted.join('\n  ')}`,
+    ).toEqual([])
   })
 })

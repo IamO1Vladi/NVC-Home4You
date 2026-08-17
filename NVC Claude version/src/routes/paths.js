@@ -74,11 +74,11 @@ export const paths = {
      en: '/en/cases',
      el: '/el/erga-kai-kritikes',
   },
-  services: {
-    bg: '/uslugi',
-    en: '/services',
-    el: '/ypiresies',
-  },
+  // REMOVED 2026-08-17: `services` (/uslugi, /services, /ypiresies). A legacy page from
+  // early development that nothing linked to. Removing it from here is what drops all three
+  // from the sitemap and the prerender list; Program.cs 301s the old URLs to their locale
+  // homepage. See ROADMAP-services-removal notes in the commit.
+  //
   // Transliterated like every other Bulgarian slug (see the note at the top of this file);
   // the Greek is the readable Latin form of τιμές.
   prices: {

@@ -9,7 +9,6 @@ import SiteFooter from './components/SiteFooter.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { ModalActionsProvider } from './context/ModalActions.jsx'
 import { I18nProvider, useI18n } from './i18n/I18nContext.jsx'
-import ServicesPage from './pages/ServicesPage.jsx'
 import { paths, getLocaleFromPath, getLocalizedPath, getPageKeyByPath } from './routes/paths.js'
 import { getHomeContent } from './content/home/index.js'
 import SEO from './components/SEO.jsx'
@@ -320,7 +319,6 @@ function AppShell() {
               <Route path="/about" element={<Navigate to={aboutRedirect} replace />} />
               <Route path="/steel-houses" element={<Navigate to={steelHousesRedirect} replace />} />
 
-              <Route path={paths.services.en} element={<ServicesPage content={ui.servicesPage} />} />
               <Route path={paths.modularBuilds.en} element={<EnModularBuildsRoute />} />
               <Route path={paths.modularBuilds.bg} element={<BgModularBuildsRoute />} />
               <Route path={paths.modularHouses.bg} element={<BgModularHousesRoute />} />
@@ -357,7 +355,6 @@ function AppShell() {
               <Route path={paths.doors.el} element={<ElInternalDoorsRoute />} />
               <Route path={paths.cases.el} element={<ElCasesRoute />} />
               <Route path={paths.boxConfigurator.el} element={<ElBoxHouseConfiguratorRoute />} />
-              <Route path={paths.services.el} element={<ServicesPage content={ui.servicesPage} />} />
               <Route path={paths.faq.el} element={<ElFaqRoute />} />
               <Route path={paths.about.el} element={<ElAboutRoute />} />
               <Route path="/gallery" element={<Navigate to={galleryRedirect} replace />} />

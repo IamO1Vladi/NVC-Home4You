@@ -224,36 +224,7 @@ export default {
       telephone: '+359879355269',
     },
   },
-  servicesPage: {
-    heading: 'Our Services',
-    subheading: 'Three categories, each with three specialized offerings.',
-    categories: [
-      {
-        title: 'Container & Prefab Homes',
-        items: [
-          { title: 'Modular homes', desc: 'Flexible modules, quick assembly, modern finishes.' },
-          { title: 'Light-steel houses', desc: 'Metal-frame homes with high insulation and long life.' },
-          { title: 'Capsule & Apple cabins', desc: 'Sleek, plug-and-play design pods with panoramic glass; ideal for a studio and guest room.' },
-        ],
-      },
-      {
-        title: 'Logistics & Site',
-        items: [
-          { title: 'Door-to-door delivery', desc: 'Logistics, insurance, and EU customs handled.' },
-          { title: 'Consolidation & Packing', desc: 'Combine homes and materials in one shipment.' },
-          { title: 'Install coordination', desc: 'Trusted local partners for install and utility hookups.' },
-        ],
-      },
-      {
-        title: 'Materials, Furniture & Renovations',
-        items: [
-          { title: 'Bathrooms', desc: 'Showers, toilets, vanities, and fittings.' },
-          { title: 'Walls & Floors', desc: 'Wall panels, flooring, and decking.' },
-          { title: 'Interior renovations', desc: 'Kitchens, bathrooms, full fit-out, and furniture packs.' },
-        ],
-      },
-    ],
-  },
+  // `servicesPage` removed 2026-08-17 with the page that read it — see routes/paths.js.
   common: {
     close: 'Close',
     open: 'Open',

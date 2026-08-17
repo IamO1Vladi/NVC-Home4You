@@ -1036,6 +1036,33 @@ app.MapGet("/c/{code}", async (string code, Services.ISavedConfigStore svc, Canc
     return Results.Redirect($"{returnPath}{sep}c={Uri.EscapeDataString(code)}");
 });
 
+// --- Retired pages -------------------------------------------------------------------
+// The services page (/uslugi, /services, /ypiresies) was legacy from early development,
+// linked from nowhere, and removed on 2026-08-17. Its three URLs had been in the sitemap
+// since 14 Aug, so they are 301'd rather than left to 404 — a redirect drops them from the
+// index cleanly and keeps any signal they had picked up.
+//
+// Server-side and permanent, unlike the client-side <Navigate> redirects in App.jsx. Those
+// exist to send a bare path to the visitor's CURRENT locale, which only the browser knows.
+// Here the locale is in the slug itself, so there is nothing to decide at runtime and a real
+// 301 is available — which is what a crawler needs to stop asking.
+//
+// /uslugi in particular was serving the SPA's "Page not found" body under an HTTP 200: a
+// soft 404, advertised in the sitemap, because paths.js registered the path while App.jsx
+// never registered a route for it.
+var retiredPages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    ["/uslugi"] = "/bg",
+    ["/services"] = "/en",
+    ["/ypiresies"] = "/el",
+};
+
+foreach (var (from, to) in retiredPages)
+{
+    var target = to;
+    app.MapGet(from, () => Results.Redirect(target, permanent: true));
+}
+
 // --- Server-side SEO tag injection for SPA routes ------------------------------------
 // The HTML shell (index.html) is identical for every route, so per-route <title>,
 // description, Open Graph, canonical and hreflang tags normally appear only after React
