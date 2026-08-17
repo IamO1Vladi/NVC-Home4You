@@ -299,7 +299,7 @@ public class LeadDraftContextBuilder
             sb.Append(label);
             if (!string.IsNullOrWhiteSpace(a.Subject)) sb.Append(" — ").Append(a.Subject);
             sb.AppendLine(":");
-            sb.AppendLine(Clamp(a.Body));
+            sb.AppendLine(Clamp(FlattenHtml(a.Body)));
             sb.AppendLine();
         }
 
@@ -326,6 +326,25 @@ public class LeadDraftContextBuilder
         Add("Notes", lead.Notes);
 
         return notes;
+    }
+
+    /// <summary>
+    /// Outgoing replies are stored as the HTML that was actually sent (the composer went
+    /// rich on 2026-08-17). The model reads prose: tags in the prompt burn tokens and
+    /// teach it to answer in markup. Block-closing tags become newlines first, so two
+    /// paragraphs do not flatten into one run-on sentence. Bodies with no markup — every
+    /// inbound message, and the whole pre-change history — pass through untouched.
+    /// </summary>
+    private static string FlattenHtml(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body) || !body.Contains('<')) return body ?? "";
+
+        var text = System.Text.RegularExpressions.Regex.Replace(
+            body, @"<br\s*/?>|</(p|li|h[1-6])>", "\n",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "");
+        text = System.Net.WebUtility.HtmlDecode(text);
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n").Trim();
     }
 
     // Clamps mid-message rather than at the end, because the opening and the closing of

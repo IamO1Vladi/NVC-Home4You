@@ -147,6 +147,33 @@ public class LeadDraftContextTests
     }
 
     [Fact]
+    public async Task A_rich_text_reply_reaches_the_model_as_prose_not_markup()
+    {
+        // Outgoing replies are stored as the HTML that was sent (the composer went rich
+        // on 2026-08-17). Tags in the prompt burn tokens and teach the model to answer
+        // in kind; block boundaries must still read as line breaks, not run-on prose.
+        using var db = NewDb();
+        var lead = await SeedLead(db);
+        db.LeadActivities.Add(new LeadActivity
+        {
+            LeadId = lead.Id,
+            Type = LeadActivityTypes.EmailOut,
+            Body = "<p>Офертата е <strong>26&nbsp;500 EUR</strong>.</p><p>Поздрави,<br/>Мария</p>",
+            ActorUpn = "m@x.eu",
+            OccurredAt = DateTimeOffset.UtcNow.AddDays(-1),
+        });
+        await db.SaveChangesAsync();
+
+        var ctx = await new LeadDraftContextBuilder(db).BuildAsync(lead.Id);
+
+        Assert.DoesNotContain("<strong>", ctx!.ThreadTranscript);
+        Assert.DoesNotContain("<p>", ctx.ThreadTranscript);
+        // The words survive, entities decoded, and the paragraph break is a real one.
+        Assert.Contains("26 500 EUR", ctx.ThreadTranscript);
+        Assert.Contains(".\nПоздрави,\nМария", ctx.ThreadTranscript);
+    }
+
+    [Fact]
     public async Task The_two_sides_of_the_conversation_are_told_apart()
     {
         // A null actor is the customer. Getting this backwards produces a reply that

@@ -2,8 +2,12 @@ import React from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
+import RichTextEditor from '../admin/RichTextEditor.jsx'
 import { adminGet, adminSend, adminSendForm, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
 import { resolveModel } from '../admin/modelPicker.js'
+import {
+  sanitizeRichText, isRichTextEmpty, escapeHtml, plainTextToRichHtml, richTextToPlain,
+} from '../lib/sanitizeRichText.js'
 
 // The leads pipeline: every customer we are actually talking to, with an owner, a stage
 // and a conversation.
@@ -198,6 +202,31 @@ function daysSince(iso) {
   return Math.floor((Date.now() - then.getTime()) / 86400000)
 }
 
+// The office number, shared by every signature. The name and email are the signed-in
+// user's; this is the one line that is the same for everyone (owner, 2026-08-17).
+const SIGNATURE_PHONE = '024 371 650'
+
+// The signature the composer starts with, in the language the CUSTOMER reads — it goes to
+// them, so the lead's locale decides, not the panel's UI language.
+function signatureHtml(me, locale) {
+  if (!me?.name && !me?.email) return ''
+
+  const [greeting, tel] =
+    locale === 'bg' ? ['Поздрави', 'тел'] : locale === 'el' ? ['Με εκτίμηση', 'τηλ'] : ['Best regards', 'tel']
+
+  const lines = [
+    `${greeting},`,
+    me.name ? `<strong>${escapeHtml(me.name)}</strong>` : '',
+    'NVC Home4You',
+    `${tel}. ${SIGNATURE_PHONE}`,
+    me.email ? `<a href="mailto:${escapeHtml(me.email)}">${escapeHtml(me.email)}</a>` : '',
+  ].filter(Boolean)
+
+  // The leading empty paragraph is where the message gets typed — the caret lands above
+  // the signature, exactly where a mail client would put it.
+  return sanitizeRichText(`<p><br/></p><p>${lines.join('<br/>')}</p>`)
+}
+
 const STAGES = ['new', 'contacted', 'quoted', 'negotiating', 'won', 'lost']
 
 // The four categories the gallery filters on, and the only ones that can lead to a list of
@@ -312,10 +341,21 @@ function Entry({ activity, t, lang }) {
           <time dateTime={activity.occurredAt}>{formatWhen(activity.occurredAt, lang)}</time>
         </div>
         {activity.subject ? <div className="adm-bubble-subject">{activity.subject}</div> : null}
-        {/* Bodies are plain text from the server (inbound HTML is flattened before it is
-            stored), so this renders as text — never dangerouslySetInnerHTML, which would
-            execute whatever a customer chose to send us. */}
-        <p className="adm-bubble-body">{activity.body}</p>
+        {/* Two rules, split by who wrote it. The CUSTOMER's side renders as text, never
+            markup — inbound HTML is flattened before it is stored, and rendering whatever
+            arrives would execute whatever a customer chose to send us. OUR side is the
+            rich-text composer's output, so it renders as HTML — through the same
+            sanitizer the composer and the public site use, which also turns the legacy
+            plain-text bodies' newlines into <br/>. */}
+        {mine
+          ? (
+            <div
+              className="adm-bubble-body"
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText(activity.body) }}
+            />
+          )
+          : <p className="adm-bubble-body">{activity.body}</p>}
         {/* Files, on both sides of the conversation: the plan a customer emailed us and
             the quote we sent back. The href is the authenticated endpoint, never a blob
             URL — see AdminPipelineFilesController for why that is not an accident. */}
@@ -405,8 +445,15 @@ export default function AdminPipelinePage() {
   const [houses, setHouses] = React.useState([])
   // Who a lead can be assigned to. Also fetched once — the team does not change mid-shift.
   const [users, setUsers] = React.useState([])
+  // Who is signed in, for the signature. Null until /api/admin/me answers.
+  const [me, setMe] = React.useState(null)
 
+  // Sanitised rich-text HTML — the composer is a RichTextEditor, and what is in here is
+  // what the customer's mail client renders.
   const [reply, setReply] = React.useState('')
+  // The last signature this page prefilled, so "the box holds only the signature" is
+  // answerable — that state disables Send, and it is what the box returns to after one.
+  const prefill = React.useRef('')
   // Picked but not yet sent. Held here rather than uploaded on selection, so a file can be
   // removed before it becomes part of the record — and so the reply and its attachments
   // succeed or fail as one thing.
@@ -522,8 +569,31 @@ export default function AdminPipelinePage() {
     adminGet('/api/admin/pipeline/users')
       .then((rows) => { if (alive) setUsers(Array.isArray(rows) ? rows : []) })
       .catch(() => { /* the take-it path still works */ })
+    adminGet('/api/admin/me')
+      .then((who) => { if (alive && who) setMe(who) })
+      .catch(() => { /* no signature; the composer still works */ })
     return () => { alive = false }
   }, [])
+
+  // A fresh composer starts as the signature. Refilled when the lead changes (the locale
+  // may differ) — but never over something someone has typed: only an empty box or one
+  // still holding the previous prefill is replaced.
+  React.useEffect(() => {
+    if (!lead) return
+    const sig = signatureHtml(me, lead.locale)
+    setReply((current) => {
+      const untouched = isRichTextEmpty(current) || current === prefill.current
+      prefill.current = sig
+      return untouched ? sig : current
+    })
+  }, [lead?.id, lead?.locale, me])
+
+  // What of the reply is actually message, signature aside. Send and Note key off this:
+  // a box holding only the signature has nothing to say.
+  const composed = React.useMemo(
+    () => richTextToPlain(reply.replace(prefill.current, '')),
+    [reply],
+  )
 
   // Newest message in view when a thread opens or grows. A chat that opens at the top of
   // a six-month history shows the least useful part of it.
@@ -545,8 +615,10 @@ export default function AdminPipelinePage() {
   }
 
   const send = () => run('send', async () => {
-    const body = reply.trim()
-    if (!body) return
+    if (!composed) return
+    // The signature travels with the reply — that is the point of it being in the box:
+    // what you see is exactly what the customer's mail client renders.
+    const body = sanitizeRichText(reply)
 
     // Multipart even with nothing attached, so there is one send path rather than two —
     // the one that carries files being the one nobody exercises until it matters.
@@ -555,21 +627,24 @@ export default function AdminPipelinePage() {
     for (const file of files) form.append('files', file, file.name)
 
     await adminSendForm(`/api/admin/pipeline/${selectedId}/reply`, form)
-    // Cleared only after the server confirms. Clearing optimistically loses what someone
-    // typed if the send fails, and retyping a reply is the least forgivable data loss in
-    // a tool like this.
-    setReply('')
+    // Reset only after the server confirms — back to the bare signature, ready for the
+    // next message. Resetting optimistically loses what someone typed if the send fails,
+    // and retyping a reply is the least forgivable data loss in a tool like this.
+    setReply(prefill.current)
     setFiles([])
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.sendError)
 
   const draft = () => run('draft', async () => {
     const result = await adminSend(`/api/admin/pipeline/${selectedId}/draft`, 'POST', {
-      instruction: reply.trim() || null,
+      // The steer is what was typed, as prose — the signature is not an instruction, and
+      // the model reads text, not markup.
+      instruction: composed || null,
     })
     // The draft replaces whatever was in the box, because what was there was the steer
-    // for it. Nothing is sent and nothing is stored until someone presses Send.
-    if (result?.text) setReply(result.text)
+    // for it — and the signature is appended back, since the draft comes as bare prose.
+    // Nothing is sent and nothing is stored until someone presses Send.
+    if (result?.text) setReply(plainTextToRichHtml(result.text) + prefill.current)
   }, t.draftError)
 
   const setStatus = (status) => run('save', async () => {
@@ -598,8 +673,10 @@ export default function AdminPipelinePage() {
   }, t.saveError)
 
   const logNote = () => run('save', async () => {
-    const body = reply.trim()
-    if (!body && files.length === 0) return
+    // WITHOUT the signature. A note is internal — sales talking to sales — and signing
+    // it like customer mail would just be noise in the thread.
+    const body = sanitizeRichText(reply.replace(prefill.current, ''))
+    if (isRichTextEmpty(body) && files.length === 0) return
 
     if (files.length === 0) {
       await adminSend(`/api/admin/pipeline/${selectedId}/activities`, 'POST', { type: 'note', body })
@@ -610,16 +687,18 @@ export default function AdminPipelinePage() {
       //
       // This is also the way to keep a file that is too big to email — the note path
       // stores up to the full 20 MB, the reply path is capped by what Graph will send.
+      //
+      // The caption is plain text — it labels a file, it is not a document.
       for (const [index, file] of files.entries()) {
         await adminUpload(
           `/api/admin/pipeline/${selectedId}/attachments`,
           file,
-          index === 0 && body ? { caption: body } : {},
+          index === 0 && composed ? { caption: composed } : {},
         )
       }
     }
 
-    setReply('')
+    setReply(prefill.current)
     setFiles([])
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
@@ -1116,14 +1195,18 @@ export default function AdminPipelinePage() {
               {error ? <div className="adm-alert">{error}</div> : null}
 
               <div className="adm-composer">
-                <label className="visually-hidden" htmlFor="replyBox">{t.reply}</label>
-                <textarea
+                {/* Rich text (owner, 2026-08-17): hyperlinks in a quote are the concrete
+                    ask, and the signature below the caret is the other half. The editor
+                    emits sanitized HTML through the same helper the thread renders with,
+                    and the mail goes out as HTML already (LeadMailService sends
+                    contentType HTML) — so what is in this box is what the customer sees. */}
+                <RichTextEditor
                   id="replyBox"
-                  rows={5}
                   value={reply}
+                  onChange={setReply}
+                  lang={lang}
                   placeholder={t.replyPlaceholder}
-                  disabled={busy === 'send'}
-                  onChange={(e) => setReply(e.target.value)}
+                  ariaLabel={t.reply}
                 />
 
                 {/* Hidden, and opened by the button below. A bare file input renders as
@@ -1169,7 +1252,7 @@ export default function AdminPipelinePage() {
 
                 <p className="adm-small adm-muted">{t.draftHint}</p>
                 <div className="adm-composer-actions">
-                  <button type="button" className="btn" onClick={send} disabled={!reply.trim() || busy !== ''}>
+                  <button type="button" className="btn" onClick={send} disabled={!composed || busy !== ''}>
                     {busy === 'send' ? t.sending : t.send}
                   </button>
                   <button type="button" className="btn ghost" onClick={draft} disabled={busy !== ''}>
@@ -1193,7 +1276,7 @@ export default function AdminPipelinePage() {
                     className="btn ghost"
                     title={t.logNoteHint}
                     onClick={logNote}
-                    disabled={(!reply.trim() && files.length === 0) || busy !== ''}
+                    disabled={(!composed && files.length === 0) || busy !== ''}
                   >
                     {t.logNote}
                   </button>

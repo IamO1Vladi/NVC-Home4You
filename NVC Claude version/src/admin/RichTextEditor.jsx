@@ -28,7 +28,10 @@ const TOOLS = [
   { cmd: 'removeFormat', icon: '⌫', title: { bg: 'Изчисти форматирането', en: 'Clear formatting' } },
 ]
 
-export default function RichTextEditor({ value, onChange, lang = 'bg', placeholder = '', id }) {
+// ariaLabel exists because a contenteditable <div> is not a labelable element — a
+// <label htmlFor> pointing at it associates nothing, so callers that used to label a
+// textarea that way have to hand the name in directly.
+export default function RichTextEditor({ value, onChange, lang = 'bg', placeholder = '', id, ariaLabel }) {
   const ref = React.useRef(null)
   const [focused, setFocused] = React.useState(false)
 
@@ -127,6 +130,7 @@ export default function RichTextEditor({ value, onChange, lang = 'bg', placehold
           suppressContentEditableWarning
           role="textbox"
           aria-multiline="true"
+          aria-label={ariaLabel}
           onInput={emit}
           onBlur={() => { setFocused(false); emit() }}
           onFocus={() => setFocused(true)}

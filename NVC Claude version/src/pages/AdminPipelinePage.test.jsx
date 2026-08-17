@@ -52,7 +52,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
     calls.push({ url, method: options.method || 'GET', body: options.body })
     const u = String(url)
-    if (u.includes('/api/admin/me')) return json({ name: 'Sales' })
+    if (u.includes('/api/admin/me')) return json({ name: 'Sales', email: 'sales@x.eu' })
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
     if (u.includes('/api/admin/pipeline/1/draft')) return json({ ok: true, text: 'Здравейте Иван, ...' })
@@ -112,25 +112,37 @@ describe('AdminPipelinePage', () => {
     expect(screen.getByText('contacted → quoted').closest('li')).toHaveClass('adm-thread-meta')
   })
 
-  it('sends a reply and only then clears the box', async () => {
-    // Clearing optimistically would lose what someone typed if the send failed, and
-    // retyping a reply is the least forgivable data loss in a tool like this.
+  // The composer is a contenteditable rich-text editor, and jsdom cannot type into one —
+  // so tests write the HTML and fire the input event the editor listens for, which is the
+  // same path a real keystroke takes from that point on.
+  const replyBox = () => screen.getByRole('textbox', { name: /Отговор|Reply/ })
+  const typeReply = (html) => {
+    const box = replyBox()
+    box.innerHTML = html
+    fireEvent.input(box)
+  }
+
+  it('sends the reply as rich HTML and returns the box to the bare signature', async () => {
+    // Reset only after the server confirms: resetting optimistically would lose what
+    // someone typed if the send failed, and retyping a reply is the least forgivable
+    // data loss in a tool like this.
     const user = userEvent.setup()
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    const box = screen.getByPlaceholderText(/Напишете|Write your/)
-    await user.type(box, 'Ще пратя офертата днес.')
+    typeReply('<p>Ще пратя <strong>офертата</strong> днес.</p>')
     await user.click(screen.getByRole('button', { name: /Изпрати|Send/ }))
 
     await waitFor(() => {
       const sent = calls.find((c) => c.url.includes('/reply') && c.method === 'POST')
       expect(sent).toBeTruthy()
       // Multipart even with nothing attached, so the path that carries files is the
-      // same one every reply exercises.
-      expect(sent.body.get('body')).toBe('Ще пратя офертата днес.')
+      // same one every reply exercises. The body is the markup, not flattened text.
+      expect(sent.body.get('body')).toContain('<strong>офертата</strong>')
     })
-    await waitFor(() => expect(box).toHaveValue(''))
+    // Back to the signature, ready for the next message.
+    await waitFor(() => expect(replyBox().textContent).toContain('Поздрави'))
+    expect(replyBox().textContent).not.toContain('Ще пратя')
   })
 
   it('sends picked files with the reply, in the same request', async () => {
@@ -146,7 +158,7 @@ describe('AdminPipelinePage', () => {
     // Visible before sending, so nobody presses Send believing they attached nothing.
     expect(screen.getByText('oferta.pdf')).toBeInTheDocument()
 
-    await user.type(screen.getByPlaceholderText(/Напишете|Write your/), 'Ето офертата.')
+    typeReply('<p>Ето офертата.</p>')
     await user.click(screen.getByRole('button', { name: /Изпрати|Send/ }))
 
     await waitFor(() => {
@@ -189,11 +201,26 @@ describe('AdminPipelinePage', () => {
     })
   })
 
-  it('will not send an empty reply', async () => {
+  it('will not send an empty reply — and the signature alone counts as empty', async () => {
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
+    // Wait for the signature to arrive, so this is the interesting case (a box with
+    // content that is still "nothing to say") rather than the trivial empty one.
+    await waitFor(() => expect(replyBox().textContent).toContain('Sales'))
     expect(screen.getByRole('button', { name: /Изпрати|Send/ })).toBeDisabled()
+  })
+
+  it('starts the composer as the signed-in user’s signature, in the customer’s language', async () => {
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await waitFor(() => expect(replyBox().textContent).toContain('Sales'))
+    // The lead's locale is bg — the signature goes to the customer, so it greets in
+    // their language, not the panel's.
+    expect(replyBox().textContent).toContain('Поздрави')
+    expect(replyBox().textContent).toContain('024 371 650')
+    expect(replyBox().textContent).toContain('sales@x.eu')
   })
 
   it('puts a draft in the box for editing instead of sending it', async () => {
@@ -205,23 +232,48 @@ describe('AdminPipelinePage', () => {
     await user.click(screen.getByRole('button', { name: /Чернова|Draft/ }))
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Напишете|Write your/)).toHaveValue('Здравейте Иван, ...')
+      expect(replyBox().textContent).toContain('Здравейте Иван, ...')
     })
+    // The signature is re-appended under the draft — the draft arrives as bare prose.
+    expect(replyBox().textContent).toContain('024 371 650')
     expect(calls.some((c) => c.url.includes('/reply'))).toBe(false)
   })
 
-  it('passes what is already typed to the drafter as a steer', async () => {
+  it('passes what is already typed to the drafter as a steer, as prose', async () => {
     const user = userEvent.setup()
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    await user.type(screen.getByPlaceholderText(/Напишете|Write your/), 'push for a site visit')
+    typeReply('<p>push for a <strong>site visit</strong></p>')
     await user.click(screen.getByRole('button', { name: /Чернова|Draft/ }))
 
     await waitFor(() => {
       const drafted = calls.find((c) => c.url.includes('/draft'))
+      // Flattened: the model reads text, and the signature is not an instruction.
       expect(JSON.parse(drafted.body).instruction).toBe('push for a site visit')
     })
+  })
+
+  it('renders our messages as formatting and the customer’s as literal text', async () => {
+    // Ours come from the rich composer, sanitized; a customer's body is untrusted and
+    // must never be interpreted — markup they send renders as the characters they typed.
+    detail = {
+      ...DETAIL,
+      activities: [
+        { id: 21, type: 'email_in', subject: '', body: '<b>look at this</b>', actorUpn: '', fromCustomer: true, occurredAt: '2026-07-01T09:00:00Z', attachments: [] },
+        { id: 22, type: 'email_out', subject: '', body: '<p>Оферта: <strong>26 500 €</strong></p>', actorUpn: 's@x.eu', fromCustomer: false, occurredAt: '2026-07-02T09:00:00Z', attachments: [] },
+      ],
+    }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    // The customer's tags are visible as text, exactly as typed.
+    expect(screen.getByText('<b>look at this</b>')).toBeInTheDocument()
+
+    // Ours became real markup: the strong element exists, the tag text does not appear.
+    const strong = screen.getByText('26 500 €')
+    expect(strong.tagName).toBe('STRONG')
+    expect(screen.queryByText(/<strong>/)).not.toBeInTheDocument()
   })
 
   it('offers to claim an unowned lead and not an owned one', async () => {

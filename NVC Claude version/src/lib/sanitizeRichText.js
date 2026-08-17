@@ -31,6 +31,43 @@ export function sanitizeRichText(value) {
 // content keeps its structure without the toolbar implying more control than exists.
 export const RICH_TEXT_TAGS = ['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'H3', 'H4', 'UL', 'OL', 'LI', 'A']
 
+/** Escapes text for safe injection into an HTML string. */
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * Plain text — an AI draft, a pasted note — as rich-text HTML.
+ *
+ * Escaped BEFORE the line breaks become <br/>, because the reverse order would let a
+ * literal "<" in the text be parsed as markup and stripped by the next sanitise pass —
+ * "price < 30000" would arrive as "price ".
+ */
+export function plainTextToRichHtml(text) {
+  const value = String(text ?? '').trim()
+  if (!value) return ''
+  return `<p>${escapeHtml(value).replace(/\n/g, '<br/>')}</p>`
+}
+
+/**
+ * Rich-text HTML back to plain text — for the places that genuinely want prose: the AI
+ * drafter's steer, an attachment caption. Block boundaries become newlines so "two
+ * paragraphs" does not flatten into one run-on sentence.
+ */
+export function richTextToPlain(value) {
+  if (!value) return ''
+  const div = document.createElement('div')
+  // Sanitised first so this can never execute anything, whatever it is handed.
+  div.innerHTML = sanitizeRichText(value)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|li|h[1-6])>/gi, '\n')
+  return div.textContent.replace(/\n{3,}/g, '\n\n').trim()
+}
+
 /** True when the value has no visible content — an empty editor still holds markup. */
 export function isRichTextEmpty(value) {
   const clean = sanitizeRichText(value)

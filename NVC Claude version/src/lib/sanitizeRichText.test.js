@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { sanitizeRichText, isRichTextEmpty } from './sanitizeRichText.js'
+import {
+  sanitizeRichText, isRichTextEmpty, plainTextToRichHtml, richTextToPlain,
+} from './sanitizeRichText.js'
 
 // This is the contract between the admin editor and the public pages: both run description
 // HTML through here, so anything this strips is something staff must not be able to author.
@@ -64,5 +66,38 @@ describe('isRichTextEmpty', () => {
   it('treats real content as not empty', () => {
     expect(isRichTextEmpty('<p>Hello</p>')).toBe(false)
     expect(isRichTextEmpty('Hello')).toBe(false)
+  })
+})
+
+describe('plainTextToRichHtml', () => {
+  it('wraps text and turns newlines into breaks', () => {
+    expect(plainTextToRichHtml('one\ntwo')).toBe('<p>one<br/>two</p>')
+  })
+
+  it('escapes before converting, so a literal < survives sanitising', () => {
+    // The order matters: escaped after the <br/> conversion, "price < 30000" would be
+    // parsed as an opening tag by the next sanitise pass and the number would vanish.
+    const html = plainTextToRichHtml('price < 30000')
+    expect(sanitizeRichText(html)).toContain('price &lt; 30000')
+  })
+
+  it.each([null, undefined, '', '  '])('is empty for %p', (value) => {
+    expect(plainTextToRichHtml(value)).toBe('')
+  })
+})
+
+describe('richTextToPlain', () => {
+  it('turns block boundaries into newlines rather than run-on prose', () => {
+    expect(richTextToPlain('<p>one</p><p>two</p>')).toBe('one\ntwo')
+    expect(richTextToPlain('line<br/>break')).toBe('line\nbreak')
+  })
+
+  it('drops formatting but keeps the words', () => {
+    expect(richTextToPlain('<p>a <strong>bold</strong> <a href="https://x.eu">link</a></p>'))
+      .toBe('a bold link')
+  })
+
+  it('round-trips with plainTextToRichHtml', () => {
+    expect(richTextToPlain(plainTextToRichHtml('one\ntwo'))).toBe('one\ntwo')
   })
 })

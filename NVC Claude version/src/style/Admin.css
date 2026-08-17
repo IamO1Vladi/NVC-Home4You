@@ -1356,6 +1356,14 @@ label.btn { cursor: pointer; }
   line-height: 1.5;
 }
 
+/* Our own messages render as rich HTML (a <div>, not the customer's <p>): the markup
+   carries the line structure, so pre-wrap would double every break. */
+div.adm-bubble-body { white-space: normal; }
+div.adm-bubble-body p { margin: 0 0 .6em; }
+div.adm-bubble-body ul, div.adm-bubble-body ol { margin: 0 0 .6em; padding-left: 1.3em; }
+div.adm-bubble-body > *:last-child { margin-bottom: 0; }
+div.adm-bubble-body a { color: var(--adm-accent-ink); }
+
 .adm-bubble-files { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
 
 /* A file in the thread reads as a thing to open, not as a word that happens to be a
