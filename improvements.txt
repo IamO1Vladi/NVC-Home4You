@@ -8,6 +8,16 @@ Migration history -> ROADMAP-datalayer-admin.md
 
 RECENTLY DONE
 -------------
+[x] Gallery slug fix: accents no longer become hyphens (2026-08-17, awaiting deploy)
+    NFKC instead of NFKD in both slugify copies (C# + JS, parity now tested from BOTH
+    sides). 16 of 42 product URLs come out correctly spelled - kontei-nerna ->
+    konteinerna, spi-ti-ty-pou -> spiti typou. Old URLs 301 via LegacySlugify matching,
+    so nothing shared or indexed breaks. The 16 corrected URLs become requestable in
+    Search Console ONLY AFTER this deploys.
+[x] Services page deleted (2026-08-17, awaiting deploy)
+    Legacy from early development. /uslugi was a soft 404 IN THE SITEMAP (path registered,
+    route never was); /ypiresies served untranslated English. All three 301 to their
+    locale homepage. New test pins paths.js against App.jsx routes so this cannot recur.
 [x] Saved configurator links on Azure SQL (2026-08-15)
     The last table off Quickbase. Migration applied; import DONE 2026-08-17 (19 rows).
     Only DATA_SOURCE_SAVEDCONFIGS=sql in App Service is left.
@@ -92,6 +102,15 @@ The panel now covers: home, inquiries, leads, customers, factories, reviews, gal
         section sits beside it in the nav.
 [ ] 16. Documents section (brochures via Blob) — changing a PDF still needs a developer
         and a deploy. Shares everything with the image pipeline already built.
+
+Requested by the owner 2026-08-17, leads/pipeline improvements (next up):
+[ ] 22. Lead details modal auto-closes on successful save.
+[ ] 23. Email writer becomes rich text (hyperlinks), auto-populated signature from the
+        signed-in user: their name + email from Entra, shared phone 024 371 650.
+[ ] 24. Filter leads by status.
+[ ] 25. Convert a lead to a customer (the panel has both ends; nothing connects them).
+[ ] 26. Assign a lead to a user. Lead.OwnerUpn already exists in the schema — the work
+        is the UI, a user list to pick from, and probably "my leads" filtering with #24.
 
 INFRASTRUCTURE
 --------------
