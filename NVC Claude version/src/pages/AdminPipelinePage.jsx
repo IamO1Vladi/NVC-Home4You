@@ -85,6 +85,15 @@ const TEXT = {
     draftError: 'Не успях да напиша чернова.',
     draftOff: 'AI черновите не са включени.',
     saveError: 'Промяната не беше запазена.',
+    filterStatus: 'Статус',
+    filterModified: 'Активност',
+    filterAny: '— всички —',
+    modified: {
+      today: 'днес', week: 'последните 7 дни', month: 'последните 30 дни',
+      stale: 'без активност от 30+ дни',
+    },
+    filteredEmpty: 'Няма лийдове, отговарящи на филтрите.',
+    clearFilters: 'Изчисти филтрите',
   },
   en: {
     title: 'Leads',
@@ -154,7 +163,35 @@ const TEXT = {
     draftError: 'Could not write a draft.',
     draftOff: 'AI drafting is not switched on.',
     saveError: 'That change was not saved.',
+    filterStatus: 'Status',
+    filterModified: 'Activity',
+    filterAny: '— any —',
+    modified: {
+      today: 'today', week: 'last 7 days', month: 'last 30 days',
+      stale: 'quiet for 30+ days',
+    },
+    filteredEmpty: 'No leads match the filters.',
+    clearFilters: 'Clear filters',
   },
+}
+
+// The activity windows the board can be narrowed to, as predicates over "days since the
+// last activity". Declarative so the dropdown and the filtering cannot disagree about what
+// a key means. "stale" answers the opposite question from the rest — who has been
+// FORGOTTEN — and includes leads with no activity at all, which are the most forgotten.
+const MODIFIED_WINDOWS = {
+  today: (days) => days !== null && days <= 0,
+  week: (days) => days !== null && days <= 7,
+  month: (days) => days !== null && days <= 30,
+  stale: (days) => days === null || days > 30,
+}
+
+// Whole days since the timestamp, or null when there is none to measure from.
+function daysSince(iso) {
+  if (!iso) return null
+  const then = new Date(iso)
+  if (Number.isNaN(then.getTime())) return null
+  return Math.floor((Date.now() - then.getTime()) / 86400000)
 }
 
 const STAGES = ['new', 'contacted', 'quoted', 'negotiating', 'won', 'lost']
@@ -348,6 +385,13 @@ export default function AdminPipelinePage() {
   const [savedAt, setSavedAt] = React.useState(0)
   const [draftLead, setDraftLead] = React.useState(emptyDeal)
   const [board, setBoard] = React.useState([])
+  // Narrowing WITHIN the current tab, client-side. The tabs answer workflow questions
+  // (due, mine, archived); these answer "show me just the quoted ones" or "who has gone
+  // quiet" — cross-cutting questions that would otherwise mean five more tabs. Client-side
+  // because the board is already capped at 1000 rows and re-fetching to narrow a list the
+  // browser is holding would make every filter click a network round trip.
+  const [statusFilter, setStatusFilter] = React.useState('')
+  const [modifiedFilter, setModifiedFilter] = React.useState('')
   const [selectedId, setSelectedId] = React.useState(null)
   const [lead, setLead] = React.useState(null)
   const [state, setState] = React.useState('loading')
@@ -372,6 +416,16 @@ export default function AdminPipelinePage() {
 
   const threadEnd = React.useRef(null)
   const filePicker = React.useRef(null)
+
+  // What the list actually shows: the tab's rows, narrowed by the filters. The selection
+  // is deliberately left alone when filtering hides it — the thread on the right keeps
+  // working, and a filter that closed the conversation you were reading would be worse
+  // than one that merely trims the list beside it.
+  const visibleBoard = React.useMemo(() => board.filter((row) =>
+    (!statusFilter || row.status === statusFilter)
+    && (!modifiedFilter || MODIFIED_WINDOWS[modifiedFilter]?.(daysSince(row.lastActivityAt)))
+  ), [board, statusFilter, modifiedFilter])
+  const filtering = statusFilter !== '' || modifiedFilter !== ''
 
   const loadBoard = React.useCallback(async (which) => {
     const query = TABS.find((x) => x.key === which)?.query ?? ''
@@ -545,6 +599,11 @@ export default function AdminPipelinePage() {
     const { modelText, ...body } = fields
     await adminSend(`/api/admin/pipeline/${selectedId}/fields`, 'POST', body)
     setSavedAt(Date.now())
+    // A successful save closes the sheet — pressing Save means "I am done here", and
+    // making people close it by hand after every edit was the feedback that led to this.
+    // Only on success: a failed save keeps the sheet open with everything still typed,
+    // because closing over an error would throw away the very edits that did not land.
+    setSheetOpen(false)
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
@@ -604,6 +663,22 @@ export default function AdminPipelinePage() {
             {t.sendReport}
           </button>
         ) : null}
+        <label className="adm-filter">
+          <span className="adm-small adm-muted">{t.filterStatus}</span>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">{t.filterAny}</option>
+            {STAGES.map((s) => <option key={s} value={s}>{t.status[s]}</option>)}
+          </select>
+        </label>
+        <label className="adm-filter">
+          <span className="adm-small adm-muted">{t.filterModified}</span>
+          <select value={modifiedFilter} onChange={(e) => setModifiedFilter(e.target.value)}>
+            <option value="">{t.filterAny}</option>
+            {Object.keys(MODIFIED_WINDOWS).map((key) => (
+              <option key={key} value={key}>{t.modified[key]}</option>
+            ))}
+          </select>
+        </label>
         <span className="adm-small adm-muted">
           {tab === 'due' ? t.dueSubtitle : t.newDealHint}
         </span>
@@ -697,14 +772,30 @@ export default function AdminPipelinePage() {
 
       <div className={`adm-pipeline is-mobile-${mobilePane}`}>
         <ul className="adm-pipeline-list">
-          {board.length === 0
+          {visibleBoard.length === 0
             ? (
               <li className="adm-empty">
-                <p>{tab === 'archived' ? t.archivedEmpty : tab === 'due' ? t.dueEmpty : t.empty}</p>
+                {/* "The filters hid everything" and "this view is empty" are different
+                    situations with different fixes, and the first needs its one-click way
+                    back — an empty list with active filters otherwise reads as data loss. */}
+                {filtering && board.length > 0 ? (
+                  <>
+                    <p>{t.filteredEmpty}</p>
+                    <button
+                      type="button"
+                      className="adm-linkbtn"
+                      onClick={() => { setStatusFilter(''); setModifiedFilter('') }}
+                    >
+                      {t.clearFilters}
+                    </button>
+                  </>
+                ) : (
+                  <p>{tab === 'archived' ? t.archivedEmpty : tab === 'due' ? t.dueEmpty : t.empty}</p>
+                )}
               </li>
             )
             : null}
-          {board.map((row) => (
+          {visibleBoard.map((row) => (
             <li key={row.id}>
               <button
                 type="button"
@@ -782,7 +873,10 @@ export default function AdminPipelinePage() {
                   <button
                     type="button"
                     className="btn adm-open-sheet"
-                    onClick={() => setSheetOpen(true)}
+                    // The stale error is cleared on open: a message about the LAST failed
+                    // action, shown inside a sheet someone has only just opened, reads as
+                    // "this sheet is broken".
+                    onClick={() => { setError(''); setSheetOpen(true) }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
                          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -833,6 +927,10 @@ export default function AdminPipelinePage() {
               >
                 {fields ? (
                   <div className="adm-sheet">
+                    {/* The page's error banner renders BEHIND this modal, so without this a
+                        failed save looks like a Save button that does nothing — the sheet
+                        stays open (deliberately, see saveFields) and nothing says why. */}
+                    {error ? <div className="adm-alert" role="alert">{error}</div> : null}
                     <section className="adm-sheet-next">
                       <h3 className="adm-sheet-head">{t.nextTitle}</h3>
                       <div className="adm-sheet-next-grid">

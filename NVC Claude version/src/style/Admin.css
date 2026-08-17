@@ -1507,6 +1507,19 @@ label.btn { cursor: pointer; }
 
 /* Creating a deal that never came through the site. */
 .adm-pipeline-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+/* The board filters: label and control on one line, sized to their content so the pair
+   reads as one unit in the toolbar rather than two orphans. */
+.adm-filter { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.adm-filter select {
+  min-height: 34px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: var(--adm-card);
+  color: inherit;
+  font-size: 14px;
+}
 .adm-newdeal { display: grid; gap: 12px; padding: 16px; margin-bottom: 12px; }
 .adm-newdeal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .adm-newdeal-grid label { display: grid; gap: 4px; }

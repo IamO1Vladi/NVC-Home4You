@@ -37,10 +37,15 @@ let calls = []
 // The detail payload the mock serves, so a test can swap in a lead whose category is not
 // one the gallery filters on — the case the model dropdown has to disappear for.
 let detail = DETAIL
+// Same for the board, so the filter tests can serve rows whose activity dates are computed
+// relative to NOW — hard-coded dates would make "last 7 days" drift out of the window as
+// real time passes, and the test would start failing by itself weeks later.
+let boardRows = BOARD
 
 beforeEach(() => {
   calls = []
   detail = DETAIL
+  boardRows = BOARD
   // jsdom has no layout engine, so scrollIntoView is undefined on every element.
   Element.prototype.scrollIntoView = vi.fn()
 
@@ -62,7 +67,7 @@ beforeEach(() => {
       ])
     }
     if (u.match(/\/api\/admin\/pipeline\/\d+$/)) return json(detail)
-    if (u.includes('/api/admin/pipeline')) return json(BOARD)
+    if (u.includes('/api/admin/pipeline')) return json(boardRows)
     return json({})
   }))
 })
@@ -334,6 +339,104 @@ describe('AdminPipelinePage', () => {
       expect(JSON.parse(saved.body).nextContactAt).toBe('2026-08-21')
       expect(JSON.parse(saved.body).nextStep).toBe('Send revised quote')
     })
+  })
+
+  // --- Sheet auto-close ---------------------------------------------------------------
+
+  it('a successful save closes the sheet by itself', async () => {
+    // Pressing Save means "I am done here"; making people close the sheet by hand after
+    // every edit was the feedback that led to this.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('a failed save keeps the sheet open and says why, inside the sheet', async () => {
+    // Closing over an error would throw away the very edits that did not land — and the
+    // page's own error banner renders BEHIND the modal, where nobody would see it.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => String(url).includes('/fields')
+      ? Promise.resolve({
+          ok: false, status: 500,
+          json: () => Promise.resolve({ errors: ['The database said no.'] }),
+          text: () => Promise.resolve(''),
+        })
+      : passthrough(url, options))
+
+    await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('The database said no.')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  // --- Board filters ------------------------------------------------------------------
+
+  const relativeIso = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString()
+  const list = () => document.querySelector('.adm-pipeline-list')
+
+  it('narrows the board to one status without a network round trip', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Maria Dimitrova')).toBeInTheDocument())
+
+    const before = calls.length
+    await user.selectOptions(screen.getByRole('combobox', { name: /Статус|^Status$/ }), 'new')
+
+    // Ivan is quoted, Maria is new. The DETAIL pane keeps showing Ivan — a filter trims
+    // the list beside a conversation, it must not close the conversation.
+    expect(within(list()).queryByText('Ivan Petrov')).not.toBeInTheDocument()
+    expect(within(list()).getByText('Maria Dimitrova')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument()
+    expect(calls.length).toBe(before)
+  })
+
+  it('the activity filter separates the recent from the forgotten', async () => {
+    boardRows = [
+      { ...BOARD[0], id: 1, name: 'Fresh Lead', lastActivityAt: relativeIso(2) },
+      { ...BOARD[1], id: 2, name: 'Old Lead', lastActivityAt: relativeIso(45) },
+      { ...BOARD[1], id: 3, name: 'Never Touched', lastActivityAt: null },
+    ]
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Old Lead')).toBeInTheDocument())
+
+    const box = screen.getByRole('combobox', { name: /Активност|Activity/ })
+
+    await user.selectOptions(box, 'week')
+    expect(within(list()).getByText('Fresh Lead')).toBeInTheDocument()
+    expect(within(list()).queryByText('Old Lead')).not.toBeInTheDocument()
+    // No activity at all is not "recent activity" — it is the most forgotten state.
+    expect(within(list()).queryByText('Never Touched')).not.toBeInTheDocument()
+
+    await user.selectOptions(box, 'stale')
+    expect(within(list()).queryByText('Fresh Lead')).not.toBeInTheDocument()
+    expect(within(list()).getByText('Old Lead')).toBeInTheDocument()
+    expect(within(list()).getByText('Never Touched')).toBeInTheDocument()
+  })
+
+  it('filters that hide everything say so and offer the way back', async () => {
+    // An empty list under active filters otherwise reads as data loss.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Maria Dimitrova')).toBeInTheDocument())
+
+    // Nobody on the board is lost.
+    await user.selectOptions(screen.getByRole('combobox', { name: /Статус|^Status$/ }), 'lost')
+    expect(within(list()).getByText(/Няма лийдове, отговарящи|No leads match/)).toBeInTheDocument()
+
+    await user.click(within(list()).getByRole('button', { name: /Изчисти филтрите|Clear filters/ }))
+    expect(within(list()).getByText('Maria Dimitrova')).toBeInTheDocument()
   })
 
   // --- The merged "what they want" box ------------------------------------------------
