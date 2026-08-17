@@ -111,9 +111,13 @@ INFRASTRUCTURE
 BILLING & PROCUREMENT — CAPTURED 2026-08-17, NOT DESIGNED YET
 -------------------------------------------------------------
 [ ] 21. Move the buy-side billing workflow off Quickbase; build expense submission.
-        Goal: an app colleagues and FIELD BUILDERS can use — submit operating expenses,
-        work the procurement data — on Azure SQL + the existing stack. This reverses the
-        "billing stays in Quickbase" line that sat in DELIBERATELY NOT DOING until today.
+        Goal: procurement + expenses + targets on Azure SQL, driving a tracking dashboard
+        (monthly / fiscal-cycle / yearly targets). This reverses the "billing stays in
+        Quickbase" line that sat in DELIBERATELY NOT DOING until today.
+        DATA MODEL DESIGNED 2026-08-17 -> ROADMAP-billing.md (entities, fields, the
+        pricing formula and its open A/B question, dashboard metrics, build order).
+        The FIELD-BUILDER MOBILE APP IS ON HOLD (owner, 2026-08-17); expenses go in
+        through the admin panel for now, which is why attribution columns stay in.
 
         The Quickbase domain as described (check names against the real tables before
         designing anything):
