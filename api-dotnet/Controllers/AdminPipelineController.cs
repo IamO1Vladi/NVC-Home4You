@@ -30,10 +30,12 @@ public class AdminPipelineController : ControllerBase
     private readonly LeadMailService _mail;
     private readonly LeadFollowUpService _followUps;
     private readonly EnvConfig _env;
+    private readonly CustomerAdminService _customers;
 
     public AdminPipelineController(
         LeadPipelineService read, LeadService leads, LeadDraftService drafts,
-        LeadMailService mail, LeadFollowUpService followUps, EnvConfig env)
+        LeadMailService mail, LeadFollowUpService followUps, EnvConfig env,
+        CustomerAdminService customers)
     {
         _read = read;
         _leads = leads;
@@ -41,6 +43,7 @@ public class AdminPipelineController : ControllerBase
         _mail = mail;
         _followUps = followUps;
         _env = env;
+        _customers = customers;
     }
 
     // The signed-in salesperson, as the UPN everything here records them by. Matches the
@@ -197,6 +200,30 @@ public class AdminPipelineController : ControllerBase
         }, ct);
 
         return Ok(new { ok = true, id = lead.Id });
+    }
+
+    /// <summary>
+    /// Makes a customer out of this lead — identity only, no purchase. See
+    /// CustomerAdminService.ConvertLeadAsync for the contract; the panel opens the
+    /// customer's editor next, which is where the purchase gets added.
+    /// </summary>
+    [HttpPost("{id:int}/convert")]
+    public async Task<IActionResult> Convert(int id, CancellationToken ct)
+    {
+        var result = await _customers.ConvertLeadAsync(id, CurrentUpn, ct);
+        if (result is null) return NotFound();
+
+        // Written into the thread only on a REAL conversion. The double-click that finds
+        // the existing customer must not add a second "converted" line to the history.
+        if (result.Created)
+        {
+            await _leads.AddActivityAsync(
+                id, LeadActivityTypes.Note, null,
+                $"Създаден клиент №{result.Customer.Id} / converted to customer #{result.Customer.Id}",
+                CurrentUpn, ct: ct);
+        }
+
+        return Ok(new { ok = true, customerId = result.Customer.Id, created = result.Created });
     }
 
     // --- Moving the lead along -------------------------------------------------------

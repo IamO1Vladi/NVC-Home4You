@@ -209,6 +209,49 @@ public sealed class CustomerAdminService
         return (await GetAsync(customer.Id, ct))!;
     }
 
+    public sealed record LeadConversion(CustomerDetailDto Customer, bool Created);
+
+    /// <summary>
+    /// The customer identity a lead grows into — created, or found if it already exists.
+    ///
+    /// IDENTITY ONLY, by decision (2026-08-17): name, phone, email, address, country and
+    /// the LeadId link. No purchase is created here. It matches the panel's own philosophy
+    /// of recording the deposit before the factory is known — the deal's details land on
+    /// the customer afterwards, in the purchases editor this hands over to. Type defaults
+    /// to PERSON because a lead does not know физическо from юридическо; it is one radio
+    /// button to change on the form this opens into.
+    ///
+    /// Returns the EXISTING customer when the lead was already converted (matched on
+    /// Customer.LeadId), because the second click must open the same customer rather than
+    /// mint a namesake — the same AlreadyExisted contract as LeadService.PromoteAsync.
+    /// Null means no such lead.
+    /// </summary>
+    public async Task<LeadConversion?> ConvertLeadAsync(int leadId, string? actor, CancellationToken ct)
+    {
+        var lead = await _db.Leads.AsNoTracking().FirstOrDefaultAsync(l => l.Id == leadId, ct);
+        if (lead is null) return null;
+
+        var existing = await _db.Customers.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.LeadId == leadId, ct);
+        if (existing is not null)
+            return new LeadConversion((await GetAsync(existing.Id, ct))!, false);
+
+        var created = await CreateAsync(new CustomerInput
+        {
+            Type = CustomerTypes.Person,
+            Name = lead.Name,
+            Phone = lead.Phone,
+            Email = lead.Email,
+            // The lead's CustomerAddress, not BuildLocation: this is who the person is,
+            // and the plot in the mountains is a property of the deal, not the identity.
+            Address = lead.CustomerAddress,
+            Country = lead.Country,
+            LeadId = leadId,
+        }, actor, ct);
+
+        return new LeadConversion(created, true);
+    }
+
     public async Task<CustomerDetailDto?> UpdateAsync(int id, CustomerInput input, string? actor, CancellationToken ct)
     {
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct);

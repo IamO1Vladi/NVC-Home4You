@@ -1,4 +1,5 @@
 import React from 'react'
+import { useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import {
@@ -203,6 +204,17 @@ export default function AdminCustomersPage() {
   }, [])
 
   React.useEffect(() => { load('') }, [load])
+
+  // ?customer={id} opens that customer's editor on arrival. It is how "Make customer" on
+  // the pipeline lands here with the right card already open — without it, converting a
+  // lead would end on a list where the person you just created has to be found by hand.
+  const [params] = useSearchParams()
+  React.useEffect(() => {
+    const id = Number(params.get('customer'))
+    if (id > 0) open(id)
+    // Mount-only on purpose: the param is an entry point, not live state to track.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // The form's vocabulary. Each tolerates failure on its own, because losing the factory
   // list should not take the whole page with it.

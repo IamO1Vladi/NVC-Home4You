@@ -12,8 +12,8 @@ import AdminCustomersPage from './AdminCustomersPage.jsx'
 // that does not travel anywhere it should not. All of those fail quietly — the screen looks
 // fine and the invoice is wrong — which is why they are tests rather than careful reading.
 
-const render = (ui) =>
-  rtlRender(<MemoryRouter initialEntries={['/admin/customers']}>{ui}</MemoryRouter>)
+const render = (ui, entry = '/admin/customers') =>
+  rtlRender(<MemoryRouter initialEntries={[entry]}>{ui}</MemoryRouter>)
 
 const json = (body) => Promise.resolve({
   ok: true, status: 200, json: () => Promise.resolve(body), text: () => Promise.resolve(JSON.stringify(body)),
@@ -106,6 +106,15 @@ const openCustomer = async (user, name = 'Стройко ООД') => {
 }
 
 describe('AdminCustomersPage', () => {
+  it('opens the customer named in the URL, so "Make customer" lands ready to work', async () => {
+    // The pipeline's convert button navigates here with ?customer={id}. Landing on a bare
+    // list would mean finding the person you just created by hand.
+    render(<AdminCustomersPage />, '/admin/customers?customer=1')
+
+    const dialog = await waitFor(() => screen.getByRole('dialog'))
+    expect(within(dialog).getByDisplayValue('Стройко ООД')).toBeInTheDocument()
+  })
+
   it('lists customers with what is still owed', async () => {
     render(<AdminCustomersPage />)
 

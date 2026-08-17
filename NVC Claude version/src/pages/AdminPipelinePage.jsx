@@ -1,5 +1,5 @@
 import React from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminSend, adminSendForm, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
@@ -66,6 +66,8 @@ const TEXT = {
       negotiating: 'Преговори', won: 'Спечелена', lost: 'Загубена',
     },
     owner: 'Отговорник', unassigned: 'Никой', takeIt: 'Поеми',
+    makeCustomer: 'Направи клиент',
+    makeCustomerHint: 'Създава клиент от този лийд и отваря картона му, където се добавя покупката.',
     nextStep: 'Следваща стъпка', save: 'Запази',
     thread: 'Разговор', noThread: 'Още няма съобщения.',
     them: 'Клиент', us: 'Ние',
@@ -144,6 +146,8 @@ const TEXT = {
       negotiating: 'Negotiating', won: 'Won', lost: 'Lost',
     },
     owner: 'Owner', unassigned: 'Nobody', takeIt: 'Take it',
+    makeCustomer: 'Make customer',
+    makeCustomerHint: 'Creates a customer from this lead and opens their card, where the purchase is added.',
     nextStep: 'Next step', save: 'Save',
     thread: 'Conversation', noThread: 'No messages yet.',
     them: 'Customer', us: 'Us',
@@ -370,6 +374,7 @@ export default function AdminPipelinePage() {
   const [lang, setLang] = useAdminLang()
   const t = TEXT[lang] ?? TEXT.bg
 
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   // The emailed report links to ?view=due, so the tab has to be readable from the URL —
   // otherwise every link in that mail lands on the default board and the person has to
@@ -582,6 +587,14 @@ export default function AdminPipelinePage() {
     // unassigned lead is a real state — it is the one nobody has picked up.
     await adminSend(`/api/admin/pipeline/${selectedId}/owner`, 'POST', { ownerUpn: upn || null })
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
+  }, t.saveError)
+
+  const makeCustomer = () => run('save', async () => {
+    const result = await adminSend(`/api/admin/pipeline/${selectedId}/convert`, 'POST')
+    // Straight into the customer's card — identity is created, the purchase is added
+    // there. Also where a SECOND click lands: the server answers with the existing
+    // customer rather than a namesake, so this doubles as "open their customer card".
+    if (result?.customerId) navigate(`/admin/customers?customer=${result.customerId}`)
   }, t.saveError)
 
   const logNote = () => run('save', async () => {
@@ -902,6 +915,16 @@ export default function AdminPipelinePage() {
                       next — were on opposite sides of the screen and neither was easy to
                       spot. Same screen now, and it is the one thing on this header you
                       cannot miss. */}
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    title={t.makeCustomerHint}
+                    onClick={makeCustomer}
+                    disabled={busy !== ''}
+                  >
+                    {t.makeCustomer}
+                  </button>
+
                   <button
                     type="button"
                     className="btn adm-open-sheet"

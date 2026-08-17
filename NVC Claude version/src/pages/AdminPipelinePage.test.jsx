@@ -59,6 +59,7 @@ beforeEach(() => {
     if (u.includes('/api/admin/pipeline/1/reply')) return json({ ok: true, activityId: 99 })
     if (u.includes('/api/admin/pipeline/1/attachments')) return json({ ok: true, activityId: 98 })
     if (u.includes('/api/admin/pipeline/due/report')) return json({ ok: true, count: 2, recipients: ['me@x.eu'] })
+    if (u.includes('/api/admin/pipeline/1/convert')) return json({ ok: true, customerId: 42, created: true })
     if (u.includes('/api/admin/gallery')) {
       return json([
         { id: 3, title: 'Nova 60', categoryKey: 'modular', isPublished: true },
@@ -258,6 +259,21 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => {
       const sent = calls.find((c) => c.url.includes('/1/owner') && c.method === 'POST')
       expect(JSON.parse(sent.body)).toEqual({ ownerUpn: null })
+    })
+  })
+
+  it('makes a customer out of the lead with one press', async () => {
+    // Identity only — the server copies name/phone/email/address and links LeadId; the
+    // purchase is added on the customer card this navigates to.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /Направи клиент|Make customer/ }))
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/1/convert') && c.method === 'POST')
+      expect(sent).toBeTruthy()
     })
   })
 

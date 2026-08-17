@@ -41,6 +41,70 @@ public class CustomerStoreTests
             Purchases = purchases,
         };
 
+    // --- Converting a lead --------------------------------------------------------------
+
+    [Fact]
+    public async Task Converting_a_lead_copies_the_identity_and_links_back()
+    {
+        using var db = NewDb();
+        db.Leads.Add(new Lead
+        {
+            Id = 7,
+            Name = "Мария Тодорова",
+            Email = "maria@example.com",
+            Phone = "0888000111",
+            CustomerAddress = "ул. Витоша 1, София",
+            BuildLocation = "с. Бистрица",   // must NOT become the customer's address
+            Country = "България",
+        });
+        await db.SaveChangesAsync();
+
+        var result = await new CustomerAdminService(db).ConvertLeadAsync(7, "sales@x.eu", default);
+
+        Assert.NotNull(result);
+        Assert.True(result!.Created);
+        var c = result.Customer;
+        Assert.Equal("Мария Тодорова", c.Name);
+        Assert.Equal("maria@example.com", c.Email);
+        Assert.Equal("0888000111", c.Phone);
+        // The customer's own address, not the plot: the person is the identity, the build
+        // site is a property of the deal.
+        Assert.Equal("ул. Витоша 1, София", c.Address);
+        Assert.Equal(7, c.LeadId);
+        // Identity only, by decision — the purchase is added in the editor this opens into.
+        Assert.Empty(c.Purchases);
+        Assert.Equal(CustomerTypes.Person, c.Type);
+    }
+
+    [Fact]
+    public async Task Converting_twice_returns_the_same_customer_rather_than_a_namesake()
+    {
+        // The double click, and the colleague who did not know it was already done. A
+        // second customer with the same name would be the duplicate nobody notices until
+        // two people record deposits on different rows.
+        using var db = NewDb();
+        db.Leads.Add(new Lead { Id = 7, Name = "Иван" });
+        await db.SaveChangesAsync();
+
+        var svc = new CustomerAdminService(db);
+        var first = await svc.ConvertLeadAsync(7, null, default);
+        var second = await svc.ConvertLeadAsync(7, null, default);
+
+        Assert.True(first!.Created);
+        Assert.False(second!.Created);
+        Assert.Equal(first.Customer.Id, second.Customer.Id);
+        Assert.Equal(1, await db.Customers.CountAsync());
+    }
+
+    [Fact]
+    public async Task Converting_a_lead_that_does_not_exist_is_null_not_a_customer()
+    {
+        using var db = NewDb();
+
+        Assert.Null(await new CustomerAdminService(db).ConvertLeadAsync(999, null, default));
+        Assert.Equal(0, await db.Customers.CountAsync());
+    }
+
     // --- What a search may touch --------------------------------------------------------
 
     [Fact]
