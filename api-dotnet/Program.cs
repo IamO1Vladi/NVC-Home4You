@@ -898,6 +898,36 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Canonical host — www.* to the bare domain. See Services/CanonicalHost.cs; it is inert
+// until www is bound in App Service and given its own certificate.
+//
+// Placed after the HSTS block on purpose, so the redirect response carries the header too
+// and www is pinned to https alongside the apex.
+//
+// 301 for GET/HEAD, 308 for everything else. The distinction is not pedantry: 301 lets a
+// client re-issue a POST as GET, which would turn a form submission on www into a lead that
+// silently never arrived — the exact failure this project has been bitten by before. 308
+// preserves the method and body, and Google treats both alike for canonicalisation.
+app.Use(async (context, next) =>
+{
+    var target = Services.CanonicalHost.RedirectTarget(
+        context.Request.Scheme,
+        context.Request.Host.Value,
+        context.Request.Path + context.Request.QueryString);
+
+    if (target is null)
+    {
+        await next();
+        return;
+    }
+
+    context.Response.StatusCode =
+        HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)
+            ? StatusCodes.Status301MovedPermanently
+            : StatusCodes.Status308PermanentRedirect;
+    context.Response.Headers.Location = target;
+});
+
 app.UseCors();
 app.UseSwagger();
 app.UseSwaggerUI(c => {

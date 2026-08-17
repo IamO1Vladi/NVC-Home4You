@@ -95,6 +95,12 @@ The panel now covers: home, inquiries, leads, customers, factories, reviews, gal
 
 INFRASTRUCTURE
 --------------
+[~] 20. www.nvc-home4you.eu fails its TLS handshake — www is not bound as a custom domain
+        in App Service. DNS is already correct. Redirect code DONE (CanonicalHost.cs,
+        18 tests); left: one GoDaddy TXT record, add the custom domain, add a managed cert.
+        Exact values and the ordering trap -> HANDOFF-2026-08-17.md, "www — diagnosed".
+        Worse than it sounds: HSTS includeSubDomains makes it unbypassable for anyone who
+        has visited the apex in the past year.
 [ ] 17. App SQL login is still `dbadmin`, the server administrator — far more privilege
         than it needs. Carried since the start of the migration.
 [ ] 18. Managed identity for Blob instead of a stored account key.
