@@ -66,6 +66,9 @@ beforeEach(() => {
         { id: 5, title: 'Site cabin', categoryKey: 'wagon', isPublished: true },
       ])
     }
+    // Before the generic pipeline match, which would otherwise answer this URL with the
+    // board rows.
+    if (u.includes('/api/admin/pipeline/users')) return json(['maria@x.eu', 'vladi@x.eu'])
     if (u.match(/\/api\/admin\/pipeline\/\d+$/)) return json(detail)
     if (u.includes('/api/admin/pipeline')) return json(boardRows)
     return json({})
@@ -225,6 +228,50 @@ describe('AdminPipelinePage', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: /Поеми|Take it/ })).toBeInTheDocument()
+  })
+
+  // --- Assigning a lead to a user -----------------------------------------------------
+
+  const ownerBox = () => screen.getByRole('combobox', { name: /Отговорник|Owner/ })
+
+  it('assigns the lead to a picked user', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.selectOptions(ownerBox(), 'maria@x.eu')
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/1/owner') && c.method === 'POST')
+      expect(JSON.parse(sent.body)).toEqual({ ownerUpn: 'maria@x.eu' })
+    })
+  })
+
+  it('unassigning sends null, because "nobody has picked this up" is a real state', async () => {
+    detail = { ...DETAIL, ownerUpn: 'maria@x.eu' }
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.selectOptions(ownerBox(), '')
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/1/owner') && c.method === 'POST')
+      expect(JSON.parse(sent.body)).toEqual({ ownerUpn: null })
+    })
+  })
+
+  it('an owner missing from the users list is still shown, not silently dropped', async () => {
+    // Someone who left the company still owns their history. A dropdown that cannot
+    // express the stored value would reassign it the moment anyone touched the control.
+    detail = { ...DETAIL, ownerUpn: 'left-the-company@x.eu' }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    expect(ownerBox()).toHaveValue('left-the-company@x.eu')
+    const values = [...ownerBox().querySelectorAll('option')].map((o) => o.value)
+    expect(values).toContain('left-the-company@x.eu')
+    expect(values).toContain('maria@x.eu')
   })
 
   it('surfaces the next step where it cannot be missed', async () => {

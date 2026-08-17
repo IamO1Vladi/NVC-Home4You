@@ -149,6 +149,41 @@ public class LeadPipelineService
     }
 
     /// <summary>
+    /// Everyone a lead can be assigned to: the configured allow-list, everyone who already
+    /// owns a lead, and the person asking — merged, de-duplicated case-insensitively,
+    /// sorted.
+    ///
+    /// Two sources on purpose. ADMIN_ALLOWED_USERS is authoritative when set, but it is
+    /// optional — an installation without it admits the whole tenant, and the only record
+    /// of "who works here" is then the owners already on leads. The caller is always
+    /// included so a fresh installation's first user can assign to themselves before
+    /// either source knows them.
+    ///
+    /// The UPNs already in the database are included even when the allow-list is set:
+    /// someone who left the company still owns their old leads, and a dropdown that cannot
+    /// express the current owner would silently reassign history on the next save.
+    /// </summary>
+    public async Task<List<string>> ListAssignableAsync(
+        IEnumerable<string> configured, string? currentUpn, CancellationToken ct)
+    {
+        var owners = await _db.Leads
+            .AsNoTracking()
+            .Where(l => l.OwnerUpn != null && l.OwnerUpn != "")
+            .Select(l => l.OwnerUpn!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return configured
+            .Concat(owners)
+            .Append(currentUpn ?? "")
+            .Select(u => u.Trim())
+            .Where(u => u.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(u => u, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
     /// One lead and its whole thread, oldest first. Null when there is no such lead.
     /// </summary>
     public async Task<LeadDetailDto?> GetAsync(int id, CancellationToken ct)

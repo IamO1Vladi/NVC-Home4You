@@ -29,16 +29,18 @@ public class AdminPipelineController : ControllerBase
     private readonly LeadDraftService _drafts;
     private readonly LeadMailService _mail;
     private readonly LeadFollowUpService _followUps;
+    private readonly EnvConfig _env;
 
     public AdminPipelineController(
         LeadPipelineService read, LeadService leads, LeadDraftService drafts,
-        LeadMailService mail, LeadFollowUpService followUps)
+        LeadMailService mail, LeadFollowUpService followUps, EnvConfig env)
     {
         _read = read;
         _leads = leads;
         _drafts = drafts;
         _mail = mail;
         _followUps = followUps;
+        _env = env;
     }
 
     // The signed-in salesperson, as the UPN everything here records them by. Matches the
@@ -64,6 +66,17 @@ public class AdminPipelineController : ControllerBase
         return Ok(due
             ? await _read.ListDueAsync(System.DateTimeOffset.UtcNow, ownerFilter, ct)
             : await _read.ListAsync(status, ownerFilter, ct));
+    }
+
+    /// <summary>
+    /// Who a lead can be assigned to. Backs the owner dropdown; see
+    /// LeadPipelineService.ListAssignableAsync for what "assignable" means and why.
+    /// </summary>
+    [HttpGet("users")]
+    public async Task<IActionResult> Users(CancellationToken ct)
+    {
+        Response.Headers["Cache-Control"] = "no-store";
+        return Ok(await _read.ListAssignableAsync(_env.AdminAllowedUsers, CurrentUpn, ct));
     }
 
     public record ReportRequest(string? To);

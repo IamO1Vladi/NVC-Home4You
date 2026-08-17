@@ -398,6 +398,8 @@ export default function AdminPipelinePage() {
   // The catalogue, for the model dropdown. Fetched once for the page rather than per
   // lead: it is the same list every time and changes about as often as the price list.
   const [houses, setHouses] = React.useState([])
+  // Who a lead can be assigned to. Also fetched once — the team does not change mid-shift.
+  const [users, setUsers] = React.useState([])
 
   const [reply, setReply] = React.useState('')
   // Picked but not yet sent. Held here rather than uploaded on selection, so a file can be
@@ -508,6 +510,16 @@ export default function AdminPipelinePage() {
     return () => { alive = false }
   }, [])
 
+  // Same tolerance: without the list the owner control still shows the current owner and
+  // "Take it" still works, which is most of what assignment is used for day to day.
+  React.useEffect(() => {
+    let alive = true
+    adminGet('/api/admin/pipeline/users')
+      .then((rows) => { if (alive) setUsers(Array.isArray(rows) ? rows : []) })
+      .catch(() => { /* the take-it path still works */ })
+    return () => { alive = false }
+  }, [])
+
   // Newest message in view when a thread opens or grows. A chat that opens at the top of
   // a six-month history shows the least useful part of it.
   React.useEffect(() => {
@@ -562,6 +574,13 @@ export default function AdminPipelinePage() {
 
   const takeIt = () => run('save', async () => {
     await adminSend(`/api/admin/pipeline/${selectedId}/owner`, 'POST', { ownerUpn: 'me' })
+    await Promise.all([loadLead(selectedId), loadBoard(tab)])
+  }, t.saveError)
+
+  const assignTo = (upn) => run('save', async () => {
+    // Empty string is the "Nobody" option; the server takes null as "unassign", and an
+    // unassigned lead is a real state — it is the one nobody has picked up.
+    await adminSend(`/api/admin/pipeline/${selectedId}/owner`, 'POST', { ownerUpn: upn || null })
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
@@ -853,9 +872,22 @@ export default function AdminPipelinePage() {
                     {STAGES.map((s) => <option key={s} value={s}>{t.status[s]}</option>)}
                   </select>
 
-                  <span className="adm-small adm-muted">
-                    {t.owner}: {lead.ownerUpn || t.unassigned}
-                  </span>
+                  {/* Assignment. The current owner is always an option even when the
+                      users list does not carry them (someone who left still owns their
+                      history) — a dropdown that cannot express the stored value would
+                      silently reassign it the moment anyone touches the control. */}
+                  <label className="adm-filter adm-small adm-muted">
+                    <span>{t.owner}:</span>
+                    <select
+                      value={lead.ownerUpn || ''}
+                      disabled={busy === 'save'}
+                      onChange={(e) => assignTo(e.target.value)}
+                    >
+                      <option value="">{t.unassigned}</option>
+                      {(users.includes(lead.ownerUpn) || !lead.ownerUpn ? users : [lead.ownerUpn, ...users])
+                        .map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </label>
                   {!lead.ownerUpn ? (
                     <button type="button" className="adm-linkbtn" onClick={takeIt} disabled={busy === 'save'}>
                       {t.takeIt}

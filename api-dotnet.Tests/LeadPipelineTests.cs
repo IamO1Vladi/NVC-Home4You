@@ -33,6 +33,54 @@ public class LeadPipelineTests
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-30),
         };
 
+    // --- Who a lead can be assigned to ------------------------------------------------
+
+    [Fact]
+    public async Task Assignable_users_merge_the_allow_list_with_the_owners_already_on_leads()
+    {
+        using var db = NewDb();
+        db.Leads.AddRange(
+            NewLead("A", LeadStatuses.New, owner: "maria@x.eu"),
+            // Someone no longer on the allow-list who still owns history. A dropdown that
+            // cannot express the current owner would silently reassign it on the next save.
+            NewLead("B", LeadStatuses.Quoted, owner: "left-the-company@x.eu"),
+            NewLead("C", LeadStatuses.New, owner: null));
+        await db.SaveChangesAsync();
+
+        var users = await new LeadPipelineService(db).ListAssignableAsync(
+            new[] { "vladi@x.eu", "maria@x.eu" }, "me@x.eu", CancellationToken.None);
+
+        Assert.Equal(new[] { "left-the-company@x.eu", "maria@x.eu", "me@x.eu", "vladi@x.eu" }, users);
+    }
+
+    [Fact]
+    public async Task Assignable_users_deduplicate_case_insensitively_and_skip_blanks()
+    {
+        // UPNs are emails, and "Maria@X.eu" and "maria@x.eu" are the same person — two
+        // entries would make the dropdown ask which of her to pick.
+        using var db = NewDb();
+        db.Leads.Add(NewLead("A", LeadStatuses.New, owner: "Maria@X.eu"));
+        await db.SaveChangesAsync();
+
+        var users = await new LeadPipelineService(db).ListAssignableAsync(
+            new[] { "maria@x.eu", "", "  " }, null, CancellationToken.None);
+
+        Assert.Single(users);
+    }
+
+    [Fact]
+    public async Task The_caller_can_always_assign_to_themselves()
+    {
+        // A fresh installation with no allow-list and no owned leads yet: the first user
+        // must still appear in their own dropdown.
+        using var db = NewDb();
+
+        var users = await new LeadPipelineService(db).ListAssignableAsync(
+            System.Array.Empty<string>(), "first@x.eu", CancellationToken.None);
+
+        Assert.Equal(new[] { "first@x.eu" }, users);
+    }
+
     // --- The board --------------------------------------------------------------------
 
     [Fact]
