@@ -1,0 +1,94 @@
+/* The background-submission banners. Top right on a desktop; full width under the safe
+   area on a phone, where "top right" is a target nobody can read or press.
+
+   Deliberately theme-independent: dark surface, white text, in both site themes. These
+   float over every page — including pages whose own background is a photo — and a surface
+   that adapts to the theme under it would be unreadable over half of them. */
+
+.submit-status {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: 12px;
+  z-index: 100000; /* above the header and the chat launcher; below nothing that matters */
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100vw - 24px));
+  pointer-events: none; /* the gaps must not eat clicks; items re-enable themselves */
+}
+
+.submit-status-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .28);
+  animation: submit-status-in .18s ease-out;
+}
+
+@keyframes submit-status-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.submit-status-item.is-success { background: #14805a; }
+.submit-status-item.is-error { background: #b3362a; }
+
+.submit-status-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.submit-status-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  animation: submit-status-spin .8s linear infinite;
+}
+
+@keyframes submit-status-spin { to { transform: rotate(360deg); } }
+
+.submit-status-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.submit-status-actions { display: inline-flex; align-items: center; gap: 6px; }
+
+.submit-status-actions button {
+  border: 1px solid rgba(255, 255, 255, .45);
+  background: transparent;
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  /* Big enough to press with a thumb — these appear on phones mid-enquiry. */
+  min-height: 32px;
+}
+
+.submit-status-actions button:hover { background: rgba(255, 255, 255, .12); }
+
+.submit-status-x { min-width: 32px; padding: 4px 6px; }
+
+@media (max-width: 640px) {
+  .submit-status {
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submit-status-item { animation: none; }
+  .submit-status-spinner { animation-duration: 1.6s; }
+}

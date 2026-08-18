@@ -242,6 +242,11 @@ export default {
       imageAltPattern: 'Εικόνα {current} από {total}',
       thumbnailAltPattern: 'Μικρογραφία {current} από {total}',
     },
+    banner: {
+      sending: 'Αποστολή…',
+      retrying: 'Νέα προσπάθεια',
+      retry: 'Δοκιμάστε ξανά',
+    },
     toast: {
       successTitle: 'Επιτυχία',
       errorTitle: 'Σφάλμα',

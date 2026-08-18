@@ -4,6 +4,8 @@ import Modal from '../components/Modal.jsx'
 import '../style/InternalDoors.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 
+import { submitInBackground } from '../lib/backgroundSubmit.js'
+
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 function TypeTabs({ items, value, onChange, ariaLabel = 'Door type' }) {
@@ -300,9 +302,6 @@ export default function InternalDoorsPage({ content }) {
   const lockSelected = lockOptions.find((o) => o.key === lockKey) || lockOptions[0]
 
   const [reviewOpen, setReviewOpen] = React.useState(false)
-  const [reviewSending, setReviewSending] = React.useState(false)
-  const [reviewSent, setReviewSent] = React.useState(false)
-  const [reviewError, setReviewError] = React.useState('')
   const [projectDraft, setProjectDraft] = React.useState('')
 
   const typeLabel = typeItems.find((i) => i.key === typeKey)?.label || typeKey
@@ -351,49 +350,44 @@ export default function InternalDoorsPage({ content }) {
     setReviewOpen(true)
   }
 
-  const submitReview = React.useCallback(async (e) => {
+  // Fire-and-forget, same as the site-wide offer/question modals (owner, 2026-08-18):
+  // the modal closes on Send and the top-right banner owns the request from there — with
+  // retries, so a phone in a dead spot is not the visitor's problem to notice.
+  const submitReview = React.useCallback((e) => {
     e.preventDefault()
-    setReviewError('')
-    setReviewSending(true)
-    try {
-      const fd = new FormData(e.currentTarget)
-      const payload = {
-        name: fd.get('name') || '',
-        email: fd.get('email') || '',
-        phone: fd.get('phone') || '',
-        project: fd.get('project') || '',
-        modelId: '',
-      }
-
-      const res = await fetch(API_BASE + '/api/offer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const server = await res.text().catch(() => '')
-        console.error('Offer API error:', res.status, server)
-        throw new Error('Offer API request failed')
-      }
-
-      if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-  window.fbq('track', 'Lead', {
-    content_name: 'Internal doors review request',
-    content_category: 'Internal doors',
-  })
-}
-
-setReviewSent(true)
-
-      setReviewSent(true)
-    } catch (err) {
-      console.error(err)
-      setReviewError(content.review.error)
-    } finally {
-      setReviewSending(false)
+    const fd = new FormData(e.currentTarget)
+    const payload = {
+      name: fd.get('name') || '',
+      email: fd.get('email') || '',
+      phone: fd.get('phone') || '',
+      project: fd.get('project') || '',
+      modelId: '',
     }
-  }, [content.review.error])
+    if (!payload.name || !payload.email) return
+
+    setReviewOpen(false)
+    submitInBackground({
+      url: API_BASE + '/api/offer',
+      payload,
+      labels: {
+        sending: content.review.sending,
+        retrying: content.review.sending,
+        success: content.review.sent.h,
+        error: content.review.error,
+        retry: content.forms.submit,
+        close: content.common.close,
+      },
+      // Success-only, like every other tracked event: a counted lead is one that arrived.
+      onSuccess: () => {
+        if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+          window.fbq('track', 'Lead', {
+            content_name: 'Internal doors review request',
+            content_category: 'Internal doors',
+          })
+        }
+      },
+    })
+  }, [content.review, content.forms.submit, content.common.close])
 
   const [loaded, setLoaded] = React.useState(true)
   React.useEffect(() => {
@@ -702,16 +696,9 @@ setReviewSent(true)
       </section>
 
       <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title={content.review.title} closeLabel={content.common.close}>
-        {reviewSent ? (
-          <div className="id-review-sent" role="status" aria-live="polite">
-            <div className="id-review-sent-h">{content.review.sent.h}</div>
-            <p className="id-review-sent-p">{content.review.sent.p}</p>
-            <div className="row mt-3">
-              <button className="btn" type="button" onClick={() => setReviewOpen(false)}>{content.common.close}</button>
-            </div>
-          </div>
-        ) : (
-          <form className="grid" style={{ gap: 10 }} onSubmit={submitReview}>
+        {/* No in-modal outcome screen any more: the modal closes on Send, and the
+            top-right banner owns the request from there (see submitReview). */}
+        <form className="grid" style={{ gap: 10 }} onSubmit={submitReview}>
             <div className="id-review-grid" aria-label={content.review.summaryAria}>
               {reviewItems.map((it) => (
                 <div className="id-review-item" key={it.key}>
@@ -749,15 +736,10 @@ setReviewSent(true)
             <input name="phone" placeholder={content.forms.phone} autoComplete="tel" />
             <textarea name="project" rows="6" required placeholder={content.forms.project} value={projectDraft} onChange={(e) => setProjectDraft(e.target.value)} />
 
-            {reviewError && <div className="id-review-error">⚠️ {reviewError}</div>}
-
-            <button className="btn" type="submit" disabled={reviewSending}>
-              {reviewSending ? content.review.sending : content.forms.submit}
-            </button>
+            <button className="btn" type="submit">{content.forms.submit}</button>
 
             <div className="id-review-note">{content.review.note}</div>
-          </form>
-        )}
+        </form>
       </Modal>
     </main>
   )

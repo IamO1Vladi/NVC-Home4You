@@ -242,6 +242,11 @@ export default {
       imageAltPattern: 'Изображение {current} от {total}',
       thumbnailAltPattern: 'Миниатюра {current} от {total}',
     },
+    banner: {
+      sending: 'Изпращане…',
+      retrying: 'Повторен опит',
+      retry: 'Опитай пак',
+    },
     toast: {
       successTitle: 'Успех',
       errorTitle: 'Грешка',

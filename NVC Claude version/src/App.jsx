@@ -15,6 +15,8 @@ import SEO from './components/SEO.jsx'
 import { getRouteSeo } from './seo/routeMeta.js'
 import { readConfiguratorPrefill } from './lib/configPrefill.js'
 import { trackEvent } from './lib/analytics.js'
+import { submitInBackground } from './lib/backgroundSubmit.js'
+import SubmitStatus from './components/SubmitStatus.jsx'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -138,7 +140,6 @@ function AppShell() {
   const [selectedModel, setSelectedModel] = useState(null)
   const [offerPrefillData, setOfferPrefillData] = useState(null)
   const [questionPrefillData, setQuestionPrefillData] = useState(null)
-  const [toast, setToast] = useState({ show: false, kind: 'success', text: '' })
 
   // The configurator stores its summary in sessionStorage right before calling
   // openOffer/openQuestion; prefill the modal message with it (configurator page only).
@@ -164,11 +165,6 @@ function AppShell() {
 
   const offerPrefill = offerPrefillData?.offerText || ''
   const questionPrefill = questionPrefillData?.questionText || ''
-
-  const showToast = useCallback((kind, text) => {
-    setToast({ show: true, kind, text })
-    setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 2600)
-  }, [])
 
   const trackRequestQuote = useCallback((payload) => {
     if (typeof window === 'undefined') return
@@ -214,7 +210,11 @@ function AppShell() {
     }
   }, [location.pathname, location.search, location.hash, navigate, setLang])
 
-  const submitOffer = useCallback(async (e) => {
+  // Fire-and-forget (owner, 2026-08-18): the modal closes the moment Send is pressed and
+  // the request runs in the background with retries, reported by the top-right banner. A
+  // visitor staring at a button that appears to do nothing presses it again — which is how
+  // one enquiry used to arrive five times.
+  const submitOffer = useCallback((e) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
@@ -227,30 +227,34 @@ function AppShell() {
     }
     if (!payload.name || !payload.email) return
 
-    const res = await fetch(API_BASE + '/api/offer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    if (!res.ok) {
-      console.error(await res.text())
-      showToast('error', ui.common.toast.offerError)
-      return
-    }
-
-    trackRequestQuote({
-      ...payload,
+    // Captured NOW: closing the modal resets the prefill state, and the analytics context
+    // belongs to the enquiry as it was made, not to whatever the page looks like when the
+    // request finally lands.
+    const analytics = {
       catalogId: selectedModel?.catalogId || '',
       leadSource: offerPrefillData?.source || 'site',
       modelLabel: offerPrefillData?.modelLabel || '',
       leadValue: offerPrefillData?.knownTotal || 0,
-    })
-    showToast('success', ui.common.toast.offerSuccess)
-    setOfferOpen(false)
-  }, [showToast, trackRequestQuote, selectedModel, offerPrefillData, currentLocale, ui.common.toast.offerError, ui.common.toast.offerSuccess])
+    }
 
-  const submitQuestion = useCallback(async (e) => {
+    setOfferOpen(false)
+    submitInBackground({
+      url: API_BASE + '/api/offer',
+      payload,
+      labels: {
+        sending: ui.common.banner.sending,
+        retrying: ui.common.banner.retrying,
+        success: ui.common.toast.offerSuccess,
+        error: ui.common.toast.offerError,
+        retry: ui.common.banner.retry,
+        close: ui.common.close,
+      },
+      // Analytics only on a CONFIRMED send: a tracked lead must be one the server has.
+      onSuccess: () => trackRequestQuote({ ...payload, ...analytics }),
+    })
+  }, [trackRequestQuote, selectedModel, offerPrefillData, currentLocale, ui.common])
+
+  const submitQuestion = useCallback((e) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const payload = {
@@ -261,33 +265,36 @@ function AppShell() {
     }
     if (!payload.name || !payload.email) return
 
-    const res = await fetch(API_BASE + '/api/question', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-      if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-  window.fbq('track', 'Contact', {
-    content_name: 'Question form',
-    content_category: 'Contact form',
-  })
-}
-
-    if (!res.ok) {
-      console.error(await res.text())
-      showToast('error', ui.common.toast.questionError)
-      return
-    }
-
-    trackEvent('ask_question_success', {
-      form_type: 'question',
+    const analytics = {
       lead_source: questionPrefillData?.source || 'site',
       model_label: questionPrefillData?.modelLabel || '',
-    })
-    showToast('success', ui.common.toast.questionSuccess)
+    }
+
     setQuestionOpen(false)
-  }, [showToast, questionPrefillData, currentLocale, ui.common.toast.questionError, ui.common.toast.questionSuccess])
+    submitInBackground({
+      url: API_BASE + '/api/question',
+      payload,
+      labels: {
+        sending: ui.common.banner.sending,
+        retrying: ui.common.banner.retrying,
+        success: ui.common.toast.questionSuccess,
+        error: ui.common.toast.questionError,
+        retry: ui.common.banner.retry,
+        close: ui.common.close,
+      },
+      onSuccess: () => {
+        // The Meta event used to fire before the response came back, counting contacts
+        // that never reached us. Success-only now, like everything else tracked here.
+        if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+          window.fbq('track', 'Contact', {
+            content_name: 'Question form',
+            content_category: 'Contact form',
+          })
+        }
+        trackEvent('ask_question_success', { form_type: 'question', ...analytics })
+      },
+    })
+  }, [questionPrefillData, currentLocale, ui.common])
 
   const homeRedirect = paths.home[currentLocale] || paths.home.en
   const modularBuildsRedirect = paths.modularBuilds[currentLocale] || paths.modularBuilds.en
@@ -476,27 +483,7 @@ function AppShell() {
           {!isInternal && !isBuilderTool && <ContactDock labels={{ contact: ui.common.contactLabel, whatsapp: ui.common.whatsAppChatLabel, viber: ui.common.viberChatLabel }} />}
 
           {!isInternal && <MobileDock content={ui.home.mobileDock} />}
-          {toast.show && (
-            <div
-              style={{
-                position: 'fixed',
-                right: 16,
-                top: 16,
-                zIndex: 9999,
-                maxWidth: 340,
-                background: toast.kind === 'success'
-                  ? 'linear-gradient(135deg,#16a34a,#22c55e)'
-                  : 'linear-gradient(135deg,#dc2626,#ef4444)',
-                color: '#fff',
-                borderRadius: 12,
-                padding: '12px 14px',
-                boxShadow: '0 10px 30px rgba(0,0,0,.2)',
-              }}
-            >
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>{toast.kind === 'success' ? ui.common.toast.successTitle : ui.common.toast.errorTitle}</div>
-              <div style={{ opacity: 0.95 }}>{toast.text}</div>
-            </div>
-          )}
+          <SubmitStatus />
         </LocalePathGate>
       </ModalActionsProvider>
     </div>

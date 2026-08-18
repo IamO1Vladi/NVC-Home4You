@@ -242,6 +242,11 @@ export default {
       imageAltPattern: 'Image {current} of {total}',
       thumbnailAltPattern: 'Thumbnail {current} of {total}',
     },
+    banner: {
+      sending: 'Sending…',
+      retrying: 'Retrying',
+      retry: 'Try again',
+    },
     toast: {
       successTitle: 'Success',
       errorTitle: 'Error',
