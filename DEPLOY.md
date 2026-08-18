@@ -121,6 +121,28 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 | `IMAGES_VIA_APP` | `true` to serve images from our own origin. Anything else = Quickbase URLs, as before. |
 | `DATA_SOURCE_GALLERY` | `sql` to serve the gallery from SQL; anything else = Quickbase. |
 | `DATA_SOURCE_CASES` | `sql` to serve the cases page from SQL; anything else = Quickbase. |
+| `AUDIT_ARCHIVE_ENABLED` | `true` to switch on audit-log archiving. **Absent = nothing is ever deleted**, which is the safe default. |
+| `AUDIT_ARCHIVE_TO` | Where the archive CSV is emailed. Defaults to `vvladimirov@nvc-home4you.eu`. |
+| `AUDIT_RETENTION_MONTHS` | How much history stays in the panel. Defaults to 6; anything under 1 is ignored. |
+
+### Switching on audit archiving
+
+The audit log grows forever until this is enabled, and that is deliberate — a job that
+deletes evidence should not start on its own the day it deploys.
+
+Before setting `AUDIT_ARCHIVE_ENABLED=true`, see what a real run would remove:
+
+```powershell
+cd api-dotnet
+dotnet run -- archive-audit-log --dry-run
+```
+
+It writes the CSV to disk and sends and deletes nothing. Read it, confirm the row count and
+the date range are what you expect, then set the flag.
+
+**Nothing is deleted that was not first emailed successfully.** If the send fails the rows
+stay and the next run retries them; a failure is logged as `AUDIT GAP` or as an explicit
+archive error. The worker runs daily, ten minutes after startup.
 
 ## Release: gallery + cases to SQL and Blob
 

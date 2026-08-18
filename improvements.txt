@@ -93,9 +93,16 @@ ADMIN PANEL — WHAT IS STILL MISSING
 -----------------------------------
 The panel now covers: home, inquiries, leads, customers, factories, reviews, gallery, cases.
 
-[ ] 14. Audit log — who changed what, when.
-        Flagged when the concern was "you edit live pricing"; sharper now that the panel
-        holds ЕГН, ЕИК, deposits and invoices with no record of who touched them.
+[x] 14. Audit log — who changed what, when. BUILT 2026-08-18 (feature/audit-log).
+        Captured by an EF SaveChanges interceptor, so it cannot be forgotten by the next
+        feature. Covers Customer, Purchase, PurchaseFile, House, HouseImage, Factory,
+        Case, CaseImage, Review and Lead; deliberately NOT LeadActivity (already an
+        append-only thread), Offer/Question (immutable) or SavedConfig (customer-written).
+        ЕГН is NEVER recorded — the log says the field changed, never to what.
+        Read-only API and UI: an Audit section plus a History button on a record.
+        Retention (owner, 2026-08-18): after 6 months entries are emailed as a CSV to
+        vvladimirov@nvc-home4you.eu and then deleted. Nothing is deleted that was not
+        provably sent first. OFF until AUDIT_ARCHIVE_ENABLED=true is set in App Service.
 [ ] 15. Factory sheet into the admin panel.
         Still at /internal/factory-sheet, localStorage-only: the data exists in exactly one
         browser and a cleared cache loses it. Doubly confusing now that a real Factories

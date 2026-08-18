@@ -100,6 +100,7 @@ const AdminCustomersPage = lazy(() => import('./pages/AdminCustomersPage.jsx'))
 const AdminFactoriesPage = lazy(() => import('./pages/AdminFactoriesPage.jsx'))
 const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
+const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -437,6 +438,7 @@ function AppShell() {
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />
               <Route path="/admin/cases" element={<AdminCasesPage />} />
+              <Route path="/admin/audit" element={<AdminAuditPage />} />
 
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}

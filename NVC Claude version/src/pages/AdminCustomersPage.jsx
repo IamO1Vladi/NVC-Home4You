@@ -2,6 +2,7 @@ import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
+import RecordHistory from '../admin/RecordHistory.jsx'
 import {
   adminGet, adminSend, adminDelete, adminUpload, UnauthorizedError,
 } from '../admin/adminApi.js'
@@ -465,6 +466,15 @@ export default function AdminCustomersPage() {
         onClose={() => { setEditing(null); setNotice('') }}
         footer={(
           <>
+            {/* "Who changed this deposit?" is asked here, looking at the customer, so it is
+                answered here. Only on a saved record: one being created has no past.
+                Left of the cancel/save pair because it reads rather than writes. */}
+            <RecordHistory
+              entityType="Customer"
+              entityId={editing?.id}
+              lang={lang}
+              label={editing?.name}
+            />
             <button type="button" className="btn ghost" onClick={() => setEditing(null)}>{t.cancel}</button>
             <button
               type="button"

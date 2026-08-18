@@ -31,6 +31,7 @@ const TEXT = {
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
+      audit: 'Одит',
     },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
@@ -50,6 +51,7 @@ const TEXT = {
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
+      audit: 'Audit',
     },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
@@ -152,6 +154,15 @@ const Icon = {
       <path d="M19.2 13.8V4.6h-2.8v7.6M3 20.4h18" />
     </>
   ),
+  // A clock wound backwards. Not a list or a document: every other section here IS a list,
+  // and what makes this one different is that it looks at the past.
+  audit: (
+    <>
+      <path d="M12 7.4V12l3 1.8" />
+      <path d="M3.6 12a8.4 8.4 0 1 0 2.5-6" />
+      <path d="M3.4 4.2v4.2h4.2" />
+    </>
+  ),
 }
 
 function NavIcon({ name }) {
@@ -179,6 +190,9 @@ const SECTIONS = [
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
+  // Last, and deliberately so: it is the section nobody opens daily and everybody wants
+  // immediately when a number looks wrong.
+  { key: 'audit', to: '/admin/audit' },
 ]
 
 // `me` and the pending-review count are chrome, not page data, so the shell fetches them

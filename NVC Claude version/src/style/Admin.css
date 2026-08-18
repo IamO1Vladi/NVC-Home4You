@@ -1776,3 +1776,87 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   .adm-customer { grid-template-columns: minmax(0, 1fr); }
   .adm-customer-money { justify-items: start; text-align: left; }
 }
+
+/* --- The audit log -------------------------------------------------------------------
+   Rendered as a list of small events rather than a table. A table implies columns you can
+   compare down, and what a reader actually does here is scan for one line: who, and what
+   they touched. */
+.adm-audit-note { margin: 0 0 12px; }
+
+.adm-audit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.adm-audit-entry {
+  border: 1px solid var(--adm-line);
+  border-left: 3px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--adm-card);
+}
+
+/* The left edge carries the verb, so a delete is findable by colour while scrolling. */
+.adm-audit-created { border-left-color: #2e9e5b; }
+.adm-audit-updated { border-left-color: var(--adm-line-firm); }
+.adm-audit-deleted { border-left-color: #c2452f; }
+
+.adm-audit-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  font-size: 14px;
+}
+.adm-audit-who { font-weight: 600; }
+.adm-audit-head time { margin-left: auto; white-space: nowrap; }
+.adm-audit-what { color: var(--adm-muted); }
+.adm-audit-what strong { color: inherit; font-weight: 600; }
+
+.adm-audit-action-created { background: rgba(46, 158, 91, .12); color: #1d6b3c; }
+.adm-audit-action-updated { background: var(--adm-bg); color: var(--adm-muted); }
+.adm-audit-action-deleted { background: rgba(194, 69, 47, .12); color: #932f1f; }
+
+.adm-audit-changes {
+  list-style: none;
+  margin: 6px 0 0; padding: 6px 0 0;
+  border-top: 1px dashed var(--adm-line);
+  display: grid; gap: 3px;
+  font-size: 13px;
+}
+.adm-audit-field { font-weight: 600; }
+
+/* Long-ish values wrap inside the row instead of stretching it: a note edit would
+   otherwise push the timestamp off the right of a phone. */
+.adm-audit-value { overflow-wrap: anywhere; }
+
+/* A value that was never recorded reads differently from one that was empty. Italic and
+   muted for both, and the title attribute on a redacted one says why. */
+.adm-audit-empty { color: var(--adm-muted); font-style: italic; }
+.adm-audit-redacted {
+  color: var(--adm-muted);
+  font-style: italic;
+  border-bottom: 1px dotted var(--adm-line-firm);
+  cursor: help;
+}
+
+.adm-audit-nochanges { margin: 4px 0 0; }
+.adm-audit-more { margin-top: 12px; display: flex; justify-content: center; }
+
+/* The per-record button. Ghost, and sitting apart from save/cancel, because it reads
+   rather than writes. */
+.adm-history-btn { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; }
+.adm-history-btn svg { width: 16px; height: 16px; }
+
+@media (max-width: 600px) {
+  .adm-audit-head time { margin-left: 0; width: 100%; }
+}
+
+/* Both forms, guarded the same way as the token blocks at the top of this file — the
+   media query alone would ignore the theme toggle, so someone on a dark laptop who picked
+   light would still get dark badges here. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-adm-theme="light"]) .adm-audit-action-created { background: rgba(46, 158, 91, .18); color: #7ad3a0; }
+  :root:not([data-adm-theme="light"]) .adm-audit-action-deleted { background: rgba(194, 69, 47, .18); color: #f0917f; }
+  :root:not([data-adm-theme="light"]) .adm-audit-created { border-left-color: #3fbf74; }
+  :root:not([data-adm-theme="light"]) .adm-audit-deleted { border-left-color: #e0644a; }
+}
+
+:root[data-adm-theme="dark"] .adm-audit-action-created { background: rgba(46, 158, 91, .18); color: #7ad3a0; }
+:root[data-adm-theme="dark"] .adm-audit-action-deleted { background: rgba(194, 69, 47, .18); color: #f0917f; }
+:root[data-adm-theme="dark"] .adm-audit-created { border-left-color: #3fbf74; }
+:root[data-adm-theme="dark"] .adm-audit-deleted { border-left-color: #e0644a; }
