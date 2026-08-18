@@ -96,6 +96,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.LeadFollowUpService>();
 
     // Customers, the suppliers they were built by, and what passed between them.
+    builder.Services.AddScoped<Services.AuditReadService>();
     builder.Services.AddScoped<Services.CustomerAdminService>();
     builder.Services.AddScoped<Services.FactoryAdminService>();
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
