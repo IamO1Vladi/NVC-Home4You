@@ -88,8 +88,6 @@ const ElPrivacyRoute = lazy(() => import('./routes/el/ElPrivacyRoute.jsx'))
 
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'))
 
-// Hidden internal tools (not linked, not in the sitemap, noindex).
-const FactorySheetPage = lazy(() => import('./pages/FactorySheetPage.jsx'))
 // Staff admin panel. Entra ID protects the API it calls; this is only the UI, so a
 // signed-out visitor reaching it sees a sign-in prompt and no data.
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
@@ -101,6 +99,7 @@ const AdminFactoriesPage = lazy(() => import('./pages/AdminFactoriesPage.jsx'))
 const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
+const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -411,7 +410,10 @@ function AppShell() {
               <Route path={paths.privacy.el} element={<ElPrivacyRoute />} />
 
               {/* Hidden internal tool: factory order sheet (unlisted, noindex, password-gated). */}
-              <Route path="/internal/factory-sheet" element={<FactorySheetPage />} />
+              {/* The old internal tool, retired 2026-08-18. The redirect keeps every
+                  bookmark working, and the admin page offers to import the sheet still
+                  sitting in this browser's localStorage (same origin, so it can). */}
+              <Route path="/internal/factory-sheet" element={<Navigate to="/admin/factory-sheets" replace />} />
 
               {/* Staff admin panel (unlisted, noindex). The API enforces Entra sign-in.
                   /admin is the menu: it used to drop straight into the review queue, which
@@ -439,6 +441,7 @@ function AppShell() {
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />
               <Route path="/admin/cases" element={<AdminCasesPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
+              <Route path="/admin/factory-sheets" element={<AdminFactorySheetsPage />} />
 
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}

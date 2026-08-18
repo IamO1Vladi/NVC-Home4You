@@ -36,6 +36,9 @@ public static class AuditedEntities
         // The supplier directory a purchase points at.
         nameof(Factory),
 
+        // What we tell the factory to build. Wrong here is wrong in steel.
+        nameof(FactorySheet),
+
         // Published content and moderation decisions.
         nameof(Case), nameof(CaseImage), nameof(Review),
 

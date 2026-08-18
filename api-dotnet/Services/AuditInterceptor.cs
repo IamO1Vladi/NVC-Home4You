@@ -59,6 +59,16 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
 
     private sealed record Change(string Field, string? From, string? To);
 
+    // Cyrillic stays Cyrillic. The default serializer escapes every non-ASCII character as
+    // \uXXXX, which doubles the storage for Bulgarian text and — worse — turns every name
+    // in the archive CSV into gibberish, because that file carries this JSON verbatim and
+    // is read by a person. Relaxed escaping is safe here: the column is NVARCHAR, and the
+    // panel parses the JSON and renders values as text nodes, never as markup.
+    private static readonly JsonSerializerOptions ChangesJsonOptions = new()
+    {
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     // --- Phase one: read the change tracker while it still knows anything ----------------
 
     public override InterceptionResult<int> SavingChanges(
@@ -117,7 +127,7 @@ public sealed class AuditInterceptor : SaveChangesInterceptor
                 Summary = Summarise(entry),
                 // Updates and deletes know their id already; creations are filled in below.
                 EntityId = KeyOf(entry) ?? "",
-                ChangesJson = JsonSerializer.Serialize(changes),
+                ChangesJson = JsonSerializer.Serialize(changes, ChangesJsonOptions),
             }));
         }
     }

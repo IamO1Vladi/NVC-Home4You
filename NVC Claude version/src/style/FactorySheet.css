@@ -288,3 +288,23 @@
   .fs-topbar { padding: 12px 14px; }
   .fs-main { padding: 14px; }
 }
+
+/* ---- Embedded in the admin panel (2026-08-18) ----
+   The sheet keeps its own light "paper" surface even in a dark panel: it is a document
+   being prepared for print, and editing it against the colours it will print in is the
+   point, not an oversight. min-height unset because the shell owns the page height now. */
+.fs-root.fs-embedded {
+  min-height: 0;
+  border-radius: 12px;
+  padding-bottom: 16px;
+}
+.fs-root.fs-embedded .fs-topbar { border-radius: 12px 12px 0 0; }
+.fs-dirty {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}

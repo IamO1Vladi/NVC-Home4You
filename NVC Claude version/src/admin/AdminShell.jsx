@@ -31,7 +31,7 @@ const TEXT = {
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
-      audit: 'Одит',
+      factorySheets: 'Фабрични поръчки', audit: 'Одит',
     },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
@@ -51,7 +51,7 @@ const TEXT = {
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
-      audit: 'Audit',
+      factorySheets: 'Factory orders', audit: 'Audit',
     },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
@@ -154,6 +154,14 @@ const Icon = {
       <path d="M19.2 13.8V4.6h-2.8v7.6M3 20.4h18" />
     </>
   ),
+  // A sheet of paper with a fold. It is a DOCUMENT we hand the factory, which is what
+  // separates it from the factory directory sitting above it in the nav.
+  factorySheets: (
+    <>
+      <path d="M14.2 3.4H6.8A1.8 1.8 0 0 0 5 5.2v13.6a1.8 1.8 0 0 0 1.8 1.8h10.4a1.8 1.8 0 0 0 1.8-1.8V8.2z" />
+      <path d="M14.2 3.4v4.8H19M8.4 12.4h7.2M8.4 15.8h7.2" />
+    </>
+  ),
   // A clock wound backwards. Not a list or a document: every other section here IS a list,
   // and what makes this one different is that it looks at the past.
   audit: (
@@ -190,6 +198,10 @@ const SECTIONS = [
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
+  // The order sheets sit with the other operational records, after the content
+  // sections. Beside Factories would read nicely too, but the directory and the
+  // documents are different kinds of thing.
+  { key: 'factorySheets', to: '/admin/factory-sheets' },
   // Last, and deliberately so: it is the section nobody opens daily and everybody wants
   // immediately when a number looks wrong.
   { key: 'audit', to: '/admin/audit' },

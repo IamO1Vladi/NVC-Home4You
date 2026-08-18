@@ -104,6 +104,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddHostedService<Services.AuditArchiveWorker>();
     builder.Services.AddScoped<Services.CustomerAdminService>();
     builder.Services.AddScoped<Services.FactoryAdminService>();
+    builder.Services.AddScoped<Services.FactorySheetAdminService>();
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
     builder.Services.AddScoped<Services.SavedConfigImportService>();
 

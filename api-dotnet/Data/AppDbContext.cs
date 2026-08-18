@@ -26,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<PurchaseFile> PurchaseFiles => Set<PurchaseFile>();
     public DbSet<SavedConfig> SavedConfigs => Set<SavedConfig>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<FactorySheet> FactorySheets => Set<FactorySheet>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
