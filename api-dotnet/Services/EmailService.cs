@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.IO;
 using System.Net.Mail;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -115,6 +116,40 @@ public class EmailService
         }
     }
 
+    /// <summary>
+    /// The same internal report, carrying one file.
+    ///
+    /// Added for the audit archive, where the attachment IS the point: the mail is the only
+    /// copy of the history once the rows are pruned, so this returns false rather than
+    /// throwing and the caller must treat false as "delete nothing".
+    /// </summary>
+    // Virtual so the archive's delete-after-send rule can be tested against a transport
+    // that is made to fail on purpose. That path deletes audit history, so "it was not
+    // sent, therefore nothing was removed" has to be provable rather than argued.
+    public virtual async Task<bool> TrySendInternalReportWithAttachmentAsync(
+        IReadOnlyCollection<string> toEmails, string subject, string html,
+        string fileName, string contentType, byte[] content, CancellationToken ct = default)
+    {
+        if (!IsConfigured || toEmails.Count == 0 || content.Length == 0) return false;
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            // Longer than the plain report's 20s: this one carries a file.
+            timeout.CancelAfter(TimeSpan.FromMinutes(2));
+            await SendAsync(toEmails, subject, html, replyTo: null,
+                new Attached(fileName, contentType, content), timeout.Token);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Internal report email with attachment failed ({FileName})", fileName);
+            return false;
+        }
+    }
+
+    /// <summary>One file travelling with a message, small enough to hold in memory.</summary>
+    private sealed record Attached(string FileName, string ContentType, byte[] Content);
+
     // Public because callers need to validate what a person typed into a "send this to"
     // box against the same rule the configured list is read with — two different notions
     // of "is that an address?" is how one of them ends up silently dropping recipients.
@@ -127,11 +162,16 @@ public class EmailService
 
     // Picks the configured transport (Graph preferred, SMTP fallback).
     private Task SendAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct) =>
-        _env.GraphConfigured
-            ? SendViaGraphAsync(toEmails, subject, html, replyTo, ct)
-            : SendViaSmtpAsync(toEmails, subject, html, replyTo, ct);
+        SendAsync(toEmails, subject, html, replyTo, attachment: null, ct);
 
-    private async Task SendViaSmtpAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct)
+    private Task SendAsync(
+        IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo,
+        Attached? attachment, CancellationToken ct) =>
+        _env.GraphConfigured
+            ? SendViaGraphAsync(toEmails, subject, html, replyTo, attachment, ct)
+            : SendViaSmtpAsync(toEmails, subject, html, replyTo, attachment, ct);
+
+    private async Task SendViaSmtpAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, Attached? attachment, CancellationToken ct)
     {
         using var message = new MailMessage
         {
@@ -142,6 +182,10 @@ public class EmailService
         };
         foreach (var to in toEmails) message.To.Add(new MailAddress(to));
         if (!string.IsNullOrWhiteSpace(replyTo)) message.ReplyToList.Add(new MailAddress(replyTo));
+
+        using var attachmentStream = attachment is null ? null : new MemoryStream(attachment.Content);
+        if (attachment is not null && attachmentStream is not null)
+            message.Attachments.Add(new Attachment(attachmentStream, attachment.FileName, attachment.ContentType));
 
         using var client = new SmtpClient(_env.SmtpHost, _env.SmtpPort)
         {
@@ -155,7 +199,7 @@ public class EmailService
 
     // Sends via Graph POST /users/{sender}/sendMail using an app-only access token.
     // The sender is fixed by the URL path, so the app needs Mail.Send (application).
-    private async Task SendViaGraphAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct)
+    private async Task SendViaGraphAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, Attached? attachment, CancellationToken ct)
     {
         var token = await GetGraphTokenAsync(ct);
 
@@ -174,7 +218,36 @@ public class EmailService
                 toRecipients,
                 replyTo = new[] { new { emailAddress = new { address = replyTo } } },
             };
-        var payload = new { message = messageObj, saveToSentItems = false };
+        if (attachment is not null)
+        {
+            // Graph needs the type discriminator or it cannot tell a file from a reference
+            // to one and rejects the whole message. Same shape LeadMailService uses.
+            var files = new[]
+            {
+                new Dictionary<string, object>
+                {
+                    ["@odata.type"] = "#microsoft.graph.fileAttachment",
+                    ["name"] = attachment.FileName,
+                    ["contentType"] = attachment.ContentType,
+                    ["contentBytes"] = Convert.ToBase64String(attachment.Content),
+                },
+            };
+
+            messageObj = string.IsNullOrWhiteSpace(replyTo)
+                ? new { subject, body = new { contentType = "HTML", content = html }, toRecipients, attachments = files }
+                : new
+                {
+                    subject,
+                    body = new { contentType = "HTML", content = html },
+                    toRecipients,
+                    replyTo = new[] { new { emailAddress = new { address = replyTo } } },
+                    attachments = files,
+                };
+        }
+
+        // saveToSentItems stays true when a file rides along: the archive mail is the only
+        // copy of pruned history, so a record of it in Sent Items is worth having.
+        var payload = new { message = messageObj, saveToSentItems = attachment is not null };
 
         var http = _httpFactory.CreateClient();
         using var request = new HttpRequestMessage(

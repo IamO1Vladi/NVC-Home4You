@@ -97,6 +97,11 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
 
     // Customers, the suppliers they were built by, and what passed between them.
     builder.Services.AddScoped<Services.AuditReadService>();
+    builder.Services.AddScoped<Services.AuditArchiveService>();
+
+    // Checks its own config and returns immediately when archiving is off, same shape
+    // as LeadMailPoller — so "is this on?" lives in EnvConfig, in one place.
+    builder.Services.AddHostedService<Services.AuditArchiveWorker>();
     builder.Services.AddScoped<Services.CustomerAdminService>();
     builder.Services.AddScoped<Services.FactoryAdminService>();
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
@@ -512,6 +517,69 @@ if (args.Length > 0 && args[0] == "import-saved-configs")
     // A skipped row is not a failed run — it is usually a code already live in SQL — but a
     // run that imported nothing at all deserves a non-zero exit.
     return cfgResult.Fetched == 0 && cfgResult.Problems.Count > 0 ? 1 : 0;
+}
+
+// Runs the audit archive by hand: emails everything older than the retention window and
+// then deletes it. --dry-run writes the CSV to disk instead, sending and deleting nothing,
+// which is the way to see what a real run WOULD remove before letting it.
+if (args.Length > 0 && args[0] == "archive-audit-log")
+{
+    using var auditScope = app.Services.CreateScope();
+    var archive = auditScope.ServiceProvider.GetService<Services.AuditArchiveService>();
+
+    if (archive is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING), so there is no audit log.");
+        return 1;
+    }
+
+    if (args.Contains("--dry-run"))
+    {
+        var db = auditScope.ServiceProvider.GetRequiredService<Data.AppDbContext>();
+        var envCfgAudit = auditScope.ServiceProvider.GetRequiredService<Services.EnvConfig>();
+        var auditCutoff = DateTimeOffset.UtcNow.AddMonths(-envCfgAudit.AuditRetentionMonths);
+
+        var doomedRows = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+            db.AuditEntries.AsNoTracking()
+              .Where(a => a.OccurredAt < auditCutoff)
+              .OrderBy(a => a.OccurredAt).ThenBy(a => a.Id));
+
+        Console.WriteLine($"DRY RUN — nothing was sent and nothing was deleted.");
+        Console.WriteLine($"  retention      : {envCfgAudit.AuditRetentionMonths} months");
+        Console.WriteLine($"  cutoff         : {auditCutoff.UtcDateTime:yyyy-MM-dd}");
+        Console.WriteLine($"  would archive  : {doomedRows.Count} entries");
+        Console.WriteLine($"  would send to  : {envCfgAudit.AuditArchiveTo}");
+
+        if (doomedRows.Count > 0)
+        {
+            var outPath = System.IO.Path.Combine(
+                System.IO.Directory.GetCurrentDirectory(),
+                $"audit-archive-preview-{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+            await System.IO.File.WriteAllBytesAsync(outPath, Services.AuditArchiveService.ToCsv(doomedRows));
+            Console.WriteLine($"  preview written: {outPath}");
+        }
+
+        return 0;
+    }
+
+    // force: someone typing the command has decided, so the enabled flag — which exists to
+    // stop the SCHEDULED job running on its own — does not block them.
+    var auditResult = await archive.RunAsync(force: true, CancellationToken.None);
+
+    Console.WriteLine(auditResult.Outcome switch
+    {
+        Services.AuditArchiveService.ArchiveOutcome.Archived =>
+            $"Archived and deleted {auditResult.Count} entries. Sent as {auditResult.FileName} to {string.Join(", ", auditResult.Recipients)}.",
+        Services.AuditArchiveService.ArchiveOutcome.NothingToArchive =>
+            "Nothing is old enough to archive. Nothing was deleted.",
+        Services.AuditArchiveService.ArchiveOutcome.NoRecipients =>
+            $"NOT RUN: {auditResult.Error}",
+        Services.AuditArchiveService.ArchiveOutcome.SendFailed =>
+            $"FAILED: {auditResult.Error} ({auditResult.Count} entries are still in the table.)",
+        _ => "Archiving is switched off.",
+    });
+
+    return auditResult.Ok ? 0 : 1;
 }
 
 if (args.Length > 0 && args[0] == "import-crm-leads")

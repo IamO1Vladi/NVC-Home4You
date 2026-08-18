@@ -250,6 +250,34 @@ public class EnvConfig
     public string LeadNotifyEmail => (_cfg["LEAD_NOTIFY_EMAIL"]
         ?? "nlekov@nvc-home4you.eu,vvladimirov@nvc-home4you.eu,tbonin@nvc-home4you.eu").Trim();
 
+    // --- Audit log retention --------------------------------------------------------
+    // The owner's decision (2026-08-18): entries older than six months are emailed to them
+    // as a CSV and then removed. See AuditArchiveService for why the send has to succeed
+    // before anything is deleted.
+
+    /// <summary>
+    /// OFF unless explicitly switched on. Deploying the archive job must not start deleting
+    /// history by itself — the flag is the difference between a feature and an accident.
+    /// </summary>
+    public bool AuditArchiveEnabled =>
+        string.Equals((_cfg["AUDIT_ARCHIVE_ENABLED"] ?? "").Trim(), "true", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Where the archive goes. Defaulted to the owner, who asked for it, but the service
+    /// still refuses to run when this resolves to nothing rather than guessing.
+    /// </summary>
+    public string AuditArchiveTo =>
+        (_cfg["AUDIT_ARCHIVE_TO"] ?? "vvladimirov@nvc-home4you.eu").Trim();
+
+    /// <summary>
+    /// How much history stays in the panel. Clamped at one month minimum: a
+    /// misconfigured "0" would otherwise archive and delete everything written today.
+    /// </summary>
+    public int AuditRetentionMonths =>
+        int.TryParse((_cfg["AUDIT_RETENTION_MONTHS"] ?? "").Trim(), out var months) && months >= 1
+            ? months
+            : 6;
+
     // --- AI-drafted replies ---------------------------------------------------------
     // Billed separately from any Claude subscription: this is an API key from
     // console.anthropic.com, and it joins the six-monthly renewal list.
