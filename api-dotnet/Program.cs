@@ -52,8 +52,20 @@ builder.Services.AddSingleton<Services.EnvConfig>();
 var sqlConnectionString = (builder.Configuration["SQL_CONNECTION_STRING"] ?? "").Trim();
 if (!string.IsNullOrWhiteSpace(sqlConnectionString))
 {
-    builder.Services.AddDbContext<Data.AppDbContext>(options =>
-        options.UseSqlServer(sqlConnectionString, sql =>
+    // The audit log listens to every save (see AuditInterceptor). Registered before the
+    // context so the resolver below can pull it out of the provider.
+    //
+    // ICurrentActor is how the interceptor learns who is acting. HttpCurrentActor returns
+    // null outside a request, which is exactly right for the importers and the CLI: the
+    // audit log records those as "system" rather than inventing a username.
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<Services.ICurrentActor, Services.HttpCurrentActor>();
+    builder.Services.AddScoped<Services.AuditInterceptor>();
+
+    builder.Services.AddDbContext<Data.AppDbContext>((serviceProvider, options) =>
+        options
+            .AddInterceptors(serviceProvider.GetRequiredService<Services.AuditInterceptor>())
+            .UseSqlServer(sqlConnectionString, sql =>
         {
             // Serverless Azure SQL auto-pauses when idle and returns error 40613 for the
             // 30-60s it takes to resume. The default retry budget expires before then, so

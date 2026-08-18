@@ -25,9 +25,23 @@ public class AppDbContext : DbContext
     public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<PurchaseFile> PurchaseFiles => Set<PurchaseFile>();
     public DbSet<SavedConfig> SavedConfigs => Set<SavedConfig>();
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<AuditEntry>(e =>
+        {
+            // The two questions the log is asked, and nothing else: "what happened to THIS
+            // record" and "what happened recently". Both are covered by an index because
+            // this table only grows, and the second one is the panel's default view.
+            e.HasIndex(a => new { a.EntityType, a.EntityId, a.OccurredAt });
+            e.HasIndex(a => a.OccurredAt);
+
+            // No foreign keys, on purpose. An audit entry outlives the row it describes —
+            // the entry saying a customer was DELETED is the one that matters most, and a
+            // foreign key would either forbid the delete or cascade the evidence away.
+        });
+
         b.Entity<House>(e =>
         {
             // The gallery reads published rows in sort order; that pair is the whole query.
