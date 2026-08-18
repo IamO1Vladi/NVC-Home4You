@@ -1,141 +1,150 @@
-# Where things stand — 2026-08-05
+# Where things stand — 2026-08-18
 
-> **Historical — 2026-08-06.** Current state and what is next ->
-> [HANDOFF-2026-08-17.md](HANDOFF-2026-08-17.md).
+**Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
+handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
+owns release mechanics, **including §6b, the prerender step, which silently ships stale
+pages when skipped**.
 
-
-> **Superseded 2026-08-06.** Gallery, cases and every image have since moved off Quickbase and
-> are live. **Start at [ROADMAP-next.md](ROADMAP-next.md)**, which covers what is left
-> (leads, saved configs, factory sheet) and the state as of that release, `deploy-2026-08-06`.
-> This file is kept for the history below — what was believed on 2026-08-05, including the two
-> claims in "Next steps" that turned out to be wrong.
-
-Written at the end of the vacation working session. Everything below is **deployed and
-verified live** unless it says otherwise. Start here when you pick the project back up.
+Tests: **639 .NET, 252 frontend.**
 
 ---
 
-## Live state
+## State of play
 
-Production is `deploy-2026-08-05`. `master` == `production` == what's deployed.
-
-| Area | Status |
+| | |
 |---|---|
-| Reviews | **Fully on Azure SQL** — reads and writes |
-| Admin panel | **Live** at `/admin`, Entra ID sign-in, BG + EN |
-| Everything else | Still Quickbase: gallery, cases, houses/catalog, saved configs, leads |
+| **Live** | `deploy-2026-08-18` = `7fa1b17` — www redirect, services page retired, gallery slugs corrected, the five lead-panel features |
+| **`production` branch** | `de8e3b6` (audit log) — **ONE RELEASE AHEAD OF LIVE**: a publish was staged on 18 Aug and the owner delayed it. Until the next publish, `git log` cannot answer "what is live"; the `deploy-2026-08-18` tag can. |
+| **`master`** | audit log + factory sheets in the panel + fire-and-forget public forms + this docs consolidation — all undeployed |
+| **Migrations** | `AddAuditLog` and `AddFactorySheets` are **already applied** to the production database. Safe: both purely additive, and nothing in the live code reads the new tables until the next publish. |
+| `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
-Publishing is now one action (VS Code → right-click `api-dotnet` → Publish). The SPA
-builds itself; there is no `dist/` → `wwwroot` copy step any more. See `DEPLOY.md`.
+**Probe production before believing a deployment claim in this file.** This section has
+been wrong before (17 Aug: two "not deployed" fixes were live — the publish had been made
+from a pre-squash working tree, so no commit mapped to the zip and `production..master`
+was empty either way). Checking the live site settles such questions in a minute.
 
----
+## Do next
 
-## What was done this session
-
-1. **Phase 0 caching** — the image proxy (`/api/files`) now sends
-   `Cache-Control: public, max-age=31536000, immutable` and caches bytes server-side;
-   `/c/{code}` short-link lookups cached 12h. These were the only uncached hot paths
-   hitting Quickbase.
-2. **Publishing automated** — `dotnet publish` builds the SPA (`BuildSpa` target).
-   `wwwroot` untracked; 713 stale bundles removed from git.
-3. **`master` / `production` branches** — `git log --oneline production..master` answers
-   "what's merged but not live", replacing the hand-written DEPLOY PENDING block.
-4. **Reviews migrated to Azure SQL** — EF Core, importer, shadow comparison, per-entity
-   feature flag, read + write seam.
-5. **Admin panel** — Entra ID (authorization code flow), review moderation queue.
-6. **Security** — publish-profile credential untracked, three package vulnerabilities
-   closed (one High predated this work).
-
----
-
-## Next steps, in the order I'd take them
-
-### 1. Blob storage for images — biggest remaining win
-**Started 2026-08-05; two claims in this section turned out to be wrong.** Corrected in
-ROADMAP-datalayer-admin.md → Phase 2b, which supersedes the paragraph below.
-
-- *"Every gallery image is a separate Quickbase round trip [through the app]"* — no. Nothing
-  ever called `FilesController`; the browser fetched Quickbase directly, so Phase 0's cache
-  sat on a route with no traffic. That controller has now been deleted.
-- *"`FilesController` already proxies by `{table}/{rid}/{fid}/{version}`, so the URL shape
-  can stay identical"* — that shape cannot express the base-36 `/up/` URLs the site actually
-  serves. The replacement, `/api/img/{key}`, keys on the attachment path instead.
-
-The real cost was how Quickbase serves images: `Cache-Control: max-age=7200, private` and
-`cf-cache-status: DYNAMIC` — never edge-cached, re-fetched every two hours, ~250-320ms each.
-The `images` container already exists.
-
-### 2. Migrate the next table
-The pattern is proven and largely mechanical now:
-`Entity` → migration → `IXStore` interface → `SqlXService` → importer + compare → flag.
-Lowest-risk order: **gallery → cases → houses**. Leave **leads** last, or never — sales
-works them in Quickbase, and PR #8's autoresponder depends on those writes.
-
-### 3. Extend the admin panel
-It only does review moderation today. The natural next piece is **houses/catalog CRUD**,
-so price changes stop being code edits (PR #4 was a manual price commit).
-
-### 4. Roadmap items, unblocked and frontend-only
-`#3` popular presets, `#5` financing calculator. See `improvements.txt`.
+1. **Publish** (the delayed one). From the repo root:
+   - `git checkout production && git merge --ff-only master && git push`
+   - §6b prerender — **expect 52/52** — then VS Code → right-click `api-dotnet` →
+     Publish to Azure, and watch for `Prerendered pages staged for publish: 52 files.`
+   - Verify after: `/api/admin/audit` and `/api/admin/factory-sheets` answer 401 anonymous;
+     `/admin/audit` and `/admin/factory-sheets` resolve; submitting the offer form closes
+     the modal instantly and shows the top-right banner; `/internal/factory-sheet`
+     redirects. Tag `deploy-YYYY-MM-DD` (the 18th is taken — suffix it).
+   - Then sign in and look at **Одит** (edit something small first) and **Фабрични
+     поръчки** — and on whichever browser held the old factory sheet, accept the import
+     banner so the localStorage copy reaches SQL.
+2. **Search Console, the remainder**: request indexing for the 26 clean product URLs
+   (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. Two fixes
+   that are TITLE DATA, not code, in `/admin/gallery`: `Panaromic` → `Panoramic`, and the
+   Cyrillic `а` in "…and а double roof" on two English titles. The slug follows the title;
+   the old URL 301s itself.
+3. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
+   `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
+   --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag
+   in App Service. Recipient defaults to vvladimirov@nvc-home4you.eu. See DEPLOY.md.
 
 ---
 
-## Things that will bite if forgotten
+## Prerendering — read before every release
 
-**Secret expiry — every 6 months, first due ~2027-02-04.** Entra client secret, Graph
-email credentials, Quickbase token. Each fails *silently and partially*: an expired Graph
-credential stops lead autoresponders while forms still report success. Nothing alerts.
-Details per-credential in `DEPLOY.md`.
+**The prerender runs locally against a local app; the output ships inside the publish**
+(`StagePrerenderedForPublish`). Nothing runs on the server.
 
-**Quickbase and SQL have now diverged.** Reviews are authoritative in SQL. Re-running
-`dotnet run -- import-reviews` would overwrite moderation decisions made in the panel with
-Quickbase's stale copy. Only run it if that is genuinely what you want.
+**`api-dotnet/prerendered/` is gitignored — the 52 snapshots live on ONE machine.** A
+publish from a fresh clone ships zero snapshots and quietly undoes the SEO work; the only
+signal is one MSBuild line. `Prerendered pages staged for publish: 52 files.` = good;
+`No prerendered pages found` = stop.
 
-**`dbadmin` is still the app's SQL login.** That is the server administrator — more
-privilege than the app needs. Worth replacing with a contained user limited to read/write
-on the app's tables. Not urgent, but it shouldn't stay that way indefinitely.
+**On Windows the DATA_SOURCE flags are `$env:` assignments** — the bash prefix form fails:
 
-**Auto-pause is off the free tier's default.** Billing continues past the free vCore
-allowance rather than the database going unavailable mid-month — correct for production,
-but it means the bill is no longer guaranteed to be zero. Worth a look at the first
-invoice.
-
-**Run the dependency audit before each deploy:**
-`dotnet list package --vulnerable --include-transitive`. The normal build only warns about
-direct packages, which is how a High severity issue sat unnoticed.
-
----
-
-## Hard-won details worth not rediscovering
-
-- **`InvariantGlobalization` must stay `false`.** `Microsoft.Data.SqlClient` throws on
-  connect otherwise. This blocked Azure SQL entirely until found.
-- **Admin sign-in took four chained fixes.** An API must return **401**, never a 302 to
-  Microsoft — `fetch` follows redirects and the login host sends no CORS headers.
-  Interactive sign-in only works as a top-level navigation (`/admin/signin`). App Service
-  terminates TLS, so `UseForwardedHeaders` is required or the correlation cookie can't be
-  `SameSite=None; Secure` and the callback throws. And the app uses **authorization code
-  flow**, so implicit grant stays disabled on the registration.
-- **`OnRemoteFailure` redirects to `/admin?authError=…`** instead of a blank 500. That is
-  what made the last bug diagnosable — keep it.
-- **The cases page caches its whole payload for 10 minutes.** Moderation evicts that entry;
-  without it an approved review appears on the homepage instantly and there ten minutes
-  later, which looks like a bug.
-- **Config image filenames are built by template literal** (`` `bath-${key}.webp` ``), so a
-  text search will report every asset as unused. Do not delete assets on that basis.
-- **User-secrets are per-machine.** They do not travel with the repo; each machine needs
-  its own `SQL_CONNECTION_STRING`.
-
----
-
-## Local development
-
-```bash
-cd api-dotnet && dotnet run                 # API on :5178
-cd "NVC Claude version" && npm run dev      # SPA on :5173, proxies /api
+```powershell
+cd "NVC Claude version"; npm run build
+cd ..\api-dotnet
+$env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'
+dotnet run -p:SkipSpaBuild=true
+# second terminal:
+cd "NVC Claude version"; npm run prerender     # expect 52/52
 ```
 
-Admin panel needs `ENTRA_*` in user-secrets to work locally; without them it fails closed
-at 401 and everything else runs normally.
+**Never pipe that `dotnet run` through `Select-Object`** — it kills the server once it has
+its lines, mid-prerender, and the script clears the snapshot folder before writing, so the
+folder is left EMPTY (happened 18 Aug; a publish in that window would have shipped zero).
 
-Tests: `dotnet test` (64) and `npm test` (47).
+The five traps that each produced a successful-looking run, still true:
+
+1. **`DATA_SOURCE_GALLERY`, not `DATA_SOURCE_HOUSES`.** Without the flags a dev machine
+   reads Quickbase while production reads SQL; the script now compares the local catalogue
+   against the live site and refuses on a mismatch.
+2. **Build → start → prerender, in that order.** The app reads `index.html` once at
+   startup; rebuilding under it leaves it serving a deleted bundle.
+3. **The generator would read its own output** — it sends `X-Prerender-Bypass: 1`.
+   Do not remove that header.
+4. **Restart after prerendering** — snapshots load at startup.
+5. **The rendered DOM has two of every meta tag** (server + helmet); `dedupeHead()` keeps
+   helmet's. `<title>` is exempt.
+
+The prerender script writes files but does not prune ones whose route is gone — deleting a
+page means deleting its snapshot by hand, or it keeps shipping.
+
+---
+
+## Domain knowledge worth not rediscovering
+
+### Saved configurator links
+
+The one migration with a Quickbase fallback (codes are in customers' inboxes; a miss falls
+through rather than 404ing, and a dead Quickbase degrades to "not found", never a 500).
+Code minting checks BOTH stores; the importer never overwrites a code already in SQL. You
+cannot tell from outside which store answered — that is the point; read the logs
+(`resolved from Quickbase … not yet imported`) or the App Service setting, never the site.
+
+### Prices page arithmetic
+
+Priced from `/api/gallery`, never a second list (the 73 m² incident: two stores disagreed
+on one price for weeks). Assembly costs keyed by **gallery id**. The two sections do
+OPPOSITE arithmetic: a box house's gallery price is the house inc VAT and assembly is
+**added** (€700–€3,000 net); a wagon's gallery price is the **total** and €1,000 gross
+assembly is **subtracted out** for display. Pinned in `prices.test.js`.
+
+### Admin data rules
+
+Customers hold ЕГН/ЕИК, addresses, invoices. Anything added near them: AdminOnly with no
+anonymous read path (files included); `no-store` on every response; an ЕГН is never a
+lookup key (search matches name/phone/email/ЕИК; the list endpoint does not return
+`PersonalId` at all). The audit log never records an ЕГН value — redaction is enforced on
+the way IN (`AuditRedaction`), so nothing downstream can leak one.
+
+### The audit log
+
+Interceptor-captured (nothing staff-edited escapes it), read-only API and UI, and the only
+delete path is the archive service, which NEVER deletes what was not provably emailed
+first. Everyone who can read the log is also someone it records — fine for a team of
+three, revisit with growth. `FactorySheet` is audited; `LeadActivity` deliberately is not
+(it is its own append-only record).
+
+### Public form submissions
+
+Fire-and-forget since 2026-08-18: modals close on Send; `backgroundSubmit.js` retries up
+to 5 times (2/4/8/16s) on network errors and 408/425/429/5xx, never on other 4xx; the
+top-right banner reports; analytics fire only on confirmed sends. If someone reports
+"nothing happens when I press send", the banner IS the feedback — check it before the code.
+
+### The www certificate (for the next domain)
+
+Domain **validation** accepts a CNAME to the apex; a **managed certificate** does not — it
+needs the CNAME pointed at the app's own hostname (`nvchome4you.azurewebsites.net`, no
+hyphens). Validating is not qualifying; the error message names the requirement.
+
+## ⚠️ Secret expiry — ~2027-02-04, and each fails silently
+
+| Expired credential | What breaks | What still works (hiding it) |
+|---|---|---|
+| `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
+| Graph / email credentials | Autoresponder, replies, config emails, **audit archive mail** | Forms still submit |
+| Quickbase token | Only the #21 import tooling now | Everything live |
+
+Renewal steps in DEPLOY.md. A calendar reminder two weeks ahead is the actual fix.

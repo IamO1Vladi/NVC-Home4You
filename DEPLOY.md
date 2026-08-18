@@ -18,7 +18,7 @@ git log --oneline production..master
 ```
 
 This replaces the hand-written `DEPLOY PENDING` block that used to live at the top of
-`improvements.txt`.
+the old tracker (now `ROADMAP.md`).
 
 ## Publish — step by step
 

@@ -7,7 +7,8 @@ namespace Services;
 
 // Writes every lead to both stores while only one of them is authoritative.
 //
-// This is the soak described in ROADMAP-leads Phase 4, and it is deliberately more
+// This is the soak described in ROADMAP-leads Phase 4 (the plan file is deleted;
+// git history has it), and it is deliberately more
 // cautious than the flag flip used for gallery and cases. A read path that breaks is
 // visible on the page; a lead write that fails is a customer who saw "thank you" and
 // vanished. So SQL gets exercised under real traffic for weeks before anything depends

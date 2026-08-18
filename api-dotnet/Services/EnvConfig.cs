@@ -378,7 +378,7 @@ public class EnvConfig
     // Write every lead to both stores while only DATA_SOURCE_LEADS decides which one the
     // customer's response depends on. Independent of that flag on purpose: this one is
     // the safe half (a second write that can fail freely) and is what makes the soak in
-    // ROADMAP-leads Phase 4 possible. Inert without SQL, like every flag above.
+    // ROADMAP-leads Phase 4 (in git history) possible. Inert without SQL, like every flag above.
     public bool LeadsDualWrite =>
         SqlConfigured && (_cfg["LEADS_DUAL_WRITE"] ?? "").Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
 
