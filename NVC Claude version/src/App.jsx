@@ -104,6 +104,7 @@ const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
 const AdminProcurementPage = lazy(() => import('./pages/AdminProcurementPage.jsx'))
 const AdminSalesPage = lazy(() => import('./pages/AdminSalesPage.jsx'))
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage.jsx'))
 const AdminProductModelsPage = lazy(() => import('./pages/AdminProductModelsPage.jsx'))
 const AdminExpensesPage = lazy(() => import('./pages/AdminExpensesPage.jsx'))
 const AdminTargetsPage = lazy(() => import('./pages/AdminTargetsPage.jsx'))
@@ -458,6 +459,7 @@ function AppShell() {
                   catalogue, operating expenses and targets. */}
               <Route path="/admin/procurement" element={<AdminProcurementPage />} />
               <Route path="/admin/sales" element={<AdminSalesPage />} />
+              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
               <Route path="/admin/product-models" element={<AdminProductModelsPage />} />
               <Route path="/admin/expenses" element={<AdminExpensesPage />} />
               <Route path="/admin/targets" element={<AdminTargetsPage />} />

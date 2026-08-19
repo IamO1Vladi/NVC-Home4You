@@ -32,7 +32,8 @@ const TEXT = {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', procurement: 'Доставки', models: 'Доставни цени', sales: 'Продажби',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
-      factorySheets: 'Фабрични поръчки', expenses: 'Разходи', targets: 'Цели', audit: 'Одит',
+      factorySheets: 'Фабрични поръчки', expenses: 'Разходи', targets: 'Цели',
+      dashboard: 'Табло', finance: 'Финанси', audit: 'Одит',
     },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
@@ -53,7 +54,8 @@ const TEXT = {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', procurement: 'Procurement', models: 'Cost prices', sales: 'Sales',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
-      factorySheets: 'Factory orders', expenses: 'Expenses', targets: 'Targets', audit: 'Audit',
+      factorySheets: 'Factory orders', expenses: 'Expenses', targets: 'Targets',
+      dashboard: 'Dashboard', finance: 'Finance', audit: 'Audit',
     },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
@@ -205,6 +207,22 @@ const Icon = {
       <circle cx="12" cy="12" r="0.9" />
     </>
   ),
+  // A gauge: the one screen that is a reading, not a list.
+  dashboard: (
+    <>
+      <path d="M4 14.6a8 8 0 1 1 16 0" />
+      <path d="M12 14.6l3.4-4.2" />
+      <path d="M3.4 18.2h17.2" />
+    </>
+  ),
+  // A wallet, for the phone tab that gathers the six money screens into one press.
+  finance: (
+    <>
+      <rect x="3" y="6.2" width="18" height="13.2" rx="2.2" />
+      <path d="M3 10.2h18" />
+      <path d="M16.2 14.8h.9" />
+    </>
+  ),
   // A clock wound backwards. Not a list or a document: every other section here IS a list,
   // and what makes this one different is that it looks at the past.
   audit: (
@@ -238,12 +256,15 @@ const SECTIONS = [
   // last of the two because it is a directory somebody sets up once and then mostly reads.
   { key: 'customers', to: '/admin/customers' },
   { key: 'factories', to: '/admin/factories' },
-  // The buy side, straight after the supplier directory it points at: a container names a
-  // factory, and its lines name the models priced next door.
+  // The money cluster, contiguous ON PURPOSE: the phone tab bar folds exactly this run of
+  // six into one "Финанси" tab (see BILLING_KEYS), because sixteen tabs in an equal-width
+  // grid left every icon a sliver. The sidebar still shows all six.
   { key: 'procurement', to: '/admin/procurement' },
   { key: 'models', to: '/admin/product-models' },
-  // The sell side of the same ledger, straight after the buy side it draws down.
   { key: 'sales', to: '/admin/sales' },
+  { key: 'expenses', to: '/admin/expenses' },
+  { key: 'targets', to: '/admin/targets' },
+  { key: 'dashboard', to: '/admin/dashboard' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
@@ -251,14 +272,14 @@ const SECTIONS = [
   // sections. Beside Factories would read nicely too, but the directory and the
   // documents are different kinds of thing.
   { key: 'factorySheets', to: '/admin/factory-sheets' },
-  // The money-tracking pair: what actually left, and what was supposed to. Both sit low in
-  // the strip because they are weekly screens, not daily ones.
-  { key: 'expenses', to: '/admin/expenses' },
-  { key: 'targets', to: '/admin/targets' },
   // Last, and deliberately so: it is the section nobody opens daily and everybody wants
   // immediately when a number looks wrong.
   { key: 'audit', to: '/admin/audit' },
 ]
+
+// The six that fold into the phone's "Финанси" tab. Kept next to SECTIONS because the two
+// must agree — a key added there and not here quietly falls off the phone entirely.
+const BILLING_KEYS = ['procurement', 'models', 'sales', 'expenses', 'targets', 'dashboard']
 
 // `me` and the pending-review count are chrome, not page data, so the shell fetches them
 // once instead of every page repeating the call. Counts refresh whenever a page finishes
@@ -297,6 +318,8 @@ export default function AdminShell({
   const t = TEXT[lang] ?? TEXT.bg
   const [theme, setTheme] = useAdminTheme()
   const { me, pending, outstandingLeads } = useAdminChrome(state)
+  // The phone's Финанси sheet — see tabbarNav below.
+  const [financeOpen, setFinanceOpen] = React.useState(false)
 
   if (state === 'unauthorized') {
     // The server redirects here with ?authError=... when the Entra callback fails, rather
@@ -324,12 +347,13 @@ export default function AdminShell({
     )
   }
 
-  const nav = SECTIONS.map(({ key, to }) => (
+  const navLink = ({ key, to }, onClick) => (
     <Link
       key={key}
       to={to}
       className={active === key ? 'is-active' : ''}
       aria-current={active === key ? 'page' : undefined}
+      onClick={onClick}
     >
       <NavIcon name={key} />
       <span className="adm-nav-label">{t.nav[key]}</span>
@@ -340,7 +364,38 @@ export default function AdminShell({
         ? <span className="adm-dot" aria-label={`${outstandingLeads}`}>{outstandingLeads}</span>
         : null}
     </Link>
-  ))
+  )
+
+  // The sidebar shows every section; there is room, and hiding screens behind a press on a
+  // desktop would be friction for nothing.
+  const nav = SECTIONS.map((s) => navLink(s))
+
+  // The phone tab bar folds the six money screens into one "Финанси" tab — sixteen tabs in
+  // an equal-width grid left every icon a sliver (owner, 2026-08-19). The first billing key
+  // becomes the tab; the rest are skipped; pressing it opens the sheet below.
+  const tabbarNav = []
+  let financeTabPlaced = false
+  for (const s of SECTIONS) {
+    if (BILLING_KEYS.includes(s.key)) {
+      if (!financeTabPlaced) {
+        financeTabPlaced = true
+        tabbarNav.push(
+          <button
+            key="finance"
+            type="button"
+            className={BILLING_KEYS.includes(active) ? 'is-active' : ''}
+            aria-expanded={financeOpen}
+            onClick={() => setFinanceOpen((open) => !open)}
+          >
+            <NavIcon name="finance" />
+            <span className="adm-nav-label">{t.nav.finance}</span>
+          </button>,
+        )
+      }
+      continue
+    }
+    tabbarNav.push(navLink(s))
+  }
 
   return (
     <div className="adm-app">
@@ -429,7 +484,19 @@ export default function AdminShell({
         {state === 'ready' ? children : null}
       </main>
 
-      <nav className="adm-tabbar" aria-label={t.menu}>{nav}</nav>
+      {/* The Финанси sheet: the six money screens, one press away. A backdrop closes it,
+          and so does choosing a destination. */}
+      {financeOpen ? (
+        <>
+          <div className="adm-finance-backdrop" onClick={() => setFinanceOpen(false)} />
+          <nav className="adm-finance-pop" aria-label={t.nav.finance}>
+            {SECTIONS.filter((s) => BILLING_KEYS.includes(s.key))
+              .map((s) => navLink(s, () => setFinanceOpen(false)))}
+          </nav>
+        </>
+      ) : null}
+
+      <nav className="adm-tabbar" aria-label={t.menu}>{tabbarNav}</nav>
     </div>
   )
 }

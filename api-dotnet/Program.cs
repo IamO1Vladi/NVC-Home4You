@@ -119,6 +119,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.SavedConfigImportService>();
     builder.Services.AddScoped<Services.BillingImportService>();
     builder.Services.AddScoped<Services.SaleAdminService>();
+    builder.Services.AddScoped<Services.DashboardService>();
 
     // Owns its own container client rather than sharing the images one — see LeadFileStore
     // for why that separation is the point rather than an accident.

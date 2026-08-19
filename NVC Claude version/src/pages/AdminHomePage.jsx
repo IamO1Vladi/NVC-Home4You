@@ -38,6 +38,10 @@ const TEXT = {
         name: 'Продажби',
         blurb: 'Какво е продадено от контейнерите — приход, себестойност, печалба.',
       },
+      dashboard: {
+        name: 'Табло',
+        blurb: 'Цялата картина: приход, разходи, наличност и цели за месец, цикъл, година.',
+      },
       expenses: {
         name: 'Разходи',
         blurb: 'Оперативните разходи — заплати, наем, гориво, реклама.',
@@ -111,6 +115,10 @@ const TEXT = {
       sales: {
         name: 'Sales',
         blurb: 'What sold out of the containers — revenue, cost, profit.',
+      },
+      dashboard: {
+        name: 'Dashboard',
+        blurb: 'The whole picture: revenue, costs, stock and targets by month, cycle, year.',
       },
       expenses: {
         name: 'Expenses',
@@ -273,6 +281,13 @@ export default function AdminHomePage() {
           open={t.open}
         />
         <HomeTile
+          to="/admin/dashboard"
+          icon="dashboard"
+          name={t.cards.dashboard.name}
+          blurb={t.cards.dashboard.blurb}
+          open={t.open}
+        />
+        <HomeTile
           to="/admin/expenses"
           icon="expenses"
           name={t.cards.expenses.name}
@@ -361,6 +376,22 @@ const TILE_ICON = {
     <>
       <path d="M20.6 11.6 12.2 3.2H4v8.2l8.4 8.4a1.8 1.8 0 0 0 2.5 0l5.7-5.7a1.8 1.8 0 0 0 0-2.5z" />
       <circle cx="8.2" cy="7.4" r="1.5" />
+    </>
+  ),
+  // The tile icons must cover every tile below — a key missing HERE renders an empty
+  // square, which is exactly the bug the sales tile shipped with (owner, 2026-08-19).
+  sales: (
+    <>
+      <path d="M3.2 8.6v9.2a1.8 1.8 0 0 0 1.8 1.8h9.2" />
+      <path d="M3.2 8.6 5.4 4.4h10.4l2.2 4.2M3.2 8.6h14.8v3.2M10.6 8.6V4.4" />
+      <path d="M14.6 16.4h6.6m0 0-2.6-2.6m2.6 2.6-2.6 2.6" />
+    </>
+  ),
+  dashboard: (
+    <>
+      <path d="M4 14.6a8 8 0 1 1 16 0" />
+      <path d="M12 14.6l3.4-4.2" />
+      <path d="M3.4 18.2h17.2" />
     </>
   ),
   expenses: (
