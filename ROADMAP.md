@@ -44,6 +44,17 @@ commits, notes and conversations still resolve.
   the dashboard**, then the 79 invoice files. The one modelling gap, on purpose: imported
   sales carry their QB customer as text in Notes — linking them to real Customer rows is
   a by-hand job for whoever knows the deals.
+  **2026-08-19 late: the dashboard is BUILT and an 8-angle review of the whole feature
+  ran — 10 confirmed findings, all fixed same day (commit cf3ee7d). Remaining on #21:**
+  - **The Purchase ↔ Sale bridge** — the customer-facing sales record and the procurement
+    ledger row do not reference each other yet; until they do, a sold house is typed twice
+    (once under the customer, once in Продажби) with nothing keeping the two in step.
+    The cheapest form: nullable SaleId on Purchase (or PurchaseId on Sale), set when staff
+    record the sale from the customer screen.
+  - **The 79 invoice files** still in Quickbase (expense attachments, PurchaseFile
+    pattern) — before the token dies ~Feb 2027.
+  - Minor: the `?allocation=count` what-if knob has no UI — wire a toggle or drop the
+    parameter (the enum and tests stay either way).
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
   later). An order gets a reference and a status timeline; the customer follows a link,
   staff move it along in the panel. Settle first: who updates the status and as part of
