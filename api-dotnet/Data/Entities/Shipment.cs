@@ -14,6 +14,11 @@ public class Shipment
 {
     public int Id { get; set; }
 
+    // Quickbase Record ID# (3). Makes the import idempotent — a re-run updates nothing
+    // and creates nothing that already came across. Null for rows created in the panel,
+    // and for every row once Quickbase is gone. Same convention as House and Lead.
+    public long? QuickbaseRecordId { get; set; }
+
     // Required. A container that belongs to no cycle cannot appear in any report, which
     // makes it a row that silently does not count.
     public int BuyCycleId { get; set; }

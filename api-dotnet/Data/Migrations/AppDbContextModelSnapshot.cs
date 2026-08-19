@@ -918,6 +918,9 @@ namespace apidotnet.Data.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("QuickbaseRecordId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("SpentAt")
                         .HasColumnType("datetimeoffset");
 
@@ -940,6 +943,10 @@ namespace apidotnet.Data.Migrations
 
                     b.HasIndex("BuyCycleId")
                         .HasFilter("[BuyCycleId] IS NOT NULL");
+
+                    b.HasIndex("QuickbaseRecordId")
+                        .IsUnique()
+                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
                     b.HasIndex("SpentAt");
 
@@ -981,6 +988,9 @@ namespace apidotnet.Data.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("QuickbaseRecordId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -992,6 +1002,10 @@ namespace apidotnet.Data.Migrations
 
                     b.HasIndex("HouseId")
                         .HasFilter("[HouseId] IS NOT NULL");
+
+                    b.HasIndex("QuickbaseRecordId")
+                        .IsUnique()
+                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
                     b.HasIndex("IsActive", "Name");
 
@@ -1130,6 +1144,9 @@ namespace apidotnet.Data.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<long?>("QuickbaseRecordId")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("ShipmentId")
                         .HasColumnType("int");
 
@@ -1147,6 +1164,10 @@ namespace apidotnet.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProductModelId");
+
+                    b.HasIndex("QuickbaseRecordId")
+                        .IsUnique()
+                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
                     b.HasIndex("ShipmentId");
 
@@ -1373,6 +1394,9 @@ namespace apidotnet.Data.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("nvarchar(400)");
 
+                    b.Property<long?>("QuickbaseRecordId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset?>("RateAt")
                         .HasColumnType("datetimeoffset");
 
@@ -1399,6 +1423,10 @@ namespace apidotnet.Data.Migrations
 
                     b.HasIndex("FactoryId")
                         .HasFilter("[FactoryId] IS NOT NULL");
+
+                    b.HasIndex("QuickbaseRecordId")
+                        .IsUnique()
+                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
                     b.HasIndex("BuyCycleId", "ArrivedAt");
 

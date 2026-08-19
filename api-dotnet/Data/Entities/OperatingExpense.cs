@@ -12,6 +12,9 @@ public class OperatingExpense
 {
     public int Id { get; set; }
 
+    // Quickbase Record ID# (3) — idempotent import, as on Shipment.
+    public long? QuickbaseRecordId { get; set; }
+
     // Required, and the column the monthly rollup is driven by — hence "spent at" rather
     // than "created at": an invoice entered in September for August rent is August's cost.
     // Midnight UTC, same date convention as everywhere else.

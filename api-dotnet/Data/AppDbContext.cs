@@ -419,6 +419,13 @@ public class AppDbContext : DbContext
             // of shipments are recorded before the factory is known.
             e.HasIndex(s => s.FactoryId).HasFilter("[FactoryId] IS NOT NULL");
 
+            // Idempotent import, same convention as every migrated table: unique where
+            // present, filtered so rows created natively in the panel (which have no
+            // Quickbase id) do not all collide on NULL.
+            e.HasIndex(s => s.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+
             e.Property(s => s.FreightCost).HasPrecision(18, 2);
             e.Property(s => s.CustomsDuty).HasPrecision(18, 2);
             e.Property(s => s.ImportVatPaid).HasPrecision(18, 2);
@@ -449,6 +456,13 @@ public class AppDbContext : DbContext
             // "What does this catalogue house cost us?" — the join the margin report walks.
             e.HasIndex(m => m.HouseId).HasFilter("[HouseId] IS NOT NULL");
 
+            // Idempotent import, same convention as every migrated table: unique where
+            // present, filtered so rows created natively in the panel (which have no
+            // Quickbase id) do not all collide on NULL.
+            e.HasIndex(m => m.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+
             e.Property(m => m.FactoryPrice).HasPrecision(18, 2);
 
             // Restrict, same as Purchase.House and Lead.House: retiring a house from the
@@ -467,6 +481,13 @@ public class AppDbContext : DbContext
             // "Every container this model has ever come in", which is how a factory price
             // gets sanity-checked against what we actually paid.
             e.HasIndex(l => l.ProductModelId);
+
+            // Idempotent import, same convention as every migrated table: unique where
+            // present, filtered so rows created natively in the panel (which have no
+            // Quickbase id) do not all collide on NULL.
+            e.HasIndex(l => l.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
             e.Property(l => l.UnitCost).HasPrecision(18, 2);
 
@@ -497,6 +518,13 @@ public class AppDbContext : DbContext
             // "What did this cycle cost us to run?" — filtered, because most expenses
             // belong to no cycle and an unfiltered index would be mostly empty pages.
             e.HasIndex(x => x.BuyCycleId).HasFilter("[BuyCycleId] IS NOT NULL");
+
+            // Idempotent import, same convention as every migrated table: unique where
+            // present, filtered so rows created natively in the panel (which have no
+            // Quickbase id) do not all collide on NULL.
+            e.HasIndex(x => x.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
 
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.VatAmount).HasPrecision(18, 2);

@@ -17,6 +17,9 @@ public class ProductModel
 {
     public int Id { get; set; }
 
+    // Quickbase Record ID# (3) — idempotent import, as on Shipment.
+    public long? QuickbaseRecordId { get; set; }
+
     [Required]
     [MaxLength(200)] public string Name { get; set; } = "";
 

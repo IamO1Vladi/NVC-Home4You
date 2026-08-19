@@ -11,6 +11,9 @@ public class PurchaseLot
 {
     public int Id { get; set; }
 
+    // Quickbase Record ID# (3) — idempotent import, as on Shipment.
+    public long? QuickbaseRecordId { get; set; }
+
     // Both required. A lot is meaningless detached from the container it rode in or the
     // model it is of — unlike a Purchase, which can legitimately be recorded before anyone
     // knows the factory, there is no state of the world where a line item has no line.

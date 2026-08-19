@@ -37,11 +37,17 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): backend and panel screens exist; every question and
-   schema decision is RESOLVED** (2026-08-19 — ROADMAP.md holds the answers, the Quickbase
-   table ids, and the import rules, including: all six QB cycles merge into ONE). Left:
-   the importer (dry-run first, token dies ~Feb 2027) → the dashboard. Before staff can
-   use it:
+3. **Billing & procurement (#21): backend, panel screens AND importer exist; the dry run
+   is CLEAN** (2026-08-19, against live Quickbase: 6 cycles → the one "2024-2026", 8
+   shipments, 9 models, 15 lots, 79 expenses — all mapped, zero problems; 79 invoice
+   files stay in QB for phase 2). To go live, in order:
+   - `dotnet ef database update` (applies `AddBillingAndProcurement`, additive),
+   - `dotnet run -- import-billing --dry-run` once more (now it also checks for
+     already-imported rows), then the same without `--dry-run`,
+   - open Доставки in the panel and eyeball a container against Quickbase.
+   The importer is idempotent on Quickbase record id and never overwrites; the merged
+   cycle gets border VAT 0.20 from QB and NO markup — type ×2.7 into the cycle once,
+   or no container shows a suggested price. Also before staff can use it:
    - **Apply the migration**: `dotnet ef database update` against the production database.
      Additive and unread by live code, so it can go ahead of the panel — same shape as the
      two migrations that were staged this way on the 18th.

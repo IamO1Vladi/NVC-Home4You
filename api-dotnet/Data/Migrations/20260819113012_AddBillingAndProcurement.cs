@@ -39,6 +39,7 @@ namespace apidotnet.Data.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    QuickbaseRecordId = table.Column<long>(type: "bigint", nullable: true),
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     CategoryKey = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: true),
                     HouseId = table.Column<int>(type: "int", nullable: true),
@@ -66,6 +67,7 @@ namespace apidotnet.Data.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    QuickbaseRecordId = table.Column<long>(type: "bigint", nullable: true),
                     SpentAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
                     CategoryKey = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: true),
                     Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
@@ -95,6 +97,7 @@ namespace apidotnet.Data.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    QuickbaseRecordId = table.Column<long>(type: "bigint", nullable: true),
                     BuyCycleId = table.Column<int>(type: "int", nullable: false),
                     Reference = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     FactoryId = table.Column<int>(type: "int", nullable: true),
@@ -165,6 +168,7 @@ namespace apidotnet.Data.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    QuickbaseRecordId = table.Column<long>(type: "bigint", nullable: true),
                     ShipmentId = table.Column<int>(type: "int", nullable: false),
                     ProductModelId = table.Column<int>(type: "int", nullable: false),
                     Quantity = table.Column<int>(type: "int", nullable: false),
@@ -208,6 +212,13 @@ namespace apidotnet.Data.Migrations
                 columns: new[] { "CategoryKey", "SpentAt" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_OperatingExpenses_QuickbaseRecordId",
+                table: "OperatingExpenses",
+                column: "QuickbaseRecordId",
+                unique: true,
+                filter: "[QuickbaseRecordId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OperatingExpenses_SpentAt",
                 table: "OperatingExpenses",
                 column: "SpentAt");
@@ -224,9 +235,23 @@ namespace apidotnet.Data.Migrations
                 columns: new[] { "IsActive", "Name" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_ProductModels_QuickbaseRecordId",
+                table: "ProductModels",
+                column: "QuickbaseRecordId",
+                unique: true,
+                filter: "[QuickbaseRecordId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PurchaseLots_ProductModelId",
                 table: "PurchaseLots",
                 column: "ProductModelId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PurchaseLots_QuickbaseRecordId",
+                table: "PurchaseLots",
+                column: "QuickbaseRecordId",
+                unique: true,
+                filter: "[QuickbaseRecordId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchaseLots_ShipmentId",
@@ -243,6 +268,13 @@ namespace apidotnet.Data.Migrations
                 table: "Shipments",
                 column: "FactoryId",
                 filter: "[FactoryId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Shipments_QuickbaseRecordId",
+                table: "Shipments",
+                column: "QuickbaseRecordId",
+                unique: true,
+                filter: "[QuickbaseRecordId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Targets_BuyCycleId",
