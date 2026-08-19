@@ -71,7 +71,7 @@ beforeEach(() => {
     if (u.includes('/api/admin/product-models')) {
       return json([{ id: 3, name: 'Expandable 58', isActive: true }])
     }
-    if (u.includes('/api/admin/shipments') && (options.method === 'POST')) {
+    if (u.includes('/api/admin/shipments') && (options.method === 'POST' || options.method === 'PUT')) {
       return json({ ok: true, shipment: SHIPMENT })
     }
     if (u.includes('/api/admin/shipments')) return json([SHIPMENT])
@@ -124,6 +124,39 @@ describe('AdminProcurementPage', () => {
     // And it says WHY the costing is incomplete, naming the rate.
     expect(screen.getByText(/липсва/)).toBeInTheDocument()
     expect(screen.getByText(/курсът/)).toBeInTheDocument()
+  })
+
+  it('corrects a line in place: edit prefills the form and saves as PUT to that lot', async () => {
+    const user = userEvent.setup()
+    render(<AdminProcurementPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: '2026 C1' })).toBeInTheDocument())
+
+    await user.click(screen.getAllByRole('button', { name: 'Контейнери' })[0])
+    await waitFor(() => expect(screen.getByText('MSKU-4411')).toBeInTheDocument())
+    const row = screen.getByText('MSKU-4411').closest('li')
+    await user.click(within(row).getByRole('button', { name: 'Редактирай' }))
+    await waitFor(() => expect(screen.getByText('Стока в контейнера')).toBeInTheDocument())
+
+    // The line's own edit button loads its values into the form — no remove-and-retype.
+    // (The model name also appears as a dropdown option; the row renders it in <strong>.)
+    const lotRow = screen.getAllByText('Expandable 58')
+      .find((el) => el.tagName === 'STRONG')
+      .closest('li')
+    await user.click(within(lotRow).getByRole('button', { name: 'Редактирай' }))
+
+    expect(screen.getByLabelText('Брой')).toHaveValue(1)
+    expect(screen.getByLabelText(/Единична цена/)).toHaveValue(10000)
+
+    // Fix the quantity; the save goes to THIS lot, not to a new line.
+    await user.clear(screen.getByLabelText('Брой'))
+    await user.type(screen.getByLabelText('Брой'), '2')
+    await user.click(screen.getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const put = calls.find((c) => c.method === 'PUT' && c.url.includes('/lots/21'))
+      expect(put).toBeTruthy()
+      expect(JSON.parse(put.body)).toMatchObject({ productModelId: 3, quantity: 2, unitCost: 10000 })
+    })
   })
 
   it('sends unitCost 0 for a blank cost box, which asks the server to prefill from the model', async () => {

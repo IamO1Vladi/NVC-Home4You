@@ -159,6 +159,10 @@ export default function AdminProcurementPage() {
   const [editingShipment, setEditingShipment] = React.useState(null) // header fields being edited
   const [openShipment, setOpenShipment] = React.useState(null)       // the DTO the modal shows
   const [newLot, setNewLot] = React.useState({ productModelId: '', quantity: '', unitCost: '' })
+  // The id of the line being corrected, or null when the form below the list is adding a
+  // new one. One form does both jobs — the fields are the same three, and a second form
+  // in the modal would just be the first one with a different heading.
+  const [editingLotId, setEditingLotId] = React.useState(null)
 
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -325,13 +329,40 @@ export default function AdminProcurementPage() {
     }
   }
 
-  const addLot = () => lotCall(adminSend(`/api/admin/shipments/${openShipment.id}/lots`, 'POST', {
-    productModelId: Number(newLot.productModelId),
-    quantity: Number(newLot.quantity),
-    // 0 asks the server to prefill from the model's current factory price — the one moment
-    // that price is read; from then on the lot keeps its own snapshot.
-    unitCost: newLot.unitCost === '' ? 0 : Number(newLot.unitCost),
-  }).then((r) => { setNewLot({ productModelId: '', quantity: '', unitCost: '' }); return r }))
+  const saveLot = () => {
+    const body = {
+      productModelId: Number(newLot.productModelId),
+      quantity: Number(newLot.quantity),
+      // On ADD, 0 asks the server to prefill from the model's current factory price — the
+      // one moment that price is read; from then on the lot keeps its own snapshot. On an
+      // EDIT the field arrives prefilled with the lot's own cost, so a blank is a person
+      // deliberately zeroing it (a sample, a warranty item), not a request to re-prefill.
+      unitCost: newLot.unitCost === '' ? 0 : Number(newLot.unitCost),
+    }
+    const request = editingLotId
+      ? adminSend(`/api/admin/shipments/lots/${editingLotId}`, 'PUT', body)
+      : adminSend(`/api/admin/shipments/${openShipment.id}/lots`, 'POST', body)
+
+    lotCall(request.then((r) => {
+      setNewLot({ productModelId: '', quantity: '', unitCost: '' })
+      setEditingLotId(null)
+      return r
+    }))
+  }
+
+  const startLotEdit = (lot) => {
+    setEditingLotId(lot.id)
+    setNewLot({
+      productModelId: String(lot.productModelId),
+      quantity: String(lot.quantity),
+      unitCost: String(lot.unitCost),
+    })
+  }
+
+  const cancelLotEdit = () => {
+    setEditingLotId(null)
+    setNewLot({ productModelId: '', quantity: '', unitCost: '' })
+  }
 
   const removeLot = (lot) => {
     // eslint-disable-next-line no-alert
@@ -448,7 +479,7 @@ export default function AdminProcurementPage() {
                     </span>
                   </div>
                   <div className="adm-row-actions">
-                    <button type="button" className="adm-linkbtn" onClick={() => { setOpenShipment(s); setError('') }}>
+                    <button type="button" className="adm-linkbtn" onClick={() => { setOpenShipment(s); cancelLotEdit(); setError('') }}>
                       {t.edit}
                     </button>
                   </div>
@@ -607,7 +638,7 @@ export default function AdminProcurementPage() {
         title={t.editShipment}
         subtitle={openShipment ? `${openShipment.reference || `#${openShipment.id}`} · ${openShipment.buyCycleLabel}` : ''}
         closeLabel={t.close}
-        onClose={() => setOpenShipment(null)}
+        onClose={() => { setOpenShipment(null); cancelLotEdit() }}
         footer={(
           <>
             <button
@@ -638,7 +669,7 @@ export default function AdminProcurementPage() {
             >
               {t.edit}
             </button>
-            <button type="button" className="btn" onClick={() => setOpenShipment(null)}>{t.close}</button>
+            <button type="button" className="btn" onClick={() => { setOpenShipment(null); cancelLotEdit() }}>{t.close}</button>
           </>
         )}
       >
@@ -700,6 +731,9 @@ export default function AdminProcurementPage() {
                       </span>
                     </div>
                     <div className="adm-row-actions">
+                      <button type="button" className="adm-linkbtn" onClick={() => startLotEdit(lot)}>
+                        {t.edit}
+                      </button>
                       <button type="button" className="adm-linkbtn adm-danger" onClick={() => removeLot(lot)}>
                         {t.remove}
                       </button>
@@ -737,13 +771,16 @@ export default function AdminProcurementPage() {
               </label>
             </div>
             <div className="adm-form-actions">
+              {editingLotId ? (
+                <button type="button" className="btn ghost" onClick={cancelLotEdit}>{t.cancel}</button>
+              ) : null}
               <button
                 type="button"
                 className="btn"
-                onClick={addLot}
+                onClick={saveLot}
                 disabled={busy || !newLot.productModelId || !(Number(newLot.quantity) >= 1)}
               >
-                {t.addLot}
+                {editingLotId ? t.save : t.addLot}
               </button>
             </div>
           </div>
