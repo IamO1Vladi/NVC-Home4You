@@ -185,6 +185,11 @@ public sealed class TargetAdminService
         // OpexCap in particular is a ceiling rather than a goal. Negative is not.
         if (input.TargetValue < 0m) errors.Add("A target cannot be negative.");
 
+        // A counted metric takes whole numbers. 12.5 houses is a slipped keystroke, and
+        // stored it would sit on the dashboard looking like a decision.
+        if (TargetMetrics.IsCount(input.MetricKey) && input.TargetValue != decimal.Truncate(input.TargetValue))
+            errors.Add("This target is counted in units — whole numbers only.");
+
         return errors;
     }
 

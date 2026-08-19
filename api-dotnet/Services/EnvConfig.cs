@@ -199,6 +199,7 @@ public class EnvConfig
     public string TableProductModels => _cfg["QB_TABLE_PRODUCT_MODELS"] ?? "bvuz3nu2v";
     public string TablePurchaseLots => _cfg["QB_TABLE_PURCHASE_LOTS"] ?? "bvuz3n862";
     public string TableOperatingExpenses => _cfg["QB_TABLE_OPERATING_EXPENSES"] ?? "bvuz3p5hs";
+    public string TableSales => _cfg["QB_TABLE_SALES"] ?? "bvuz3pj9w";
     public bool SavedConfigsConfigured => !string.IsNullOrWhiteSpace(TableSavedConfigs);
 
     public int F_SAVEDCFG_RID    => GetInt("FID_SAVEDCFG_RID", 3);

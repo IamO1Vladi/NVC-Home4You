@@ -43,6 +43,9 @@ public class PurchaseLot
 
     public string? Notes { get; set; }
 
+    // The sales that drew this lot down. Quantity minus their sum is stock on hand.
+    public System.Collections.Generic.List<Sale> Sales { get; set; } = new();
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
     [MaxLength(320)] public string? UpdatedByUpn { get; set; }

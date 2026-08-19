@@ -34,6 +34,10 @@ const TEXT = {
         name: 'Доставни цени',
         blurb: 'Моделите, които купуваме, и фабричната цена на всеки.',
       },
+      sales: {
+        name: 'Продажби',
+        blurb: 'Какво е продадено от контейнерите — приход, себестойност, печалба.',
+      },
       expenses: {
         name: 'Разходи',
         blurb: 'Оперативните разходи — заплати, наем, гориво, реклама.',
@@ -103,6 +107,10 @@ const TEXT = {
       models: {
         name: 'Cost prices',
         blurb: 'The models we buy, and what the factory charges for each.',
+      },
+      sales: {
+        name: 'Sales',
+        blurb: 'What sold out of the containers — revenue, cost, profit.',
       },
       expenses: {
         name: 'Expenses',
@@ -255,6 +263,13 @@ export default function AdminHomePage() {
           icon="models"
           name={t.cards.models.name}
           blurb={t.cards.models.blurb}
+          open={t.open}
+        />
+        <HomeTile
+          to="/admin/sales"
+          icon="sales"
+          name={t.cards.sales.name}
+          blurb={t.cards.sales.blurb}
           open={t.open}
         />
         <HomeTile

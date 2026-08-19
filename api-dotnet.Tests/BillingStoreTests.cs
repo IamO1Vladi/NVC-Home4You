@@ -152,7 +152,7 @@ public class BillingStoreTests
         // Remove the fittings and the house now carries ALL the freight. This is why every
         // write returns the whole shipment rather than the edited row.
         var fittingsLotId = withBoth.Lots.Single(l => l.ProductModelId == fittings.Id).Id;
-        var afterDelete = await svc.DeleteLotAsync(fittingsLotId, Ct);
+        var (afterDelete, _) = await svc.DeleteLotAsync(fittingsLotId, Ct);
 
         Assert.Equal(11_100m, afterDelete!.Lots.Single().UnitLandedCostUsd);
     }
@@ -173,7 +173,8 @@ public class BillingStoreTests
         await svc.AddLotAsync(shipment.Id,
             new PurchaseLotInput { ProductModelId = model.Id, Quantity = 1, UnitCost = 1m }, Actor, Ct);
 
-        Assert.True(await svc.DeleteAsync(shipment.Id, Ct));
+        var (deleted, _) = await svc.DeleteAsync(shipment.Id, Ct);
+        Assert.True(deleted);
 
         // The only Cascade in these tables, and it is safe because a lot has no meaning
         // apart from the container it rode in. The model itself survives.

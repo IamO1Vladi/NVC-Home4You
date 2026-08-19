@@ -43,7 +43,7 @@ beforeEach(() => {
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
     if (u.includes('/api/admin/targets/keys')) {
-      return json({ periodTypes: ['month', 'cycle', 'year'], metrics: ['revenue', 'gross-margin', 'opex-cap'] })
+      return json({ periodTypes: ['month', 'cycle', 'year'], metrics: ['revenue', 'gross-margin', 'opex-cap', 'units-sold'] })
     }
     if (u.includes('/api/admin/targets') && options.method === 'PUT') {
       return json({ ok: true, created, target: TARGETS[0] })
@@ -95,6 +95,23 @@ describe('AdminTargetsPage', () => {
         periodType: 'cycle', buyCycleId: 3, year: null, month: null, targetValue: 90000,
       })
     })
+  })
+
+  it('asks for a count, not euro, when the metric is units sold', async () => {
+    const user = userEvent.setup()
+    render(<AdminTargetsPage />)
+    await waitFor(() => expect(screen.getByText('Август 2026')).toBeInTheDocument())
+
+    // Money metric: the box is labelled in euro.
+    expect(screen.getByLabelText('Стойност (EUR)')).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Показател'), 'units-sold')
+
+    // Counted metric: the same box now asks for a number of units, stepping in wholes —
+    // "12.5 houses" is a typo the form should not invite.
+    expect(screen.queryByLabelText('Стойност (EUR)')).not.toBeInTheDocument()
+    const count = screen.getByLabelText('Брой')
+    expect(count).toHaveAttribute('step', '1')
   })
 
   it('says whether the save created a target or replaced one', async () => {

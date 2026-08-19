@@ -38,10 +38,12 @@ commits, notes and conversations still resolve.
   The panel screens shipped the same day (procurement, cost prices, expenses, targets),
   and the owner answered all five open questions the same evening — answers recorded
   below, together with the Quickbase table ids and what the live schema revealed.
-  **LIVE since 2026-08-19 (`deploy-2026-08-19b`)**: data imported, screens published and
-  verified. What is left: **phase 2 — the Sales table** (QB `bvuz3pj9w`, 32 rows; brings
-  stock-on-hand and sales reports), **then the dashboard**, then the 79 invoice files.
-  The owner confirmed wanting sales reports the same day the panel went live.
+  **Buy side LIVE (`deploy-2026-08-19b`); phase 2 BUILT AND IMPORTED the same evening**:
+  `Sale` mirrors the QB table, 30 rows imported, stock-on-hand live on models and lines,
+  oversells refused, COGS from the exact lot. What is left: **publish /admin/sales, then
+  the dashboard**, then the 79 invoice files. The one modelling gap, on purpose: imported
+  sales carry their QB customer as text in Notes — linking them to real Customer rows is
+  a by-hand job for whoever knows the deals.
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
   later). An order gets a reference and a status timeline; the customer follows a link,
   staff move it along in the panel. Settle first: who updates the status and as part of

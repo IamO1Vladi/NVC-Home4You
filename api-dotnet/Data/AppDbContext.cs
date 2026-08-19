@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<PurchaseLot> PurchaseLots => Set<PurchaseLot>();
     public DbSet<OperatingExpense> OperatingExpenses => Set<OperatingExpense>();
     public DbSet<Target> Targets => Set<Target>();
+    public DbSet<Sale> Sales => Set<Sale>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -567,6 +568,41 @@ public class AppDbContext : DbContext
             e.HasOne(t => t.BuyCycle)
              .WithMany()
              .HasForeignKey(t => t.BuyCycleId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<Sale>(e =>
+        {
+            // Every read is either "this lot, its sales" (stock) or "sales, newest
+            // first" (the screen and the revenue rollup).
+            e.HasIndex(s => s.PurchaseLotId);
+            e.HasIndex(s => s.SoldAt);
+            e.HasIndex(s => s.CustomerId).HasFilter("[CustomerId] IS NOT NULL");
+
+            e.Property(s => s.UnitSalePrice).HasPrecision(18, 2);
+            e.Property(s => s.PaymentFees).HasPrecision(18, 2);
+            e.Property(s => s.TransportCost).HasPrecision(18, 2);
+            e.Property(s => s.InstallationCost).HasPrecision(18, 2);
+            e.Property(s => s.OtherCosts).HasPrecision(18, 2);
+
+            // Idempotent import, same convention as every migrated table.
+            e.HasIndex(s => s.QuickbaseRecordId)
+             .IsUnique()
+             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+
+            // Restrict, both ways, because a sale is money history:
+            //  - deleting a lot (or its shipment) must not silently erase what it earned;
+            //    the admin services refuse with a count instead, like everywhere else.
+            //  - deleting a customer must not take the revenue record with them — the
+            //    same call as Customer.Lead, where the sales record outranks the tidy-up.
+            e.HasOne(s => s.PurchaseLot)
+             .WithMany(l => l.Sales)
+             .HasForeignKey(s => s.PurchaseLotId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(s => s.Customer)
+             .WithMany()
+             .HasForeignKey(s => s.CustomerId)
              .OnDelete(DeleteBehavior.Restrict);
         });
     }

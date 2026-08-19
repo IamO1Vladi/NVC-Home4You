@@ -29,6 +29,7 @@ const TEXT = {
     activeHint: 'Неактивните не се предлагат по нови редове, но остават по старите.',
     lots: (n) => `${n} ${n === 1 ? 'ред по контейнери' : 'реда по контейнери'}`,
     noLots: 'няма редове по контейнери',
+    stock: (bought, sold, onHand) => `купени ${bought} · продадени ${sold} · налични ${onHand}`,
     notes: 'Бележки',
     edit: 'Редактирай', remove: 'Изтрий',
     save: 'Запази', cancel: 'Откажи', close: 'Затвори',
@@ -59,6 +60,7 @@ const TEXT = {
     activeHint: 'Inactive ones are not offered on new lines but stay on the old ones.',
     lots: (n) => `${n} container ${n === 1 ? 'line' : 'lines'}`,
     noLots: 'no container lines',
+    stock: (bought, sold, onHand) => `bought ${bought} · sold ${sold} · on hand ${onHand}`,
     notes: 'Notes',
     edit: 'Edit', remove: 'Delete',
     save: 'Save', cancel: 'Cancel', close: 'Close',
@@ -218,6 +220,13 @@ export default function AdminProductModelsPage() {
               <p className="adm-small adm-muted">
                 {row.lotCount > 0 ? t.lots(row.lotCount) : t.noLots}
               </p>
+
+              {/* Stock, straight off the server: bought − sold. The number the yard asks. */}
+              {row.purchasedQty > 0 ? (
+                <p className="adm-small">
+                  <strong>{t.stock(row.purchasedQty, row.soldQty, row.onHandQty)}</strong>
+                </p>
+              ) : null}
 
               <div className="adm-factory-actions">
                 <button

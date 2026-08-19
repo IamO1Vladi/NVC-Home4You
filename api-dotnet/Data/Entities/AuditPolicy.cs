@@ -50,6 +50,7 @@ public static class AuditedEntities
         // one field, and Target is the number the results get compared against, so a target
         // quietly edited downwards after the fact is precisely the change worth recording.
         nameof(BuyCycle), nameof(Shipment), nameof(ProductModel), nameof(PurchaseLot),
+        nameof(Sale),
         nameof(OperatingExpense), nameof(Target),
     };
 

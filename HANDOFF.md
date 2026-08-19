@@ -37,16 +37,18 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): LIVE.** Imported data + all four screens published
-   2026-08-19 (`deploy-2026-08-19b`) and verified from outside. Remaining, in order:
-   - **Owner: type the markup (×2.7)** into cycle "2024-2026" in Доставки — Quickbase
-     never stored one, so no container shows a suggested price until it is set. Border
-     VAT 0.20 came across. Then eyeball one container against Quickbase.
-   - **Phase 2: the Sales table** (QB `bvuz3pj9w`, 32 rows, still uncopied — mirrors the
-     QB shape: per-lot sale, unit price EUR, sale expenses, customer link). Stock on hand
-     = bought − sold falls out of it; the owner asked for sales reports 2026-08-19.
-   - **The dashboard**: costs / revenue / margin / stock vs the Цели targets, per month,
-     cycle and year. All arithmetic questions are settled; LandedCost holds the pieces.
+3. **Billing & procurement (#21): buy side LIVE; PHASE 2 (SALES + STOCK) BUILT AND
+   IMPORTED, awaiting publish.** 2026-08-19 evening: `Sale` table (mirrors QB bvuz3pj9w),
+   `AddSales` applied to production, 30 sales imported (idempotent re-run verified; every
+   row carries its QB customer name in Notes — no machine link, ours were never imported
+   from QB). Stock on hand = bought − sold now shows on models, container lines and the
+   sale form; oversells are refused with the number left; COGS/profit computed from the
+   exact lot, null when the container has no FX rate. Targets: counted metrics (units-sold)
+   now ask for a Брой, whole numbers only. Remaining, in order:
+   - **Publish** — /admin/sales ships with the next release (§6b prerender first).
+   - **Owner: markup ×2.7** into cycle "2024-2026" (still unset unless done already).
+   - **The dashboard** — revenue/COGS/margin/opex/stock vs Цели per month/cycle/year.
+     Every input it needs now exists and is tested.
    - The 79 invoice files still in Quickbase (attachments on expenses, PurchaseFile
      pattern) — before the token dies ~Feb 2027.
 

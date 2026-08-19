@@ -20,7 +20,7 @@ const TEXT = {
     subtitle: 'Какво сме си поставили — по месец, цикъл или година.',
     setTarget: 'Задай цел',
     periodType: 'Период', year: 'Година', month: 'Месец', cycle: 'Цикъл',
-    metric: 'Показател', value: 'Стойност (EUR)', notes: 'Бележки',
+    metric: 'Показател', valueEur: 'Стойност (EUR)', valueUnits: 'Брой', notes: 'Бележки',
     saveBtn: 'Запази',
     replaced: 'Целта беше обновена — за този период и показател вече имаше стойност.',
     created: 'Целта е записана.',
@@ -44,7 +44,7 @@ const TEXT = {
     subtitle: 'What we set out to do — per month, cycle or year.',
     setTarget: 'Set a target',
     periodType: 'Period', year: 'Year', month: 'Month', cycle: 'Cycle',
-    metric: 'Metric', value: 'Value (EUR)', notes: 'Notes',
+    metric: 'Metric', valueEur: 'Value (EUR)', valueUnits: 'Count', notes: 'Notes',
     saveBtn: 'Save',
     replaced: 'Updated — that period and metric already had a value.',
     created: 'Target recorded.',
@@ -232,8 +232,14 @@ export default function AdminTargetsPage() {
           </label>
 
           <label>
-            <span className="adm-small">{t.value}</span>
-            <input type="number" min="0" step="0.01" value={draft.targetValue} onChange={set('targetValue')} />
+            {/* Counted metrics say "Брой" and step in whole units; the server refuses
+                fractions for them too. Everything else is money in EUR. */}
+            <span className="adm-small">{draft.metricKey === 'units-sold' ? t.valueUnits : t.valueEur}</span>
+            <input
+              type="number" min="0"
+              step={draft.metricKey === 'units-sold' ? '1' : '0.01'}
+              value={draft.targetValue} onChange={set('targetValue')}
+            />
           </label>
         </div>
 

@@ -39,6 +39,9 @@ public sealed record ProductModelDto(
     bool IsActive,
     string? Notes,
     int LotCount,
+    int PurchasedQty,
+    int SoldQty,
+    int OnHandQty,
     string? UpdatedAt,
     string? UpdatedByUpn);
 
@@ -63,6 +66,9 @@ public sealed class ProductModelAdminService
                 m.House == null ? null : m.House.Currency,
                 m.IsActive, m.Notes,
                 m.Lots.Count,
+                m.Lots.Sum(l => l.Quantity),
+                m.Lots.SelectMany(l => l.Sales).Sum(sale => sale.Quantity),
+                m.Lots.Sum(l => l.Quantity) - m.Lots.SelectMany(l => l.Sales).Sum(sale => sale.Quantity),
                 m.UpdatedAt == null ? null : m.UpdatedAt!.Value.ToString("o"),
                 m.UpdatedByUpn))
             .ToListAsync(ct);

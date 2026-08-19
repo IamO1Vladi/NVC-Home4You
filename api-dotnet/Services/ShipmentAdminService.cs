@@ -55,6 +55,8 @@ public sealed record PurchaseLotDto(
     string ProductModelName,
     int? HouseId,
     int Quantity,
+    int QtySold,
+    int QtyOnHand,
     decimal UnitCost,
     decimal LineTotalUsd,
     decimal? UnitLandedCostUsd,
@@ -124,6 +126,7 @@ public sealed class ShipmentAdminService
             .Include(s => s.BuyCycle)
             .Include(s => s.Factory)
             .Include(s => s.Lots).ThenInclude(l => l.ProductModel)
+            .Include(s => s.Lots).ThenInclude(l => l.Sales)
             .AsQueryable();
 
         if (buyCycleId is int cycleId) query = query.Where(s => s.BuyCycleId == cycleId);
@@ -143,6 +146,7 @@ public sealed class ShipmentAdminService
             .Include(s => s.BuyCycle)
             .Include(s => s.Factory)
             .Include(s => s.Lots).ThenInclude(l => l.ProductModel)
+            .Include(s => s.Lots).ThenInclude(l => l.Sales)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
 
         return shipment is null ? null : ToDto(shipment, allocation);
@@ -177,14 +181,20 @@ public sealed class ShipmentAdminService
     /// reason the FK says: a lot has no meaning apart from the container it rode in, so
     /// there is nothing to orphan. Contrast BuyCycleAdminService.DeleteAsync, which refuses.
     /// </summary>
-    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    public async Task<(bool Deleted, int SaleCount)> DeleteAsync(int id, CancellationToken ct)
     {
         var shipment = await _db.Shipments.FirstOrDefaultAsync(s => s.Id == id, ct);
-        if (shipment is null) return false;
+        if (shipment is null) return (false, 0);
+
+        // Money history outranks the tidy-up, phase 2 edition: a container whose goods
+        // have SOLD is part of the revenue record, and cascading it away would erase what
+        // those sales cost. Refused with the count, like every delete in these tables.
+        var sales = await _db.Sales.CountAsync(x => x.PurchaseLot!.ShipmentId == id, ct);
+        if (sales > 0) return (false, sales);
 
         _db.Shipments.Remove(shipment);
         await _db.SaveChangesAsync(ct);
-        return true;
+        return (true, 0);
     }
 
     // --- Lines --------------------------------------------------------------------------
@@ -245,16 +255,21 @@ public sealed class ShipmentAdminService
         return await GetAsync(lot.ShipmentId, ct);
     }
 
-    public async Task<ShipmentDto?> DeleteLotAsync(int lotId, CancellationToken ct)
+    public async Task<(ShipmentDto? Shipment, int SaleCount)> DeleteLotAsync(int lotId, CancellationToken ct)
     {
         var lot = await _db.PurchaseLots.FirstOrDefaultAsync(l => l.Id == lotId, ct);
-        if (lot is null) return null;
+        if (lot is null) return (null, 0);
+
+        // A line with sales against it is where their COGS comes from. Refused — the
+        // sale rows would otherwise point at money that can no longer be computed.
+        var sales = await _db.Sales.CountAsync(x => x.PurchaseLotId == lotId, ct);
+        if (sales > 0) return (await GetAsync(lot.ShipmentId, ct), sales);
 
         var shipmentId = lot.ShipmentId;
         _db.PurchaseLots.Remove(lot);
         await _db.SaveChangesAsync(ct);
 
-        return await GetAsync(shipmentId, ct);
+        return (await GetAsync(shipmentId, ct), 0);
     }
 
     // --- Validation ---------------------------------------------------------------------
@@ -371,12 +386,15 @@ public sealed class ShipmentAdminService
             lots.Select(l =>
             {
                 var unitUsd = LandedCost.UnitLandedCost(l, s, lots, allocation);
+                var sold = l.Sales.Sum(sale => sale.Quantity);
                 return new PurchaseLotDto(
                     l.Id,
                     l.ProductModelId,
                     l.ProductModel?.Name ?? "",
                     l.ProductModel?.HouseId,
                     l.Quantity,
+                    sold,
+                    l.Quantity - sold,
                     l.UnitCost,
                     l.Quantity * l.UnitCost,
                     unitUsd,

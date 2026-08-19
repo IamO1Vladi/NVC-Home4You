@@ -33,8 +33,9 @@ namespace Services;
 //                amounts. The importer reads QB's own computed figures (its formula
 //                fields), so the numbers land exactly as QB reported them.
 //
-// Sales (bvuz3pj9w) are deliberately NOT imported — that table is phase 2's SaleAllocation,
-// and importing it before the schema exists would mean inventing one here.
+// Sales (bvuz3pj9w) joined in phase 2, once their SQL home existed. Their one mapping
+// caveat: QB's customer links point at a table ours was never imported from, so the
+// customer NAME rides into Notes instead of a guessed foreign key.
 public sealed class BillingImportService
 {
     private readonly AppDbContext _db;
@@ -80,6 +81,13 @@ public sealed class BillingImportService
     {
         public const int Rid = 3, Date = 6, Category = 7, AmountEur = 8, Notes = 9,
             Invoice = 10, CycleRid = 11;
+    }
+
+    private static class SaleF
+    {
+        public const int Rid = 3, Date = 6, Qty = 7, UnitPriceEur = 8, PaymentFees = 9,
+            BgTransport = 10, Building = 11, OtherCosts = 12, LotRid = 18,
+            CustomerName = 26;
     }
 
     public sealed record Report(
@@ -128,9 +136,14 @@ public sealed class BillingImportService
         var qbOpex = await FetchAsync(_env.TableOperatingExpenses,
             new[] { OpexF.Rid, OpexF.Date, OpexF.Category, OpexF.AmountEur, OpexF.Notes,
                     OpexF.Invoice, OpexF.CycleRid }, ct);
+        var qbSales = await FetchAsync(_env.TableSales,
+            new[] { SaleF.Rid, SaleF.Date, SaleF.Qty, SaleF.UnitPriceEur, SaleF.PaymentFees,
+                    SaleF.BgTransport, SaleF.Building, SaleF.OtherCosts, SaleF.LotRid,
+                    SaleF.CustomerName }, ct);
 
         lines.Add($"Fetched from Quickbase: {qbCycles.Count} cycles, {qbShipments.Count} shipments, " +
-                  $"{qbModels.Count} models, {qbLots.Count} lots, {qbOpex.Count} expenses.");
+                  $"{qbModels.Count} models, {qbLots.Count} lots, {qbOpex.Count} expenses, " +
+                  $"{qbSales.Count} sales.");
 
         // --- The one merged cycle -----------------------------------------------------
         var cycleNames = qbCycles
@@ -307,17 +320,19 @@ public sealed class BillingImportService
         lines.Add($"Shipments: {shipmentsNew} new, {shipmentsSkipped} already imported.");
 
         // --- Lots ----------------------------------------------------------------------
-        var existingLots = tablesExist
-            ? (await _db.PurchaseLots.Where(l => l.QuickbaseRecordId != null)
-                .Select(l => l.QuickbaseRecordId!.Value).ToListAsync(ct)).ToHashSet()
-            : new HashSet<long>();
+        // rid -> entity rather than a bare id set: the sales below need to point at the
+        // lot rows, whether those came across in an earlier run or this one.
+        var lotByRid = tablesExist
+            ? await _db.PurchaseLots.Where(l => l.QuickbaseRecordId != null)
+                .ToDictionaryAsync(l => l.QuickbaseRecordId!.Value, ct)
+            : new Dictionary<long, PurchaseLot>();
 
         int lotsNew = 0, lotsSkipped = 0;
 
         foreach (var rec in qbLots)
         {
             if (!TryRid(rec, LotF.Rid, out var rid)) { problems.Add("A lot row has no record id."); continue; }
-            if (existingLots.Contains(rid)) { lotsSkipped++; continue; }
+            if (lotByRid.ContainsKey(rid)) { lotsSkipped++; continue; }
 
             if (!TryRid(rec, LotF.ShipmentRid, out var shipRid) || !shipmentByRid.TryGetValue(shipRid, out var lotShipment))
             {
@@ -358,6 +373,7 @@ public sealed class BillingImportService
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedByUpn = "import-billing",
             };
+            lotByRid[rid] = lot;
             if (!dryRun) _db.PurchaseLots.Add(lot);
             lotsNew++;
         }
@@ -432,6 +448,100 @@ public sealed class BillingImportService
                   $"{opexLinked} carry the cycle link, {opexWithFiles} have an invoice file " +
                   "still in Quickbase (not carried — phase 2).");
 
+        // --- Sales (phase 2) -----------------------------------------------------------
+        var existingSales = tablesExist && await ProbeSalesAsync(ct)
+            ? (await _db.Sales.Where(x => x.QuickbaseRecordId != null)
+                .Select(x => x.QuickbaseRecordId!.Value).ToListAsync(ct)).ToHashSet()
+            : new HashSet<long>();
+
+        int salesNew = 0, salesSkipped = 0, salesWithCustomer = 0, salesOversold = 0;
+
+        // Sold-per-lot, tracked BY HAND rather than through lot.Sales: the navigation is
+        // empty on lots loaded without an Include and never fixed up on a dry run, so
+        // summing it would silently check nothing. Seeded from the database where the
+        // sales table exists, then fed by the loop below.
+        var soldByLotRid = new Dictionary<long, int>();
+        if (existingSales.Count > 0)
+        {
+            var dbSold = await _db.Sales
+                .Where(x => x.PurchaseLot!.QuickbaseRecordId != null)
+                .GroupBy(x => x.PurchaseLot!.QuickbaseRecordId!.Value)
+                .Select(g => new { Rid = g.Key, Sum = g.Sum(x => x.Quantity) })
+                .ToListAsync(ct);
+            foreach (var row in dbSold) soldByLotRid[row.Rid] = row.Sum;
+        }
+
+        foreach (var rec in qbSales)
+        {
+            if (!TryRid(rec, SaleF.Rid, out var rid)) { problems.Add("A sale row has no record id."); continue; }
+            if (existingSales.Contains(rid)) { salesSkipped++; continue; }
+
+            if (!TryRid(rec, SaleF.LotRid, out var lotRid) || !lotByRid.TryGetValue(lotRid, out var saleLot))
+            {
+                problems.Add($"Sale rid {rid}: its container line is missing — skipped.");
+                continue;
+            }
+
+            var soldAt = ParseDate(rec.Get(SaleF.Date));
+            if (soldAt is null)
+            {
+                problems.Add($"Sale rid {rid}: no date — skipped, the revenue rollup has nowhere to put it.");
+                continue;
+            }
+
+            var qty = (int)(ParseDecimal(rec.Get(SaleF.Qty)) ?? 0m);
+            if (qty <= 0)
+            {
+                problems.Add($"Sale rid {rid}: quantity {qty} — skipped.");
+                continue;
+            }
+
+            var price = ParseDecimal(rec.Get(SaleF.UnitPriceEur));
+            if (price is null)
+                problems.Add($"Sale rid {rid}: no unit price — imported at 0, fix in the panel.");
+
+            // History is history: an oversold lot is reported, never refused — the panel
+            // blocks NEW oversells, but what Quickbase recorded stands.
+            var customerName = FactoryAdminService.Clean(rec.Get(SaleF.CustomerName));
+            if (customerName is not null) salesWithCustomer++;
+
+            var sale = new Sale
+            {
+                QuickbaseRecordId = rid,
+                PurchaseLot = saleLot,
+                SoldAt = soldAt.Value,
+                Quantity = qty,
+                UnitSalePrice = price ?? 0m,
+                PaymentFees = ParseDecimal(rec.Get(SaleF.PaymentFees)),
+                TransportCost = ParseDecimal(rec.Get(SaleF.BgTransport)),
+                InstallationCost = ParseDecimal(rec.Get(SaleF.Building)),
+                OtherCosts = ParseDecimal(rec.Get(SaleF.OtherCosts)),
+                // The QB customer link cannot be machine-mapped (see the class comment),
+                // so the name is carried where a person can act on it.
+                Notes = $"Импортирана от Quickbase (rid {rid})."
+                    + (customerName is null ? "" : $" Клиент по Quickbase: {customerName}."),
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedByUpn = "import-billing",
+            };
+            soldByLotRid[lotRid] = (soldByLotRid.TryGetValue(lotRid, out var already) ? already : 0) + qty;
+            if (!dryRun) _db.Sales.Add(sale);
+            salesNew++;
+        }
+
+        // The stock check, across everything now known: a lot oversold by its sales is
+        // worth a report line even when every row imported cleanly.
+        foreach (var (rid, sold) in soldByLotRid)
+        {
+            if (lotByRid.TryGetValue(rid, out var lot) && sold > lot.Quantity)
+            {
+                salesOversold++;
+                problems.Add($"Lot rid {rid}: sold {sold} of {lot.Quantity} purchased — Quickbase history oversells it.");
+            }
+        }
+
+        lines.Add($"Sales: {salesNew} new, {salesSkipped} already imported; " +
+                  $"{salesWithCustomer} carry a Quickbase customer name (in Notes — no machine link), " +
+                  $"{salesOversold} lot(s) oversold by history.");
         if (!dryRun)
         {
             await _db.SaveChangesAsync(ct);
@@ -520,6 +630,22 @@ public sealed class BillingImportService
         // has 500 containers in Quickbase, something has gone wrong with the cutover plan.
         var result = await _qb.QueryAsync(tableId, select, where: "", sortFid: 3, sortOrder: "ASC", ct);
         return result.data ?? new List<QbRec>();
+    }
+
+    // Separate from ProbeTablesAsync because the two migrations can be applied apart:
+    // AddBillingAndProcurement went first, AddSales is phase 2, and a dry-run in the gap
+    // must report the buy side as present and sales as still waiting for their table.
+    private async Task<bool> ProbeSalesAsync(CancellationToken ct)
+    {
+        try
+        {
+            await _db.Sales.AnyAsync(ct);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<bool> ProbeTablesAsync(CancellationToken ct)

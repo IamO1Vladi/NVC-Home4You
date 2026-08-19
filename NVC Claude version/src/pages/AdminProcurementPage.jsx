@@ -56,6 +56,7 @@ const TEXT = {
     lots: 'Стока в контейнера',
     lotModel: 'Модел', lotQty: 'Брой', lotUnitCost: 'Единична цена (USD)',
     lotLanded: 'Реална цена/бр.',
+    lotStock: (sold, onHand) => `продадени ${sold} · налични ${onHand}`,
     addLot: 'Добави ред',
     saveFirst: 'Запазете контейнера, за да добавяте стока.',
     emptyLots: 'Още няма редове.',
@@ -105,6 +106,7 @@ const TEXT = {
     lots: 'Goods in the container',
     lotModel: 'Model', lotQty: 'Qty', lotUnitCost: 'Unit cost (USD)',
     lotLanded: 'True cost/unit',
+    lotStock: (sold, onHand) => `sold ${sold} · on hand ${onHand}`,
     addLot: 'Add line',
     saveFirst: 'Save the container first, then add its goods.',
     emptyLots: 'No lines yet.',
@@ -728,6 +730,8 @@ export default function AdminProcurementPage() {
                         {lot.unitLandedCostUsd != null
                           ? <> · {t.lotLanded}: {fmt(lot.unitLandedCostUsd)}{lot.unitLandedCostEur != null ? ` (${fmt(lot.unitLandedCostEur, 'EUR')})` : ''}</>
                           : null}
+                        {/* Stock per line, from the server — sold draws it down, phase 2. */}
+                        {lot.qtySold > 0 ? <> · {t.lotStock(lot.qtySold, lot.qtyOnHand)}</> : null}
                       </span>
                     </div>
                     <div className="adm-row-actions">

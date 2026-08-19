@@ -49,4 +49,12 @@ public static class TargetMetrics
     // incomplete record, it is an uninterpretable one — there is no dashboard line for it to
     // land in.
     public static bool IsValid(string? key) => key is not null && All.Contains(key);
+
+    /// <summary>
+    /// The metrics that are COUNTED rather than priced. The panel labels the value box
+    /// "Брой" instead of "Стойност (EUR)" for these, and validation refuses fractions —
+    /// a target of 12.5 houses is a typo, not a plan. One entry today; the method exists
+    /// so the next counted metric is a line here, not a scavenger hunt through the panel.
+    /// </summary>
+    public static bool IsCount(string? key) => key == UnitsSold;
 }

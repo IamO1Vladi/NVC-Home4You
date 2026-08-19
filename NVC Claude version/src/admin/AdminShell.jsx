@@ -30,7 +30,7 @@ const TEXT = {
     brand: 'Администрация',
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
-      factories: 'Фабрики', procurement: 'Доставки', models: 'Доставни цени',
+      factories: 'Фабрики', procurement: 'Доставки', models: 'Доставни цени', sales: 'Продажби',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
       factorySheets: 'Фабрични поръчки', expenses: 'Разходи', targets: 'Цели', audit: 'Одит',
     },
@@ -51,7 +51,7 @@ const TEXT = {
     brand: 'Admin',
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
-      factories: 'Factories', procurement: 'Procurement', models: 'Cost prices',
+      factories: 'Factories', procurement: 'Procurement', models: 'Cost prices', sales: 'Sales',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
       factorySheets: 'Factory orders', expenses: 'Expenses', targets: 'Targets', audit: 'Audit',
     },
@@ -180,6 +180,15 @@ const Icon = {
       <circle cx="8.2" cy="7.4" r="1.5" />
     </>
   ),
+  // A box with an arrow leaving it: goods going OUT of the containers. The one movement
+  // the buy-side icons next to it never show.
+  sales: (
+    <>
+      <path d="M3.2 8.6v9.2a1.8 1.8 0 0 0 1.8 1.8h9.2" />
+      <path d="M3.2 8.6 5.4 4.4h10.4l2.2 4.2M3.2 8.6h14.8v3.2M10.6 8.6V4.4" />
+      <path d="M14.6 16.4h6.6m0 0-2.6-2.6m2.6 2.6-2.6 2.6" />
+    </>
+  ),
   // A stack of coins: money leaving in small amounts, which is what opex is.
   expenses: (
     <>
@@ -233,6 +242,8 @@ const SECTIONS = [
   // factory, and its lines name the models priced next door.
   { key: 'procurement', to: '/admin/procurement' },
   { key: 'models', to: '/admin/product-models' },
+  // The sell side of the same ledger, straight after the buy side it draws down.
+  { key: 'sales', to: '/admin/sales' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },

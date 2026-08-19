@@ -313,6 +313,31 @@ public class BillingValidationTests
     }
 
     [Fact]
+    public void A_units_target_takes_whole_numbers_only()
+    {
+        // The value column is decimal because most metrics are money; a counted metric
+        // arriving with a fraction is a slipped keystroke, and stored it would sit on the
+        // dashboard looking like a decision.
+        var input = new TargetInput
+        {
+            PeriodType = PeriodTypes.Year, Year = 2026,
+            MetricKey = TargetMetrics.UnitsSold, TargetValue = 12.5m,
+        };
+        Assert.NotEmpty(TargetAdminService.Validate(input));
+
+        input.TargetValue = 12m;
+        Assert.Empty(TargetAdminService.Validate(input));
+
+        // Money metrics keep their cents.
+        var money = new TargetInput
+        {
+            PeriodType = PeriodTypes.Year, Year = 2026,
+            MetricKey = TargetMetrics.Revenue, TargetValue = 250_000.50m,
+        };
+        Assert.Empty(TargetAdminService.Validate(money));
+    }
+
+    [Fact]
     public void An_unknown_metric_is_refused()
     {
         var input = new TargetInput

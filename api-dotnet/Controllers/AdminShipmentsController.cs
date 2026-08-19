@@ -81,8 +81,20 @@ public class AdminShipmentsController : ControllerBase
     /// AppDbContext, which is the only one in these tables.
     /// </summary>
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id, CancellationToken ct) =>
-        await _svc.DeleteAsync(id, ct) ? Ok(new { ok = true, id }) : NotFound();
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        var (deleted, sales) = await _svc.DeleteAsync(id, ct);
+        if (deleted) return Ok(new { ok = true, id });
+        if (sales > 0)
+        {
+            return Conflict(new
+            {
+                errors = new[] { "Goods from this container have recorded sales. The container is history now." },
+                saleCount = sales,
+            });
+        }
+        return NotFound();
+    }
 
     // --- Lines --------------------------------------------------------------------------
 
@@ -110,7 +122,16 @@ public class AdminShipmentsController : ControllerBase
     [HttpDelete("lots/{lotId:int}")]
     public async Task<IActionResult> DeleteLot(int lotId, CancellationToken ct)
     {
-        var shipment = await _svc.DeleteLotAsync(lotId, ct);
-        return shipment is null ? NotFound() : Ok(new { ok = true, shipment });
+        var (shipment, sales) = await _svc.DeleteLotAsync(lotId, ct);
+        if (shipment is null) return NotFound();
+        if (sales > 0)
+        {
+            return Conflict(new
+            {
+                errors = new[] { "This line has sales recorded against it — their cost comes from here." },
+                saleCount = sales,
+            });
+        }
+        return Ok(new { ok = true, shipment });
     }
 }
