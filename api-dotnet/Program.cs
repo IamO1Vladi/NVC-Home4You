@@ -1234,12 +1234,27 @@ app.MapFallback(async context =>
     var start = html.IndexOf(seoStart, StringComparison.Ordinal);
     var end = html.IndexOf(seoEnd, StringComparison.Ordinal);
 
-    // Hidden internal tools (e.g. /internal/factory-sheet): serve the SPA shell with a
-    // 200 and a noindex tag so direct links / refresh work, while keeping them out of
-    // search results. They are not linked anywhere and are password-gated in the SPA.
+    // Unlisted pages: served as a 200 with a noindex tag, so direct links and refreshes
+    // work while nothing reaches search results. Three kinds, for two different reasons:
+    //
+    //   /internal/, /admin/  — internal tools, not linked anywhere, gated in the SPA.
+    //   /order/{code}        — the CUSTOMER's order tracking page (#27). Its parameter is
+    //                          an unguessable code, so it can never be in the SEO manifest;
+    //                          without this branch it fell through to the unknown-URL case
+    //                          below and every tracking link answered a genuine HTTP 404
+    //                          with a "Page not found" title while React rendered the real
+    //                          page underneath — the sort of half-broken that looks fine in
+    //                          a browser and wrong to everything else. Caught in production
+    //                          2026-08-20, minutes after the feature shipped.
+    //
+    // Whether a code RESOLVES is a different question, answered by /api/order/{code} and
+    // rendered client-side. This only says the URL is a page we serve. The noindex matters
+    // more here than for the internal tools: a tracking URL that reaches a search index is
+    // a tracking URL that reaches everyone.
     if (path.StartsWith("/internal/", StringComparison.OrdinalIgnoreCase) ||
         path.Equals("/admin", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase))
+        path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase))
     {
         const string internalTags =
             "<title>NVC internal</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";

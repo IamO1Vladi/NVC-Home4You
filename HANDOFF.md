@@ -5,7 +5,7 @@ handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DE
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **655 .NET, 258 frontend.**
+Tests: **659 .NET, 258 frontend.**
 
 ---
 
@@ -116,6 +116,21 @@ page means deleting its snapshot by hand, or it keeps shipping.
 ---
 
 ## Domain knowledge worth not rediscovering
+
+### A new route needs the SERVER told about it, not just App.jsx
+
+The fallback in `Program.cs` decides whether a path is a page from the SEO manifest plus a
+short hand-maintained list of shapes the manifest cannot know (bare redirects, gallery
+detail prefixes, and the unlisted `/internal/`, `/admin/`, `/order/` branch). A route that
+is registered in `App.jsx` but missing there **works when you click to it and 404s when you
+open it directly** — the one case nobody tests by hand.
+
+It has now happened twice: the Services page (18 Aug, in paths.js but never routed) and
+order tracking (20 Aug, routed but unknown to the server — every customer link answered a
+real HTTP 404 while React rendered the page underneath). `SpaFallbackRouteTests` pins it
+now. **Probing the live URL is the only check that catches this class**, which is why it is
+worth doing after every publish that adds a route.
+
 
 ### Saved configurator links
 
