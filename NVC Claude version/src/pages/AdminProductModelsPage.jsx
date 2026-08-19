@@ -23,6 +23,9 @@ const TEXT = {
     emptyHint: 'Добавете първия — след това се избира при редовете на контейнер.',
     name: 'Име', category: 'Категория', house: 'Модел от галерията',
     noHouse: '— не е от галерията —',
+    pickOne: '— изберете —',
+    noHousesInCategory: 'В галерията няма модели от тази категория.',
+    nameHint: 'Свободно име — тази категория няма каталожни модели в галерията.',
     factoryPrice: 'Фабрична цена (USD)', retail: 'Продажна цена',
     retailHint: 'От галерията, само за четене. Редактира се в „Галерия“.',
     active: 'Активен', inactive: 'Неактивен',
@@ -54,6 +57,9 @@ const TEXT = {
     emptyHint: 'Add the first one — it is then offered on a container’s lines.',
     name: 'Name', category: 'Category', house: 'Gallery model',
     noHouse: '— not a gallery model —',
+    pickOne: '— pick one —',
+    noHousesInCategory: 'The gallery lists no models in this category.',
+    nameHint: 'Free-text name — this category has no catalogue models in the gallery.',
     factoryPrice: 'Factory price (USD)', retail: 'Retail price',
     retailHint: 'Read from the gallery, read-only. Edited in Gallery.',
     active: 'Active', inactive: 'Inactive',
@@ -169,6 +175,34 @@ export default function AdminProductModelsPage() {
     setEditing((f) => ({ ...f, [field]: value }))
   }
 
+  // The categories whose cost models ARE gallery rows. Mirrors the server's
+  // PurchaseCategories.WithGalleryModels, and modular is deliberately absent from it on
+  // both sides: the gallery lists modular houses, but what actually gets built is a custom
+  // project every time — the owner's rule, restated 2026-08-19 for this screen.
+  const GALLERY_CATEGORIES = ['prefab', 'wagon', 'garage']
+  const usesGallery = GALLERY_CATEGORIES.includes(editing?.categoryKey)
+  const housesInCategory = houses.filter((h) => h.categoryKey === editing?.categoryKey)
+
+  // Category drives the whole form: picking one that has gallery models swaps the free
+  // name box for the gallery dropdown, and the NAME IS the chosen model's title — one
+  // identity, not two boxes that can disagree. The house link resets on every category
+  // change so a prefab's id can never survive into a wagon.
+  const setCategory = (e) => {
+    const categoryKey = e.target.value
+    setEditing((f) => ({
+      ...f,
+      categoryKey,
+      houseId: '',
+      name: GALLERY_CATEGORIES.includes(categoryKey) ? '' : f.name,
+    }))
+  }
+
+  const setHouse = (e) => {
+    const houseId = e.target.value
+    const house = houses.find((h) => String(h.id) === houseId)
+    setEditing((f) => ({ ...f, houseId, name: house?.title ?? '' }))
+  }
+
   return (
     <AdminShell
       lang={lang}
@@ -273,28 +307,38 @@ export default function AdminProductModelsPage() {
           <div className="adm-sheet">
             <div className="adm-newdeal-grid">
               <label>
-                <span className="adm-small">{t.name}</span>
-                <input type="text" value={editing.name} onChange={set('name')} />
-              </label>
-              <label>
                 <span className="adm-small">{t.category}</span>
-                <select value={editing.categoryKey} onChange={set('categoryKey')}>
+                <select value={editing.categoryKey} onChange={setCategory}>
                   <option value="">{t.noCategory}</option>
                   {categories.map((key) => (
                     <option key={key} value={key}>{t.categories[key] ?? key}</option>
                   ))}
                 </select>
               </label>
-              <label>
-                <span className="adm-small">{t.house}</span>
-                {/* An exact id link, so a plain select rather than the leads combobox:
-                    a model either IS a gallery house or it is not, and a typo'd near-match
-                    would be a wrong foreign key the margin report cannot detect. */}
-                <select value={editing.houseId} onChange={set('houseId')}>
-                  <option value="">{t.noHouse}</option>
-                  {houses.map((h) => <option key={h.id} value={h.id}>{h.title}</option>)}
-                </select>
-              </label>
+
+              {usesGallery ? (
+                <label>
+                  <span className="adm-small">{t.house}</span>
+                  {/* Filtered to the chosen category, and the selection IS the name — an
+                      exact id link, so a plain select rather than the leads combobox: a
+                      typo'd near-match would be a wrong foreign key the margin report
+                      cannot detect. */}
+                  <select value={editing.houseId} onChange={setHouse}>
+                    <option value="">{t.pickOne}</option>
+                    {housesInCategory.map((h) => <option key={h.id} value={h.id}>{h.title}</option>)}
+                  </select>
+                  {housesInCategory.length === 0 ? (
+                    <span className="adm-small adm-muted">{t.noHousesInCategory}</span>
+                  ) : null}
+                </label>
+              ) : (
+                <label>
+                  <span className="adm-small">{t.name}</span>
+                  <input type="text" value={editing.name} onChange={set('name')} />
+                  <span className="adm-small adm-muted">{t.nameHint}</span>
+                </label>
+              )}
+
               <label>
                 <span className="adm-small">{t.factoryPrice}</span>
                 <input type="number" min="0" step="0.01" value={editing.factoryPrice} onChange={set('factoryPrice')} />

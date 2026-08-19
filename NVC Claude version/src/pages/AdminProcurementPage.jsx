@@ -28,7 +28,9 @@ const TEXT = {
     emptyCycles: 'Още няма цикли на закупуване.',
     emptyCyclesHint: 'Създайте първия — контейнерите се записват вътре в цикъл.',
     cycleOpen: 'Отворен', cycleClosed: 'Затворен',
-    markup: 'Коефициент', borderVat: 'ДДС граница',
+    markup: 'Коефициент (надценка)', borderVat: 'ДДС граница',
+    markupHint: 'Препоръчана цена = обща стойност × коефициент. Напр. 2.7.',
+    secBasics: 'Контейнер', secCosts: 'Разходи по превоза (USD)', secDates: 'Дати', secRate: 'Курс USD→EUR',
     noCoefficients: 'без коефициенти — контейнерите няма да получат препоръчана цена',
     shipmentsIn: (n) => `${n} ${n === 1 ? 'контейнер' : 'контейнера'}`,
     label: 'Име', startDate: 'Начало', endDate: 'Край', notes: 'Бележки',
@@ -78,7 +80,9 @@ const TEXT = {
     emptyCycles: 'No buying cycles yet.',
     emptyCyclesHint: 'Create the first one — containers are recorded inside a cycle.',
     cycleOpen: 'Open', cycleClosed: 'Closed',
-    markup: 'Markup', borderVat: 'Border VAT',
+    markup: 'Markup (coefficient)', borderVat: 'Border VAT',
+    markupHint: 'Suggested price = landed value × markup. E.g. 2.7.',
+    secBasics: 'Container', secCosts: 'Crossing costs (USD)', secDates: 'Dates', secRate: 'USD→EUR rate',
     noCoefficients: 'no coefficients — containers will get no suggested price',
     shipmentsIn: (n) => `${n} ${n === 1 ? 'container' : 'containers'}`,
     label: 'Label', startDate: 'Start', endDate: 'End', notes: 'Notes',
@@ -528,6 +532,7 @@ export default function AdminProcurementPage() {
               <label>
                 <span className="adm-small">{t.markup}</span>
                 <input type="number" step="0.0001" value={editingCycle.markupCoefficient} onChange={setCycleField('markupCoefficient')} />
+                <span className="adm-small adm-muted">{t.markupHint}</span>
               </label>
               <label>
                 <span className="adm-small">{t.borderVat}</span>
@@ -567,64 +572,88 @@ export default function AdminProcurementPage() {
         )}
       >
         {editingShipment ? (
+          /* Thirteen fields used to sit in one flat grid — money, dates and FX shuffled
+             together, which read as a wall on desktop and a long unsorted scroll on a
+             phone. Four titled groups, in the order the facts arrive in real life. */
           <div className="adm-sheet">
-            <div className="adm-newdeal-grid">
-              <label>
-                <span className="adm-small">{t.reference}</span>
-                <input type="text" value={editingShipment.reference ?? ''} onChange={setShipmentField('reference')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.factory}</span>
-                <select value={editingShipment.factoryId ?? ''} onChange={setShipmentField('factoryId')}>
-                  <option value="">{t.noFactory}</option>
-                  {factories.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
-              </label>
-              <label>
-                <span className="adm-small">{t.freight} (USD)</span>
-                <input type="number" step="0.01" value={editingShipment.freightCost} onChange={setShipmentField('freightCost')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.customs} (USD)</span>
-                <input type="number" step="0.01" value={editingShipment.customsDuty} onChange={setShipmentField('customsDuty')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.importVat} (USD)</span>
-                <input type="number" step="0.01" value={editingShipment.importVatPaid} onChange={setShipmentField('importVatPaid')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.otherCosts} (USD)</span>
-                <input type="number" step="0.01" value={editingShipment.otherCosts} onChange={setShipmentField('otherCosts')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.otherCostsNote}</span>
-                <input type="text" value={editingShipment.otherCostsNote ?? ''} onChange={setShipmentField('otherCostsNote')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.orderedAt}</span>
-                <input type="date" value={editingShipment.orderedAt ?? ''} onChange={setShipmentField('orderedAt')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.departedAt}</span>
-                <input type="date" value={editingShipment.departedAt ?? ''} onChange={setShipmentField('departedAt')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.arrivedAt}</span>
-                <input type="date" value={editingShipment.arrivedAt ?? ''} onChange={setShipmentField('arrivedAt')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.rate}</span>
-                <input type="number" step="0.000001" value={editingShipment.usdToEurRate} onChange={setShipmentField('usdToEurRate')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.rateSource}</span>
-                <input type="text" value={editingShipment.rateSource ?? ''} onChange={setShipmentField('rateSource')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.rateAt}</span>
-                <input type="date" value={editingShipment.rateAt ?? ''} onChange={setShipmentField('rateAt')} />
-              </label>
-            </div>
+            <section>
+              <h3>{t.secBasics}</h3>
+              <div className="adm-newdeal-grid">
+                <label>
+                  <span className="adm-small">{t.reference}</span>
+                  <input type="text" value={editingShipment.reference ?? ''} onChange={setShipmentField('reference')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.factory}</span>
+                  <select value={editingShipment.factoryId ?? ''} onChange={setShipmentField('factoryId')}>
+                    <option value="">{t.noFactory}</option>
+                    {factories.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <section>
+              <h3>{t.secCosts}</h3>
+              <div className="adm-newdeal-grid">
+                <label>
+                  <span className="adm-small">{t.freight}</span>
+                  <input type="number" step="0.01" value={editingShipment.freightCost} onChange={setShipmentField('freightCost')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.customs}</span>
+                  <input type="number" step="0.01" value={editingShipment.customsDuty} onChange={setShipmentField('customsDuty')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.importVat}</span>
+                  <input type="number" step="0.01" value={editingShipment.importVatPaid} onChange={setShipmentField('importVatPaid')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.otherCosts}</span>
+                  <input type="number" step="0.01" value={editingShipment.otherCosts} onChange={setShipmentField('otherCosts')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.otherCostsNote}</span>
+                  <input type="text" value={editingShipment.otherCostsNote ?? ''} onChange={setShipmentField('otherCostsNote')} />
+                </label>
+              </div>
+            </section>
+
+            <section>
+              <h3>{t.secDates}</h3>
+              <div className="adm-newdeal-grid">
+                <label>
+                  <span className="adm-small">{t.orderedAt}</span>
+                  <input type="date" value={editingShipment.orderedAt ?? ''} onChange={setShipmentField('orderedAt')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.departedAt}</span>
+                  <input type="date" value={editingShipment.departedAt ?? ''} onChange={setShipmentField('departedAt')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.arrivedAt}</span>
+                  <input type="date" value={editingShipment.arrivedAt ?? ''} onChange={setShipmentField('arrivedAt')} />
+                </label>
+              </div>
+            </section>
+
+            <section>
+              <h3>{t.secRate}</h3>
+              <div className="adm-newdeal-grid">
+                <label>
+                  <span className="adm-small">{t.rate}</span>
+                  <input type="number" step="0.000001" value={editingShipment.usdToEurRate} onChange={setShipmentField('usdToEurRate')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.rateSource}</span>
+                  <input type="text" value={editingShipment.rateSource ?? ''} onChange={setShipmentField('rateSource')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.rateAt}</span>
+                  <input type="date" value={editingShipment.rateAt ?? ''} onChange={setShipmentField('rateAt')} />
+                </label>
+              </div>
+            </section>
 
             <label className="adm-sheet-notes">
               <span className="adm-small">{t.notes}</span>

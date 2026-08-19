@@ -56,7 +56,11 @@ beforeEach(() => {
     }
     if (u.includes('/api/admin/product-models')) return json(ROWS)
     if (u.includes('/api/admin/gallery')) {
-      return json([{ id: 9, title: 'Разгъваема къща 58м²', categoryKey: 'prefab' }])
+      return json([
+        { id: 9, title: 'Разгъваема къща 58м²', categoryKey: 'prefab' },
+        { id: 11, title: 'Фургон 6м', categoryKey: 'wagon' },
+        { id: 12, title: 'Модулна къща М1', categoryKey: 'modular' },
+      ])
     }
     return json({})
   }))
@@ -93,7 +97,7 @@ describe('AdminProductModelsPage', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Expandable 58' })).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Нов модел' }))
-    await user.type(screen.getByLabelText('Име'), 'From factory B')
+    await user.type(screen.getByLabelText(/Име/), 'From factory B')
     await user.click(screen.getByRole('button', { name: 'Запази' }))
 
     // Saved AND flagged: two cost rows for one house are legitimate (two factories), so
@@ -101,6 +105,51 @@ describe('AdminProductModelsPage', () => {
     await waitFor(() => expect(screen.getByText(/дублирате/)).toBeInTheDocument())
     const post = calls.find((c) => c.method === 'POST' && c.url.includes('product-models'))
     expect(post).toBeTruthy()
+  })
+
+  it('category drives the form: gallery pick IS the name, modular keeps a free name', async () => {
+    const user = userEvent.setup()
+    render(<AdminProductModelsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Expandable 58' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Нов модел' }))
+
+    // No category yet: a free name box, no gallery dropdown.
+    expect(screen.getByLabelText(/Име/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Модел от галерията')).not.toBeInTheDocument()
+
+    // Prefab: the name box gives way to a gallery dropdown holding ONLY prefab houses —
+    // one identity, not two boxes that can disagree.
+    await user.selectOptions(screen.getByLabelText('Категория'), 'prefab')
+    const gallery = screen.getByLabelText('Модел от галерията')
+    expect(screen.queryByLabelText(/Име/)).not.toBeInTheDocument()
+    expect(within(gallery).getByRole('option', { name: 'Разгъваема къща 58м²' })).toBeInTheDocument()
+    expect(within(gallery).queryByRole('option', { name: 'Фургон 6м' })).not.toBeInTheDocument()
+
+    // Picking the house makes the save send its title as the name.
+    await user.selectOptions(gallery, '9')
+    await user.click(screen.getByRole('button', { name: 'Запази' }))
+    await waitFor(() => {
+      const post = calls.find((c) => c.method === 'POST' && c.url.includes('product-models'))
+      expect(post).toBeTruthy()
+      expect(JSON.parse(post.body)).toMatchObject({
+        name: 'Разгъваема къща 58м²', categoryKey: 'prefab', houseId: 9,
+      })
+    })
+  })
+
+  it('modular is deliberately a free name, even though the gallery lists modular houses', async () => {
+    // The business rule, restated by the owner 2026-08-19: a modular build is a custom
+    // project every time, so its cost model is named, not linked.
+    const user = userEvent.setup()
+    render(<AdminProductModelsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Expandable 58' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: 'Нов модел' }))
+    await user.selectOptions(screen.getByLabelText('Категория'), 'modular')
+
+    expect(screen.getByLabelText(/Име/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Модел от галерията')).not.toBeInTheDocument()
   })
 
   it('offers Delete only on a model no container line names', async () => {

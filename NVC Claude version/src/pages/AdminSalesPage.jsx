@@ -23,6 +23,8 @@ const TEXT = {
     empty: 'Още няма продажби.',
     emptyHint: 'Запишете първата — редът се избира от стоката в контейнерите.',
     soldAt: 'Дата', lot: 'Ред от контейнер', qty: 'Брой', unitPrice: 'Единична цена (EUR)',
+    unitPriceHint: 'Цената, на която е продаден 1 брой.',
+    pickLine: '— изберете ред —',
     customer: 'Клиент', noCustomer: '— без клиент —',
     paymentFees: 'Такси плащане (EUR)', transport: 'Транспорт БГ (EUR)',
     installation: 'Монтаж (EUR)', otherCosts: 'Други разходи (EUR)',
@@ -47,6 +49,8 @@ const TEXT = {
     empty: 'No sales yet.',
     emptyHint: 'Record the first one — the line comes from the goods in the containers.',
     soldAt: 'Date', lot: 'Container line', qty: 'Qty', unitPrice: 'Unit price (EUR)',
+    unitPriceHint: 'What ONE unit sold for.',
+    pickLine: '— pick a line —',
     customer: 'Customer', noCustomer: '— no customer —',
     paymentFees: 'Payment fees (EUR)', transport: 'BG transport (EUR)',
     installation: 'Installation (EUR)', otherCosts: 'Other costs (EUR)',
@@ -162,6 +166,13 @@ export default function AdminSalesPage() {
 
   const lotLabel = (o) =>
     `${o.productModelName}${o.shipmentReference ? ` — ${o.shipmentReference}` : ''} (${t.available(o.qtyOnHand)})`
+
+  // Only lines with something LEFT are offered — a sold-out line is noise on a sale form
+  // (owner, 2026-08-19). The one exception: the line an existing sale already uses stays
+  // selectable while editing it, or the form could not even re-save unchanged.
+  const offeredLots = lotOptions.filter(
+    (o) => o.qtyOnHand > 0 || String(o.purchaseLotId) === String(editing?.purchaseLotId),
+  )
 
   const totalRevenue = rows.reduce((sum, r) => sum + (Number(r.saleAmountEur) || 0), 0)
   // A dash the moment ANY sale lacks a COGS: summing the rest and calling it the total
@@ -281,8 +292,8 @@ export default function AdminSalesPage() {
                 {/* Availability rides on the option text, so "how many are left?" is
                     answered before anyone types a quantity. */}
                 <select value={editing.purchaseLotId} onChange={set('purchaseLotId')}>
-                  <option value="" />
-                  {lotOptions.map((o) => (
+                  <option value="">{t.pickLine}</option>
+                  {offeredLots.map((o) => (
                     <option key={o.purchaseLotId} value={o.purchaseLotId}>{lotLabel(o)}</option>
                   ))}
                 </select>
@@ -298,6 +309,7 @@ export default function AdminSalesPage() {
               <label>
                 <span className="adm-small">{t.unitPrice}</span>
                 <input type="number" min="0" step="0.01" value={editing.unitSalePrice} onChange={set('unitSalePrice')} />
+                <span className="adm-small adm-muted">{t.unitPriceHint}</span>
               </label>
               <label>
                 <span className="adm-small">{t.customer}</span>

@@ -18,7 +18,8 @@ const TEXT = {
     title: 'Разходи',
     subtitle: 'Оперативните разходи — заплати, наем, гориво, реклама.',
     quickAdd: 'Нов разход',
-    spentAt: 'Дата', category: 'Категория', amount: 'Сума (EUR)', vat: 'ДДС (EUR)',
+    spentAt: 'Дата', category: 'Категория', amount: 'Сума (EUR)', vat: 'ДДС в сумата (EUR)',
+    vatHint: 'Сумата на ДДС от фактурата, не процент. Може да е празно.',
     cycle: 'Цикъл', noCycle: '— без цикъл —',
     description: 'Описание',
     addBtn: 'Запиши',
@@ -53,7 +54,8 @@ const TEXT = {
     title: 'Expenses',
     subtitle: 'Operating costs — salaries, rent, fuel, marketing.',
     quickAdd: 'New expense',
-    spentAt: 'Date', category: 'Category', amount: 'Amount (EUR)', vat: 'VAT (EUR)',
+    spentAt: 'Date', category: 'Category', amount: 'Amount (EUR)', vat: 'VAT within the amount (EUR)',
+    vatHint: 'The VAT amount off the invoice, not a percent. Optional.',
     cycle: 'Cycle', noCycle: '— no cycle —',
     description: 'Description',
     addBtn: 'Record',
@@ -274,6 +276,7 @@ export default function AdminExpensesPage() {
           <label>
             <span className="adm-small">{t.vat}</span>
             <input type="number" min="0" step="0.01" value={draft.vatAmount} onChange={setDraftField('vatAmount')} />
+            <span className="adm-small adm-muted">{t.vatHint}</span>
           </label>
           <label>
             <span className="adm-small">{t.description}</span>
@@ -432,6 +435,7 @@ export default function AdminExpensesPage() {
               <label>
                 <span className="adm-small">{t.vat}</span>
                 <input type="number" min="0" step="0.01" value={editing.vatAmount} onChange={setEditingField('vatAmount')} />
+                <span className="adm-small adm-muted">{t.vatHint}</span>
               </label>
               <label>
                 <span className="adm-small">{t.description}</span>

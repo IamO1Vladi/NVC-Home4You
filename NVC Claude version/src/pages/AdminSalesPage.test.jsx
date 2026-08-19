@@ -47,6 +47,11 @@ const OPTIONS = [
     purchaseLotId: 21, productModelName: 'Expandable 58', shipmentReference: 'MSKU-1',
     buyCycleLabel: '2024-2026', qtyPurchased: 5, qtySold: 1, qtyOnHand: 4,
   },
+  // Sold out — must not be offered on a NEW sale.
+  {
+    purchaseLotId: 22, productModelName: 'Container 6m', shipmentReference: 'MSKU-1',
+    buyCycleLabel: '2024-2026', qtyPurchased: 10, qtySold: 10, qtyOnHand: 0,
+  },
 ]
 
 let calls = []
@@ -96,15 +101,20 @@ describe('AdminSalesPage', () => {
     expect(screen.getByText(/без курс на контейнера/)).toBeInTheDocument()
   })
 
-  it('offers lot options with how many are left', async () => {
+  it('offers only lines with stock left, each saying how many', async () => {
     const user = userEvent.setup()
     render(<AdminSalesPage />)
     await waitFor(() => expect(screen.getByText('Expandable 58')).toBeInTheDocument())
 
     await user.click(screen.getByRole('button', { name: 'Нова продажба' }))
 
-    const option = screen.getByRole('option', { name: /Expandable 58 — MSKU-1 \(4 налични\)/ })
-    expect(option).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Expandable 58 — MSKU-1 \(4 налични\)/ })).toBeInTheDocument()
+    // The sold-out line is not on the menu — a line with nothing left is noise on a sale
+    // form (owner, 2026-08-19).
+    expect(screen.queryByRole('option', { name: /Container 6m/ })).not.toBeInTheDocument()
+
+    // And the price box says what it means: the price of ONE unit.
+    expect(screen.getByText('Цената, на която е продаден 1 брой.')).toBeInTheDocument()
   })
 
   it('surfaces the oversell refusal with the server’s number', async () => {

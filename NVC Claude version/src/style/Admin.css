@@ -1458,6 +1458,19 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 /* The lead sheet: what happens next, the details, then the conversation. One scrolling
    column — this is read top to bottom, not scanned. */
 .adm-sheet { display: grid; gap: 22px; }
+
+/* Titled groups inside an editor sheet — the long shipment form wears these. The heading
+   is a quiet tag, not a second modal title: the fields are the content, it just says
+   which drawer you are in. */
+.adm-sheet section { display: grid; gap: 10px; }
+.adm-sheet section > h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--adm-muted);
+}
 .adm-sheet .adm-thread { max-height: none; }
 
 .adm-sheet-head {
@@ -1530,7 +1543,12 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 }
 .adm-newdeal { display: grid; gap: 12px; padding: 16px; margin-bottom: 12px; }
 .adm-newdeal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.adm-newdeal-grid label { display: grid; gap: 4px; }
+.adm-newdeal-grid label { display: grid; gap: 4px; min-width: 0; }
+/* A select's intrinsic width is its longest option, and the sales form offers options like
+   "Разгъваема къща 58м² — MSKU-4411020 (1 налични)" — left alone, that widens the cell and
+   overflows the modal. Pinned to the cell instead; the browser ellipsises the option text. */
+.adm-newdeal-grid select,
+.adm-newdeal-grid input { min-width: 0; max-width: 100%; }
 .adm-newdeal-grid input {
   min-height: 40px;
   border: 1px solid var(--adm-line-firm);
