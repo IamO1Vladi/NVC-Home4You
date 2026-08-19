@@ -13,9 +13,9 @@ Tests: **709 .NET, 252 frontend.**
 
 | | |
 |---|---|
-| **Live** | `2eedb55` — audit log, factory sheets in the panel, fire-and-forget public forms, consolidated docs. Published 2026-08-19; verified from outside (34 assets across 4 prerendered pages resolve, bundle serves as `text/javascript`, new endpoints 401 anonymous). |
-| **`production` branch** | `6645457` — the publish guard, fast-forwarded 2026-08-19. **One commit ahead of live**, and deployable whenever; it changes only the build, so live behaviour is identical and the next publish carries it. |
-| **`master`** | `6645457` = `production`. `production..master` is empty, so only the deploy tags answer "what is live". |
+| **Live** | `791896a` (tag `deploy-2026-08-19b`) — the whole buy side: procurement/cost-prices/expenses/targets screens, imported Quickbase data, inline lot editing. Verified from outside: public pages serve prerendered content, bundle + AdminProcurementPage chunk serve as `text/javascript`, all five new APIs 401 anonymous. |
+| **`production` branch** | `791896a` = live. |
+| **`master`** | `791896a` = `production`. Both pushed. |
 | **Migrations** | None pending. `AddBillingAndProcurement` applied to production 2026-08-19 (additive; live code does not read the new tables until the next publish). `AddAuditLog` and `AddFactorySheets` applied and live. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
@@ -37,17 +37,19 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): THE IMPORT HAS RUN.** 2026-08-19, against production:
-   migration applied, then `import-billing` — cycle "2024-2026" (merging all six QB
-   cycles) + 8 shipments + 9 models + 15 lots + 79 expenses, zero problems; a re-run
-   confirms 0 new / all already-imported. 79 invoice files remain in Quickbase (phase 2).
-   What remains before staff can use it:
-   - **Publish** — the panel screens are on `master`/`production`, NOT live yet; until
-     the next publish the data is reachable only from a dev machine.
-   - **Type the markup** (×2.7) into the "2024-2026" cycle in Доставки — Quickbase never
-     had one, so the import left it empty and no container shows a suggested price until
-     it is set. Border VAT 0.20 came across.
-   - Eyeball one container against Quickbase, then the dashboard is the next build.
+3. **Billing & procurement (#21): LIVE.** Imported data + all four screens published
+   2026-08-19 (`deploy-2026-08-19b`) and verified from outside. Remaining, in order:
+   - **Owner: type the markup (×2.7)** into cycle "2024-2026" in Доставки — Quickbase
+     never stored one, so no container shows a suggested price until it is set. Border
+     VAT 0.20 came across. Then eyeball one container against Quickbase.
+   - **Phase 2: the Sales table** (QB `bvuz3pj9w`, 32 rows, still uncopied — mirrors the
+     QB shape: per-lot sale, unit price EUR, sale expenses, customer link). Stock on hand
+     = bought − sold falls out of it; the owner asked for sales reports 2026-08-19.
+   - **The dashboard**: costs / revenue / margin / stock vs the Цели targets, per month,
+     cycle and year. All arithmetic questions are settled; LandedCost holds the pieces.
+   - The 79 invoice files still in Quickbase (attachments on expenses, PurchaseFile
+     pattern) — before the token dies ~Feb 2027.
+
    - **Apply the migration**: `dotnet ef database update` against the production database.
      Additive and unread by live code, so it can go ahead of the panel — same shape as the
      two migrations that were staged this way on the 18th.

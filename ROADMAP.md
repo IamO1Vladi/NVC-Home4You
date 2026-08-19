@@ -38,10 +38,10 @@ commits, notes and conversations still resolve.
   The panel screens shipped the same day (procurement, cost prices, expenses, targets),
   and the owner answered all five open questions the same evening — answers recorded
   below, together with the Quickbase table ids and what the live schema revealed.
-  Every question is RESOLVED and **THE IMPORT HAS RUN against production** (2026-08-19:
-  one merged cycle, 8 shipments, 9 models, 15 lots, 79 expenses; idempotent re-run
-  verified). What is left: **publish the panel, then the dashboard** — and phase 2:
-  Sales/SaleAllocation (QB table bvuz3pj9w, 32 rows) and the 79 invoice files.
+  **LIVE since 2026-08-19 (`deploy-2026-08-19b`)**: data imported, screens published and
+  verified. What is left: **phase 2 — the Sales table** (QB `bvuz3pj9w`, 32 rows; brings
+  stock-on-hand and sales reports), **then the dashboard**, then the 79 invoice files.
+  The owner confirmed wanting sales reports the same day the panel went live.
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
   later). An order gets a reference and a status timeline; the customer follows a link,
   staff move it along in the panel. Settle first: who updates the status and as part of
