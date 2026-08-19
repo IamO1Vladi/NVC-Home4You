@@ -73,7 +73,13 @@ const TEXT = {
 const fmt = (n) => (n === null || n === undefined ? '—'
   : `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`)
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => {
+  // LOCAL date, not toISOString's UTC one: at 01:30 in Bulgaria the UTC date is still
+  // yesterday, which files the entry into last month's dashboard. Same correction as
+  // AdminFactorySheetsPage (2026-08-19 review).
+  const d = new Date()
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
 
 const emptySale = () => ({
   purchaseLotId: '', customerId: '', soldAt: today(), quantity: '', unitSalePrice: '',

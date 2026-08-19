@@ -159,7 +159,7 @@ describe('AdminProcurementPage', () => {
     })
   })
 
-  it('sends unitCost 0 for a blank cost box, which asks the server to prefill from the model', async () => {
+  it('sends unitCost null for a blank cost box, which asks the server to prefill from the model', async () => {
     const user = userEvent.setup()
     render(<AdminProcurementPage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: '2026 C1' })).toBeInTheDocument())
@@ -179,7 +179,7 @@ describe('AdminProcurementPage', () => {
       expect(post).toBeTruthy()
       // 0, not null and not missing: the server reads 0 as "use the model's current
       // factory price", the one moment that reference price is consulted.
-      expect(JSON.parse(post.body)).toMatchObject({ productModelId: 3, quantity: 2, unitCost: 0 })
+      expect(JSON.parse(post.body)).toMatchObject({ productModelId: 3, quantity: 2, unitCost: null })
     })
   })
 })

@@ -12,6 +12,10 @@ namespace Controllers;
 [ApiController]
 [Route("api/admin/dashboard")]
 [Authorize(Policy = "AdminOnly")]
+// HANDOFF.md's rule is no-store on EVERY response, and the hand-typed header lines only
+// covered the GETs — mutations echo the same financial DTOs (2026-08-19 review). The
+// class-level attribute is the version no future endpoint can forget.
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class AdminDashboardController : ControllerBase
 {
     private readonly DashboardService _svc;

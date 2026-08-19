@@ -321,6 +321,16 @@ export default function AdminShell({
   // The phone's Финанси sheet — see tabbarNav below.
   const [financeOpen, setFinanceOpen] = React.useState(false)
 
+  // Escape closes the sheet, because Escape closes every other layered surface in the
+  // panel (AdminModal) and a keyboard user who tabbed into the sheet's links would
+  // otherwise have no way out but tabbing back through them.
+  React.useEffect(() => {
+    if (!financeOpen) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') setFinanceOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [financeOpen])
+
   if (state === 'unauthorized') {
     // The server redirects here with ?authError=... when the Entra callback fails, rather
     // than leaving a bare 500 on /signin-oidc. Surfacing it means a broken sign-in says why

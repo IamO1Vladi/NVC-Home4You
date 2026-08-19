@@ -17,6 +17,10 @@ namespace Controllers;
 [ApiController]
 [Route("api/admin/shipments")]
 [Authorize(Policy = "AdminOnly")]
+// HANDOFF.md's rule is no-store on EVERY response, and the hand-typed header lines only
+// covered the GETs — mutations echo the same financial DTOs (2026-08-19 review). The
+// class-level attribute is the version no future endpoint can forget.
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class AdminShipmentsController : ControllerBase
 {
     private readonly ShipmentAdminService _svc;
@@ -115,8 +119,23 @@ public class AdminShipmentsController : ControllerBase
         var errors = ShipmentAdminService.ValidateLot(input);
         if (errors.Count > 0) return BadRequest(new { errors });
 
-        var shipment = await _svc.UpdateLotAsync(lotId, input, Actor(), ct);
-        return shipment is null ? NotFound() : Ok(new { ok = true, shipment });
+        var (outcome, sold, shipment) = await _svc.UpdateLotAsync(lotId, input, Actor(), ct);
+        return outcome switch
+        {
+            ShipmentAdminService.LotUpdateOutcome.Saved => Ok(new { ok = true, shipment }),
+            ShipmentAdminService.LotUpdateOutcome.NotFound => NotFound(),
+            // 409 with the number that explains the refusal — same shape as an oversell.
+            ShipmentAdminService.LotUpdateOutcome.BelowSold => Conflict(new
+            {
+                errors = new[] { $"Sales have already drawn {sold} from this line — the quantity cannot go below that." },
+                sold,
+            }),
+            _ => Conflict(new
+            {
+                errors = new[] { $"This line has {sold} recorded sale(s) — its model cannot be changed out from under them." },
+                sold,
+            }),
+        };
     }
 
     [HttpDelete("lots/{lotId:int}")]

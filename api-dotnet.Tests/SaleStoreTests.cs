@@ -202,6 +202,63 @@ public class SaleStoreTests
     }
 
     [Fact]
+    public async Task A_sold_lot_cannot_shrink_below_its_sales_nor_change_model()
+    {
+        // The review's symmetry fix (2026-08-19): the sale side refuses overselling a lot,
+        // and now the lot side refuses shrinking under its sales — the same invariant,
+        // guarded from both directions. A model repoint on a sold lot is refused too:
+        // it would rewrite which product the recorded sales claim to have sold.
+        using var db = NewDb();
+        var (lotId, _) = await SeedAsync(db);
+        await new SaleAdminService(db).CreateAsync(Sale(lotId, qty: 4), Actor, Ct);
+
+        var otherModel = new ProductModel { Name = "Container 6m" };
+        db.ProductModels.Add(otherModel);
+        await db.SaveChangesAsync();
+
+        var svc = new ShipmentAdminService(db);
+        var lot = await db.PurchaseLots.FindAsync(lotId);
+
+        var (below, sold, _) = await svc.UpdateLotAsync(lotId,
+            new PurchaseLotInput { ProductModelId = lot!.ProductModelId, Quantity = 3, UnitCost = 10_000m }, Actor, Ct);
+        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.BelowSold, below);
+        Assert.Equal(4, sold);
+
+        var (repointed, _, _) = await svc.UpdateLotAsync(lotId,
+            new PurchaseLotInput { ProductModelId = otherModel.Id, Quantity = 5, UnitCost = 10_000m }, Actor, Ct);
+        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.ModelLocked, repointed);
+
+        // Shrinking down TO the sold quantity is legitimate — nothing goes negative.
+        var (ok, _, _) = await svc.UpdateLotAsync(lotId,
+            new PurchaseLotInput { ProductModelId = lot.ProductModelId, Quantity = 4, UnitCost = 10_000m }, Actor, Ct);
+        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.Saved, ok);
+    }
+
+    [Fact]
+    public async Task Unit_cost_semantics_null_prefills_zero_is_kept()
+    {
+        // Review fix (2026-08-19): null = "use the model's current factory price" — on add
+        // AND edit, which is what the hint under the box promises — while an explicit 0 is
+        // preserved: a warranty replacement is a real lot that cost nothing, and the old
+        // <=0-means-prefill made it unrecordable.
+        using var db = NewDb();
+        var (lotId, shipmentId) = await SeedAsync(db);
+        var svc = new ShipmentAdminService(db);
+        var lot = await db.PurchaseLots.FindAsync(lotId);
+
+        // Explicit zero on add survives as zero.
+        var zeroAdd = await svc.AddLotAsync(shipmentId,
+            new PurchaseLotInput { ProductModelId = lot!.ProductModelId, Quantity = 1, UnitCost = 0m }, Actor, Ct);
+        Assert.Contains(zeroAdd!.Lots, l => l.UnitCost == 0m && l.Quantity == 1);
+
+        // Blank (null) on edit re-prefills from the model's CURRENT factory price.
+        var (outcome, _, updated) = await svc.UpdateLotAsync(lotId,
+            new PurchaseLotInput { ProductModelId = lot.ProductModelId, Quantity = 5, UnitCost = null }, Actor, Ct);
+        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.Saved, outcome);
+        Assert.Equal(10_000m, updated!.Lots.Single(l => l.Id == lotId).UnitCost);
+    }
+
+    [Fact]
     public async Task Zero_price_is_a_warranty_replacement_not_an_error()
     {
         using var db = NewDb();

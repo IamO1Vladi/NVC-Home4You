@@ -26,6 +26,7 @@ const TEXT = {
     pickOne: '— изберете —',
     noHousesInCategory: 'В галерията няма модели от тази категория.',
     nameHint: 'Свободно име — тази категория няма каталожни модели в галерията.',
+    freeName: '— свободно име (не е в галерията) —',
     factoryPrice: 'Фабрична цена (USD)', retail: 'Продажна цена',
     retailHint: 'От галерията, само за четене. Редактира се в „Галерия“.',
     active: 'Активен', inactive: 'Неактивен',
@@ -60,6 +61,7 @@ const TEXT = {
     pickOne: '— pick one —',
     noHousesInCategory: 'The gallery lists no models in this category.',
     nameHint: 'Free-text name — this category has no catalogue models in the gallery.',
+    freeName: '— free name (not in the gallery) —',
     factoryPrice: 'Factory price (USD)', retail: 'Retail price',
     retailHint: 'Read from the gallery, read-only. Edited in Gallery.',
     active: 'Active', inactive: 'Inactive',
@@ -137,7 +139,7 @@ export default function AdminProductModelsPage() {
       const body = {
         ...fields,
         categoryKey: fields.categoryKey || null,
-        houseId: fields.houseId === '' ? null : Number(fields.houseId),
+        houseId: fields.houseId === '' || fields.houseId === 'free' ? null : Number(fields.houseId),
         factoryPrice: fields.factoryPrice === '' ? null : Number(fields.factoryPrice),
       }
       const result = id
@@ -199,6 +201,12 @@ export default function AdminProductModelsPage() {
 
   const setHouse = (e) => {
     const houseId = e.target.value
+    if (houseId === 'free') {
+      // The escape hatch: a gallery-category model the gallery does not list. The name
+      // becomes typable; the house link stays empty.
+      setEditing((f) => ({ ...f, houseId: 'free', name: f.name }))
+      return
+    }
     const house = houses.find((h) => String(h.id) === houseId)
     setEditing((f) => ({ ...f, houseId, name: house?.title ?? '' }))
   }
@@ -322,10 +330,14 @@ export default function AdminProductModelsPage() {
                   {/* Filtered to the chosen category, and the selection IS the name — an
                       exact id link, so a plain select rather than the leads combobox: a
                       typo'd near-match would be a wrong foreign key the margin report
-                      cannot detect. */}
-                  <select value={editing.houseId} onChange={setHouse}>
+                      cannot detect. The free-name option is the review's escape hatch:
+                      a prefab from a second factory that the gallery does not list is a
+                      real thing to buy, and without it such a model could not be created
+                      — nor the imported, unlinked ones ever re-linked deliberately. */}
+                  <select value={editing.houseId === '' && editing.name ? 'free' : editing.houseId} onChange={setHouse}>
                     <option value="">{t.pickOne}</option>
                     {housesInCategory.map((h) => <option key={h.id} value={h.id}>{h.title}</option>)}
+                    <option value="free">{t.freeName}</option>
                   </select>
                   {housesInCategory.length === 0 ? (
                     <span className="adm-small adm-muted">{t.noHousesInCategory}</span>
@@ -338,6 +350,14 @@ export default function AdminProductModelsPage() {
                   <span className="adm-small adm-muted">{t.nameHint}</span>
                 </label>
               )}
+
+              {/* The free-name box for a gallery category, when chosen above. */}
+              {usesGallery && (editing.houseId === '' && editing.name !== '' || editing.houseId === 'free') ? (
+                <label>
+                  <span className="adm-small">{t.name}</span>
+                  <input type="text" value={editing.name} onChange={set('name')} />
+                </label>
+              ) : null}
 
               <label>
                 <span className="adm-small">{t.factoryPrice}</span>

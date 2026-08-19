@@ -16,7 +16,7 @@ import { adminGet, adminSend, adminDelete, UnauthorizedError } from '../admin/ad
 const TEXT = {
   bg: {
     title: 'Разходи',
-    subtitle: 'Оперативните разходи — заплати, наем, гориво, реклама.',
+    subtitle: 'Оперативните разходи — склад, пътуване, реклама, осигуровки.',
     quickAdd: 'Нов разход',
     spentAt: 'Дата', category: 'Категория', amount: 'Сума (EUR)', vat: 'ДДС в сумата (EUR)',
     vatHint: 'Сумата на ДДС от фактурата, не процент. Може да е празно.',
@@ -52,7 +52,7 @@ const TEXT = {
   },
   en: {
     title: 'Expenses',
-    subtitle: 'Operating costs — salaries, rent, fuel, marketing.',
+    subtitle: 'Operating costs — warehouse, travel, ads, social security.',
     quickAdd: 'New expense',
     spentAt: 'Date', category: 'Category', amount: 'Amount (EUR)', vat: 'VAT within the amount (EUR)',
     vatHint: 'The VAT amount off the invoice, not a percent. Optional.',
@@ -89,7 +89,13 @@ const TEXT = {
 const fmt = (n) => (n === null || n === undefined ? '—'
   : `€${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
 
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => {
+  // LOCAL date, not toISOString's UTC one: at 01:30 in Bulgaria the UTC date is still
+  // yesterday, which files the entry into last month's dashboard. Same correction as
+  // AdminFactorySheetsPage (2026-08-19 review).
+  const d = new Date()
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
 
 const emptyExpense = () => ({
   spentAt: today(), categoryKey: '', buyCycleId: '', amount: '', vatAmount: '', description: '',
@@ -134,7 +140,11 @@ export default function AdminExpensesPage() {
     ])
     setRows(list ?? [])
     setCategories(keys ?? [])
-    setCycles(Array.isArray(cycleRows) ? cycleRows.filter((c) => !c.isClosed) : [])
+    // ALL cycles, closed included: the quick-add offers only open ones, but the EDIT
+    // modal must still show a row's own cycle after it closes — with only open options,
+    // an expense on a closed cycle rendered a blank select that invited 'fixing' the
+    // blank into a real detachment (2026-08-19 review).
+    setCycles(Array.isArray(cycleRows) ? cycleRows : [])
     setRollup(sums)
   }, [query])
 
@@ -156,7 +166,7 @@ export default function AdminExpensesPage() {
       await fetchData(f)
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
-      setError(err?.message || '')
+      setError(err?.message || t.saveError)
     }
   }, [filters, fetchData])
 
@@ -266,7 +276,7 @@ export default function AdminExpensesPage() {
             <span className="adm-small">{t.cycle}</span>
             <select value={draft.buyCycleId ?? ''} onChange={setDraftField('buyCycleId')}>
               <option value="">{t.noCycle}</option>
-              {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              {cycles.filter((c) => !c.isClosed).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </label>
           <label>
@@ -425,7 +435,7 @@ export default function AdminExpensesPage() {
                 <span className="adm-small">{t.cycle}</span>
                 <select value={editing.buyCycleId ?? ''} onChange={setEditingField('buyCycleId')}>
                   <option value="">{t.noCycle}</option>
-                  {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {cycles.filter((c) => !c.isClosed || String(c.id) === String(editing.buyCycleId)).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
               </label>
               <label>

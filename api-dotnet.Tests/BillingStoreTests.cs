@@ -38,35 +38,32 @@ public class BillingStoreTests
     // --- Cycles --------------------------------------------------------------------------
 
     [Fact]
-    public async Task A_new_cycle_inherits_the_previous_coefficients()
+    public async Task A_cycle_stores_exactly_what_was_sent_cleared_stays_cleared()
     {
+        // The review reversal (2026-08-19): the server must NOT backfill coefficients the
+        // person cleared. The form prefills from /defaults so the numbers are seen and can
+        // be disagreed with — a cycle saved with empty boxes is deliberately unpriced, and
+        // unpriced shows as a dash, never as last cycle's markup.
         using var db = NewDb();
         await SeedCycleAsync(db, markup: 2.7m, vat: 0.20m);
 
         var svc = new BuyCycleAdminService(db);
-        var created = await svc.CreateAsync(new BuyCycleInput { Label = "2026 C2" }, Actor, Ct);
+        var cleared = await svc.CreateAsync(new BuyCycleInput { Label = "2026 C2" }, Actor, Ct);
 
-        // Prefilled rather than blank: a cycle with no markup prices nothing at all, and the
-        // person who created it is not the one who notices the dashes.
-        Assert.Equal(2.7m, created.MarkupCoefficient);
-        Assert.Equal(0.20m, created.BorderVatRate);
-    }
+        Assert.Null(cleared.MarkupCoefficient);
+        Assert.Null(cleared.BorderVatRate);
 
-    [Fact]
-    public async Task An_explicit_markup_is_not_overwritten_by_the_default()
-    {
-        using var db = NewDb();
-        await SeedCycleAsync(db, markup: 2.7m, vat: 0.20m);
+        // The defaults endpoint still serves the previous coefficients for the FORM to
+        // show — the cleared cycle above, having none, is rightly not "previous".
+        var (markup, vat) = await svc.PreviousCoefficientsAsync(Ct);
+        Assert.Equal(2.7m, markup);
+        Assert.Equal(0.20m, vat);
 
-        var svc = new BuyCycleAdminService(db);
-        var created = await svc.CreateAsync(
-            new BuyCycleInput { Label = "2026 C2", MarkupCoefficient = 3.1m }, Actor, Ct);
-
-        Assert.Equal(3.1m, created.MarkupCoefficient);
-
-        // And the VAT is NOT carried across on its own — a cycle priced with this year's
-        // markup and last year's VAT is a combination nobody chose.
-        Assert.Null(created.BorderVatRate);
+        // And an explicit value is, of course, kept as typed.
+        var explicitCycle = await svc.CreateAsync(
+            new BuyCycleInput { Label = "2026 C3", MarkupCoefficient = 3.1m }, Actor, Ct);
+        Assert.Equal(3.1m, explicitCycle.MarkupCoefficient);
+        Assert.Null(explicitCycle.BorderVatRate);
     }
 
     [Fact]

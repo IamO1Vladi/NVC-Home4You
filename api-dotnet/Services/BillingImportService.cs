@@ -167,7 +167,14 @@ public sealed class BillingImportService
         BuyCycle? cycle = null;
         if (tablesExist)
         {
-            cycle = await _db.BuyCycles.FirstOrDefaultAsync(c => c.Label == MergedCycleLabel, ct);
+            // The import cycle is recognised by ITS OWN DATA — any cycle holding a
+            // Quickbase-imported shipment is the one every import wrote to — with the
+            // label as the fresh-database fallback. Matching on label alone was the
+            // 2026-08-19 review's finding: the panel can rename the cycle, and a renamed
+            // cycle plus a re-run would have split the ledger across two cycles.
+            cycle = await _db.BuyCycles
+                .FirstOrDefaultAsync(c => c.Shipments.Any(sh => sh.QuickbaseRecordId != null), ct)
+                ?? await _db.BuyCycles.FirstOrDefaultAsync(c => c.Label == MergedCycleLabel, ct);
         }
 
         if (cycle is null)
@@ -449,7 +456,13 @@ public sealed class BillingImportService
                   "still in Quickbase (not carried — phase 2).");
 
         // --- Sales (phase 2) -----------------------------------------------------------
-        var existingSales = tablesExist && await ProbeSalesAsync(ct)
+        // Whether the Sales table exists gates BOTH the seed and, below, the writes. The
+        // first draft gated only the seed, so a real run in the documented migration gap
+        // (AddBillingAndProcurement applied, AddSales not) staged Sale rows anyway and the
+        // one SaveChanges aborted the ENTIRE import — buy side included (2026-08-19
+        // review). Now the buy side lands and sales are reported as waiting.
+        var salesTableExists = tablesExist && await ProbeSalesAsync(ct);
+        var existingSales = salesTableExists
             ? (await _db.Sales.Where(x => x.QuickbaseRecordId != null)
                 .Select(x => x.QuickbaseRecordId!.Value).ToListAsync(ct)).ToHashSet()
             : new HashSet<long>();
@@ -524,7 +537,7 @@ public sealed class BillingImportService
                 UpdatedByUpn = "import-billing",
             };
             soldByLotRid[lotRid] = (soldByLotRid.TryGetValue(lotRid, out var already) ? already : 0) + qty;
-            if (!dryRun) _db.Sales.Add(sale);
+            if (!dryRun && salesTableExists) _db.Sales.Add(sale);
             salesNew++;
         }
 
@@ -537,6 +550,13 @@ public sealed class BillingImportService
                 salesOversold++;
                 problems.Add($"Lot rid {rid}: sold {sold} of {lot.Quantity} purchased — Quickbase history oversells it.");
             }
+        }
+
+        if (!salesTableExists && !dryRun && salesNew > 0)
+        {
+            problems.Add($"The Sales table does not exist (AddSales not applied) — " +
+                $"{salesNew} sale(s) were NOT imported. Run `dotnet ef database update`, then re-run.");
+            salesNew = 0;
         }
 
         lines.Add($"Sales: {salesNew} new, {salesSkipped} already imported; " +
@@ -585,7 +605,11 @@ public sealed class BillingImportService
     /// </summary>
     public static decimal? ResolveUnitCostUsd(decimal? usdUsed, decimal? eurOverride, decimal? fx)
     {
-        if (eurOverride is decimal over && over != 0m) return ToUsd(over, fx);
+        // An override that cannot be converted (no FX on the shipment) falls back to the
+        // USD figure QB itself used rather than resolving to nothing — a lot imported at
+        // $0 is a claim that deflates every downstream sum, where QB's own USD number is
+        // merely approximate (2026-08-19 review).
+        if (eurOverride is decimal over && over != 0m) return ToUsd(over, fx) ?? usdUsed;
         return usdUsed;
     }
 

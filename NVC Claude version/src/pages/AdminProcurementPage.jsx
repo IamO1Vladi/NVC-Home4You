@@ -339,11 +339,11 @@ export default function AdminProcurementPage() {
     const body = {
       productModelId: Number(newLot.productModelId),
       quantity: Number(newLot.quantity),
-      // On ADD, 0 asks the server to prefill from the model's current factory price — the
-      // one moment that price is read; from then on the lot keeps its own snapshot. On an
-      // EDIT the field arrives prefilled with the lot's own cost, so a blank is a person
-      // deliberately zeroing it (a sample, a warranty item), not a request to re-prefill.
-      unitCost: newLot.unitCost === '' ? 0 : Number(newLot.unitCost),
+      // Blank → null → the server prefills from the model's current factory price, on add
+      // AND on edit — which is exactly what the hint under the box promises. An explicit
+      // 0 goes through as 0: a warranty replacement is a real lot that cost nothing
+      // (2026-08-19 review; the old 0-means-prefill made $0 lots unrecordable).
+      unitCost: newLot.unitCost === '' ? null : Number(newLot.unitCost),
     }
     const request = editingLotId
       ? adminSend(`/api/admin/shipments/lots/${editingLotId}`, 'PUT', body)

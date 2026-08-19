@@ -96,15 +96,12 @@ public sealed class BuyCycleAdminService
         var cycle = new BuyCycle { CreatedAt = DateTimeOffset.UtcNow };
         Apply(cycle, input, actor);
 
-        // Only when the form sent neither. Carrying one across but not the other would
-        // produce a cycle priced with this year's markup and last year's VAT, which is a
-        // combination nobody chose.
-        if (cycle.MarkupCoefficient is null && cycle.BorderVatRate is null)
-        {
-            var (markup, vat) = await PreviousCoefficientsAsync(ct);
-            cycle.MarkupCoefficient = markup;
-            cycle.BorderVatRate = vat;
-        }
+        // DELIBERATELY NO SERVER-SIDE BACKFILL of the coefficients. The form prefills them
+        // from /defaults so the person can see the numbers and DISAGREE on the spot — and
+        // a first draft of this method quietly re-applied the previous cycle's values when
+        // both boxes came back cleared, which is exactly the "I disagree with both"
+        // gesture. What the form sends is what the cycle holds; empty means unpriced, and
+        // unpriced shows as a dash, never as somebody else's markup (2026-08-19 review).
 
         _db.BuyCycles.Add(cycle);
         await _db.SaveChangesAsync(ct);

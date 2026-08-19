@@ -39,7 +39,9 @@ public sealed class PurchaseLotInput
 {
     public int ProductModelId { get; set; }
     public int Quantity { get; set; }
-    public decimal UnitCost { get; set; }
+    // Null = prefill from the model's current factory price; explicit 0 = a lot that
+    // genuinely cost nothing. See ResolveUnitCostAsync.
+    public decimal? UnitCost { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -183,7 +185,13 @@ public sealed class ShipmentAdminService
     /// </summary>
     public async Task<(bool Deleted, int SaleCount)> DeleteAsync(int id, CancellationToken ct)
     {
-        var shipment = await _db.Shipments.FirstOrDefaultAsync(s => s.Id == id, ct);
+        // The lots are LOADED, not left to the database cascade, and that is the audit fix
+        // from the 2026-08-19 review: a store-level cascade deletes them outside the change
+        // tracker, so the AuditInterceptor never records the money lines it exists to
+        // record. Tracked, each deleted line gets its own audit row.
+        var shipment = await _db.Shipments
+            .Include(s => s.Lots)
+            .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (shipment is null) return (false, 0);
 
         // Money history outranks the tidy-up, phase 2 edition: a container whose goods
@@ -213,21 +221,12 @@ public sealed class ShipmentAdminService
         var shipment = await _db.Shipments.FirstOrDefaultAsync(s => s.Id == shipmentId, ct);
         if (shipment is null) return null;
 
-        var unitCost = input.UnitCost;
-        if (unitCost <= 0m)
-        {
-            var model = await _db.ProductModels
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.Id == input.ProductModelId, ct);
-            unitCost = model?.FactoryPrice ?? 0m;
-        }
-
         _db.PurchaseLots.Add(new PurchaseLot
         {
             ShipmentId = shipmentId,
             ProductModelId = input.ProductModelId,
             Quantity = input.Quantity,
-            UnitCost = unitCost,
+            UnitCost = await ResolveUnitCostAsync(input, ct),
             Notes = FactoryAdminService.Clean(input.Notes),
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
@@ -238,21 +237,59 @@ public sealed class ShipmentAdminService
         return await GetAsync(shipmentId, ct);
     }
 
-    public async Task<ShipmentDto?> UpdateLotAsync(
+    /// <summary>
+    /// What a lot line costs, from what the form sent.
+    ///
+    /// NULL means "use the model's current factory price" — the prefill the on-screen hint
+    /// promises, honoured identically on add and on edit. An EXPLICIT ZERO is preserved:
+    /// warranty replacements and free samples are real lots that cost nothing, and the old
+    /// `&lt;= 0` check made them impossible to record (2026-08-19 review). Blank-vs-zero is
+    /// the page's `'' → null` versus `0 → 0` distinction, same as every money box.
+    /// </summary>
+    private async Task<decimal> ResolveUnitCostAsync(PurchaseLotInput input, CancellationToken ct)
+    {
+        if (input.UnitCost is decimal explicitCost) return explicitCost;
+
+        var model = await _db.ProductModels
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == input.ProductModelId, ct);
+        return model?.FactoryPrice ?? 0m;
+    }
+
+    public enum LotUpdateOutcome { Saved, NotFound, BelowSold, ModelLocked }
+
+    /// <summary>
+    /// Corrects a line — under the stock invariant the sale side already enforces.
+    ///
+    /// The guard is SYMMETRICAL to SaleAdminService's oversell check, and existed only on
+    /// that side until the 2026-08-19 review: editing a sold lot's quantity below what its
+    /// sales drew would push stock negative (and the dashboard's onHand&lt;=0 skip would then
+    /// hide the units entirely), and repointing its model would rewrite which product the
+    /// recorded sales claim to have sold. Both refused with the number that explains why.
+    /// </summary>
+    public async Task<(LotUpdateOutcome Outcome, int Sold, ShipmentDto? Shipment)> UpdateLotAsync(
         int lotId, PurchaseLotInput input, string? actor, CancellationToken ct)
     {
-        var lot = await _db.PurchaseLots.FirstOrDefaultAsync(l => l.Id == lotId, ct);
-        if (lot is null) return null;
+        var lot = await _db.PurchaseLots
+            .Include(l => l.Sales)
+            .FirstOrDefaultAsync(l => l.Id == lotId, ct);
+        if (lot is null) return (LotUpdateOutcome.NotFound, 0, null);
+
+        var sold = lot.Sales.Sum(s => s.Quantity);
+        if (input.Quantity < sold)
+            return (LotUpdateOutcome.BelowSold, sold, await GetAsync(lot.ShipmentId, ct));
+        if (sold > 0 && input.ProductModelId != lot.ProductModelId)
+            return (LotUpdateOutcome.ModelLocked, sold, await GetAsync(lot.ShipmentId, ct));
 
         lot.ProductModelId = input.ProductModelId;
         lot.Quantity = input.Quantity;
-        lot.UnitCost = input.UnitCost;
+        lot.UnitCost = await ResolveUnitCostAsync(input, ct);
         lot.Notes = FactoryAdminService.Clean(input.Notes);
         lot.UpdatedAt = DateTimeOffset.UtcNow;
         lot.UpdatedByUpn = actor;
 
         await _db.SaveChangesAsync(ct);
-        return await GetAsync(lot.ShipmentId, ct);
+        return (LotUpdateOutcome.Saved, sold, await GetAsync(lot.ShipmentId, ct));
     }
 
     public async Task<(ShipmentDto? Shipment, int SaleCount)> DeleteLotAsync(int lotId, CancellationToken ct)
@@ -332,7 +369,7 @@ public sealed class ShipmentAdminService
         // where the database could only refuse the save.
         if (input.Quantity <= 0) errors.Add("The quantity must be at least one.");
 
-        if (input.UnitCost < 0m) errors.Add("The unit cost cannot be negative.");
+        if (input.UnitCost is decimal cost && cost < 0m) errors.Add("The unit cost cannot be negative.");
 
         return errors;
     }

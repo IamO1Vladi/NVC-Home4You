@@ -56,9 +56,15 @@ public class BillingImportTests
     }
 
     [Fact]
-    public void An_eur_override_with_no_rate_resolves_to_nothing_rather_than_wrong()
+    public void An_unconvertible_eur_override_falls_back_to_the_usd_figure_qb_used()
     {
-        Assert.Null(BillingImportService.ResolveUnitCostUsd(9_000m, 9_200m, null));
+        // Review fix (2026-08-19): with no FX on the shipment the override cannot convert,
+        // and the first draft resolved to null → an imported UnitCost of 0 — a CLAIM that
+        // deflates every downstream sum. QB's own USD figure is merely approximate; zero
+        // is wrong. Only when both sources are absent is there truly nothing to resolve.
+        Assert.Equal(9_000m, BillingImportService.ResolveUnitCostUsd(9_000m, 9_200m, null));
+        Assert.Equal(9_000m, BillingImportService.ResolveUnitCostUsd(9_000m, 9_200m, 0m));
+        Assert.Null(BillingImportService.ResolveUnitCostUsd(null, 9_200m, null));
     }
 
     // --- Record ids: the ".0" that broke the first dry-run -------------------------------
