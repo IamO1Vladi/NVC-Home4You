@@ -27,35 +27,6 @@ public class AuditLogTests
         public string? Upn { get; }
     }
 
-    [Fact]
-    public async Task Deleting_a_container_audits_its_money_lines_too()
-    {
-        // Review fix (2026-08-19): DeleteAsync used to leave the lots to the database
-        // cascade, which deletes them OUTSIDE the change tracker — so the interceptor
-        // never saw the money lines it exists to record. Loading them first puts each
-        // deleted line in the log.
-        using var db = NewDb();
-        var cycle = new Data.Entities.BuyCycle { Label = "2024-2026" };
-        var model = new Data.Entities.ProductModel { Name = "Expandable 58" };
-        var shipment = new Data.Entities.Shipment { BuyCycle = cycle, Reference = "MSKU-1" };
-        var lot = new Data.Entities.PurchaseLot
-        {
-            Shipment = shipment, ProductModel = model, Quantity = 3, UnitCost = 10_000m,
-        };
-        db.AddRange(cycle, model, shipment, lot);
-        await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
-        db.AuditEntries.RemoveRange(db.AuditEntries);
-        await db.SaveChangesAsync();
-
-        var (deleted, _) = await new Services.ShipmentAdminService(db).DeleteAsync(shipment.Id, default);
-        Assert.True(deleted);
-
-        var audited = db.AuditEntries.ToList();
-        Assert.Contains(audited, a => a.EntityType == nameof(Data.Entities.Shipment) && a.Action == "deleted");
-        Assert.Contains(audited, a => a.EntityType == nameof(Data.Entities.PurchaseLot) && a.Action == "deleted");
-    }
-
     private static AppDbContext NewDb(string? actor = "vladi@nvc-home4you.eu") =>
         new(new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase($"audit-{Guid.NewGuid()}")

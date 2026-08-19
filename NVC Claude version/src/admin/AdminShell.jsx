@@ -30,10 +30,9 @@ const TEXT = {
     brand: 'Администрация',
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
-      factories: 'Фабрики', procurement: 'Доставки', models: 'Доставни цени', sales: 'Продажби',
+      factories: 'Фабрики', sales: 'Продажби',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
-      factorySheets: 'Фабрични поръчки', expenses: 'Разходи', targets: 'Цели',
-      dashboard: 'Табло', finance: 'Финанси', audit: 'Одит',
+      factorySheets: 'Фабрични поръчки', audit: 'Одит',
     },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
@@ -52,10 +51,9 @@ const TEXT = {
     brand: 'Admin',
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
-      factories: 'Factories', procurement: 'Procurement', models: 'Cost prices', sales: 'Sales',
+      factories: 'Factories', sales: 'Sales',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
-      factorySheets: 'Factory orders', expenses: 'Expenses', targets: 'Targets',
-      dashboard: 'Dashboard', finance: 'Finance', audit: 'Audit',
+      factorySheets: 'Factory orders', audit: 'Audit',
     },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
@@ -168,20 +166,8 @@ const Icon = {
   ),
   // A shipping container, ribs and all. The buy side thinks in containers, so the icon
   // says the thing itself rather than an abstract "procurement".
-  procurement: (
-    <>
-      <rect x="2.8" y="7" width="18.4" height="11" rx="1.6" />
-      <path d="M7.4 7v11M12 7v11M16.6 7v11" />
-    </>
-  ),
   // A price tag: this section is literally the tags on what we buy. Points the other way
   // from nothing else in the strip, which keeps it recognisable at tab-bar size.
-  models: (
-    <>
-      <path d="M20.6 11.6 12.2 3.2H4v8.2l8.4 8.4a1.8 1.8 0 0 0 2.5 0l5.7-5.7a1.8 1.8 0 0 0 0-2.5z" />
-      <circle cx="8.2" cy="7.4" r="1.5" />
-    </>
-  ),
   // A box with an arrow leaving it: goods going OUT of the containers. The one movement
   // the buy-side icons next to it never show.
   sales: (
@@ -192,37 +178,9 @@ const Icon = {
     </>
   ),
   // A stack of coins: money leaving in small amounts, which is what opex is.
-  expenses: (
-    <>
-      <ellipse cx="12" cy="6.4" rx="7" ry="2.6" />
-      <path d="M5 6.4v11c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-11" />
-      <path d="M5 12c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7" />
-    </>
-  ),
   // A bullseye. The one section that is about where the numbers SHOULD land.
-  targets: (
-    <>
-      <circle cx="12" cy="12" r="8.4" />
-      <circle cx="12" cy="12" r="4.4" />
-      <circle cx="12" cy="12" r="0.9" />
-    </>
-  ),
   // A gauge: the one screen that is a reading, not a list.
-  dashboard: (
-    <>
-      <path d="M4 14.6a8 8 0 1 1 16 0" />
-      <path d="M12 14.6l3.4-4.2" />
-      <path d="M3.4 18.2h17.2" />
-    </>
-  ),
   // A wallet, for the phone tab that gathers the six money screens into one press.
-  finance: (
-    <>
-      <rect x="3" y="6.2" width="18" height="13.2" rx="2.2" />
-      <path d="M3 10.2h18" />
-      <path d="M16.2 14.8h.9" />
-    </>
-  ),
   // A clock wound backwards. Not a list or a document: every other section here IS a list,
   // and what makes this one different is that it looks at the past.
   audit: (
@@ -256,15 +214,8 @@ const SECTIONS = [
   // last of the two because it is a directory somebody sets up once and then mostly reads.
   { key: 'customers', to: '/admin/customers' },
   { key: 'factories', to: '/admin/factories' },
-  // The money cluster, contiguous ON PURPOSE: the phone tab bar folds exactly this run of
-  // six into one "Финанси" tab (see BILLING_KEYS), because sixteen tabs in an equal-width
-  // grid left every icon a sliver. The sidebar still shows all six.
-  { key: 'procurement', to: '/admin/procurement' },
-  { key: 'models', to: '/admin/product-models' },
+  // Sales to customers, next to the customers they belong to.
   { key: 'sales', to: '/admin/sales' },
-  { key: 'expenses', to: '/admin/expenses' },
-  { key: 'targets', to: '/admin/targets' },
-  { key: 'dashboard', to: '/admin/dashboard' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
@@ -276,10 +227,6 @@ const SECTIONS = [
   // immediately when a number looks wrong.
   { key: 'audit', to: '/admin/audit' },
 ]
-
-// The six that fold into the phone's "Финанси" tab. Kept next to SECTIONS because the two
-// must agree — a key added there and not here quietly falls off the phone entirely.
-const BILLING_KEYS = ['procurement', 'models', 'sales', 'expenses', 'targets', 'dashboard']
 
 // `me` and the pending-review count are chrome, not page data, so the shell fetches them
 // once instead of every page repeating the call. Counts refresh whenever a page finishes
@@ -318,19 +265,6 @@ export default function AdminShell({
   const t = TEXT[lang] ?? TEXT.bg
   const [theme, setTheme] = useAdminTheme()
   const { me, pending, outstandingLeads } = useAdminChrome(state)
-  // The phone's Финанси sheet — see tabbarNav below.
-  const [financeOpen, setFinanceOpen] = React.useState(false)
-
-  // Escape closes the sheet, because Escape closes every other layered surface in the
-  // panel (AdminModal) and a keyboard user who tabbed into the sheet's links would
-  // otherwise have no way out but tabbing back through them.
-  React.useEffect(() => {
-    if (!financeOpen) return undefined
-    const onKey = (e) => { if (e.key === 'Escape') setFinanceOpen(false) }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [financeOpen])
-
   if (state === 'unauthorized') {
     // The server redirects here with ?authError=... when the Entra callback fails, rather
     // than leaving a bare 500 on /signin-oidc. Surfacing it means a broken sign-in says why
@@ -380,32 +314,11 @@ export default function AdminShell({
   // desktop would be friction for nothing.
   const nav = SECTIONS.map((s) => navLink(s))
 
-  // The phone tab bar folds the six money screens into one "Финанси" tab — sixteen tabs in
-  // an equal-width grid left every icon a sliver (owner, 2026-08-19). The first billing key
-  // becomes the tab; the rest are skipped; pressing it opens the sheet below.
-  const tabbarNav = []
-  let financeTabPlaced = false
-  for (const s of SECTIONS) {
-    if (BILLING_KEYS.includes(s.key)) {
-      if (!financeTabPlaced) {
-        financeTabPlaced = true
-        tabbarNav.push(
-          <button
-            key="finance"
-            type="button"
-            className={BILLING_KEYS.includes(active) ? 'is-active' : ''}
-            aria-expanded={financeOpen}
-            onClick={() => setFinanceOpen((open) => !open)}
-          >
-            <NavIcon name="finance" />
-            <span className="adm-nav-label">{t.nav.finance}</span>
-          </button>,
-        )
-      }
-      continue
-    }
-    tabbarNav.push(navLink(s))
-  }
+  // The phone tab bar shows the same sections. It briefly folded the money screens into a
+  // "Финанси" tab, because sixteen tabs in an equal-width grid left every icon a sliver;
+  // archiving the buy side (2026-08-19) took the count back to eleven, so the fold is gone
+  // and the strip is flat again. The minmax + scroll in Admin.css stays as the backstop.
+  const tabbarNav = nav
 
   return (
     <div className="adm-app">
@@ -493,18 +406,6 @@ export default function AdminShell({
 
         {state === 'ready' ? children : null}
       </main>
-
-      {/* The Финанси sheet: the six money screens, one press away. A backdrop closes it,
-          and so does choosing a destination. */}
-      {financeOpen ? (
-        <>
-          <div className="adm-finance-backdrop" onClick={() => setFinanceOpen(false)} />
-          <nav className="adm-finance-pop" aria-label={t.nav.finance}>
-            {SECTIONS.filter((s) => BILLING_KEYS.includes(s.key))
-              .map((s) => navLink(s, () => setFinanceOpen(false)))}
-          </nav>
-        </>
-      ) : null}
 
       <nav className="adm-tabbar" aria-label={t.menu}>{tabbarNav}</nav>
     </div>

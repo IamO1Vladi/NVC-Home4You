@@ -106,20 +106,11 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.FactoryAdminService>();
     builder.Services.AddScoped<Services.FactorySheetAdminService>();
 
-    // Billing and procurement (ROADMAP #21). Registered inside the same SQL-only block as
-    // everything above: with no connection string there is no AppDbContext to inject, and
-    // these services have no Quickbase counterpart to fall back to — the buy side was never
-    // in Quickbase in a form the site read.
-    builder.Services.AddScoped<Services.BuyCycleAdminService>();
-    builder.Services.AddScoped<Services.ShipmentAdminService>();
-    builder.Services.AddScoped<Services.ProductModelAdminService>();
-    builder.Services.AddScoped<Services.OperatingExpenseAdminService>();
-    builder.Services.AddScoped<Services.TargetAdminService>();
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
     builder.Services.AddScoped<Services.SavedConfigImportService>();
-    builder.Services.AddScoped<Services.BillingImportService>();
+    // Sales to customers. The rest of the buy side was archived 2026-08-19 —
+    // see _archive/billing-2026-08-19/.
     builder.Services.AddScoped<Services.SaleAdminService>();
-    builder.Services.AddScoped<Services.DashboardService>();
 
     // Owns its own container client rather than sharing the images one — see LeadFileStore
     // for why that separation is the point rather than an accident.
@@ -451,38 +442,6 @@ if (args.Length > 0 && (args[0] == "import-leads" || args[0] == "compare-leads")
     if (leadDiffs.Count > 50) Console.WriteLine($"  ... and {leadDiffs.Count - 50} more.");
     // Non-zero exit when they disagree, so this can gate the cutover in a script.
     return leadDiffs.Count == 0 ? 0 : 2;
-}
-
-// `dotnet run -- import-billing [--dry-run]`. Copies the Quickbase buy side into SQL:
-// all cycles merged into one, shipments back in USD, lots, models, expenses. Idempotent
-// on Quickbase record id and NEVER overwrites — see BillingImportService for the three
-// translation rules and why. Off HTTP for the same reason as import-reviews.
-if (args.Length > 0 && args[0] == "import-billing")
-{
-    using var scope = app.Services.CreateScope();
-    var importer = scope.ServiceProvider.GetService<Services.BillingImportService>();
-    if (importer is null)
-    {
-        Console.Error.WriteLine("SQL_CONNECTION_STRING is not configured, so there is no database to import into.");
-        return 1;
-    }
-
-    var dryRun = args.Contains("--dry-run");
-    if (dryRun) Console.WriteLine("DRY RUN — nothing will be written.");
-
-    var report = await importer.ImportAsync(dryRun, CancellationToken.None);
-
-    foreach (var line in report.Lines) Console.WriteLine(line);
-
-    if (report.Problems.Count > 0)
-    {
-        Console.WriteLine($"{report.Problems.Count} problem(s):");
-        foreach (var p in report.Problems) Console.WriteLine($"  - {p}");
-    }
-
-    // Non-zero when anything needs a human, so a script cannot mistake a lossy run for
-    // a clean one.
-    return report.Ok ? 0 : 2;
 }
 
 // `dotnet run -- lead-schema`. Read-only: prints every field on both lead tables so the

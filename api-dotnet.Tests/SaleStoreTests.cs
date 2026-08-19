@@ -10,12 +10,12 @@ using Xunit;
 
 namespace ApiDotnet.Tests;
 
-// The sell side of the procurement ledger (ROADMAP #21 phase 2).
+// Sales to customers, after the buy side was archived (2026-08-19).
 //
-// What is pinned here is the stock arithmetic and the money chain: a sale draws a lot
-// down, an oversell is refused with the number the person needs, COGS comes from the
-// landed cost of the exact container line the goods rode in — and every delete that would
-// orphan a sale's cost basis is refused.
+// What survives from the procurement version of these tests is the part that was never
+// about procurement: a sale is money, so its arithmetic is computed rather than stored, and
+// what it cannot know it does not claim. COGS, stock and margin left with the container
+// lines — see _archive/billing-2026-08-19/.
 public class SaleStoreTests
 {
     private static AppDbContext NewDb() =>
@@ -26,252 +26,142 @@ public class SaleStoreTests
     private const string Actor = "vladi@nvc-home4you.eu";
     private static CancellationToken Ct => CancellationToken.None;
 
-    /// <summary>One cycle, one container with a rate, one lot of 5 at $10,000 — the fixture.</summary>
-    private static async Task<(int LotId, int ShipmentId)> SeedAsync(AppDbContext db)
+    private static async Task<int> SeedCustomerAsync(AppDbContext db, string name = "Иван Петров")
     {
-        var cycle = new BuyCycle { Label = "2024-2026", MarkupCoefficient = 2.7m, BorderVatRate = 0.20m };
-        var model = new ProductModel { Name = "Expandable 58", FactoryPrice = 10_000m };
-        var shipment = new Shipment
-        {
-            BuyCycle = cycle, Reference = "MSKU-1",
-            FreightCost = 2_000m, CustomsDuty = 500m, UsdToEurRate = 0.9m,
-        };
-        var lot = new PurchaseLot { Shipment = shipment, ProductModel = model, Quantity = 5, UnitCost = 10_000m };
-        db.AddRange(cycle, model, shipment, lot);
+        var customer = new Customer { Name = name };
+        db.Customers.Add(customer);
         await db.SaveChangesAsync();
-        return (lot.Id, shipment.Id);
+        return customer.Id;
     }
 
-    private static SaleInput Sale(int lotId, int qty = 1, decimal price = 15_000m) => new()
+    private static SaleInput Sale(int customerId, int qty = 1, decimal price = 24_900m) => new()
     {
-        PurchaseLotId = lotId, SoldAt = "2026-08-10", Quantity = qty, UnitSalePrice = price,
+        CustomerId = customerId, SoldAt = "2026-08-10", Quantity = qty, UnitSalePrice = price,
+        Description = "Разгъваема къща 58м²",
     };
 
     [Fact]
-    public async Task A_sale_computes_its_money_from_the_container_it_came_off()
+    public async Task A_sale_computes_its_amount_and_its_own_costs()
     {
         using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
+        var customerId = await SeedCustomerAsync(db);
         var svc = new SaleAdminService(db);
 
-        var (outcome, _, sale) = await svc.CreateAsync(new SaleInput
+        var created = await svc.CreateAsync(new SaleInput
         {
-            PurchaseLotId = lotId, SoldAt = "2026-08-10", Quantity = 1, UnitSalePrice = 15_000m,
+            CustomerId = customerId, SoldAt = "2026-08-10", Quantity = 2, UnitSalePrice = 4_000m,
             PaymentFees = 100m, TransportCost = 200m,
         }, Actor, Ct);
 
-        Assert.Equal(SaleAdminService.SaveOutcome.Saved, outcome);
-
-        // One lot carries the whole shipment: landed = (5×10,000 + 2,500)/5 = $10,500/unit,
-        // ×0.9 = €9,450. Amount €15,000; expenses €300; gross €5,550; net €5,250.
-        Assert.Equal(15_000m, sale!.SaleAmountEur);
-        Assert.Equal(300m, sale.SaleExpensesEur);
-        Assert.Equal(9_450m, sale.CogsEur);
-        Assert.Equal(5_550m, sale.GrossProfitEur);
-        Assert.Equal(5_250m, sale.NetProfitEur);
+        // Nothing here is stored — amount is qty × price, expenses are their own sum, and
+        // net is the difference. Same rule as Purchase.LeftToPay.
+        Assert.Equal(8_000m, created.SaleAmountEur);
+        Assert.Equal(300m, created.SaleExpensesEur);
+        Assert.Equal(7_700m, created.NetEur);
+        Assert.Equal("Иван Петров", created.CustomerName);
     }
 
     [Fact]
-    public async Task No_container_rate_means_no_cogs_and_no_profit_claims()
+    public async Task The_customer_is_required_for_anything_typed_from_here_on()
     {
+        // The column stays nullable for the 30 rows imported from Quickbase, which point at
+        // a customer table ours was never imported from. New sales must name one.
         using var db = NewDb();
-        var (lotId, shipmentId) = await SeedAsync(db);
-        var shipment = await db.Shipments.FirstAsync(s => s.Id == shipmentId);
-        shipment.UsdToEurRate = null;
+        var customerId = await SeedCustomerAsync(db);
+
+        Assert.Contains(
+            SaleAdminService.Validate(new SaleInput { SoldAt = "2026-08-10", Quantity = 1, UnitSalePrice = 100m }),
+            e => e.Contains("customer"));
+
+        Assert.Empty(SaleAdminService.Validate(Sale(customerId)));
+    }
+
+    [Fact]
+    public async Task An_imported_sale_keeps_its_history_without_a_customer_link()
+    {
+        // What the archive left behind: a real revenue row whose customer is a NAME in the
+        // notes. It must list, and it must not pretend to a link it does not have.
+        using var db = NewDb();
+        db.Sales.Add(new Sale
+        {
+            QuickbaseRecordId = 3,
+            SoldAt = new DateTimeOffset(2026, 7, 2, 0, 0, 0, TimeSpan.Zero),
+            Quantity = 2, UnitSalePrice = 4_000m,
+            Notes = "Импортирана от Quickbase (rid 3). Клиент по Quickbase: Мария Иванова.",
+        });
         await db.SaveChangesAsync();
 
-        var svc = new SaleAdminService(db);
-        var (_, _, sale) = await svc.CreateAsync(Sale(lotId), Actor, Ct);
+        var row = (await new SaleAdminService(db).ListAsync(null, Ct)).Single();
 
-        // Revenue is known — the sale is EUR-native. Cost is not, so profit stays silent
-        // rather than pretending the goods were free.
-        Assert.Equal(15_000m, sale!.SaleAmountEur);
-        Assert.Null(sale.CogsEur);
-        Assert.Null(sale.GrossProfitEur);
-        Assert.Null(sale.NetProfitEur);
+        Assert.Null(row.CustomerId);
+        Assert.Null(row.CustomerName);
+        Assert.Equal(8_000m, row.SaleAmountEur);
+        Assert.Contains("Мария Иванова", row.Notes);
     }
 
     [Fact]
-    public async Task Selling_more_than_the_lot_holds_is_refused_with_the_number_left()
+    public async Task Sales_can_be_read_for_one_customer()
     {
         using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
+        var mine = await SeedCustomerAsync(db, "Иван Петров");
+        var theirs = await SeedCustomerAsync(db, "Мария Иванова");
         var svc = new SaleAdminService(db);
 
-        await svc.CreateAsync(Sale(lotId, qty: 3), Actor, Ct);
+        await svc.CreateAsync(Sale(mine), Actor, Ct);
+        await svc.CreateAsync(Sale(theirs, qty: 3), Actor, Ct);
 
-        var (outcome, available, _) = await svc.CreateAsync(Sale(lotId, qty: 3), Actor, Ct);
+        var forMine = await svc.ListAsync(mine, Ct);
 
-        Assert.Equal(SaleAdminService.SaveOutcome.Oversold, outcome);
-        Assert.Equal(2, available);
-        Assert.Single(db.Sales.ToList());
-    }
-
-    [Fact]
-    public async Task An_edit_does_not_count_its_own_units_against_itself()
-    {
-        using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
-        var svc = new SaleAdminService(db);
-
-        var (_, _, first) = await svc.CreateAsync(Sale(lotId, qty: 4), Actor, Ct);
-
-        // 4 of 5 are this sale's own; raising it to 5 is legitimate.
-        var (outcome, _, updated) = await svc.UpdateAsync(first!.Id, Sale(lotId, qty: 5), Actor, Ct);
-
-        Assert.Equal(SaleAdminService.SaveOutcome.Saved, outcome);
-        Assert.Equal(5, updated!.Quantity);
-
-        // But 6 is not.
-        var (refused, available, _) = await svc.UpdateAsync(first.Id, Sale(lotId, qty: 6), Actor, Ct);
-        Assert.Equal(SaleAdminService.SaveOutcome.Oversold, refused);
-        Assert.Equal(5, available);
-    }
-
-    [Fact]
-    public async Task Deleting_a_sale_puts_the_units_back()
-    {
-        using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
-        var svc = new SaleAdminService(db);
-
-        var (_, _, sale) = await svc.CreateAsync(Sale(lotId, qty: 5), Actor, Ct);
-
-        // Sold out — nothing more fits.
-        var (refused, _, _) = await svc.CreateAsync(Sale(lotId, qty: 1), Actor, Ct);
-        Assert.Equal(SaleAdminService.SaveOutcome.Oversold, refused);
-
-        Assert.True(await svc.DeleteAsync(sale!.Id, Ct));
-
-        // The mis-entry is gone and the yard is full again.
-        var (again, _, _) = await svc.CreateAsync(Sale(lotId, qty: 5), Actor, Ct);
-        Assert.Equal(SaleAdminService.SaveOutcome.Saved, again);
-    }
-
-    [Fact]
-    public async Task Stock_shows_on_the_container_line_and_on_the_model()
-    {
-        using var db = NewDb();
-        var (lotId, shipmentId) = await SeedAsync(db);
-        await new SaleAdminService(db).CreateAsync(Sale(lotId, qty: 2), Actor, Ct);
-
-        var line = (await new ShipmentAdminService(db).GetAsync(shipmentId, Ct))!.Lots.Single();
-        Assert.Equal(2, line.QtySold);
-        Assert.Equal(3, line.QtyOnHand);
-
-        var model = (await new ProductModelAdminService(db).ListAsync(Ct)).Single();
-        Assert.Equal(5, model.PurchasedQty);
-        Assert.Equal(2, model.SoldQty);
-        Assert.Equal(3, model.OnHandQty);
-    }
-
-    [Fact]
-    public async Task A_lot_with_sales_refuses_deletion_and_so_does_its_container()
-    {
-        using var db = NewDb();
-        var (lotId, shipmentId) = await SeedAsync(db);
-        await new SaleAdminService(db).CreateAsync(Sale(lotId), Actor, Ct);
-
-        var shipments = new ShipmentAdminService(db);
-
-        // The line: its sales' COGS is computed FROM it.
-        var (_, lotSales) = await shipments.DeleteLotAsync(lotId, Ct);
-        Assert.Equal(1, lotSales);
-        Assert.NotNull(await db.PurchaseLots.FindAsync(lotId));
-
-        // The whole container: same money, one level up.
-        var (deleted, shipSales) = await shipments.DeleteAsync(shipmentId, Ct);
-        Assert.False(deleted);
-        Assert.Equal(1, shipSales);
-    }
-
-    [Fact]
-    public async Task The_lot_options_say_how_many_each_line_still_holds()
-    {
-        using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
-        var svc = new SaleAdminService(db);
-        await svc.CreateAsync(Sale(lotId, qty: 2), Actor, Ct);
-
-        var option = (await svc.LotOptionsAsync(Ct)).Single();
-
-        Assert.Equal(5, option.QtyPurchased);
-        Assert.Equal(2, option.QtySold);
-        Assert.Equal(3, option.QtyOnHand);
-        Assert.Equal("Expandable 58", option.ProductModelName);
-    }
-
-    [Fact]
-    public async Task A_sold_lot_cannot_shrink_below_its_sales_nor_change_model()
-    {
-        // The review's symmetry fix (2026-08-19): the sale side refuses overselling a lot,
-        // and now the lot side refuses shrinking under its sales — the same invariant,
-        // guarded from both directions. A model repoint on a sold lot is refused too:
-        // it would rewrite which product the recorded sales claim to have sold.
-        using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
-        await new SaleAdminService(db).CreateAsync(Sale(lotId, qty: 4), Actor, Ct);
-
-        var otherModel = new ProductModel { Name = "Container 6m" };
-        db.ProductModels.Add(otherModel);
-        await db.SaveChangesAsync();
-
-        var svc = new ShipmentAdminService(db);
-        var lot = await db.PurchaseLots.FindAsync(lotId);
-
-        var (below, sold, _) = await svc.UpdateLotAsync(lotId,
-            new PurchaseLotInput { ProductModelId = lot!.ProductModelId, Quantity = 3, UnitCost = 10_000m }, Actor, Ct);
-        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.BelowSold, below);
-        Assert.Equal(4, sold);
-
-        var (repointed, _, _) = await svc.UpdateLotAsync(lotId,
-            new PurchaseLotInput { ProductModelId = otherModel.Id, Quantity = 5, UnitCost = 10_000m }, Actor, Ct);
-        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.ModelLocked, repointed);
-
-        // Shrinking down TO the sold quantity is legitimate — nothing goes negative.
-        var (ok, _, _) = await svc.UpdateLotAsync(lotId,
-            new PurchaseLotInput { ProductModelId = lot.ProductModelId, Quantity = 4, UnitCost = 10_000m }, Actor, Ct);
-        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.Saved, ok);
-    }
-
-    [Fact]
-    public async Task Unit_cost_semantics_null_prefills_zero_is_kept()
-    {
-        // Review fix (2026-08-19): null = "use the model's current factory price" — on add
-        // AND edit, which is what the hint under the box promises — while an explicit 0 is
-        // preserved: a warranty replacement is a real lot that cost nothing, and the old
-        // <=0-means-prefill made it unrecordable.
-        using var db = NewDb();
-        var (lotId, shipmentId) = await SeedAsync(db);
-        var svc = new ShipmentAdminService(db);
-        var lot = await db.PurchaseLots.FindAsync(lotId);
-
-        // Explicit zero on add survives as zero.
-        var zeroAdd = await svc.AddLotAsync(shipmentId,
-            new PurchaseLotInput { ProductModelId = lot!.ProductModelId, Quantity = 1, UnitCost = 0m }, Actor, Ct);
-        Assert.Contains(zeroAdd!.Lots, l => l.UnitCost == 0m && l.Quantity == 1);
-
-        // Blank (null) on edit re-prefills from the model's CURRENT factory price.
-        var (outcome, _, updated) = await svc.UpdateLotAsync(lotId,
-            new PurchaseLotInput { ProductModelId = lot.ProductModelId, Quantity = 5, UnitCost = null }, Actor, Ct);
-        Assert.Equal(ShipmentAdminService.LotUpdateOutcome.Saved, outcome);
-        Assert.Equal(10_000m, updated!.Lots.Single(l => l.Id == lotId).UnitCost);
+        Assert.Single(forMine);
+        Assert.Equal("Иван Петров", forMine[0].CustomerName);
+        Assert.Equal(2, (await svc.ListAsync(null, Ct)).Count);
     }
 
     [Fact]
     public async Task Zero_price_is_a_warranty_replacement_not_an_error()
     {
         using var db = NewDb();
-        var (lotId, _) = await SeedAsync(db);
+        var customerId = await SeedCustomerAsync(db);
 
-        Assert.Empty(SaleAdminService.Validate(Sale(lotId, qty: 1, price: 0m)));
+        Assert.Empty(SaleAdminService.Validate(Sale(customerId, qty: 1, price: 0m)));
 
-        var (outcome, _, sale) = await new SaleAdminService(db)
-            .CreateAsync(Sale(lotId, qty: 1, price: 0m), Actor, Ct);
+        var created = await new SaleAdminService(db)
+            .CreateAsync(new SaleInput
+            {
+                CustomerId = customerId, SoldAt = "2026-08-10", Quantity = 1,
+                UnitSalePrice = 0m, TransportCost = 250m,
+            }, Actor, Ct);
 
-        // It leaves stock without earning — which is exactly what its numbers say.
-        Assert.Equal(SaleAdminService.SaveOutcome.Saved, outcome);
-        Assert.Equal(0m, sale!.SaleAmountEur);
-        Assert.True(sale.NetProfitEur < 0m);
+        // It leaves without earning, and costs something to deliver — which is exactly
+        // what its numbers say.
+        Assert.Equal(0m, created.SaleAmountEur);
+        Assert.Equal(-250m, created.NetEur);
+    }
+
+    [Fact]
+    public async Task A_sale_of_nothing_or_at_a_negative_price_is_refused()
+    {
+        using var db = NewDb();
+        var customerId = await SeedCustomerAsync(db);
+
+        Assert.NotEmpty(SaleAdminService.Validate(Sale(customerId, qty: 0)));
+        Assert.NotEmpty(SaleAdminService.Validate(Sale(customerId, price: -1m)));
+        Assert.NotEmpty(SaleAdminService.Validate(null));
+    }
+
+    [Fact]
+    public async Task Deleting_a_sale_removes_it_and_nothing_else()
+    {
+        // Nothing points at a sale now that stock is gone, so the delete is plain — no
+        // count to refuse on, and the customer survives it.
+        using var db = NewDb();
+        var customerId = await SeedCustomerAsync(db);
+        var svc = new SaleAdminService(db);
+        var created = await svc.CreateAsync(Sale(customerId), Actor, Ct);
+
+        Assert.True(await svc.DeleteAsync(created.Id, Ct));
+
+        Assert.Empty(db.Sales.ToList());
+        Assert.NotNull(await db.Customers.FindAsync(customerId));
     }
 }

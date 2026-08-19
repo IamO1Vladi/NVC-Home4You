@@ -3,70 +3,76 @@ import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminSend, adminDelete, UnauthorizedError } from '../admin/adminApi.js'
 
-// Sales out of containers — the sell side of the procurement ledger.
+// Sales to customers.
 //
-// Every money figure past the price box is SERVER-COMPUTED and read off the DTO: amount,
-// the sale's own expenses, COGS from the landed cost of the exact container line the goods
-// came off, and both profits. The page adds nothing up — the same rule as the procurement
-// screen, for the same reason: a second copy of the arithmetic is how two screens start
-// disagreeing about one sale.
+// This screen used to sit on top of the procurement ledger: every sale named the container
+// line its goods came off, and showed cost of goods and margin computed from that line's
+// landed cost. The buy side was archived on 2026-08-19 (_archive/billing-2026-08-19/) and
+// the owner kept sales "only to be used with the customer table nothing else for now" — so
+// what is left is what the sale brought in, and what selling it cost.
 //
-// The one thing this screen enforces that Quickbase never did: you cannot sell more than a
-// line still holds. The form says how many are left BEFORE anyone types, and the server
-// refuses an oversell with the same number.
+// NO MARGIN COLUMN, deliberately. Cost of goods came from the container line; without one
+// there is no cost basis, and a margin figure without a cost basis is a guess wearing a
+// number's clothes. "Нето" here is revenue minus the sale's OWN costs, which is a different
+// and honest thing — the label says so.
+//
+// Everything is EUR: sales are made in the reporting currency, so there is no rate anywhere
+// on this page.
 
 const TEXT = {
   bg: {
     title: 'Продажби',
-    subtitle: 'Какво е продадено от контейнерите — приход, себестойност и печалба.',
+    subtitle: 'Какво е продадено, на кого, и какво е струвала самата продажба.',
     add: 'Нова продажба',
     empty: 'Още няма продажби.',
-    emptyHint: 'Запишете първата — редът се избира от стоката в контейнерите.',
-    soldAt: 'Дата', lot: 'Ред от контейнер', qty: 'Брой', unitPrice: 'Единична цена (EUR)',
+    emptyHint: 'Запишете първата — избира се клиент и се описва какво е продадено.',
+    customer: 'Клиент', pickCustomer: '— изберете клиент —',
+    description: 'Какво е продадено',
+    descriptionHint: 'Свободен текст: модел, брой, каквото го описва.',
+    soldAt: 'Дата', qty: 'Брой', unitPrice: 'Единична цена (EUR)',
     unitPriceHint: 'Цената, на която е продаден 1 брой.',
-    pickLine: '— изберете ред —',
-    customer: 'Клиент', noCustomer: '— без клиент —',
-    paymentFees: 'Такси плащане (EUR)', transport: 'Транспорт БГ (EUR)',
+    paymentFees: 'Такси плащане (EUR)', transport: 'Транспорт (EUR)',
     installation: 'Монтаж (EUR)', otherCosts: 'Други разходи (EUR)',
     notes: 'Бележки',
-    amount: 'Сума', expenses: 'Разходи по продажбата', cogs: 'Себестойност',
-    gross: 'Брутна печалба', net: 'Нетна печалба',
-    noCogs: 'без курс на контейнера — няма себестойност',
-    available: (n) => `${n} налични`,
-    total: 'Общо приход', profit: 'Обща нетна печалба',
+    amount: 'Сума', expenses: 'Разходи по продажбата', net: 'Нето след разходите',
+    netHint: 'Приход минус разходите по самата продажба. Не е печалба — себестойността на стоката не се води тук.',
+    total: 'Общо приход', totalNet: 'Общо нето',
     entries: (n) => `${n} ${n === 1 ? 'продажба' : 'продажби'}`,
+    noCustomer: 'без свързан клиент',
     edit: 'Редактирай', remove: 'Изтрий',
     save: 'Запази', cancel: 'Откажи', close: 'Затвори',
     editTitle: 'Продажба', newTitle: 'Нова продажба',
-    confirmDelete: 'Да изтрия ли тази продажба? Бройката се връща в наличността.',
+    confirmDelete: 'Да изтрия ли тази продажба?',
     saveError: 'Промяната не беше запазена.',
     updated: 'Запазено',
+    secWhat: 'Какво и на кого', secCosts: 'Разходи по продажбата (EUR)',
   },
   en: {
     title: 'Sales',
-    subtitle: 'What sold out of the containers — revenue, cost of goods, profit.',
+    subtitle: 'What sold, to whom, and what the sale itself cost.',
     add: 'New sale',
     empty: 'No sales yet.',
-    emptyHint: 'Record the first one — the line comes from the goods in the containers.',
-    soldAt: 'Date', lot: 'Container line', qty: 'Qty', unitPrice: 'Unit price (EUR)',
+    emptyHint: 'Record the first one — pick a customer and describe what sold.',
+    customer: 'Customer', pickCustomer: '— pick a customer —',
+    description: 'What sold',
+    descriptionHint: 'Free text: model, size, whatever describes it.',
+    soldAt: 'Date', qty: 'Qty', unitPrice: 'Unit price (EUR)',
     unitPriceHint: 'What ONE unit sold for.',
-    pickLine: '— pick a line —',
-    customer: 'Customer', noCustomer: '— no customer —',
-    paymentFees: 'Payment fees (EUR)', transport: 'BG transport (EUR)',
+    paymentFees: 'Payment fees (EUR)', transport: 'Transport (EUR)',
     installation: 'Installation (EUR)', otherCosts: 'Other costs (EUR)',
     notes: 'Notes',
-    amount: 'Amount', expenses: 'Sale expenses', cogs: 'COGS',
-    gross: 'Gross profit', net: 'Net profit',
-    noCogs: 'container has no FX rate — no COGS',
-    available: (n) => `${n} available`,
-    total: 'Total revenue', profit: 'Total net profit',
+    amount: 'Amount', expenses: 'Sale expenses', net: 'Net after expenses',
+    netHint: 'Revenue less the costs of the sale itself. Not profit — the cost of the goods is not tracked here.',
+    total: 'Total revenue', totalNet: 'Total net',
     entries: (n) => `${n} ${n === 1 ? 'sale' : 'sales'}`,
+    noCustomer: 'no linked customer',
     edit: 'Edit', remove: 'Delete',
     save: 'Save', cancel: 'Cancel', close: 'Close',
     editTitle: 'Sale', newTitle: 'New sale',
-    confirmDelete: 'Delete this sale? The units go back into stock.',
+    confirmDelete: 'Delete this sale?',
     saveError: 'That change was not saved.',
     updated: 'Saved',
+    secWhat: 'What and to whom', secCosts: 'Costs of the sale (EUR)',
   },
 }
 
@@ -75,14 +81,13 @@ const fmt = (n) => (n === null || n === undefined ? '—'
 
 const today = () => {
   // LOCAL date, not toISOString's UTC one: at 01:30 in Bulgaria the UTC date is still
-  // yesterday, which files the entry into last month's dashboard. Same correction as
-  // AdminFactorySheetsPage (2026-08-19 review).
+  // yesterday, which files the sale into last month. Same correction as AdminFactorySheetsPage.
   const d = new Date()
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
 const emptySale = () => ({
-  purchaseLotId: '', customerId: '', soldAt: today(), quantity: '', unitSalePrice: '',
+  customerId: '', description: '', soldAt: today(), quantity: '', unitSalePrice: '',
   paymentFees: '', transportCost: '', installationCost: '', otherCosts: '', notes: '',
 })
 
@@ -94,7 +99,6 @@ export default function AdminSalesPage() {
 
   const [state, setState] = React.useState('loading')
   const [rows, setRows] = React.useState([])
-  const [lotOptions, setLotOptions] = React.useState([])
   const [customers, setCustomers] = React.useState([])
   const [editing, setEditing] = React.useState(null)
   const [busy, setBusy] = React.useState(false)
@@ -104,13 +108,11 @@ export default function AdminSalesPage() {
   const load = React.useCallback(async () => {
     setState('loading')
     try {
-      const [sales, options, customerRows] = await Promise.all([
+      const [sales, customerRows] = await Promise.all([
         adminGet('/api/admin/sales'),
-        adminGet('/api/admin/sales/lot-options').catch(() => []),
         adminGet('/api/admin/customers').catch(() => []),
       ])
       setRows(Array.isArray(sales) ? sales : [])
-      setLotOptions(Array.isArray(options) ? options : [])
       setCustomers(Array.isArray(customerRows) ? customerRows : [])
       setState('ready')
     } catch (err) {
@@ -127,7 +129,6 @@ export default function AdminSalesPage() {
       const { id, ...fields } = editing
       const body = {
         ...fields,
-        purchaseLotId: Number(fields.purchaseLotId),
         customerId: fields.customerId === '' ? null : Number(fields.customerId),
         quantity: Number(fields.quantity),
         unitSalePrice: fields.unitSalePrice === '' ? 0 : Number(fields.unitSalePrice),
@@ -147,8 +148,6 @@ export default function AdminSalesPage() {
       }
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
-      // The oversell 409 arrives here with "only N left" — surfaced verbatim, because the
-      // number is the answer the person needs.
       setError(err?.message || t.saveError)
     } finally {
       setBusy(false)
@@ -170,22 +169,8 @@ export default function AdminSalesPage() {
 
   const set = (field) => (e) => setEditing((f) => ({ ...f, [field]: e.target.value }))
 
-  const lotLabel = (o) =>
-    `${o.productModelName}${o.shipmentReference ? ` — ${o.shipmentReference}` : ''} (${t.available(o.qtyOnHand)})`
-
-  // Only lines with something LEFT are offered — a sold-out line is noise on a sale form
-  // (owner, 2026-08-19). The one exception: the line an existing sale already uses stays
-  // selectable while editing it, or the form could not even re-save unchanged.
-  const offeredLots = lotOptions.filter(
-    (o) => o.qtyOnHand > 0 || String(o.purchaseLotId) === String(editing?.purchaseLotId),
-  )
-
   const totalRevenue = rows.reduce((sum, r) => sum + (Number(r.saleAmountEur) || 0), 0)
-  // A dash the moment ANY sale lacks a COGS: summing the rest and calling it the total
-  // would present a number nobody computed. Revenue has no such gap — prices are known.
-  const totalNet = rows.some((r) => r.netProfitEur === null || r.netProfitEur === undefined)
-    ? null
-    : rows.reduce((sum, r) => sum + (Number(r.netProfitEur) || 0), 0)
+  const totalNet = rows.reduce((sum, r) => sum + (Number(r.netEur) || 0), 0)
 
   return (
     <AdminShell
@@ -213,8 +198,9 @@ export default function AdminSalesPage() {
               <p><strong>{fmt(totalRevenue)}</strong> <span className="adm-muted adm-small">· {t.entries(rows.length)}</span></p>
             </div>
             <div>
-              <span className="adm-small adm-muted">{t.profit}</span>
-              <p><strong>{totalNet === null ? '—' : fmt(totalNet)}</strong></p>
+              <span className="adm-small adm-muted">{t.totalNet}</span>
+              <p><strong>{fmt(totalNet)}</strong></p>
+              <span className="adm-small adm-muted">{t.netHint}</span>
             </div>
           </div>
         </section>
@@ -230,18 +216,19 @@ export default function AdminSalesPage() {
           {rows.map((row) => (
             <li key={row.id} className="adm-row">
               <div className="adm-row-main">
-                <strong>{row.productModelName}</strong>
+                <strong>{row.customerName || row.description || `#${row.id}`}</strong>
                 <span className="adm-small adm-muted">
                   {row.soldAt} · {row.quantity} × {fmt(row.unitSalePrice)} = <strong>{fmt(row.saleAmountEur)}</strong>
-                  {row.shipmentReference ? <> · {row.shipmentReference}</> : null}
-                  {row.customerName ? <> · {row.customerName}</> : null}
+                  {row.description && row.customerName ? <> · {row.description}</> : null}
+                  {/* The imported rows have no customer link — their Quickbase customer
+                      name is in the notes, waiting for someone who knows the deal. */}
+                  {!row.customerName ? <> · <em>{t.noCustomer}</em></> : null}
                 </span>
-                <span className="adm-small adm-muted">
-                  {row.cogsEur !== null && row.cogsEur !== undefined
-                    ? <>{t.cogs}: {fmt(row.cogsEur)} · {t.net}: <strong>{fmt(row.netProfitEur)}</strong></>
-                    : <>{t.noCogs}</>}
-                  {row.saleExpensesEur > 0 ? <> · {t.expenses}: {fmt(row.saleExpensesEur)}</> : null}
-                </span>
+                {row.saleExpensesEur > 0 ? (
+                  <span className="adm-small adm-muted">
+                    {t.expenses}: {fmt(row.saleExpensesEur)} · {t.net}: <strong>{fmt(row.netEur)}</strong>
+                  </span>
+                ) : null}
               </div>
               <div className="adm-row-actions">
                 <button
@@ -249,8 +236,8 @@ export default function AdminSalesPage() {
                   className="adm-linkbtn"
                   onClick={() => {
                     setEditing({
-                      id: row.id, purchaseLotId: String(row.purchaseLotId),
-                      customerId: row.customerId ?? '', soldAt: row.soldAt,
+                      id: row.id, customerId: row.customerId ?? '',
+                      description: row.description ?? '', soldAt: row.soldAt,
                       quantity: String(row.quantity), unitSalePrice: String(row.unitSalePrice),
                       paymentFees: row.paymentFees ?? '', transportCost: row.transportCost ?? '',
                       installationCost: row.installationCost ?? '', otherCosts: row.otherCosts ?? '',
@@ -283,7 +270,7 @@ export default function AdminSalesPage() {
               type="button"
               className="btn"
               onClick={save}
-              disabled={busy || !editing?.purchaseLotId || !(Number(editing?.quantity) >= 1) || !editing?.soldAt}
+              disabled={busy || !editing?.customerId || !(Number(editing?.quantity) >= 1) || !editing?.soldAt}
             >
               {t.save}
             </button>
@@ -292,55 +279,58 @@ export default function AdminSalesPage() {
       >
         {editing ? (
           <div className="adm-sheet">
-            <div className="adm-newdeal-grid">
-              <label>
-                <span className="adm-small">{t.lot}</span>
-                {/* Availability rides on the option text, so "how many are left?" is
-                    answered before anyone types a quantity. */}
-                <select value={editing.purchaseLotId} onChange={set('purchaseLotId')}>
-                  <option value="">{t.pickLine}</option>
-                  {offeredLots.map((o) => (
-                    <option key={o.purchaseLotId} value={o.purchaseLotId}>{lotLabel(o)}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span className="adm-small">{t.soldAt}</span>
-                <input type="date" value={editing.soldAt} onChange={set('soldAt')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.qty}</span>
-                <input type="number" min="1" step="1" value={editing.quantity} onChange={set('quantity')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.unitPrice}</span>
-                <input type="number" min="0" step="0.01" value={editing.unitSalePrice} onChange={set('unitSalePrice')} />
-                <span className="adm-small adm-muted">{t.unitPriceHint}</span>
-              </label>
-              <label>
-                <span className="adm-small">{t.customer}</span>
-                <select value={editing.customerId} onChange={set('customerId')}>
-                  <option value="">{t.noCustomer}</option>
-                  {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
-              <label>
-                <span className="adm-small">{t.paymentFees}</span>
-                <input type="number" min="0" step="0.01" value={editing.paymentFees} onChange={set('paymentFees')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.transport}</span>
-                <input type="number" min="0" step="0.01" value={editing.transportCost} onChange={set('transportCost')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.installation}</span>
-                <input type="number" min="0" step="0.01" value={editing.installationCost} onChange={set('installationCost')} />
-              </label>
-              <label>
-                <span className="adm-small">{t.otherCosts}</span>
-                <input type="number" min="0" step="0.01" value={editing.otherCosts} onChange={set('otherCosts')} />
-              </label>
-            </div>
+            <section>
+              <h3>{t.secWhat}</h3>
+              <div className="adm-newdeal-grid">
+                <label>
+                  <span className="adm-small">{t.customer}</span>
+                  <select value={editing.customerId} onChange={set('customerId')}>
+                    <option value="">{t.pickCustomer}</option>
+                    {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span className="adm-small">{t.soldAt}</span>
+                  <input type="date" value={editing.soldAt} onChange={set('soldAt')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.description}</span>
+                  <input type="text" value={editing.description} onChange={set('description')} />
+                  <span className="adm-small adm-muted">{t.descriptionHint}</span>
+                </label>
+                <label>
+                  <span className="adm-small">{t.qty}</span>
+                  <input type="number" min="1" step="1" value={editing.quantity} onChange={set('quantity')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.unitPrice}</span>
+                  <input type="number" min="0" step="0.01" value={editing.unitSalePrice} onChange={set('unitSalePrice')} />
+                  <span className="adm-small adm-muted">{t.unitPriceHint}</span>
+                </label>
+              </div>
+            </section>
+
+            <section>
+              <h3>{t.secCosts}</h3>
+              <div className="adm-newdeal-grid">
+                <label>
+                  <span className="adm-small">{t.paymentFees}</span>
+                  <input type="number" min="0" step="0.01" value={editing.paymentFees} onChange={set('paymentFees')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.transport}</span>
+                  <input type="number" min="0" step="0.01" value={editing.transportCost} onChange={set('transportCost')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.installation}</span>
+                  <input type="number" min="0" step="0.01" value={editing.installationCost} onChange={set('installationCost')} />
+                </label>
+                <label>
+                  <span className="adm-small">{t.otherCosts}</span>
+                  <input type="number" min="0" step="0.01" value={editing.otherCosts} onChange={set('otherCosts')} />
+                </label>
+              </div>
+            </section>
 
             <label className="adm-sheet-notes">
               <span className="adm-small">{t.notes}</span>

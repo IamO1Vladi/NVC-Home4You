@@ -67,17 +67,17 @@ public class AdminEndpointAuthTests
     }
 
     [Fact]
-    public void The_billing_endpoints_are_among_the_protected_ones()
+    public void The_money_endpoints_are_among_the_protected_ones()
     {
         // Named explicitly so that deleting a controller cannot make the sweep above pass by
-        // having nothing left to check.
+        // having nothing left to check. The billing routes that used to be listed here went
+        // with the buy side (archived 2026-08-19); sales and customers stayed, and they are
+        // the ones carrying revenue and ЕГН respectively.
         var routes = Controllers.Where(IsAdminRoute).Select(RouteOf).ToList();
 
-        Assert.Contains("api/admin/buy-cycles", routes);
-        Assert.Contains("api/admin/shipments", routes);
-        Assert.Contains("api/admin/product-models", routes);
-        Assert.Contains("api/admin/operating-expenses", routes);
-        Assert.Contains("api/admin/targets", routes);
+        Assert.Contains("api/admin/sales", routes);
+        Assert.Contains("api/admin/customers", routes);
+        Assert.Contains("api/admin/audit", routes);
     }
 
     [Fact]
@@ -85,6 +85,6 @@ public class AdminEndpointAuthTests
     {
         // Guards the guard: if the assembly scan ever stopped finding controllers — a
         // renamed namespace, a moved project — every test above would pass on an empty set.
-        Assert.True(Controllers.Count(IsAdminRoute) >= 15);
+        Assert.True(Controllers.Count(IsAdminRoute) >= 9);
     }
 }

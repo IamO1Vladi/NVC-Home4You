@@ -26,29 +26,9 @@ const TEXT = {
         name: 'Фабрики',
         blurb: 'Доставчиците, от които сме купували. Избират се при въвеждане на продажба.',
       },
-      procurement: {
-        name: 'Доставки',
-        blurb: 'Цикли и контейнери — какво е поръчано, какво пътува и какво струва реално.',
-      },
-      models: {
-        name: 'Доставни цени',
-        blurb: 'Моделите, които купуваме, и фабричната цена на всеки.',
-      },
       sales: {
         name: 'Продажби',
         blurb: 'Какво е продадено от контейнерите — приход, себестойност, печалба.',
-      },
-      dashboard: {
-        name: 'Табло',
-        blurb: 'Цялата картина: приход, разходи, наличност и цели за месец, цикъл, година.',
-      },
-      expenses: {
-        name: 'Разходи',
-        blurb: 'Оперативните разходи — заплати, наем, гориво, реклама.',
-      },
-      targets: {
-        name: 'Цели',
-        blurb: 'Целите по месец, цикъл и година, спрямо които се мери резултатът.',
       },
       leads: {
         name: 'Запитвания',
@@ -104,29 +84,9 @@ const TEXT = {
         name: 'Factories',
         blurb: 'The suppliers we have bought from. Picked when a sale is recorded.',
       },
-      procurement: {
-        name: 'Procurement',
-        blurb: 'Cycles and containers — what was ordered, what is in transit, what it really cost.',
-      },
-      models: {
-        name: 'Cost prices',
-        blurb: 'The models we buy, and what the factory charges for each.',
-      },
       sales: {
         name: 'Sales',
         blurb: 'What sold out of the containers — revenue, cost, profit.',
-      },
-      dashboard: {
-        name: 'Dashboard',
-        blurb: 'The whole picture: revenue, costs, stock and targets by month, cycle, year.',
-      },
-      expenses: {
-        name: 'Expenses',
-        blurb: 'Operating costs — salaries, rent, fuel, marketing.',
-      },
-      targets: {
-        name: 'Targets',
-        blurb: 'The monthly, cycle and yearly goals results are measured against.',
       },
       leads: {
         name: 'Inquiries',
@@ -260,45 +220,10 @@ export default function AdminHomePage() {
           open={t.open}
         />
         <HomeTile
-          to="/admin/procurement"
-          icon="procurement"
-          name={t.cards.procurement.name}
-          blurb={t.cards.procurement.blurb}
-          open={t.open}
-        />
-        <HomeTile
-          to="/admin/product-models"
-          icon="models"
-          name={t.cards.models.name}
-          blurb={t.cards.models.blurb}
-          open={t.open}
-        />
-        <HomeTile
           to="/admin/sales"
           icon="sales"
           name={t.cards.sales.name}
           blurb={t.cards.sales.blurb}
-          open={t.open}
-        />
-        <HomeTile
-          to="/admin/dashboard"
-          icon="dashboard"
-          name={t.cards.dashboard.name}
-          blurb={t.cards.dashboard.blurb}
-          open={t.open}
-        />
-        <HomeTile
-          to="/admin/expenses"
-          icon="expenses"
-          name={t.cards.expenses.name}
-          blurb={t.cards.expenses.blurb}
-          open={t.open}
-        />
-        <HomeTile
-          to="/admin/targets"
-          icon="targets"
-          name={t.cards.targets.name}
-          blurb={t.cards.targets.blurb}
           open={t.open}
         />
         <HomeTile
@@ -366,18 +291,6 @@ const TILE_ICON = {
       <path d="M19 9.4a1.6 1.6 0 0 1 1.6 1.6v4.4a1.6 1.6 0 0 1-1.6 1.6v2.4l-2.8-2.4h-3.6" />
     </>
   ),
-  procurement: (
-    <>
-      <rect x="2.8" y="7" width="18.4" height="11" rx="1.6" />
-      <path d="M7.4 7v11M12 7v11M16.6 7v11" />
-    </>
-  ),
-  models: (
-    <>
-      <path d="M20.6 11.6 12.2 3.2H4v8.2l8.4 8.4a1.8 1.8 0 0 0 2.5 0l5.7-5.7a1.8 1.8 0 0 0 0-2.5z" />
-      <circle cx="8.2" cy="7.4" r="1.5" />
-    </>
-  ),
   // The tile icons must cover every tile below — a key missing HERE renders an empty
   // square, which is exactly the bug the sales tile shipped with (owner, 2026-08-19).
   sales: (
@@ -385,27 +298,6 @@ const TILE_ICON = {
       <path d="M3.2 8.6v9.2a1.8 1.8 0 0 0 1.8 1.8h9.2" />
       <path d="M3.2 8.6 5.4 4.4h10.4l2.2 4.2M3.2 8.6h14.8v3.2M10.6 8.6V4.4" />
       <path d="M14.6 16.4h6.6m0 0-2.6-2.6m2.6 2.6-2.6 2.6" />
-    </>
-  ),
-  dashboard: (
-    <>
-      <path d="M4 14.6a8 8 0 1 1 16 0" />
-      <path d="M12 14.6l3.4-4.2" />
-      <path d="M3.4 18.2h17.2" />
-    </>
-  ),
-  expenses: (
-    <>
-      <ellipse cx="12" cy="6.4" rx="7" ry="2.6" />
-      <path d="M5 6.4v11c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-11" />
-      <path d="M5 12c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7" />
-    </>
-  ),
-  targets: (
-    <>
-      <circle cx="12" cy="12" r="8.4" />
-      <circle cx="12" cy="12" r="4.4" />
-      <circle cx="12" cy="12" r="0.9" />
     </>
   ),
   reviews: <path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z" />,

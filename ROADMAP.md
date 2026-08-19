@@ -28,38 +28,43 @@ commits, notes and conversations still resolve.
 - [ ] **5. Financing / total-cost calculator.** Monthly payment estimate; clear "included
   vs quote-on-review" breakdown. Cheaper now: the prices page already computes finished
   totals per model.
-- [ ] **21. Billing & procurement on Azure SQL** — the buy side of the business. **THE DATA
-  LAYER AND API ARE BUILT** (2026-08-19, not yet deployed and not yet in the panel); the full
-  design is the next section of this file and is now a description of code rather than a
-  proposal. What exists: the six entities, one additive migration (`AddBillingAndProcurement`,
-  **pending — see HANDOFF.md**), the static key lists served by the API, the admin services
-  with the landed-cost arithmetic in one place (`LandedCost`), AdminOnly endpoints under
-  `/api/admin/{buy-cycles,shipments,product-models,operating-expenses,targets}`, and 70 tests.
-  The panel screens shipped the same day (procurement, cost prices, expenses, targets),
-  and the owner answered all five open questions the same evening — answers recorded
-  below, together with the Quickbase table ids and what the live schema revealed.
-  **Buy side LIVE (`deploy-2026-08-19b`); phase 2 BUILT AND IMPORTED the same evening**:
-  `Sale` mirrors the QB table, 30 rows imported, stock-on-hand live on models and lines,
-  oversells refused, COGS from the exact lot. What is left: **publish /admin/sales, then
-  the dashboard**, then the 79 invoice files. The one modelling gap, on purpose: imported
-  sales carry their QB customer as text in Notes — linking them to real Customer rows is
-  a by-hand job for whoever knows the deals.
-  **2026-08-19 late: the dashboard is BUILT and an 8-angle review of the whole feature
-  ran — 10 confirmed findings, all fixed same day (commit cf3ee7d). Remaining on #21:**
-  - **The Purchase ↔ Sale bridge** — the customer-facing sales record and the procurement
-    ledger row do not reference each other yet; until they do, a sold house is typed twice
-    (once under the customer, once in Продажби) with nothing keeping the two in step.
-    The cheapest form: nullable SaleId on Purchase (or PurchaseId on Sale), set when staff
-    record the sale from the customer screen.
-  - **The 79 invoice files** still in Quickbase (expense attachments, PurchaseFile
-    pattern) — before the token dies ~Feb 2027.
-  - Minor: the `?allocation=count` what-if knob has no UI — wire a toggle or drop the
-    parameter (the enum and tests stay either way).
-- [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
-  later). An order gets a reference and a status timeline; the customer follows a link,
-  staff move it along in the panel. Settle first: who updates the status and as part of
-  what routine — a stale public status page is worse than none. Naturally hangs off #21's
-  data once that exists.
+- [~] **21. Billing & procurement on Azure SQL** — **BUILT, SHIPPED, THEN PULLED BACK OUT
+  (2026-08-19).** The team decided migrating billing off Quickbase is too much change to
+  absorb right now. It is not a failed design: it worked, the Quickbase data imported
+  cleanly, and it was verified in production before being archived. All of it —
+  entities, services, endpoints, five screens, the importer, the dashboard and 43 tests —
+  lives in **`_archive/billing-2026-08-19/`**, which is outside both projects and is
+  neither built, bundled nor published. Its README carries the restore steps and every
+  business rule that was settled with the owner (the VAT reclaim split, USD-in/EUR-out, the
+  per-shipment rate, by-value freight allocation, the snapshot unit cost).
+
+  **What is still live:** `Sale`, reduced to a sale linked to a customer, and the
+  `/admin/sales` screen. **What is still in the production database:** the six billing
+  tables and their imported rows — `DropBillingTables` exists and is deliberately
+  unapplied. **The clock that matters:** the importer only works while the Quickbase token
+  lives (~Feb 2027); after that, restoring means re-entering by hand.
+
+- [ ] **27. Order tracking** — **NEXT, and the owner's stated priority (2026-08-19).** An
+  order gets a reference and a status timeline; the customer follows a link, staff move it
+  along in the panel.
+
+  It no longer "hangs off #21" — that dependency died with the archive, which is mostly
+  good news: order tracking never needed landed costs, only *what the customer bought and
+  where it is*. But it now lands on the one open question the archive created:
+
+  **⚠ SETTLE FIRST — `Purchase` and `Sale` both claim to be "what a customer bought".**
+  `Purchase` is the older record (factory, model, deposit, final price, the two invoices,
+  files) and the Customers screen already runs on it. `Sale` is the survivor of the buy
+  side (quantity, unit price, four sale-expense columns) and now links to the same customer.
+  Order tracking needs exactly ONE row to hang a status off; building it against either
+  while both exist guarantees the wrong one gets picked. The recommendation on the table:
+  **keep `Purchase`, move `Sale`'s extra columns onto it, retire `Sale`** — its 30 imported
+  rows carry their Quickbase customer name in Notes and would need linking by hand either
+  way.
+
+  The other thing to settle, unchanged from the original sketch and still the real risk:
+  **who updates the status, and as part of what routine.** A stale public status page is
+  worse than none.
 
 ### Content & trust (the compounding bets)
 

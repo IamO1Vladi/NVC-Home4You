@@ -3,68 +3,78 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Data.Entities;
 
-// One sale of goods out of a container: this many units of that lot, at this price, with
-// the costs the sale itself incurred.
+// One sale to one customer: this many of a thing, at this price, with the costs the sale
+// itself incurred.
 //
-// The phase-2 half of ROADMAP #21, and the table stock-on-hand falls out of: what a lot
-// holds minus what its sales took is what is left in the yard. Quickbase ran exactly this
-// shape (its Sales table, bvuz3pj9w) and the owner confirmed the design twice — "that is
-// the idea, to be able to track what we have in stock as well".
+// WHAT THIS WAS, AND WHAT IT IS NOW. It began (2026-08-19) as the sell side of the
+// procurement ledger — every sale named the container line its goods came off, and cost of
+// goods came from that lot's landed cost. The team pulled the buy side the same day
+// (_archive/billing-2026-08-19/), and the owner's instruction was that this table stays,
+// "only to be used with the customer table nothing else for now". So the lot link, the
+// COGS and the margin left with it; what remains is revenue and the costs of selling.
 //
-// DELIBERATELY NOT A RIVAL TO Purchase. Purchase is the customer-facing sales record —
-// deposits, invoices, the negotiation. This is the PROCUREMENT ledger's view: which
-// container line the goods physically came from, and what the transaction really earned
-// once its own costs are counted. The two meet through CustomerId today and can grow a
-// direct link when the sales workflow starts creating both at once.
+// ⚠ IT NOW OVERLAPS `Purchase`, AND THAT IS AN OPEN DECISION, NOT A DESIGN.
+// `Purchase` is the older customer-facing record: one thing a customer bought, from one
+// factory, with deposit, final price and the two invoices. This is the same event counted
+// differently — a quantity, a unit price, and four columns of sale expenses. Two tables
+// answering "what did this customer buy?" is precisely the shape this codebase refuses
+// everywhere else (see Purchase's own note on why it is not a billing record, and the
+// 73 m² incident in the prices page). Before anything else is built on either — order
+// tracking above all, which needs ONE row to hang a status off — the two should become
+// one. The recommendation on the table: keep `Purchase`, move the columns this has that it
+// lacks (Quantity, UnitSalePrice, the four expense columns) onto it, and retire this.
 public class Sale
 {
     public int Id { get; set; }
 
-    // Quickbase Record ID# (3) — idempotent import, as on Shipment.
+    // Quickbase Record ID# (3) — from the 2026-08-19 import of the QB Sales table. Kept so
+    // the 30 imported rows stay identifiable, and so a re-import could still recognise
+    // them; nothing writes it now that the importer is archived.
     public long? QuickbaseRecordId { get; set; }
 
-    // The container line the goods came off. REQUIRED: a sale that names no lot cannot
-    // subtract from stock, which is the one job this table exists to do. Restrict on the
-    // FK — see AppDbContext; a lot with sales against it is history, not clutter.
-    public int PurchaseLotId { get; set; }
-    public PurchaseLot? PurchaseLot { get; set; }
-
-    // Who bought it, when known. Nullable for the imported history: Quickbase's customer
-    // rids point at a table ours was never imported from, so machine-matching would mint
-    // wrong foreign keys — the QB customer NAME rides in Notes instead, and staff link the
-    // right customer when it matters.
+    // Who bought it. THE link, now that the container line is gone.
+    //
+    // NULLABLE for one reason, and it is history rather than design: the 30 sales imported
+    // from Quickbase point at a customer table ours was never imported from, so they carry
+    // the QB customer NAME in Notes instead of a foreign key. Requiring the column would
+    // have meant either inventing links or dropping the revenue history. New sales are
+    // required to name a customer — see SaleAdminService.Validate — so the nullability is
+    // a fact about the past, not a licence for the future.
     public int? CustomerId { get; set; }
     public Customer? Customer { get; set; }
 
+    // What was sold, in words. Free text on purpose: the catalogue link lived on the
+    // archived ProductModel, and a sale of "two wagons joined" was never a catalogue row
+    // anyway — the same reasoning as Purchase.CustomModel.
+    [MaxLength(400)] public string? Description { get; set; }
+
     // A date at midnight UTC, same convention as Purchase.PurchasedAt: sales are dated in
-    // days, and the monthly revenue rollup must not depend on the reader's timezone.
+    // days, and a monthly total must not depend on the reader's timezone.
     public DateTimeOffset SoldAt { get; set; }
 
-    // Greater than zero, enforced in validation. Stock arithmetic with a zero-quantity
-    // sale is a row that quietly does nothing.
+    // Greater than zero, enforced in validation.
     public int Quantity { get; set; }
 
-    // EUR — the sell side is the reporting currency, so unlike the buy side there is no
-    // rate here and nothing to convert. Zero is legitimate (a warranty replacement leaves
-    // stock without earning), negative is not.
+    // EUR. Zero is legitimate (a warranty replacement earns nothing), negative is not.
     public decimal UnitSalePrice { get; set; }
 
     // --- What the sale itself cost, all EUR, all nullable -----------------------------
     //
-    // Null means "not recorded", not zero — the same distinction every money column in
-    // this schema keeps. These are the costs Quickbase itemised, kept as four columns
-    // rather than one blob because the dashboard's "where does sale money leak?" question
+    // Null means "not recorded", not zero — the same distinction every money column in this
+    // schema keeps. Four columns rather than one blob because "where does sale money leak?"
     // needs them apart.
     public decimal? PaymentFees { get; set; }
-    public decimal? TransportCost { get; set; }        // QB: Bulgarian Transport
-    public decimal? InstallationCost { get; set; }     // QB: Building / Installation
+    public decimal? TransportCost { get; set; }
+    public decimal? InstallationCost { get; set; }
     public decimal? OtherCosts { get; set; }
 
-    // NOTE: no SaleAmount, no COGS, no profit columns. Amount is qty × price; COGS is
-    // qty × the lot's landed unit cost, which LandedCost computes from the container it
-    // rode in; profit is the difference. Stored, each would be a second copy that drifts —
-    // the same rule as Purchase.LeftToPay and Shipment's missing GoodsCost, and the same
-    // reason Quickbase could keep its formula columns honest: they were never stored.
+    // NOTE: no SaleAmount and no profit columns. Amount is qty × price and expenses are
+    // their own sum; stored, each becomes a second copy that drifts — the same rule as
+    // Purchase.LeftToPay. Both are computed in the DTO.
+    //
+    // COGS and margin are simply GONE rather than computed: they came from the landed cost
+    // of the container line, and there is no container line any more. A margin figure
+    // without a cost basis would be a guess wearing a number's clothes.
 
     public string? Notes { get; set; }
 

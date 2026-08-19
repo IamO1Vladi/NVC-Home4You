@@ -5,7 +5,7 @@ handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DE
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **709 .NET, 252 frontend.**
+Tests: **650 .NET, 256 frontend.**
 
 ---
 
@@ -16,7 +16,7 @@ Tests: **709 .NET, 252 frontend.**
 | **Live** | `791896a` (tag `deploy-2026-08-19b`) — the whole buy side: procurement/cost-prices/expenses/targets screens, imported Quickbase data, inline lot editing. Verified from outside: public pages serve prerendered content, bundle + AdminProcurementPage chunk serve as `text/javascript`, all five new APIs 401 anonymous. |
 | **`production` branch** | `791896a` = live. |
 | **`master`** | `791896a` = `production`. Both pushed. |
-| **Migrations** | None pending. `AddBillingAndProcurement` applied to production 2026-08-19 (additive; live code does not read the new tables until the next publish). `AddAuditLog` and `AddFactorySheets` applied and live. |
+| **Migrations** | **Two pending, and they are not equal.** `RemoveSaleLotLink` is safe and required (sales cannot be written until it runs). `DropBillingTables` is DESTRUCTIVE — it removes the imported buy-side data — and is deliberately unapplied; `dotnet ef database update RemoveSaleLotLink` stops before it. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -37,28 +37,20 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): buy side LIVE; PHASE 2 (SALES + STOCK) BUILT AND
-   IMPORTED, awaiting publish.** 2026-08-19 evening: `Sale` table (mirrors QB bvuz3pj9w),
-   `AddSales` applied to production, 30 sales imported (idempotent re-run verified; every
-   row carries its QB customer name in Notes — no machine link, ours were never imported
-   from QB). Stock on hand = bought − sold now shows on models, container lines and the
-   sale form; oversells are refused with the number left; COGS/profit computed from the
-   exact lot, null when the container has no FX rate. Targets: counted metrics (units-sold)
-   now ask for a Брой, whole numbers only. Remaining, in order:
-   - **Publish** — /admin/sales ships with the next release (§6b prerender first).
-   - **Owner: markup ×2.7** into cycle "2024-2026" (still unset unless done already).
-   - **The dashboard** — revenue/COGS/margin/opex/stock vs Цели per month/cycle/year.
-     Every input it needs now exists and is tested.
-   - The 79 invoice files still in Quickbase (attachments on expenses, PurchaseFile
-     pattern) — before the token dies ~Feb 2027.
+3. **Billing & procurement (#21) was REVERSED on 2026-08-19** — the team judged the
+   migration too much change for now. The code is archived in `_archive/billing-2026-08-19/`
+   (not built, not bundled, not published; its README has the restore steps). What is live:
+   `Sale`, reduced to a customer-linked sale, and `/admin/sales`.
+   - **The production database still holds the six billing tables and the imported rows.**
+     `RemoveSaleLotLink` is the safe migration and MUST be applied for sales to work;
+     `DropBillingTables` is destructive and deliberately unapplied. To stop between them:
+     `dotnet ef database update RemoveSaleLotLink`.
+   - Quickbase remains the record — the app tables were a copy and the QB tables were
+     never written to. Restoring the import needs the token, which dies ~Feb 2027.
+   - **Before order tracking (#27), settle whether `Purchase` or `Sale` is THE record of
+     what a customer bought.** Both now claim it; order tracking needs one row to hang a
+     status off. See ROADMAP #27.
 
-   - **Apply the migration**: `dotnet ef database update` against the production database.
-     Additive and unread by live code, so it can go ahead of the panel — same shape as the
-     two migrations that were staged this way on the 18th.
-   - The **five open questions** are still open, but none of them block the build; they
-     shape the DASHBOARD, which is the next piece. Question 5 (freight by value or by
-     count) is already a parameter — `?allocation=count` on the shipments endpoint — so
-     the answer is a setting, not a rewrite.
 4. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag
@@ -152,31 +144,17 @@ lookup key (search matches name/phone/email/ЕИК; the list endpoint does not r
 `PersonalId` at all). The audit log never records an ЕГН value — redaction is enforced on
 the way IN (`AuditRedaction`), so nothing downstream can leak one.
 
-### The billing tables (new, 2026-08-19 — not yet in the panel)
+### The billing tables — archived, not deleted
 
-Six tables: `BuyCycle` → `Shipment` → `PurchaseLot` → `ProductModel`, plus `OperatingExpense`
-and `Target`. Four facts worth not rediscovering:
+The buy side (cycles, shipments, lots, cost models, expenses, targets, the dashboard and
+the Quickbase importer) was built and shipped on 2026-08-19 and pulled the same day; the
+team judged the migration too much change for now. Everything, including the business
+rules settled with the owner and the restore steps, is in
+**`_archive/billing-2026-08-19/README.md`** — outside both projects, so it is neither
+built, bundled nor published.
 
-**The buy side is USD; every report is EUR, and the rate lives on the individual shipment.**
-One global rate would re-value every historical container each time it moved. No euro amount
-is stored anywhere — `LandedCost.ToEur` converts at read time and returns null when a shipment
-has no rate, rather than inventing one.
-
-**`PurchaseLot.UnitCost` is a snapshot.** It is prefilled from `ProductModel.FactoryPrice` once
-and then belongs to the lot forever, so a factory price correction cannot reprice containers
-bought last year. Cost lives on `ProductModel`, retail stays on the gallery row, linked by
-`HouseId` — two free-standing price lists is the 73 m² incident.
-
-**Nothing stores a total.** No `LineTotal`, no `GoodsCost`, no EUR columns — the same rule as
-`Purchase.LeftToPay`, and `BillingArithmeticTests` pins it by reflection so a
-denormalise-for-speed change has to argue with a test.
-
-**The one hard constraint is the unique index on `Target`, and its `HasFilter(null)` is
-LOAD-BEARING.** EF's SQL Server provider automatically filters a unique index over nullable
-columns to `WHERE … IS NOT NULL`, and every target row is null in at least one of
-Year/Month/BuyCycleId — a monthly target has no cycle, a cycle target has no year. Without the
-explicit null filter the index is unique over the empty set: present in the schema, enforcing
-nothing, and discovered when the dashboard shows two revenue targets for one month.
+The one fact that outlives the archive: **the tables and their imported rows are still in
+the production database**, and Quickbase still holds the originals. See Do next #3.
 
 ### The audit log
 
