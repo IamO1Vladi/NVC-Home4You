@@ -38,10 +38,10 @@ commits, notes and conversations still resolve.
   The panel screens shipped the same day (procurement, cost prices, expenses, targets),
   and the owner answered all five open questions the same evening — answers recorded
   below, together with the Quickbase table ids and what the live schema revealed.
-  Every open question and schema decision is RESOLVED and **the importer is built and
-  dry-run clean** against live Quickbase (`dotnet run -- import-billing --dry-run`;
-  see HANDOFF.md for the go-live order). What is left: **apply the migration, run the
-  import for real, then the dashboard.** The QB token dies ~Feb 2027.
+  Every question is RESOLVED and **THE IMPORT HAS RUN against production** (2026-08-19:
+  one merged cycle, 8 shipments, 9 models, 15 lots, 79 expenses; idempotent re-run
+  verified). What is left: **publish the panel, then the dashboard** — and phase 2:
+  Sales/SaleAllocation (QB table bvuz3pj9w, 32 rows) and the 79 invoice files.
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
   later). An order gets a reference and a status timeline; the customer follows a link,
   staff move it along in the panel. Settle first: who updates the status and as part of
