@@ -13,10 +13,10 @@ Tests: **639 .NET, 252 frontend.**
 
 | | |
 |---|---|
-| **Live** | `deploy-2026-08-18` = `7fa1b17` — www redirect, services page retired, gallery slugs corrected, the five lead-panel features |
-| **`production` branch** | `de8e3b6` (audit log) — **ONE RELEASE AHEAD OF LIVE**: a publish was staged on 18 Aug and the owner delayed it. Until the next publish, `git log` cannot answer "what is live"; the `deploy-2026-08-18` tag can. |
-| **`master`** | audit log + factory sheets in the panel + fire-and-forget public forms + this docs consolidation — all undeployed |
-| **Migrations** | `AddAuditLog` and `AddFactorySheets` are **already applied** to the production database. Safe: both purely additive, and nothing in the live code reads the new tables until the next publish. |
+| **Live** | `2eedb55` — audit log, factory sheets in the panel, fire-and-forget public forms, consolidated docs. Published 2026-08-19; verified from outside (34 assets across 4 prerendered pages resolve, bundle serves as `text/javascript`, new endpoints 401 anonymous). |
+| **`production` branch** | `2eedb55` = live. |
+| **`master`** | the publish guard (2026-08-19) — undeployed, and deployable whenever; it changes only the build. |
+| **Migrations** | None pending. `AddAuditLog` and `AddFactorySheets` are applied and live. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -54,10 +54,27 @@ was empty either way). Checking the live site settles such questions in a minute
 **The prerender runs locally against a local app; the output ships inside the publish**
 (`StagePrerenderedForPublish`). Nothing runs on the server.
 
+**A guard now refuses a publish whose snapshots are stale** (added 2026-08-19, after the
+outage below). `VerifyPrerenderedFreshness` in the csproj runs
+`scripts/check-prerender-freshness.mjs`: every `/assets/` file the snapshots reference must
+exist in the freshly built `wwwroot`, or the publish STOPS with the fix printed. It is an
+error rather than a warning because this failure ships a broken site, where the older
+"no prerendered pages found" warning ships a working client-rendered one.
+
+**IT HAS ALREADY PAID FOR ITSELF ONCE — 2026-08-18, the outage it exists to prevent.** A
+publish shipped the previous day's snapshots alongside a freshly built SPA. The publish
+rebuilds the bundle; Vite hashes it by content; the hash moved. Every public page's
+`<script src>` pointed at a file that no longer existed, the server answered with the HTML
+fallback, the browser refused it (*"Loading module … was blocked because of a disallowed
+MIME type"*), and React never booted. The site rendered as dead HTML: no cookie banner, no
+modals, no theme switch, no language switch. **The admin panel was fine, because it is not
+prerendered — which is the tell.** Nothing failed: build succeeded, publish succeeded. Fixed
+by re-running the prerender and publishing again.
+
 **`api-dotnet/prerendered/` is gitignored — the 52 snapshots live on ONE machine.** A
 publish from a fresh clone ships zero snapshots and quietly undoes the SEO work; the only
 signal is one MSBuild line. `Prerendered pages staged for publish: 52 files.` = good;
-`No prerendered pages found` = stop.
+`No prerendered pages found` = a warning, and a working but client-rendered site.
 
 **On Windows the DATA_SOURCE flags are `$env:` assignments** — the bash prefix form fails:
 

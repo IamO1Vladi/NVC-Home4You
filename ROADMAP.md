@@ -220,6 +220,10 @@ Answered 2026-08-17: the formula (above) and the currency split (above).
 
 ## DONE — newest first
 
+- [x] **Publish guard against stale prerendered pages** (2026-08-19). The publish now fails
+  loudly if the snapshots reference a bundle the build did not produce. Written the morning
+  after that exact mismatch took the public site down for real — see HANDOFF.md.
+
 - [x] **Public forms close on Send** (2026-08-18). Offer, question and doors-review forms
   close immediately; the request runs in the background with 5 attempts and backoff; a
   top-right banner (mobile: full-width) reports sending/retrying/sent/failed with retry.

@@ -130,4 +130,27 @@
     <Message Importance="high" Condition="'@(_PrerenderedOutput)' != ''" Text="Prerendered pages staged for publish: @(_PrerenderedOutput-&gt;Count()) files." />
     <Warning Condition="'@(_PrerenderedOutput)' == ''" Text="No prerendered pages found - the site will ship client-rendered only. Run 'npm run prerender' with the app running to include them." />
   </Target>
+
+  <!-- Refuses a publish whose snapshots point at a bundle this build did not produce.
+
+       On 2026-08-18 a publish shipped the previous day's snapshots alongside a freshly
+       built SPA. The publish rebuilds the bundle and Vite hashes it by content, so the
+       hash moved and every public page's script tag pointed at a file that no longer
+       existed - React never booted and the whole site rendered as dead HTML. Nothing
+       failed: the build succeeded and the publish succeeded.
+
+       An ERROR, not a warning, and that is the point. The guard above IS a warning ("no
+       prerendered pages found") and that is the right severity for it, because shipping
+       without snapshots yields a working client-rendered site. This case yields a BROKEN
+       one, so it stops the publish.
+
+       Skipped when the SPA build was skipped (-p:SkipSpaBuild=true): wwwroot is then
+       whatever was already on disk, and comparing snapshots against it proves nothing. -->
+  <Target Name="VerifyPrerenderedFreshness"
+          AfterTargets="StagePrerenderedForPublish"
+          BeforeTargets="ComputeResolvedFilesToPublishList"
+          Condition="'@(_PrerenderedOutput)' != '' And '$(SkipSpaBuild)' != 'true'">
+    <Exec Command="node &quot;$(MSBuildProjectDirectory)\..\NVC Claude version\scripts\check-prerender-freshness.mjs&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
 </Project>
