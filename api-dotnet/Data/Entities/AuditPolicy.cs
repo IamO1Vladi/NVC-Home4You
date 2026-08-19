@@ -44,6 +44,13 @@ public static class AuditedEntities
 
         // Status, owner and the fields sales edits. NOT the conversation — see below.
         nameof(Lead),
+
+        // The buy side (ROADMAP #21). Every one of these is money or the coefficients that
+        // turn money into a price — BuyCycle.MarkupCoefficient reprices a whole cycle from
+        // one field, and Target is the number the results get compared against, so a target
+        // quietly edited downwards after the fact is precisely the change worth recording.
+        nameof(BuyCycle), nameof(Shipment), nameof(ProductModel), nameof(PurchaseLot),
+        nameof(OperatingExpense), nameof(Target),
     };
 
     /// <summary>

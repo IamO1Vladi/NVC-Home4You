@@ -28,6 +28,16 @@ public class AppDbContext : DbContext
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<FactorySheet> FactorySheets => Set<FactorySheet>();
 
+    // Billing and procurement (ROADMAP #21) — the buy side. No public read path, so no
+    // DATA_SOURCE_* flag and no fallback chain: these tables are the only copy from the
+    // day the importer runs.
+    public DbSet<BuyCycle> BuyCycles => Set<BuyCycle>();
+    public DbSet<Shipment> Shipments => Set<Shipment>();
+    public DbSet<ProductModel> ProductModels => Set<ProductModel>();
+    public DbSet<PurchaseLot> PurchaseLots => Set<PurchaseLot>();
+    public DbSet<OperatingExpense> OperatingExpenses => Set<OperatingExpense>();
+    public DbSet<Target> Targets => Set<Target>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<AuditEntry>(e =>
@@ -377,6 +387,148 @@ public class AppDbContext : DbContext
             e.HasIndex(r => r.QuickbaseRecordId)
              .IsUnique()
              .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+        });
+
+        // --- Billing and procurement (ROADMAP #21) ------------------------------------
+        //
+        // The shape: BuyCycle 1-* Shipment 1-* PurchaseLot *-1 ProductModel ?-1 House.
+        // Money is decimal(18,2) as everywhere; the FX rate is the one exception at (18,6),
+        // because a rate is quoted to more places than a price is.
+        //
+        // Nothing here stores a total. Every sum lives in LandedCost.
+
+        b.Entity<BuyCycle>(e =>
+        {
+            // The dropdown on a new shipment: open cycles, newest first. That pair is the
+            // query that runs every time somebody records a container.
+            e.HasIndex(c => new { c.IsClosed, c.StartDate });
+
+            // decimal(9,4): 2.7000 and 0.2000 today. Not (18,2) — a rate rounded to two
+            // places is a different rate, and these multiply every figure on the dashboard.
+            e.Property(c => c.MarkupCoefficient).HasPrecision(9, 4);
+            e.Property(c => c.BorderVatRate).HasPrecision(9, 4);
+        });
+
+        b.Entity<Shipment>(e =>
+        {
+            // "This cycle, its containers, in the order they landed" — the cycle page.
+            e.HasIndex(s => new { s.BuyCycleId, s.ArrivedAt });
+
+            // "What have we bought from this factory?", now answerable from the buy side
+            // as well as the sales side. Filtered, like Purchase.FactoryId, because plenty
+            // of shipments are recorded before the factory is known.
+            e.HasIndex(s => s.FactoryId).HasFilter("[FactoryId] IS NOT NULL");
+
+            e.Property(s => s.FreightCost).HasPrecision(18, 2);
+            e.Property(s => s.CustomsDuty).HasPrecision(18, 2);
+            e.Property(s => s.ImportVatPaid).HasPrecision(18, 2);
+            e.Property(s => s.OtherCosts).HasPrecision(18, 2);
+            e.Property(s => s.UsdToEurRate).HasPrecision(18, 6);
+
+            // Restrict, not Cascade. Deleting a buy cycle must never take a year of
+            // procurement history with it — a cycle that is over gets IsClosed, which is
+            // what that flag is for. Same call as Purchase.Factory.
+            e.HasOne(s => s.BuyCycle)
+             .WithMany(c => c.Shipments)
+             .HasForeignKey(s => s.BuyCycleId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            // Restrict for the reason the factory table exists: removing a supplier we no
+            // longer use must not delete the record of what they shipped us.
+            e.HasOne(s => s.Factory)
+             .WithMany()
+             .HasForeignKey(s => s.FactoryId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<ProductModel>(e =>
+        {
+            // The dropdown on a new lot: active models, alphabetical. Mirrors Factory.
+            e.HasIndex(m => new { m.IsActive, m.Name });
+
+            // "What does this catalogue house cost us?" — the join the margin report walks.
+            e.HasIndex(m => m.HouseId).HasFilter("[HouseId] IS NOT NULL");
+
+            e.Property(m => m.FactoryPrice).HasPrecision(18, 2);
+
+            // Restrict, same as Purchase.House and Lead.House: retiring a house from the
+            // gallery must not delete what we paid for the ones already in the yard.
+            e.HasOne(m => m.House)
+             .WithMany()
+             .HasForeignKey(m => m.HouseId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<PurchaseLot>(e =>
+        {
+            // Every read is "this shipment, its lines".
+            e.HasIndex(l => l.ShipmentId);
+
+            // "Every container this model has ever come in", which is how a factory price
+            // gets sanity-checked against what we actually paid.
+            e.HasIndex(l => l.ProductModelId);
+
+            e.Property(l => l.UnitCost).HasPrecision(18, 2);
+
+            // Cascade, and this is the one Cascade in these tables. A lot has no meaning
+            // apart from the container it rode in, and deleting a shipment is already the
+            // deliberate, confirmed act — the same reasoning as Purchase -> Customer.
+            e.HasOne(l => l.Shipment)
+             .WithMany(s => s.Lots)
+             .HasForeignKey(l => l.ShipmentId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict: retiring a model must not rewrite what past containers held. The
+            // model is deactivated instead, and the admin service says so with a count.
+            e.HasOne(l => l.ProductModel)
+             .WithMany(m => m.Lots)
+             .HasForeignKey(l => l.ProductModelId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<OperatingExpense>(e =>
+        {
+            // The monthly rollup, and the list screen, both read by date.
+            e.HasIndex(x => x.SpentAt);
+
+            // "Marketing, this quarter" — the breakdown the dashboard renders.
+            e.HasIndex(x => new { x.CategoryKey, x.SpentAt });
+
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.Property(x => x.VatAmount).HasPrecision(18, 2);
+        });
+
+        b.Entity<Target>(e =>
+        {
+            e.Property(t => t.TargetValue).HasPrecision(18, 2);
+
+            // THE ONE HARD UNIQUENESS CONSTRAINT IN THESE TABLES, and unlike Factory.Name or
+            // Customer.Eik it is enforced rather than warned about. Two revenue targets for
+            // the same month leaves the dashboard choosing one, and there is no correct way
+            // to choose — so the second one is refused and the first is edited in place.
+            //
+            // SQL Server treats NULLs as equal inside a unique index, which is exactly what
+            // is wanted here: a yearly target has a null Month and a null BuyCycleId, and
+            // two of those for the same metric and year SHOULD collide.
+            //
+            // HENCE HasFilter(null), WHICH IS LOAD-BEARING — do not remove it as redundant.
+            // EF's SQL Server provider adds "WHERE [Year] IS NOT NULL AND [Month] IS NOT
+            // NULL AND [BuyCycleId] IS NOT NULL" to any unique index over nullable columns,
+            // and EVERY row here is null in at least one of the three — a monthly target has
+            // no cycle, a cycle target has no year. The filtered index would therefore be
+            // unique over the empty set: present in the schema, enforcing nothing, and
+            // discovered only when the dashboard shows two different revenue targets for
+            // one month.
+            e.HasIndex(t => new { t.PeriodType, t.MetricKey, t.Year, t.Month, t.BuyCycleId })
+             .IsUnique()
+             .HasFilter(null);
+
+            // Restrict, consistently with Shipment: a cycle with targets against it is
+            // closed, not deleted.
+            e.HasOne(t => t.BuyCycle)
+             .WithMany()
+             .HasForeignKey(t => t.BuyCycleId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

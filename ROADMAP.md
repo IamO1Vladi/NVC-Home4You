@@ -28,9 +28,16 @@ commits, notes and conversations still resolve.
 - [ ] **5. Financing / total-cost calculator.** Monthly payment estimate; clear "included
   vs quote-on-review" breakdown. Cheaper now: the prices page already computes finished
   totals per model.
-- [ ] **21. Billing & procurement on Azure SQL** — the buy side of the business. DESIGNED;
-  the full data model is the next section of this file. Blocked only on the owner's five
-  open questions at the end of it. The audit log (#14, done) was its prerequisite.
+- [ ] **21. Billing & procurement on Azure SQL** — the buy side of the business. **THE DATA
+  LAYER AND API ARE BUILT** (2026-08-19, not yet deployed and not yet in the panel); the full
+  design is the next section of this file and is now a description of code rather than a
+  proposal. What exists: the six entities, one additive migration (`AddBillingAndProcurement`,
+  **pending — see HANDOFF.md**), the static key lists served by the API, the admin services
+  with the landed-cost arithmetic in one place (`LandedCost`), AdminOnly endpoints under
+  `/api/admin/{buy-cycles,shipments,product-models,operating-expenses,targets}`, and 70 tests.
+  What is left: **the panel screens**, then the importer, then the dashboard. The owner's five
+  questions turned out NOT to block the build — they shape the dashboard, and question 5
+  (freight by value or by count) already ships as a parameter rather than a decision.
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
   later). An order gets a reference and a status timeline; the customer follows a link,
   staff move it along in the panel. Settle first: who updates the status and as part of
@@ -219,6 +226,12 @@ Answered 2026-08-17: the formula (above) and the currency split (above).
 ---
 
 ## DONE — newest first
+
+- [x] **21a. Billing & procurement: data layer and API** (2026-08-19). Six tables, one
+  additive migration, the landed-cost formula in one testable place, AdminOnly endpoints and
+  70 tests. Deliberately backend-only: the panel screens are the next step, and the leads
+  lesson says the panel must cover what staff actually do before anyone is asked to move off
+  Quickbase. Not deployed; the migration is not applied.
 
 - [x] **Publish guard against stale prerendered pages** (2026-08-19). The publish now fails
   loudly if the snapshots reference a bundle the build did not produce. Written the morning

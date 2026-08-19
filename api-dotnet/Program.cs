@@ -105,6 +105,16 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.CustomerAdminService>();
     builder.Services.AddScoped<Services.FactoryAdminService>();
     builder.Services.AddScoped<Services.FactorySheetAdminService>();
+
+    // Billing and procurement (ROADMAP #21). Registered inside the same SQL-only block as
+    // everything above: with no connection string there is no AppDbContext to inject, and
+    // these services have no Quickbase counterpart to fall back to — the buy side was never
+    // in Quickbase in a form the site read.
+    builder.Services.AddScoped<Services.BuyCycleAdminService>();
+    builder.Services.AddScoped<Services.ShipmentAdminService>();
+    builder.Services.AddScoped<Services.ProductModelAdminService>();
+    builder.Services.AddScoped<Services.OperatingExpenseAdminService>();
+    builder.Services.AddScoped<Services.TargetAdminService>();
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
     builder.Services.AddScoped<Services.SavedConfigImportService>();
 

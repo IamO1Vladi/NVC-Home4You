@@ -1,11 +1,11 @@
-# Where things stand — 2026-08-18
+# Where things stand — 2026-08-19
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **639 .NET, 252 frontend.**
+Tests: **709 .NET, 252 frontend.**
 
 ---
 
@@ -14,9 +14,9 @@ Tests: **639 .NET, 252 frontend.**
 | | |
 |---|---|
 | **Live** | `2eedb55` — audit log, factory sheets in the panel, fire-and-forget public forms, consolidated docs. Published 2026-08-19; verified from outside (34 assets across 4 prerendered pages resolve, bundle serves as `text/javascript`, new endpoints 401 anonymous). |
-| **`production` branch** | `2eedb55` = live. |
-| **`master`** | the publish guard (2026-08-19) — undeployed, and deployable whenever; it changes only the build. |
-| **Migrations** | None pending. `AddAuditLog` and `AddFactorySheets` are applied and live. |
+| **`production` branch** | `6645457` — the publish guard, fast-forwarded 2026-08-19. **One commit ahead of live**, and deployable whenever; it changes only the build, so live behaviour is identical and the next publish carries it. |
+| **`master`** | `6645457` = `production`. `production..master` is empty, so only the deploy tags answer "what is live". |
+| **Migrations** | **`AddBillingAndProcurement` is PENDING** — written 2026-08-19, applied nowhere yet. Six new tables, purely additive, nothing existing altered; no live code reads them. `AddAuditLog` and `AddFactorySheets` are applied and live. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -26,23 +26,28 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **Publish** (the delayed one). From the repo root:
-   - `git checkout production && git merge --ff-only master && git push`
-   - §6b prerender — **expect 52/52** — then VS Code → right-click `api-dotnet` →
-     Publish to Azure, and watch for `Prerendered pages staged for publish: 52 files.`
-   - Verify after: `/api/admin/audit` and `/api/admin/factory-sheets` answer 401 anonymous;
-     `/admin/audit` and `/admin/factory-sheets` resolve; submitting the offer form closes
-     the modal instantly and shows the top-right banner; `/internal/factory-sheet`
-     redirects. Tag `deploy-YYYY-MM-DD` (the 18th is taken — suffix it).
-   - Then sign in and look at **Одит** (edit something small first) and **Фабрични
-     поръчки** — and on whichever browser held the old factory sheet, accept the import
-     banner so the localStorage copy reaches SQL.
+1. **The delayed publish is DONE** — tagged `deploy-2026-08-19`. `production` has since been
+   fast-forwarded onto the publish guard (`6645457`), which is build-only and can ship with
+   whatever goes next; DEPLOY.md owns the steps. What may still be outstanding is the
+   post-publish walkthrough: sign in and look at **Одит** (edit something small first) and
+   **Фабрични поръчки** — and on whichever browser held the old factory sheet, accept the
+   import banner so the localStorage copy reaches SQL.
 2. **Search Console, the remainder**: request indexing for the 26 clean product URLs
-   (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. Two fixes
-   that are TITLE DATA, not code, in `/admin/gallery`: `Panaromic` → `Panoramic`, and the
-   Cyrillic `а` in "…and а double roof" on two English titles. The slug follows the title;
-   the old URL 301s itself.
-3. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
+   (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
+   fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
+   survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
+   Nothing is left here but the indexing requests themselves.
+3. **Billing & procurement (#21): the backend exists, the panel does not.** Entities,
+   migration, key lists, services, AdminOnly endpoints and 70 tests are in the working tree
+   — see ROADMAP.md for what is left. Two things before it can be used:
+   - **Apply the migration**: `dotnet ef database update` against the production database.
+     Additive and unread by live code, so it can go ahead of the panel — same shape as the
+     two migrations that were staged this way on the 18th.
+   - The **five open questions** are still open, but none of them block the build; they
+     shape the DASHBOARD, which is the next piece. Question 5 (freight by value or by
+     count) is already a parameter — `?allocation=count` on the shipments endpoint — so
+     the answer is a setting, not a rewrite.
+4. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag
    in App Service. Recipient defaults to vvladimirov@nvc-home4you.eu. See DEPLOY.md.
@@ -134,6 +139,32 @@ anonymous read path (files included); `no-store` on every response; an ЕГН is
 lookup key (search matches name/phone/email/ЕИК; the list endpoint does not return
 `PersonalId` at all). The audit log never records an ЕГН value — redaction is enforced on
 the way IN (`AuditRedaction`), so nothing downstream can leak one.
+
+### The billing tables (new, 2026-08-19 — not yet in the panel)
+
+Six tables: `BuyCycle` → `Shipment` → `PurchaseLot` → `ProductModel`, plus `OperatingExpense`
+and `Target`. Four facts worth not rediscovering:
+
+**The buy side is USD; every report is EUR, and the rate lives on the individual shipment.**
+One global rate would re-value every historical container each time it moved. No euro amount
+is stored anywhere — `LandedCost.ToEur` converts at read time and returns null when a shipment
+has no rate, rather than inventing one.
+
+**`PurchaseLot.UnitCost` is a snapshot.** It is prefilled from `ProductModel.FactoryPrice` once
+and then belongs to the lot forever, so a factory price correction cannot reprice containers
+bought last year. Cost lives on `ProductModel`, retail stays on the gallery row, linked by
+`HouseId` — two free-standing price lists is the 73 m² incident.
+
+**Nothing stores a total.** No `LineTotal`, no `GoodsCost`, no EUR columns — the same rule as
+`Purchase.LeftToPay`, and `BillingArithmeticTests` pins it by reflection so a
+denormalise-for-speed change has to argue with a test.
+
+**The one hard constraint is the unique index on `Target`, and its `HasFilter(null)` is
+LOAD-BEARING.** EF's SQL Server provider automatically filters a unique index over nullable
+columns to `WHERE … IS NOT NULL`, and every target row is null in at least one of
+Year/Month/BuyCycleId — a monthly target has no cycle, a cycle target has no year. Without the
+explicit null filter the index is unique over the empty set: present in the schema, enforcing
+nothing, and discovered when the dashboard shows two revenue targets for one month.
 
 ### The audit log
 
