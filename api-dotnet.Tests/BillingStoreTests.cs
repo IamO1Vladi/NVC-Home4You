@@ -337,7 +337,7 @@ public class BillingStoreTests
         foreach (var day in new[] { "2026-08-01", "2026-08-31", "2026-09-01" })
         {
             await svc.CreateAsync(
-                new OperatingExpenseInput { SpentAt = day, Amount = 100m, CategoryKey = ExpenseCategories.Rent },
+                new OperatingExpenseInput { SpentAt = day, Amount = 100m, CategoryKey = ExpenseCategories.Warehouse },
                 Actor, Ct);
         }
 
@@ -359,7 +359,7 @@ public class BillingStoreTests
         var svc = new OperatingExpenseAdminService(db);
 
         await svc.CreateAsync(
-            new OperatingExpenseInput { SpentAt = "2026-08-01", Amount = 500m, CategoryKey = ExpenseCategories.Rent },
+            new OperatingExpenseInput { SpentAt = "2026-08-01", Amount = 500m, CategoryKey = ExpenseCategories.Warehouse },
             Actor, Ct);
         await svc.CreateAsync(
             new OperatingExpenseInput { SpentAt = "2026-08-02", Amount = 120m },

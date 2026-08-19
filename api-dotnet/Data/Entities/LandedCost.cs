@@ -86,17 +86,17 @@ public static class LandedCost
     public enum Allocation
     {
         /// <summary>
-        /// By each lot's share of the goods value. The default, and the fairer one when a
-        /// container mixes a €12,000 house with €200 of fittings — freight is largely a
-        /// function of volume and weight, which track value far better than they track
-        /// piece count.
+        /// By each lot's share of the goods value. THE ANSWER — confirmed by the owner
+        /// 2026-08-19 (ROADMAP #21 question 5), and independently by the Quickbase system
+        /// itself: every Allocated-* formula on its Purchase Lots table multiplies by
+        /// "Share of Shipment Goods Value". It is also the fairer split when a container
+        /// mixes a €12,000 house with €200 of fittings.
         /// </summary>
         ByValue,
 
         /// <summary>
-        /// Evenly per unit. Simpler to explain, and right when a container holds many of one
-        /// thing. Offered because it is ROADMAP #21's open question 5 and the owner has not
-        /// answered it — so the answer is a parameter here rather than a rewrite later.
+        /// Evenly per unit. Kept as a what-if lens the panel can request, never a default —
+        /// the by-value decision above is settled.
         /// </summary>
         ByCount,
     }

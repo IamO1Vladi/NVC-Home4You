@@ -29,10 +29,9 @@ public class AdminShipmentsController : ControllerBase
     /// <summary>
     /// How freight and customs are spread over the units, from the query string.
     ///
-    /// A parameter rather than a constant because it is ROADMAP #21's open question 5 and the
-    /// owner has not answered it — by value or by count. Defaulting to by-value and accepting
-    /// the other means the answer, when it comes, is a line in the panel rather than a
-    /// rewrite of the report.
+    /// By value is the decision (owner, 2026-08-19 — and Quickbase's own allocation
+    /// formulas agree). The by-count reading stays available as a what-if lens, which is
+    /// all the parameter is for now.
     /// </summary>
     private static LandedCost.Allocation AllocationFrom(string? raw) =>
         string.Equals(raw, "count", System.StringComparison.OrdinalIgnoreCase)

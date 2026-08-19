@@ -37,9 +37,10 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): backend AND panel screens exist** — /admin/procurement,
-   /admin/product-models, /admin/expenses, /admin/targets, all in the nav and on the home
-   tiles. Left: the importer, then the dashboard. Two things before staff can use it:
+3. **Billing & procurement (#21): backend and panel screens exist; the five questions are
+   ANSWERED** (2026-08-19 — see ROADMAP.md, which also holds the Quickbase table ids and
+   the schema-alignment decisions the schema pull raised). Left: settle those decisions →
+   importer → dashboard. Before staff can use it:
    - **Apply the migration**: `dotnet ef database update` against the production database.
      Additive and unread by live code, so it can go ahead of the panel — same shape as the
      two migrations that were staged this way on the 18th.
