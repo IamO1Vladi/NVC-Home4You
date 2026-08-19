@@ -82,7 +82,7 @@ public class AdminBuyCyclesController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        var (outcome, shipments, targets) = await _svc.DeleteAsync(id, ct);
+        var (outcome, shipments, targets, expenses) = await _svc.DeleteAsync(id, ct);
 
         return outcome switch
         {
@@ -90,9 +90,10 @@ public class AdminBuyCyclesController : ControllerBase
             BuyCycleAdminService.DeleteOutcome.NotFound => NotFound(),
             _ => Conflict(new
             {
-                errors = new[] { "This cycle still has shipments or targets against it. Close it instead." },
+                errors = new[] { "This cycle still has shipments, targets or expenses against it. Close it instead." },
                 shipmentCount = shipments,
                 targetCount = targets,
+                expenseCount = expenses,
             }),
         };
     }

@@ -37,10 +37,11 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): backend and panel screens exist; the five questions are
-   ANSWERED** (2026-08-19 — see ROADMAP.md, which also holds the Quickbase table ids and
-   the schema-alignment decisions the schema pull raised). Left: settle those decisions →
-   importer → dashboard. Before staff can use it:
+3. **Billing & procurement (#21): backend and panel screens exist; every question and
+   schema decision is RESOLVED** (2026-08-19 — ROADMAP.md holds the answers, the Quickbase
+   table ids, and the import rules, including: all six QB cycles merge into ONE). Left:
+   the importer (dry-run first, token dies ~Feb 2027) → the dashboard. Before staff can
+   use it:
    - **Apply the migration**: `dotnet ef database update` against the production database.
      Additive and unread by live code, so it can go ahead of the panel — same shape as the
      two migrations that were staged this way on the 18th.

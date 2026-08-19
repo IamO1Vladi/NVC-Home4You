@@ -494,8 +494,19 @@ public class AppDbContext : DbContext
             // "Marketing, this quarter" — the breakdown the dashboard renders.
             e.HasIndex(x => new { x.CategoryKey, x.SpentAt });
 
+            // "What did this cycle cost us to run?" — filtered, because most expenses
+            // belong to no cycle and an unfiltered index would be mostly empty pages.
+            e.HasIndex(x => x.BuyCycleId).HasFilter("[BuyCycleId] IS NOT NULL");
+
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.VatAmount).HasPrecision(18, 2);
+
+            // Restrict, consistently with Shipment and Target: a cycle with a year of
+            // attributed spending behind it is closed, never deleted out from under it.
+            e.HasOne(x => x.BuyCycle)
+             .WithMany()
+             .HasForeignKey(x => x.BuyCycleId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Target>(e =>

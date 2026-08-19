@@ -87,6 +87,44 @@ public class BillingArithmeticTests
         Assert.Equal(33_750m, LandedCost.SuggestedPrice(12_500m, cycle));
     }
 
+    // --- The VAT reclaim (owner, 2026-08-19) ---------------------------------------------
+
+    [Fact]
+    public void The_reclaim_excludes_customs_and_the_two_slices_sum_to_the_vat_charged()
+    {
+        // The owner's rule: VAT is PAID on the whole landed base, RECLAIMED "on the total
+        // price of the shipment without the customs". On the worked example — base $12,500
+        // of which $500 customs, rate 0.20 — that is $2,400 back and $100 gone for good.
+        var cycle = new BuyCycle { MarkupCoefficient = 2.7m, BorderVatRate = 0.20m };
+
+        Assert.Equal(2_400m, LandedCost.ReclaimableVat(12_500m, 500m, cycle));
+        Assert.Equal(100m, LandedCost.UnrecoverableVat(500m, cycle));
+
+        // Together they are exactly the VAT term the price formula charges — the split
+        // reallocates the payment between cost and timing, it never invents or loses money.
+        Assert.Equal(12_500m * 0.20m,
+            LandedCost.ReclaimableVat(12_500m, 500m, cycle) + LandedCost.UnrecoverableVat(500m, cycle));
+    }
+
+    [Fact]
+    public void True_cost_adds_only_the_vat_that_never_comes_back()
+    {
+        // NOT base + all VAT (Quickbase's reading, which overstates cost by the reclaimable
+        // slice on every container) and NOT base alone (which pretends the customs slice
+        // comes back — it does not).
+        var cycle = new BuyCycle { BorderVatRate = 0.20m };
+
+        Assert.Equal(12_600m, LandedCost.TrueCost(12_500m, 500m, cycle));
+    }
+
+    [Fact]
+    public void No_rate_means_no_vat_moved_in_either_direction()
+    {
+        Assert.Equal(0m, LandedCost.ReclaimableVat(12_500m, 500m, new BuyCycle()));
+        Assert.Equal(0m, LandedCost.UnrecoverableVat(500m, null));
+        Assert.Equal(12_500m, LandedCost.TrueCost(12_500m, 500m, null));
+    }
+
     // --- Currency -----------------------------------------------------------------------
 
     [Fact]

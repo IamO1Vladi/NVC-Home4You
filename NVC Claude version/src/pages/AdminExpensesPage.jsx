@@ -19,6 +19,7 @@ const TEXT = {
     subtitle: 'Оперативните разходи — заплати, наем, гориво, реклама.',
     quickAdd: 'Нов разход',
     spentAt: 'Дата', category: 'Категория', amount: 'Сума (EUR)', vat: 'ДДС (EUR)',
+    cycle: 'Цикъл', noCycle: '— без цикъл —',
     description: 'Описание',
     addBtn: 'Запиши',
     filters: 'Филтри',
@@ -53,6 +54,7 @@ const TEXT = {
     subtitle: 'Operating costs — salaries, rent, fuel, marketing.',
     quickAdd: 'New expense',
     spentAt: 'Date', category: 'Category', amount: 'Amount (EUR)', vat: 'VAT (EUR)',
+    cycle: 'Cycle', noCycle: '— no cycle —',
     description: 'Description',
     addBtn: 'Record',
     filters: 'Filters',
@@ -88,7 +90,7 @@ const fmt = (n) => (n === null || n === undefined ? '—'
 const today = () => new Date().toISOString().slice(0, 10)
 
 const emptyExpense = () => ({
-  spentAt: today(), categoryKey: '', amount: '', vatAmount: '', description: '',
+  spentAt: today(), categoryKey: '', buyCycleId: '', amount: '', vatAmount: '', description: '',
 })
 
 export default function AdminExpensesPage() {
@@ -98,6 +100,7 @@ export default function AdminExpensesPage() {
   const [state, setState] = React.useState('loading')
   const [rows, setRows] = React.useState([])
   const [categories, setCategories] = React.useState([])
+  const [cycles, setCycles] = React.useState([])
   const [rollup, setRollup] = React.useState(null)
   const [filters, setFilters] = React.useState({ from: '', to: '', category: '' })
   const [draft, setDraft] = React.useState(emptyExpense())
@@ -116,9 +119,12 @@ export default function AdminExpensesPage() {
   }, [])
 
   const fetchData = React.useCallback(async (f) => {
-    const [list, keys, sums] = await Promise.all([
+    const [list, keys, cycleRows, sums] = await Promise.all([
       adminGet(`/api/admin/operating-expenses${query(f)}`),
       adminGet('/api/admin/operating-expenses/categories').catch(() => []),
+      // Open cycles feed the optional attribution dropdown; failure degrades to fewer
+      // options, never a dead page.
+      adminGet('/api/admin/buy-cycles').catch(() => []),
       // The rollup ignores the category filter on purpose: it is the breakdown that
       // ANSWERS "which category is eating the month", so filtering it by category
       // would leave it agreeing with the list and saying nothing.
@@ -126,6 +132,7 @@ export default function AdminExpensesPage() {
     ])
     setRows(list ?? [])
     setCategories(keys ?? [])
+    setCycles(Array.isArray(cycleRows) ? cycleRows.filter((c) => !c.isClosed) : [])
     setRollup(sums)
   }, [query])
 
@@ -166,6 +173,7 @@ export default function AdminExpensesPage() {
       await adminSend('/api/admin/operating-expenses', 'POST', {
         ...draft,
         categoryKey: draft.categoryKey || null,
+        buyCycleId: draft.buyCycleId === '' ? null : Number(draft.buyCycleId),
         amount: Number(draft.amount),
         vatAmount: draft.vatAmount === '' ? null : Number(draft.vatAmount),
       })
@@ -190,6 +198,7 @@ export default function AdminExpensesPage() {
       await adminSend(`/api/admin/operating-expenses/${id}`, 'PUT', {
         ...fields,
         categoryKey: fields.categoryKey || null,
+        buyCycleId: fields.buyCycleId === '' ? null : Number(fields.buyCycleId),
         amount: Number(fields.amount),
         vatAmount: fields.vatAmount === '' ? null : Number(fields.vatAmount),
       })
@@ -249,6 +258,13 @@ export default function AdminExpensesPage() {
             <select value={draft.categoryKey} onChange={setDraftField('categoryKey')}>
               <option value="">{t.uncategorised}</option>
               {categories.map((key) => <option key={key} value={key}>{label(key)}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="adm-small">{t.cycle}</span>
+            <select value={draft.buyCycleId ?? ''} onChange={setDraftField('buyCycleId')}>
+              <option value="">{t.noCycle}</option>
+              {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </label>
           <label>
@@ -337,6 +353,7 @@ export default function AdminExpensesPage() {
                   <strong>{fmt(row.amount)}</strong>
                   <span className="adm-small adm-muted">
                     {row.spentAt} · {label(row.categoryKey)}
+                    {row.buyCycleLabel ? <> · {row.buyCycleLabel}</> : null}
                     {row.description ? <> · {row.description}</> : null}
                     {row.submittedByUpn ? <> · {t.submittedBy}: {row.submittedByUpn.split('@')[0]}</> : null}
                   </span>
@@ -348,6 +365,7 @@ export default function AdminExpensesPage() {
                     onClick={() => {
                       setEditing({
                         id: row.id, spentAt: row.spentAt, categoryKey: row.categoryKey ?? '',
+                        buyCycleId: row.buyCycleId ?? '',
                         amount: row.amount, vatAmount: row.vatAmount ?? '',
                         description: row.description ?? '', notes: row.notes ?? '',
                       })
@@ -398,6 +416,13 @@ export default function AdminExpensesPage() {
                 <select value={editing.categoryKey} onChange={setEditingField('categoryKey')}>
                   <option value="">{t.uncategorised}</option>
                   {categories.map((key) => <option key={key} value={key}>{label(key)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="adm-small">{t.cycle}</span>
+                <select value={editing.buyCycleId ?? ''} onChange={setEditingField('buyCycleId')}>
+                  <option value="">{t.noCycle}</option>
+                  {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
               </label>
               <label>

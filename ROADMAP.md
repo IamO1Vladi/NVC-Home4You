@@ -38,8 +38,9 @@ commits, notes and conversations still resolve.
   The panel screens shipped the same day (procurement, cost prices, expenses, targets),
   and the owner answered all five open questions the same evening — answers recorded
   below, together with the Quickbase table ids and what the live schema revealed.
-  What is left: **settle the schema-alignment decisions below → the importer → the
-  dashboard.** The import must run while the Quickbase token lives (~Feb 2027).
+  Every open question and schema decision is now RESOLVED (see below). What is left:
+  **the importer → the dashboard.** The import must run while the Quickbase token lives
+  (~Feb 2027), and merges all six QB cycles into one.
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
   later). An order gets a reference and a status timeline; the customer follows a link,
   staff move it along in the panel. Settle first: who updates the status and as part of
@@ -219,10 +220,9 @@ page (lots, costs, dates); Expenses (list + quick-add); Targets (one editor); Da
 1. **Border VAT is reclaimed as input VAT — but the reclaim base EXCLUDES customs.** In the
    owner's words: the VAT is reclaimed "on the total price of the shipment without the
    customs", and the reclaim then offsets the VAT owed on sales ("makes the sale VAT way
-   less"). So for the dashboard: `unrecoveredVat = customsAmount × vatRate` is a REAL COST
-   that belongs in true landed cost; the rest of the import VAT is cash-flow timing, not
-   cost. Do not encode this in LandedCost until the VAT-base question below is settled —
-   the two must land together.
+   less"). Now CODED in `LandedCost` — `ReclaimableVat`, `UnrecoverableVat`, `TrueCost` —
+   after the VAT-base question resolved the same day (this formula was right; Quickbase
+   was not).
 2. **Freight allocation: by value.** Confirmed twice over — the owner's answer, and
    Quickbase's own `Allocated *` formulas, which all multiply by "Share of Shipment Goods
    Value". `LandedCost.Allocation.ByCount` survives only as a what-if lens.
@@ -263,40 +263,37 @@ Clients-old `bvix5jgtz`, Calls `bvnjhx7jx`, Expenses-Old `bvpd9em7n`.
 Field schemas were pulled the same day (`GET /v1/fields?tableId=…`); re-fetch at import
 time rather than trusting a copy.
 
-### What the live schema revealed — settle BEFORE the importer
+### The schema-alignment decisions — RESOLVED (owner, 2026-08-19, same day)
 
-The design above was written from the owner's description; the schema pull shows the
-system itself does a few things differently. Each is a decision, not a bug:
+The live Quickbase schema disagreed with the design in six places; the owner ruled on every
+one, with one recurring theme — **"Quickbase was poorly built, so we made workarounds"** —
+which means QB is the authority on WHAT was recorded, never on HOW it should be modelled:
 
-1. **The VAT base.** Quickbase computes `VAT Amount = (goods + customs) × VAT%` — freight
-   is NOT in the VAT base. The worked example confirmed 2026-08-17 charged VAT on
-   goods + freight + customs (that is where $36,250 came from). One of these is how the
-   accountant actually files; `LandedCost.SuggestedPrice` currently implements the worked
-   example and must follow the answer.
-2. **Shipment cost shape.** Quickbase enters transport in EUR as TWO columns
-   (International / Bulgarian) plus Other (EUR), and customs is a PERCENT of goods value
-   (default on the cycle, override per shipment) — the EUR amount is derived. Our SQL
-   `Shipment` stores single USD amounts for freight/customs. Goods-in-USD with the FX rate
-   on the shipment matches exactly; the crossing costs do not. Proposal: EUR columns
-   `IntlTransportEur` / `BgTransportEur` / `OtherCostsEur`, plus `CustomsRate` and
-   `VatRate` overrides with cycle defaults, deriving the customs amount as QB does —
-   `ImportVatPaid` stays as the recorded actual. Needs the owner's nod because it is what
-   staff will type weekly.
-3. **Opex carries a Buy Cycle link and an invoice attachment in Quickbase.** Our table has
-   neither, deliberately (cycle = date-range query; attachments = phase 2 on the
-   PurchaseFile pattern). Decide whether the importer may drop the cycle link (dates can
-   reconstruct it) or whether the column gets added after all.
-4. **BuyCycle in Quickbase carries `Initial Investment (EUR)`** feeding Remaining Budget /
-   ROI formulas. Ours does not; a `Target` row (metric `opex-cap`-style, e.g. a new
-   `investment` metric) or a column could hold it. Decide which.
-5. **ProductModel in Quickbase carries `Default Sale Price (EUR)`.** Ours reads retail
-   through `HouseId` — right for catalogue houses, but QB's models are not gallery-linked
-   and containers/materials have no gallery row. Likely resolution: keep the gallery link
-   as the source of truth where it exists, add a nullable `DefaultSalePriceEur` for models
-   the gallery does not list. Decide.
-6. **The ×2.7 markup appears nowhere in Quickbase** — models carry list prices instead.
-   The cycle coefficients remain useful for SUGGESTED pricing, but the importer must not
-   expect to find them, and the dashboard must not pretend history was priced by formula.
+1. **The VAT base: the formula here is correct, Quickbase's is not.** VAT applies to the
+   whole landed base, freight included; QB charging it on goods + customs only was bad
+   build, not business rule. So `LandedCost.SuggestedPrice` stands, and the reclaim rule is
+   now CODED: `ReclaimableVat` (base minus customs, times rate — comes back by shrinking
+   sales VAT), `UnrecoverableVat` (the customs slice — a true cost), `TrueCost` (base +
+   unrecoverable only). A reconciliation against QB's historicals will show a per-container
+   gap of ~freight × rate on the VAT figure and the full reclaimable slice on landed cost —
+   both known, both accepted.
+2. **Shipment costs stay USD.** The business genuinely pays shipment costs in dollars;
+   QB's EUR-entry columns were the workaround, not the reality. Schema unchanged: USD
+   amounts as paid, EUR computed at the shipment's own rate for every dashboard figure.
+   The importer converts QB's EUR entries back using each shipment's own FX field.
+3. **Opex → cycle link: added.** `OperatingExpense.BuyCycleId` (nullable, Restrict), in the
+   regenerated migration, the service, and the panel (open cycles only in the dropdown).
+   The deciding fact: QB cycles have no end date, so the explicit link is the only
+   attribution that exists — 81 rows carry it and dates cannot reconstruct it. The QB
+   invoice-file attachment stays phase 2 on the PurchaseFile pattern.
+4. **No `InitialInvestment` on BuyCycle** — declined by the owner.
+5. **No `DefaultSalePriceEur` on ProductModel** — declined: every customer's house is
+   priced individually for its added features, so a per-model list price would be a number
+   nobody could stand behind. Retail stays gallery-linked where a gallery row exists.
+6. **Importer rule — ALL Quickbase cycles merge into ONE SQL cycle.** The six QB cycle
+   rows are an artefact of the poor build, not six real cycles. The import maps every
+   shipment (and cycle-linked expense) to a single cycle; its label is the owner's to
+   pick at import time.
 
 ## DONE — newest first
 

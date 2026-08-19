@@ -13,6 +13,7 @@ namespace Services;
 public sealed class OperatingExpenseInput
 {
     public string? SpentAt { get; set; }
+    public int? BuyCycleId { get; set; }
     public string? CategoryKey { get; set; }
     public decimal Amount { get; set; }
     public decimal? VatAmount { get; set; }
@@ -24,6 +25,8 @@ public sealed class OperatingExpenseInput
 public sealed record OperatingExpenseDto(
     int Id,
     string SpentAt,
+    int? BuyCycleId,
+    string? BuyCycleLabel,
     string? CategoryKey,
     decimal Amount,
     decimal? VatAmount,
@@ -73,6 +76,8 @@ public sealed class OperatingExpenseAdminService
             .Select(x => new OperatingExpenseDto(
                 x.Id,
                 x.SpentAt.ToString("yyyy-MM-dd"),
+                x.BuyCycleId,
+                x.BuyCycle == null ? null : x.BuyCycle.Label,
                 x.CategoryKey, x.Amount, x.VatAmount, x.Description,
                 x.SubmittedByUpn, x.Notes,
                 x.UpdatedAt == null ? null : x.UpdatedAt!.Value.ToString("o"),
@@ -87,6 +92,8 @@ public sealed class OperatingExpenseAdminService
             .Select(x => new OperatingExpenseDto(
                 x.Id,
                 x.SpentAt.ToString("yyyy-MM-dd"),
+                x.BuyCycleId,
+                x.BuyCycle == null ? null : x.BuyCycle.Label,
                 x.CategoryKey, x.Amount, x.VatAmount, x.Description,
                 x.SubmittedByUpn, x.Notes,
                 x.UpdatedAt == null ? null : x.UpdatedAt!.Value.ToString("o"),
@@ -224,6 +231,7 @@ public sealed class OperatingExpenseAdminService
         if (CustomerAdminService.TryParsePurchaseDate(input.SpentAt, out var spentAt) && spentAt is not null)
             expense.SpentAt = spentAt.Value;
 
+        expense.BuyCycleId = input.BuyCycleId;
         expense.CategoryKey = FactoryAdminService.Clean(input.CategoryKey);
         expense.Amount = input.Amount;
         expense.VatAmount = input.VatAmount;

@@ -128,23 +128,26 @@ public sealed class BuyCycleAdminService
     /// <summary>
     /// Removes a cycle nothing points at.
     ///
-    /// Refused with a count rather than cascaded, exactly as FactoryAdminService refuses a
+    /// Refused with counts rather than cascaded, exactly as FactoryAdminService refuses a
     /// supplier in use — and the stakes are higher here, because the rows that would go are
-    /// containers. A cycle that is over gets closed; that is what IsClosed is for.
+    /// containers and attributed spending. A cycle that is over gets closed; that is what
+    /// IsClosed is for.
     /// </summary>
-    public async Task<(DeleteOutcome Outcome, int ShipmentCount, int TargetCount)> DeleteAsync(
+    public async Task<(DeleteOutcome Outcome, int ShipmentCount, int TargetCount, int ExpenseCount)> DeleteAsync(
         int id, CancellationToken ct)
     {
         var cycle = await _db.BuyCycles.FirstOrDefaultAsync(c => c.Id == id, ct);
-        if (cycle is null) return (DeleteOutcome.NotFound, 0, 0);
+        if (cycle is null) return (DeleteOutcome.NotFound, 0, 0, 0);
 
         var shipments = await _db.Shipments.CountAsync(s => s.BuyCycleId == id, ct);
         var targets = await _db.Targets.CountAsync(t => t.BuyCycleId == id, ct);
-        if (shipments > 0 || targets > 0) return (DeleteOutcome.InUse, shipments, targets);
+        var expenses = await _db.OperatingExpenses.CountAsync(x => x.BuyCycleId == id, ct);
+        if (shipments > 0 || targets > 0 || expenses > 0)
+            return (DeleteOutcome.InUse, shipments, targets, expenses);
 
         _db.BuyCycles.Remove(cycle);
         await _db.SaveChangesAsync(ct);
-        return (DeleteOutcome.Deleted, 0, 0);
+        return (DeleteOutcome.Deleted, 0, 0, 0);
     }
 
     /// <summary>

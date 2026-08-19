@@ -901,6 +901,9 @@ namespace apidotnet.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("BuyCycleId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CategoryKey")
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
@@ -934,6 +937,9 @@ namespace apidotnet.Data.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BuyCycleId")
+                        .HasFilter("[BuyCycleId] IS NOT NULL");
 
                     b.HasIndex("SpentAt");
 
@@ -1529,6 +1535,16 @@ namespace apidotnet.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Activity");
+                });
+
+            modelBuilder.Entity("Data.Entities.OperatingExpense", b =>
+                {
+                    b.HasOne("Data.Entities.BuyCycle", "BuyCycle")
+                        .WithMany()
+                        .HasForeignKey("BuyCycleId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BuyCycle");
                 });
 
             modelBuilder.Entity("Data.Entities.ProductModel", b =>

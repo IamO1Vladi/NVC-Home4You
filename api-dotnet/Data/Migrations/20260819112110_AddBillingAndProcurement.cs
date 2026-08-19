@@ -34,28 +34,6 @@ namespace apidotnet.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OperatingExpenses",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SpentAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    CategoryKey = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: true),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    VatAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
-                    Description = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
-                    SubmittedByUpn = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: true),
-                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                    UpdatedByUpn = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_OperatingExpenses", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ProductModels",
                 columns: table => new
                 {
@@ -78,6 +56,35 @@ namespace apidotnet.Data.Migrations
                         name: "FK_ProductModels_Houses_HouseId",
                         column: x => x.HouseId,
                         principalTable: "Houses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OperatingExpenses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SpentAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    CategoryKey = table.Column<string>(type: "nvarchar(60)", maxLength: 60, nullable: true),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    VatAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    Description = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
+                    SubmittedByUpn = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: true),
+                    BuyCycleId = table.Column<int>(type: "int", nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    UpdatedByUpn = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OperatingExpenses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OperatingExpenses_BuyCycles_BuyCycleId",
+                        column: x => x.BuyCycleId,
+                        principalTable: "BuyCycles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -188,6 +195,12 @@ namespace apidotnet.Data.Migrations
                 name: "IX_BuyCycles_IsClosed_StartDate",
                 table: "BuyCycles",
                 columns: new[] { "IsClosed", "StartDate" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OperatingExpenses_BuyCycleId",
+                table: "OperatingExpenses",
+                column: "BuyCycleId",
+                filter: "[BuyCycleId] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OperatingExpenses_CategoryKey_SpentAt",

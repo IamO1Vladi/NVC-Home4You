@@ -77,7 +77,7 @@ public class BillingStoreTests
         db.Shipments.Add(new Shipment { BuyCycleId = cycleId, Reference = "MSKU-1" });
         await db.SaveChangesAsync();
 
-        var (outcome, shipments, _) = await new BuyCycleAdminService(db).DeleteAsync(cycleId, Ct);
+        var (outcome, shipments, _, _) = await new BuyCycleAdminService(db).DeleteAsync(cycleId, Ct);
 
         // Refused with a count rather than cascaded — the rows that would go are containers.
         Assert.Equal(BuyCycleAdminService.DeleteOutcome.InUse, outcome);
@@ -91,7 +91,7 @@ public class BillingStoreTests
         using var db = NewDb();
         var cycleId = await SeedCycleAsync(db);
 
-        var (outcome, _, _) = await new BuyCycleAdminService(db).DeleteAsync(cycleId, Ct);
+        var (outcome, _, _, _) = await new BuyCycleAdminService(db).DeleteAsync(cycleId, Ct);
 
         Assert.Equal(BuyCycleAdminService.DeleteOutcome.Deleted, outcome);
     }
@@ -389,6 +389,46 @@ public class BillingStoreTests
         // column the field-builder app will write must not be rewritten by an office edit.
         Assert.Equal("nlekov@nvc-home4you.eu", edited!.SubmittedByUpn);
         Assert.Equal(Actor, edited.UpdatedByUpn);
+    }
+
+    [Fact]
+    public async Task An_expense_can_carry_its_cycle_and_the_cycle_then_refuses_deletion()
+    {
+        using var db = NewDb();
+        var cycleId = await SeedCycleAsync(db);
+        var svc = new OperatingExpenseAdminService(db);
+
+        // Owner's decision, 2026-08-19 — and the Quickbase fact that forced it: its Buy
+        // Cycles have no end date, so the explicit link is the only attribution there is.
+        var created = await svc.CreateAsync(
+            new OperatingExpenseInput
+            {
+                SpentAt = "2026-08-05", Amount = 250m,
+                CategoryKey = ExpenseCategories.Crane, BuyCycleId = cycleId,
+            },
+            Actor, Ct);
+
+        Assert.Equal(cycleId, created.BuyCycleId);
+        Assert.Equal("2026 C1", created.BuyCycleLabel);
+
+        var (outcome, _, _, expenses) = await new BuyCycleAdminService(db).DeleteAsync(cycleId, Ct);
+
+        Assert.Equal(BuyCycleAdminService.DeleteOutcome.InUse, outcome);
+        Assert.Equal(1, expenses);
+    }
+
+    [Fact]
+    public async Task An_expense_with_no_cycle_is_normal_not_an_error()
+    {
+        // Rent belongs to no container cycle. Null must save cleanly and come back null.
+        using var db = NewDb();
+        var svc = new OperatingExpenseAdminService(db);
+
+        var created = await svc.CreateAsync(
+            new OperatingExpenseInput { SpentAt = "2026-08-05", Amount = 900m }, Actor, Ct);
+
+        Assert.Null(created.BuyCycleId);
+        Assert.Null(created.BuyCycleLabel);
     }
 
     [Fact]

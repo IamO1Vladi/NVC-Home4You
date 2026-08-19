@@ -52,6 +52,9 @@ beforeEach(() => {
     if (u.includes('/api/admin/me')) return json({ name: 'Vladi' })
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
+    if (u.includes('/api/admin/buy-cycles')) {
+      return json([{ id: 3, label: '2026 C1', isClosed: false }, { id: 2, label: '2025 C2', isClosed: true }])
+    }
     if (u.includes('/api/admin/operating-expenses/categories')) {
       return json(['site-hosting', 'travel', 'ads', 'draw-vladi', 'other'])
     }
@@ -103,6 +106,31 @@ describe('AdminExpensesPage', () => {
     await waitFor(() => expect(amount.value).toBe(''))
     expect(date.value).toBe('2026-08-14')
     expect(category.value).toBe('travel')
+  })
+
+  it('offers only OPEN cycles for attribution, and sends the chosen one', async () => {
+    const user = userEvent.setup()
+    render(<AdminExpensesPage />)
+    await waitFor(() => expect(screen.getByText('Нов разход')).toBeInTheDocument())
+
+    const quickAdd = within(screen.getByText('Нов разход').closest('section'))
+    const cycle = quickAdd.getByLabelText('Цикъл')
+
+    // The closed cycle is not on offer — attributing new spending to a finished cycle is
+    // the mistake the IsClosed flag exists to prevent.
+    expect(within(cycle).getByRole('option', { name: '2026 C1' })).toBeInTheDocument()
+    expect(within(cycle).queryByRole('option', { name: '2025 C2' })).not.toBeInTheDocument()
+
+    // The date keeps its default (today) — only the cycle and amount are the point here.
+    await user.selectOptions(cycle, '3')
+    await user.type(quickAdd.getByLabelText('Сума (EUR)'), '250')
+    await user.click(screen.getByRole('button', { name: 'Запиши' }))
+
+    await waitFor(() => {
+      const post = calls.find((c) => c.method === 'POST')
+      expect(post).toBeTruthy()
+      expect(JSON.parse(post.body)).toMatchObject({ buyCycleId: 3, amount: 250 })
+    })
   })
 
   it('will not record an expense of nothing', async () => {

@@ -44,11 +44,19 @@ public class OperatingExpense
     // shipped. It costs one column now to avoid that.
     [MaxLength(320)] public string? SubmittedByUpn { get; set; }
 
-    // DELIBERATELY NO BuyCycleId. Opex is monthly by nature — rent is not a property of a
-    // container-buying cycle — and "what did this cycle cost us to run?" is a date-range
-    // query against SpentAt using the cycle's own start and end. A foreign key here would
-    // force every expense to be attributed to a cycle at entry time, which is a decision the
-    // person typing it does not have and would get wrong.
+    // The cycle this expense belongs to, when the person entering it says so.
+    //
+    // The first draft deliberately omitted this ("opex is monthly; a cycle view is a
+    // date-range query") and the owner reversed it on 2026-08-19 — with the deciding fact
+    // coming from the Quickbase schema itself: its Buy Cycles table has NO end-date column,
+    // so the explicit link is the only way cycle attribution has ever existed, and 81
+    // historical rows carry it. Dropping it at import would destroy information nothing
+    // can reconstruct.
+    //
+    // NULLABLE, and null is normal: rent belongs to no container cycle, and forcing a
+    // choice at entry time is how wrong attributions happen.
+    public int? BuyCycleId { get; set; }
+    public BuyCycle? BuyCycle { get; set; }
 
     public string? Notes { get; set; }
 

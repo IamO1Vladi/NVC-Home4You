@@ -27,6 +27,12 @@ namespace Data.Entities;
 /// terms because they are two business facts, and a single coefficient could not be
 /// explained to an accountant or moved independently when one of them changes.
 ///
+/// RE-CONFIRMED 2026-08-19, against the one source that disagreed: the Quickbase system
+/// computes VAT on goods + customs only, leaving freight out of the base. The owner's
+/// verdict was that THIS formula is the correct one and "Quickbase was not built properly"
+/// — so if a reconciliation against QB's historical numbers ever shows a per-container gap
+/// of roughly freight × VAT rate, that is the known, accepted difference, not a bug here.
+///
 /// EVERYTHING HERE IS USD until ToEur is called. The buy side is transacted in dollars and
 /// stored as paid; conversion happens at the last possible moment, using the rate on the
 /// individual shipment, so a rate that moves never re-values a container that already landed.
@@ -66,6 +72,40 @@ public static class LandedCost
 
         return landedBase * markup + landedBase * vat;
     }
+
+    // --- The VAT reclaim (owner, 2026-08-19) -------------------------------------------
+    //
+    // Border VAT is paid on the WHOLE landed base (see SuggestedPrice) but reclaimed as
+    // input VAT on "the total price of the shipment without the customs" — the owner's
+    // words. The two rules together split the VAT into:
+    //
+    //   reclaimable   = (LandedBase − customs) × rate    → cash-flow timing, not a cost:
+    //                                                       it comes back by shrinking the
+    //                                                       VAT owed on sales
+    //   unrecoverable = customs × rate                   → a REAL cost, part of what the
+    //                                                       goods truly cost to land
+    //
+    // The dashboard must treat only the second as cost; folding the whole VAT payment into
+    // landed cost (as Quickbase does — its lots allocate the full VAT amount) overstates
+    // cost by the reclaimable slice on every container.
+
+    /// <summary>The border VAT that comes back later. Zero when the cycle has no rate.</summary>
+    public static decimal ReclaimableVat(decimal landedBase, decimal? customsDuty, BuyCycle? cycle)
+    {
+        var rate = cycle?.BorderVatRate ?? 0m;
+        return (landedBase - (customsDuty ?? 0m)) * rate;
+    }
+
+    /// <summary>The border VAT that never comes back — the customs slice. A true cost.</summary>
+    public static decimal UnrecoverableVat(decimal? customsDuty, BuyCycle? cycle) =>
+        (customsDuty ?? 0m) * (cycle?.BorderVatRate ?? 0m);
+
+    /// <summary>
+    /// What the container truly cost once the reclaim has done its work: the landed base
+    /// plus only the VAT that stays gone. The dashboard's cost basis.
+    /// </summary>
+    public static decimal TrueCost(decimal landedBase, decimal? customsDuty, BuyCycle? cycle) =>
+        landedBase + UnrecoverableVat(customsDuty, cycle);
 
     /// <summary>
     /// USD to EUR at the shipment's own captured rate, or null when no rate has been recorded.
