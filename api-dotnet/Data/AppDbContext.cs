@@ -28,10 +28,6 @@ public class AppDbContext : DbContext
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<FactorySheet> FactorySheets => Set<FactorySheet>();
 
-    // Sales to customers. The rest of the buy side (cycles, shipments, lots, models,
-    // expenses, targets) was archived 2026-08-19 — see _archive/billing-2026-08-19/.
-    public DbSet<Sale> Sales => Set<Sale>();
-
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<AuditEntry>(e =>
@@ -309,6 +305,24 @@ public class AppDbContext : DbContext
             e.Property(p => p.DepositPaid).HasPrecision(18, 2);
             e.Property(p => p.FinalPrice).HasPrecision(18, 2);
 
+            // Absorbed from the archived Sale table (2026-08-19).
+            e.Property(p => p.PaymentFees).HasPrecision(18, 2);
+            e.Property(p => p.TransportCost).HasPrecision(18, 2);
+            e.Property(p => p.InstallationCost).HasPrecision(18, 2);
+            e.Property(p => p.OtherCosts).HasPrecision(18, 2);
+
+            // Order tracking (#27). THE constraint on the public side: two orders sharing a
+            // reference means one customer opens another's tracking page. Unique rather
+            // than merely indexed, so a collision fails the insert instead of silently
+            // creating an ambiguity — the same guarantee, and the same reasoning, as
+            // SavedConfig.Code. Filtered because most purchases never mint one.
+            e.HasIndex(p => p.PublicReference)
+             .IsUnique()
+             .HasFilter("[PublicReference] IS NOT NULL");
+
+            // The orders board reads "everything not yet delivered, soonest first".
+            e.HasIndex(p => new { p.Status, p.ExpectedReadyAt });
+
             // Cascade: a purchase has no meaning without the customer who made it, and
             // deleting a customer is already the deliberate, confirmed act (see
             // CustomerAdminService, which refuses to do it silently).
@@ -383,32 +397,5 @@ public class AppDbContext : DbContext
              .HasFilter("[QuickbaseRecordId] IS NOT NULL");
         });
 
-        b.Entity<Sale>(e =>
-        {
-            // Every read is either "this customer, what they bought" or "sales, newest
-            // first". The lot index went with the buy side (archived 2026-08-19).
-            e.HasIndex(s => s.SoldAt);
-            e.HasIndex(s => new { s.CustomerId, s.SoldAt })
-             .HasFilter("[CustomerId] IS NOT NULL");
-
-            e.Property(s => s.UnitSalePrice).HasPrecision(18, 2);
-            e.Property(s => s.PaymentFees).HasPrecision(18, 2);
-            e.Property(s => s.TransportCost).HasPrecision(18, 2);
-            e.Property(s => s.InstallationCost).HasPrecision(18, 2);
-            e.Property(s => s.OtherCosts).HasPrecision(18, 2);
-
-            // Idempotent import, same convention as every migrated table.
-            e.HasIndex(s => s.QuickbaseRecordId)
-             .IsUnique()
-             .HasFilter("[QuickbaseRecordId] IS NOT NULL");
-
-            // Restrict, because a sale is money history: deleting a customer must not take
-            // the revenue record with them — the same call as Customer.Lead, where the
-            // sales record outranks the tidy-up.
-            e.HasOne(s => s.Customer)
-             .WithMany()
-             .HasForeignKey(s => s.CustomerId)
-             .OnDelete(DeleteBehavior.Restrict);
-        });
     }
 }

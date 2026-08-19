@@ -5,7 +5,7 @@ handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DE
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **650 .NET, 256 frontend.**
+Tests: **655 .NET, 258 frontend.**
 
 ---
 
@@ -16,7 +16,7 @@ Tests: **650 .NET, 256 frontend.**
 | **Live** | `791896a` (tag `deploy-2026-08-19b`) — the whole buy side: procurement/cost-prices/expenses/targets screens, imported Quickbase data, inline lot editing. Verified from outside: public pages serve prerendered content, bundle + AdminProcurementPage chunk serve as `text/javascript`, all five new APIs 401 anonymous. |
 | **`production` branch** | `791896a` = live. |
 | **`master`** | `791896a` = `production`. Both pushed. |
-| **Migrations** | **Two pending, and they are not equal.** `RemoveSaleLotLink` is safe and required (sales cannot be written until it runs). `DropBillingTables` is DESTRUCTIVE — it removes the imported buy-side data — and is deliberately unapplied; `dotnet ef database update RemoveSaleLotLink` stops before it. |
+| **Migrations** | None pending. `MergeSalesIntoPurchasesAndTrackOrders` applied to production 2026-08-20 (dropped `Sales`, added quantity + sale expenses + the order-tracking columns to `Purchases`). The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md` for the SQL if that is ever wanted. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -37,20 +37,17 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21) was REVERSED on 2026-08-19** — the team judged the
-   migration too much change for now. The code is archived in `_archive/billing-2026-08-19/`
-   (not built, not bundled, not published; its README has the restore steps). What is live:
-   `Sale`, reduced to a customer-linked sale, and `/admin/sales`.
-   - **The production database still holds the six billing tables and the imported rows.**
-     `RemoveSaleLotLink` is the safe migration and MUST be applied for sales to work;
-     `DropBillingTables` is destructive and deliberately unapplied. To stop between them:
-     `dotnet ef database update RemoveSaleLotLink`.
-   - Quickbase remains the record — the app tables were a copy and the QB tables were
-     never written to. Restoring the import needs the token, which dies ~Feb 2027.
-   - **Before order tracking (#27), settle whether `Purchase` or `Sale` is THE record of
-     what a customer bought.** Both now claim it; order tracking needs one row to hang a
-     status off. See ROADMAP #27.
-
+3. **Order tracking (#27) is BUILT and needs one decision before it is useful.** `Sale` was
+   merged into `Purchase` (2026-08-20) so there is one record of what a customer bought;
+   the admin **Поръчки** board is also the owner's report (customer, model, deposit, final
+   price, left to pay, factory), and `/order/{code}` is the customer's page.
+   - **Decide who moves a status, and when.** Everything else works; a public page nobody
+     updates is worse than no page. This is the whole remaining risk.
+   - Carrier notes are typed by hand. Automating them needs API credentials from the
+     shipping line — then one poller fills four columns and nothing else changes.
+   - Billing (#21) stays archived in `_archive/billing-2026-08-19/`; its six tables sit
+     orphaned in production and Quickbase remains their record. The importer only works
+     while the QB token lives (~Feb 2027).
 4. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag

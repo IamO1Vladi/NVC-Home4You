@@ -106,11 +106,11 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.FactoryAdminService>();
     builder.Services.AddScoped<Services.FactorySheetAdminService>();
 
+    // Order tracking (#27): the staff board, the report, and the public /order/{code} view.
+    builder.Services.AddScoped<Services.OrderTrackingService>();
+
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
     builder.Services.AddScoped<Services.SavedConfigImportService>();
-    // Sales to customers. The rest of the buy side was archived 2026-08-19 —
-    // see _archive/billing-2026-08-19/.
-    builder.Services.AddScoped<Services.SaleAdminService>();
 
     // Owns its own container client rather than sharing the images one — see LeadFileStore
     // for why that separation is the point rather than an accident.

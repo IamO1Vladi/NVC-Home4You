@@ -75,7 +75,7 @@ public class AdminEndpointAuthTests
         // the ones carrying revenue and ЕГН respectively.
         var routes = Controllers.Where(IsAdminRoute).Select(RouteOf).ToList();
 
-        Assert.Contains("api/admin/sales", routes);
+        Assert.Contains("api/admin/orders", routes);
         Assert.Contains("api/admin/customers", routes);
         Assert.Contains("api/admin/audit", routes);
     }

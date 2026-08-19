@@ -49,6 +49,14 @@ public class Purchase
     [MaxLength(400)] public string? CustomModel { get; set; }
 
     // --- Money ------------------------------------------------------------------------
+    // How many of it. Almost always 1 — a customer buys a house — so it DEFAULTS to 1 and
+    // the form leaves it alone; it exists because the archived Sale table tracked it and
+    // merging the two (owner, 2026-08-19) must not lose the count on the orders that had
+    // one. FinalPrice stays the TOTAL, so unit price is FinalPrice / Quantity, computed in
+    // the DTO and stored nowhere: two price columns is exactly the drift this schema
+    // refuses everywhere else.
+    public int Quantity { get; set; } = 1;
+
     // decimal(18,2), never double: this is money that appears on an invoice, and binary
     // floating point cannot represent 0.1. Precision is configured in AppDbContext.
     //
@@ -58,6 +66,16 @@ public class Purchase
     // with no agreed price would report the deposit as an overpayment.
     public decimal? DepositPaid { get; set; }
     public decimal? FinalPrice { get; set; }
+
+    // --- What the sale itself cost, all nullable ---------------------------------------
+    //
+    // Inherited from the archived Sale table, which itemised them because "where does sale
+    // money leak?" needs them apart rather than in one blob. Null means "not recorded", not
+    // zero — the distinction every money column here keeps.
+    public decimal? PaymentFees { get; set; }
+    public decimal? TransportCost { get; set; }
+    public decimal? InstallationCost { get; set; }
+    public decimal? OtherCosts { get; set; }
 
     // NOTE: there is no LeftToPay column, on purpose. It is FinalPrice - DepositPaid and
     // nothing else, so storing it creates a second copy of a fact that can disagree with
@@ -70,6 +88,49 @@ public class Purchase
     // Lead.NextContactAt — purchases are dated in days, and a time component would make
     // "which purchases were in July?" depend on the reader's timezone.
     public DateTimeOffset? PurchasedAt { get; set; }
+
+    // --- Order tracking (ROADMAP #27) --------------------------------------------------
+    //
+    // What the customer follows. The whole feature hangs off THIS row because a purchase is
+    // the only thing that knows both who is waiting and what they are waiting for — which
+    // is why Sale was merged into it first rather than built alongside.
+
+    /// <summary>
+    /// Where the order is — a key from OrderStatuses. Never null: an order that exists has
+    /// been placed, and a null status would render the public page as a blank timeline.
+    /// </summary>
+    [MaxLength(30)] public string Status { get; set; } = OrderStatuses.Placed;
+
+    /// <summary>
+    /// The unguessable code in the customer's tracking link, minted on demand rather than
+    /// at creation — most purchases are recorded long before anyone wants to share a link,
+    /// and a code that exists is a code that can leak.
+    ///
+    /// UNIQUE where present (see AppDbContext). It is the ONLY credential on the public
+    /// endpoint, which is why the page it opens shows a status and dates and never a price,
+    /// an address or an ЕГН.
+    /// </summary>
+    [MaxLength(32)] public string? PublicReference { get; set; }
+
+    // The two dates the owner named, and they are ESTIMATES — hence "expected". Both
+    // nullable and both shown to the customer as approximate; a date presented as certain
+    // and then missed costs more trust than no date at all.
+    public DateTimeOffset? ExpectedAtHarbor { get; set; }
+    public DateTimeOffset? ExpectedReadyAt { get; set; }
+
+    // --- The carrier, while it is on the water ------------------------------------------
+    //
+    // Filled in BY HAND today. The owner asked whether the shipping line (Maersk and the
+    // like) could feed this automatically: their APIs exist but need a commercial account
+    // and credentials this system does not have, so the columns are shaped for a feed to
+    // fill later — a carrier name, the number you would type into their tracker, and a
+    // free-text note — and staff type them meanwhile. CarrierCheckedAt is what makes the
+    // difference visible: it says WHEN the note was last true, so a three-week-old
+    // "leaving Singapore" reads as stale rather than as current.
+    [MaxLength(120)] public string? CarrierName { get; set; }
+    [MaxLength(120)] public string? TrackingReference { get; set; }
+    [MaxLength(400)] public string? CarrierNote { get; set; }
+    public DateTimeOffset? CarrierCheckedAt { get; set; }
 
     public string? Notes { get; set; }
 

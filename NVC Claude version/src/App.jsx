@@ -90,9 +90,14 @@ const ElPrivacyRoute = lazy(() => import('./routes/el/ElPrivacyRoute.jsx'))
 
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'))
 
+// The customer's order tracking page. Unlisted and noindex: the code in the URL is the
+// only credential, so it is not in the sitemap and not linked from anywhere on the site.
+const OrderTrackingPage = lazy(() => import('./pages/OrderTrackingPage.jsx'))
+
 // Staff admin panel. Entra ID protects the API it calls; this is only the UI, so a
 // signed-out visitor reaching it sees a sign-in prompt and no data.
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
+const AdminOrdersPage = lazy(() => import('./pages/AdminOrdersPage.jsx'))
 const AdminReviewsPage = lazy(() => import('./pages/AdminReviewsPage.jsx'))
 const AdminInquiriesPage = lazy(() => import('./pages/AdminInquiriesPage.jsx'))
 const AdminPipelinePage = lazy(() => import('./pages/AdminPipelinePage.jsx'))
@@ -102,7 +107,6 @@ const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
-const AdminSalesPage = lazy(() => import('./pages/AdminSalesPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -421,12 +425,14 @@ function AppShell() {
               {/* The old internal tool, retired 2026-08-18. The redirect keeps every
                   bookmark working, and the admin page offers to import the sheet still
                   sitting in this browser's localStorage (same origin, so it can). */}
+              <Route path="/order/:reference" element={<OrderTrackingPage />} />
               <Route path="/internal/factory-sheet" element={<Navigate to="/admin/factory-sheets" replace />} />
 
               {/* Staff admin panel (unlisted, noindex). The API enforces Entra sign-in.
                   /admin is the menu: it used to drop straight into the review queue, which
                   left the other sections reachable only by typing their URL. */}
               <Route path="/admin" element={<AdminHomePage />} />
+              <Route path="/admin/orders" element={<AdminOrdersPage />} />
               <Route path="/admin/inquiries" element={<AdminInquiriesPage />} />
               {/* /admin/leads used to BE this queue, so a bookmark pointing here means
                   "the enquiries", not the pipeline that now carries the name. Redirect
@@ -450,7 +456,6 @@ function AppShell() {
               <Route path="/admin/cases" element={<AdminCasesPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/factory-sheets" element={<AdminFactorySheetsPage />} />
-              <Route path="/admin/sales" element={<AdminSalesPage />} />
 
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}

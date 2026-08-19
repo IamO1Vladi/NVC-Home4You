@@ -33,16 +33,31 @@ margin arithmetic left with the rest of this folder.
 8 shipments, 9 product models, 15 purchase lots, 79 operating expenses. Nothing was dropped
 by the removal itself; the tables are simply unread now.
 
-A migration that DROPS them exists and was deliberately **left unapplied**
-(`api-dotnet/Data/Migrations/*_DropBillingTables.cs`). Applying it destroys that data. It
-is safe to apply *only* once someone is content that Quickbase remains the record — which
-it does: the app tables were a copy, and the six Quickbase tables
+**No migration drops them, on purpose.** EF's model simply no longer knows the tables
+exist, so `dotnet ef database update` does the right, non-destructive thing by default and
+nobody can nuke a year of procurement history by running the ordinary command. Dropping
+them is therefore a deliberate manual act — this SQL, run once someone is content that
+Quickbase is the record:
+
+```sql
+DROP TABLE PurchaseLots; DROP TABLE Targets; DROP TABLE OperatingExpenses;
+DROP TABLE Shipments; DROP TABLE ProductModels; DROP TABLE BuyCycles;
+```
+
+Quickbase does remain the record: the app tables were a copy and the six Quickbase tables
 (`bvuz3dthx`, `bvuz3mm8e`, `bvuz3nu2v`, `bvuz3n862`, `bvuz3pj9w`, `bvuz3p5hs`) were never
 written to by this system.
 
-The 30 imported sales stayed in the `Sales` table and lost their lot link. Each carries its
-Quickbase customer NAME in `Notes` — the import never linked them to `Customer` rows,
-because ours were never imported from Quickbase.
+**The 30 imported sales are GONE from SQL** (2026-08-20). `Sale` was merged into
+`Purchase` — the owner's call, because two tables both claiming to be "what a customer
+bought" would have made order tracking pick the wrong one. Those rows could not come
+across: `Purchase` requires a customer and the imported sales had none, only a Quickbase
+customer NAME in their notes. They are still in Quickbase (`bvuz3pj9w`, 30 rows) and can
+be re-entered against real customers by anyone who knows the deals.
+
+What `Purchase` gained from `Sale`: `Quantity` and the four sale-expense columns
+(payment fees, transport, installation, other). Unit price is `FinalPrice / Quantity`,
+computed — two stored price columns is the drift this schema refuses everywhere else.
 
 ## Restoring it
 
@@ -54,7 +69,9 @@ because ours were never imported from Quickbase.
 4. Re-register the services in `Program.cs`, and the `import-billing` CLI block.
 5. Re-add the routes in `App.jsx`, the nav sections in `AdminShell.jsx` and the tiles in
    `AdminHomePage.jsx`.
-6. Restore `Sale.PurchaseLotId` and the COGS half of `SaleAdminService`.
+6. Restore `Sale` (`Entities/Sale.cs` here) with its `PurchaseLotId`, and the COGS half of
+   `Services/SaleAdminService.cs` — but consider not to: `Purchase` now carries quantity and
+   the sale expenses, so the restoration only needs the lot link and the landed-cost read.
 7. Do **not** apply the drop migration; if it was applied, the tables come back with
    `dotnet ef database update` and the data comes back with `dotnet run -- import-billing`
    **while the Quickbase token lives (~Feb 2027)** — after that the import path is gone.

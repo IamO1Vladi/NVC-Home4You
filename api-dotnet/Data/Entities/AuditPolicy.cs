@@ -45,9 +45,6 @@ public static class AuditedEntities
         // Status, owner and the fields sales edits. NOT the conversation — see below.
         nameof(Lead),
 
-        // Revenue. The rest of the buy side that used to sit here was archived 2026-08-19
-        // (_archive/billing-2026-08-19/); Sale stayed, and it is money, so it stays audited.
-        nameof(Sale),
     };
 
     /// <summary>

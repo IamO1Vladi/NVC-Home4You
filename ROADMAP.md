@@ -44,27 +44,29 @@ commits, notes and conversations still resolve.
   unapplied. **The clock that matters:** the importer only works while the Quickbase token
   lives (~Feb 2027); after that, restoring means re-entering by hand.
 
-- [ ] **27. Order tracking** — **NEXT, and the owner's stated priority (2026-08-19).** An
-  order gets a reference and a status timeline; the customer follows a link, staff move it
-  along in the panel.
+- [~] **27. Order tracking** — **BUILT 2026-08-20.** `Purchase` is now the one record of
+  what a customer bought: `Sale` was merged into it (quantity + the four sale-expense
+  columns; unit price is FinalPrice/Quantity, computed) and retired, so order tracking has
+  exactly one row to hang a status off.
 
-  It no longer "hangs off #21" — that dependency died with the archive, which is mostly
-  good news: order tracking never needed landed costs, only *what the customer bought and
-  where it is*. But it now lands on the one open question the archive created:
+  What shipped: an eight-step status (`OrderStatuses` — placed → fabricating → scheduled →
+  travelling → at-harbor → ready → delivered, with cancelled deliberately OFF the
+  timeline), the two expected dates the owner named (at harbour, ready for delivery),
+  carrier fields, an admin **Поръчки** board that doubles as the report (customer, model,
+  deposit, final price, left to pay, factory), a per-order tracking link minted on demand,
+  and the public page at `/order/{code}` — noindex, no money, no identity, carrier block
+  shown only while the goods are actually moving.
 
-  **⚠ SETTLE FIRST — `Purchase` and `Sale` both claim to be "what a customer bought".**
-  `Purchase` is the older record (factory, model, deposit, final price, the two invoices,
-  files) and the Customers screen already runs on it. `Sale` is the survivor of the buy
-  side (quantity, unit price, four sale-expense columns) and now links to the same customer.
-  Order tracking needs exactly ONE row to hang a status off; building it against either
-  while both exist guarantees the wrong one gets picked. The recommendation on the table:
-  **keep `Purchase`, move `Sale`'s extra columns onto it, retire `Sale`** — its 30 imported
-  rows carry their Quickbase customer name in Notes and would need linking by hand either
-  way.
+  **Carrier feeds are MANUAL for now.** Maersk and the other lines do publish tracking
+  APIs, but they need a commercial account and credentials this system does not have. The
+  columns are shaped for a feed to fill later (`CarrierName`, `TrackingReference`,
+  `CarrierNote`, `CarrierCheckedAt`); staff type them meanwhile, and the note stamps its
+  own "as of" date so a stale one reads as stale. **To automate: get API credentials from
+  the carrier, then one poller fills those four columns — nothing else changes.**
 
-  The other thing to settle, unchanged from the original sketch and still the real risk:
-  **who updates the status, and as part of what routine.** A stale public status page is
-  worse than none.
+  Still to settle, and it is the operational risk the original sketch already named:
+  **who moves the status, and as part of what routine.** A stale public page is worse than
+  none.
 
 ### Content & trust (the compounding bets)
 

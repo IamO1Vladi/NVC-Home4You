@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace apidotnet.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260819194702_RemoveSaleLotLink")]
-    partial class RemoveSaleLotLink
+    [Migration("20260819210259_MergeSalesIntoPurchasesAndTrackOrders")]
+    partial class MergeSalesIntoPurchasesAndTrackOrders
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -850,6 +850,17 @@ namespace apidotnet.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTimeOffset?>("CarrierCheckedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CarrierName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("CarrierNote")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
                     b.Property<string>("CategoryKey")
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
@@ -873,6 +884,12 @@ namespace apidotnet.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTimeOffset?>("ExpectedAtHarbor")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ExpectedReadyAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<int?>("FactoryId")
                         .HasColumnType("int");
 
@@ -883,11 +900,43 @@ namespace apidotnet.Data.Migrations
                     b.Property<int?>("HouseId")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("InstallationCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal?>("OtherCosts")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PaymentFees")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PublicReference")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<DateTimeOffset?>("PurchasedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TrackingReference")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<decimal?>("TransportCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -899,7 +948,13 @@ namespace apidotnet.Data.Migrations
 
                     b.HasIndex("HouseId");
 
+                    b.HasIndex("PublicReference")
+                        .IsUnique()
+                        .HasFilter("[PublicReference] IS NOT NULL");
+
                     b.HasIndex("CustomerId", "PurchasedAt");
+
+                    b.HasIndex("Status", "ExpectedReadyAt");
 
                     b.ToTable("Purchases");
                 });
@@ -1074,77 +1129,6 @@ namespace apidotnet.Data.Migrations
                     b.ToTable("Reviews");
                 });
 
-            modelBuilder.Entity("Data.Entities.Sale", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int?>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
-
-                    b.Property<decimal?>("InstallationCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("OtherCosts")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("PaymentFees")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<long?>("QuickbaseRecordId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset>("SoldAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<decimal?>("TransportCost")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("UnitSalePrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("UpdatedByUpn")
-                        .HasMaxLength(320)
-                        .HasColumnType("nvarchar(320)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QuickbaseRecordId")
-                        .IsUnique()
-                        .HasFilter("[QuickbaseRecordId] IS NOT NULL");
-
-                    b.HasIndex("SoldAt");
-
-                    b.HasIndex("CustomerId", "SoldAt")
-                        .HasFilter("[CustomerId] IS NOT NULL");
-
-                    b.ToTable("Sales");
-                });
-
             modelBuilder.Entity("Data.Entities.SavedConfig", b =>
                 {
                     b.Property<int>("Id")
@@ -1308,16 +1292,6 @@ namespace apidotnet.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Purchase");
-                });
-
-            modelBuilder.Entity("Data.Entities.Sale", b =>
-                {
-                    b.HasOne("Data.Entities.Customer", "Customer")
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("Data.Entities.Case", b =>

@@ -30,7 +30,7 @@ const TEXT = {
     brand: 'Администрация',
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
-      factories: 'Фабрики', sales: 'Продажби',
+      factories: 'Фабрики', orders: 'Поръчки',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
       factorySheets: 'Фабрични поръчки', audit: 'Одит',
     },
@@ -51,7 +51,7 @@ const TEXT = {
     brand: 'Admin',
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
-      factories: 'Factories', sales: 'Sales',
+      factories: 'Factories', orders: 'Orders',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
       factorySheets: 'Factory orders', audit: 'Audit',
     },
@@ -156,25 +156,19 @@ const Icon = {
       <path d="M19.2 13.8V4.6h-2.8v7.6M3 20.4h18" />
     </>
   ),
+  // A parcel with a route arrow: the thing itself, and the fact that it is moving.
+  orders: (
+    <>
+      <path d="M12 3.4 20.2 7.6v8.8L12 20.6 3.8 16.4V7.6z" />
+      <path d="M3.8 7.6 12 11.8l8.2-4.2M12 11.8v8.8" />
+    </>
+  ),
   // A sheet of paper with a fold. It is a DOCUMENT we hand the factory, which is what
   // separates it from the factory directory sitting above it in the nav.
   factorySheets: (
     <>
       <path d="M14.2 3.4H6.8A1.8 1.8 0 0 0 5 5.2v13.6a1.8 1.8 0 0 0 1.8 1.8h10.4a1.8 1.8 0 0 0 1.8-1.8V8.2z" />
       <path d="M14.2 3.4v4.8H19M8.4 12.4h7.2M8.4 15.8h7.2" />
-    </>
-  ),
-  // A shipping container, ribs and all. The buy side thinks in containers, so the icon
-  // says the thing itself rather than an abstract "procurement".
-  // A price tag: this section is literally the tags on what we buy. Points the other way
-  // from nothing else in the strip, which keeps it recognisable at tab-bar size.
-  // A box with an arrow leaving it: goods going OUT of the containers. The one movement
-  // the buy-side icons next to it never show.
-  sales: (
-    <>
-      <path d="M3.2 8.6v9.2a1.8 1.8 0 0 0 1.8 1.8h9.2" />
-      <path d="M3.2 8.6 5.4 4.4h10.4l2.2 4.2M3.2 8.6h14.8v3.2M10.6 8.6V4.4" />
-      <path d="M14.6 16.4h6.6m0 0-2.6-2.6m2.6 2.6-2.6 2.6" />
     </>
   ),
   // A stack of coins: money leaving in small amounts, which is what opex is.
@@ -214,8 +208,9 @@ const SECTIONS = [
   // last of the two because it is a directory somebody sets up once and then mostly reads.
   { key: 'customers', to: '/admin/customers' },
   { key: 'factories', to: '/admin/factories' },
-  // Sales to customers, next to the customers they belong to.
-  { key: 'sales', to: '/admin/sales' },
+  // Orders, next to the customers they belong to: the same row answers "where is it?" and
+  // "what do they still owe?".
+  { key: 'orders', to: '/admin/orders' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },

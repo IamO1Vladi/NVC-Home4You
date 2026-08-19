@@ -1,0 +1,109 @@
+/* The customer's order tracking page (ROADMAP #27).
+   Its own stylesheet, imported by the page, so nothing here can reach the marketing pages
+   or the admin panel — this is the only public page in the app that renders per-customer
+   state, and keeping its styles as contained as its data is the same instinct. */
+
+.order-track {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 20px 72px;
+}
+
+.order-track-card {
+  background: var(--card, #fff);
+  border: 1px solid rgba(16, 22, 30, .1);
+  border-radius: 16px;
+  padding: 28px 24px;
+}
+
+.order-track h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.01em; }
+.order-track h2 { margin: 0 0 6px; font-size: 16px; }
+.order-track-muted { color: rgba(16, 22, 30, .62); font-size: 14.5px; }
+
+/* The timeline. A list, not a bar: the steps have names, and a customer reading on a phone
+   should get the names rather than a percentage they have to interpret. */
+.order-track-steps {
+  list-style: none;
+  margin: 26px 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.order-track-steps li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0 10px 2px;
+  color: rgba(16, 22, 30, .45);
+  font-size: 15px;
+}
+/* The connecting line is drawn between dots rather than under the text, so it stays put
+   when a translated label wraps to two lines. */
+.order-track-steps li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 28px;
+  bottom: -6px;
+  width: 2px;
+  background: rgba(16, 22, 30, .12);
+}
+.order-track-dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(16, 22, 30, .18);
+  background: #fff;
+}
+.order-track-steps li.is-done { color: rgba(16, 22, 30, .72); }
+.order-track-steps li.is-done .order-track-dot {
+  background: var(--brand-teal, #0f9aae);
+  border-color: var(--brand-teal, #0f9aae);
+}
+.order-track-steps li.is-current { color: rgba(16, 22, 30, .95); font-weight: 700; }
+.order-track-steps li.is-current .order-track-dot {
+  border-color: var(--brand-teal, #0f9aae);
+  box-shadow: 0 0 0 4px rgba(15, 154, 174, .18);
+}
+
+.order-track-dates { margin: 22px 0; display: grid; gap: 4px; }
+.order-track-dates dt { font-size: 13.5px; color: rgba(16, 22, 30, .62); }
+.order-track-dates dd { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+
+.order-track-carrier {
+  margin: 22px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(16, 22, 30, .04);
+}
+.order-track-carrier p { margin: 0 0 4px; font-size: 15px; }
+
+.order-track-cancelled {
+  margin: 22px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(190, 40, 40, .08);
+  color: #8c1d1d;
+  font-size: 15px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .order-track-card { background: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .12); }
+  .order-track-muted { color: rgba(255, 255, 255, .6); }
+  .order-track-steps li { color: rgba(255, 255, 255, .45); }
+  .order-track-steps li.is-done { color: rgba(255, 255, 255, .72); }
+  .order-track-steps li.is-current { color: #fff; }
+  .order-track-dot { background: #101620; border-color: rgba(255, 255, 255, .22); }
+  .order-track-steps li:not(:last-child)::before { background: rgba(255, 255, 255, .14); }
+  .order-track-dates dt { color: rgba(255, 255, 255, .6); }
+  .order-track-carrier { background: rgba(255, 255, 255, .06); }
+  .order-track-cancelled { background: rgba(255, 120, 120, .12); color: #ffb4b4; }
+}
+
+@media (max-width: 620px) {
+  .order-track { padding: 24px 14px 56px; }
+  .order-track-card { padding: 20px 16px; border-radius: 14px; }
+  .order-track h1 { font-size: 22px; }
+}

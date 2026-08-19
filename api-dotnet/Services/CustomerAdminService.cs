@@ -18,8 +18,25 @@ public sealed class PurchaseInput
     public string? CategoryKey { get; set; }
     public int? HouseId { get; set; }
     public string? CustomModel { get; set; }
+    public int? Quantity { get; set; }
     public decimal? DepositPaid { get; set; }
     public decimal? FinalPrice { get; set; }
+
+    // Absorbed from the archived Sale table.
+    public decimal? PaymentFees { get; set; }
+    public decimal? TransportCost { get; set; }
+    public decimal? InstallationCost { get; set; }
+    public decimal? OtherCosts { get; set; }
+
+    // Order tracking (#27). The public reference is NOT here: it is minted by its own
+    // endpoint, never set from a form, so a stray value in a purchase payload can never
+    // hand one order another's tracking link.
+    public string? Status { get; set; }
+    public string? ExpectedAtHarbor { get; set; }
+    public string? ExpectedReadyAt { get; set; }
+    public string? CarrierName { get; set; }
+    public string? TrackingReference { get; set; }
+    public string? CarrierNote { get; set; }
     public string? Currency { get; set; }
 
     // "YYYY-MM-DD" from <input type="date">. Parsed by TryParsePurchaseDate.
@@ -106,8 +123,28 @@ public sealed record PurchaseDto(
     int? HouseId,
     string? HouseTitle,
     string? CustomModel,
+    int Quantity,
     decimal? DepositPaid,
     decimal? FinalPrice,
+
+    // Total / quantity, computed. Two stored price columns is the drift this schema
+    // refuses everywhere else.
+    decimal? UnitPrice,
+    decimal? PaymentFees,
+    decimal? TransportCost,
+    decimal? InstallationCost,
+    decimal? OtherCosts,
+    decimal SaleExpenses,
+
+    // Order tracking (#27).
+    string Status,
+    string? PublicReference,
+    string? ExpectedAtHarbor,
+    string? ExpectedReadyAt,
+    string? CarrierName,
+    string? TrackingReference,
+    string? CarrierNote,
+    string? CarrierCheckedAt,
 
     // Derived, never stored — see the note on Purchase. Sent anyway so the list and the
     // detail view cannot disagree about the arithmetic.
@@ -491,6 +528,19 @@ public sealed class CustomerAdminService
     /// settled on a number" are different answers and only one of them is good news. A null
     /// deposit counts as zero here — nothing paid means all of it is outstanding.
     /// </summary>
+    /// <summary>
+    /// What one unit went for. Null when there is no agreed price — the same reasoning as
+    /// LeftToPay: "not settled yet" is not zero. Quantity is never 0 (see Apply), so the
+    /// division is safe, and the guard is belt and braces for rows written another way.
+    /// </summary>
+    public static decimal? UnitPrice(decimal? finalPrice, int quantity) =>
+        finalPrice is null || quantity <= 0 ? null : finalPrice.Value / quantity;
+
+    /// <summary>What the sale itself cost: the four columns inherited from Sale, summed.</summary>
+    public static decimal SaleExpenses(Purchase p) =>
+        (p.PaymentFees ?? 0m) + (p.TransportCost ?? 0m)
+        + (p.InstallationCost ?? 0m) + (p.OtherCosts ?? 0m);
+
     public static decimal? LeftToPay(decimal? finalPrice, decimal? depositPaid) =>
         finalPrice is null ? null : finalPrice.Value - (depositPaid ?? 0m);
 
@@ -532,8 +582,36 @@ public sealed class CustomerAdminService
             : null;
 
         purchase.CustomModel = AdminText.Clean(input.CustomModel);
+        // A quantity nobody typed is one — a customer buying a house is the overwhelming
+        // case, and a zero here would make the unit price a division by zero.
+        purchase.Quantity = input.Quantity is int q && q > 0 ? q : 1;
         purchase.DepositPaid = input.DepositPaid;
         purchase.FinalPrice = input.FinalPrice;
+        purchase.PaymentFees = input.PaymentFees;
+        purchase.TransportCost = input.TransportCost;
+        purchase.InstallationCost = input.InstallationCost;
+        purchase.OtherCosts = input.OtherCosts;
+
+        // Order tracking. An unknown status is IGNORED rather than stored: the public
+        // timeline draws from this key, and a typo would render as no step at all.
+        if (OrderStatuses.IsValid(input.Status)) purchase.Status = input.Status!;
+        purchase.CarrierName = AdminText.Clean(input.CarrierName);
+        purchase.TrackingReference = AdminText.Clean(input.TrackingReference);
+
+        // The note and its timestamp move together, always. A note without a date is the
+        // stale-information failure this feature exists to avoid; stamping it here means
+        // "as of" is never a thing someone has to remember to update.
+        var note = AdminText.Clean(input.CarrierNote);
+        if (note != purchase.CarrierNote)
+        {
+            purchase.CarrierNote = note;
+            purchase.CarrierCheckedAt = note is null ? null : DateTimeOffset.UtcNow;
+        }
+
+        if (TryParsePurchaseDate(input.ExpectedAtHarbor, out var atHarbor))
+            purchase.ExpectedAtHarbor = atHarbor;
+        if (TryParsePurchaseDate(input.ExpectedReadyAt, out var readyAt))
+            purchase.ExpectedReadyAt = readyAt;
         purchase.Currency = AdminText.Clean(input.Currency) ?? "EUR";
         purchase.Notes = AdminText.Clean(input.Notes);
 
@@ -637,8 +715,23 @@ public sealed class CustomerAdminService
         purchase.HouseId,
         purchase.House?.Title,
         purchase.CustomModel,
+        purchase.Quantity,
         purchase.DepositPaid,
         purchase.FinalPrice,
+        UnitPrice(purchase.FinalPrice, purchase.Quantity),
+        purchase.PaymentFees,
+        purchase.TransportCost,
+        purchase.InstallationCost,
+        purchase.OtherCosts,
+        SaleExpenses(purchase),
+        purchase.Status,
+        purchase.PublicReference,
+        purchase.ExpectedAtHarbor?.ToString("yyyy-MM-dd"),
+        purchase.ExpectedReadyAt?.ToString("yyyy-MM-dd"),
+        purchase.CarrierName,
+        purchase.TrackingReference,
+        purchase.CarrierNote,
+        purchase.CarrierCheckedAt?.ToString("o"),
         LeftToPay(purchase.FinalPrice, purchase.DepositPaid),
         purchase.Currency,
 

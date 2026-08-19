@@ -26,9 +26,9 @@ const TEXT = {
         name: 'Фабрики',
         blurb: 'Доставчиците, от които сме купували. Избират се при въвеждане на продажба.',
       },
-      sales: {
-        name: 'Продажби',
-        blurb: 'Какво е продадено от контейнерите — приход, себестойност, печалба.',
+      orders: {
+        name: 'Поръчки',
+        blurb: 'Докъде е всяка поръчка, какво остава да се плати, и линкът за клиента.',
       },
       leads: {
         name: 'Запитвания',
@@ -84,9 +84,9 @@ const TEXT = {
         name: 'Factories',
         blurb: 'The suppliers we have bought from. Picked when a sale is recorded.',
       },
-      sales: {
-        name: 'Sales',
-        blurb: 'What sold out of the containers — revenue, cost, profit.',
+      orders: {
+        name: 'Orders',
+        blurb: 'How far each order has got, what is still owed, and the customer link.',
       },
       leads: {
         name: 'Inquiries',
@@ -220,10 +220,10 @@ export default function AdminHomePage() {
           open={t.open}
         />
         <HomeTile
-          to="/admin/sales"
-          icon="sales"
-          name={t.cards.sales.name}
-          blurb={t.cards.sales.blurb}
+          to="/admin/orders"
+          icon="orders"
+          name={t.cards.orders.name}
+          blurb={t.cards.orders.blurb}
           open={t.open}
         />
         <HomeTile
@@ -293,7 +293,7 @@ const TILE_ICON = {
   ),
   // The tile icons must cover every tile below — a key missing HERE renders an empty
   // square, which is exactly the bug the sales tile shipped with (owner, 2026-08-19).
-  sales: (
+  orders: (
     <>
       <path d="M3.2 8.6v9.2a1.8 1.8 0 0 0 1.8 1.8h9.2" />
       <path d="M3.2 8.6 5.4 4.4h10.4l2.2 4.2M3.2 8.6h14.8v3.2M10.6 8.6V4.4" />
