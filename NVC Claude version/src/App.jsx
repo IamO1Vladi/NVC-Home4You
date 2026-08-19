@@ -102,6 +102,10 @@ const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
+const AdminProcurementPage = lazy(() => import('./pages/AdminProcurementPage.jsx'))
+const AdminProductModelsPage = lazy(() => import('./pages/AdminProductModelsPage.jsx'))
+const AdminExpensesPage = lazy(() => import('./pages/AdminExpensesPage.jsx'))
+const AdminTargetsPage = lazy(() => import('./pages/AdminTargetsPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -449,6 +453,12 @@ function AppShell() {
               <Route path="/admin/cases" element={<AdminCasesPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/factory-sheets" element={<AdminFactorySheetsPage />} />
+              {/* The buy side (ROADMAP #21): cycles/containers/lots, the cost-price
+                  catalogue, operating expenses and targets. */}
+              <Route path="/admin/procurement" element={<AdminProcurementPage />} />
+              <Route path="/admin/product-models" element={<AdminProductModelsPage />} />
+              <Route path="/admin/expenses" element={<AdminExpensesPage />} />
+              <Route path="/admin/targets" element={<AdminTargetsPage />} />
 
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}

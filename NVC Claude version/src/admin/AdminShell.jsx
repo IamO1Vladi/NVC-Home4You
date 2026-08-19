@@ -30,8 +30,9 @@ const TEXT = {
     brand: 'Администрация',
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
-      factories: 'Фабрики', reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
-      factorySheets: 'Фабрични поръчки', audit: 'Одит',
+      factories: 'Фабрики', procurement: 'Доставки', models: 'Доставни цени',
+      reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
+      factorySheets: 'Фабрични поръчки', expenses: 'Разходи', targets: 'Цели', audit: 'Одит',
     },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
@@ -50,8 +51,9 @@ const TEXT = {
     brand: 'Admin',
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
-      factories: 'Factories', reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
-      factorySheets: 'Factory orders', audit: 'Audit',
+      factories: 'Factories', procurement: 'Procurement', models: 'Cost prices',
+      reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
+      factorySheets: 'Factory orders', expenses: 'Expenses', targets: 'Targets', audit: 'Audit',
     },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
@@ -162,6 +164,38 @@ const Icon = {
       <path d="M14.2 3.4v4.8H19M8.4 12.4h7.2M8.4 15.8h7.2" />
     </>
   ),
+  // A shipping container, ribs and all. The buy side thinks in containers, so the icon
+  // says the thing itself rather than an abstract "procurement".
+  procurement: (
+    <>
+      <rect x="2.8" y="7" width="18.4" height="11" rx="1.6" />
+      <path d="M7.4 7v11M12 7v11M16.6 7v11" />
+    </>
+  ),
+  // A price tag: this section is literally the tags on what we buy. Points the other way
+  // from nothing else in the strip, which keeps it recognisable at tab-bar size.
+  models: (
+    <>
+      <path d="M20.6 11.6 12.2 3.2H4v8.2l8.4 8.4a1.8 1.8 0 0 0 2.5 0l5.7-5.7a1.8 1.8 0 0 0 0-2.5z" />
+      <circle cx="8.2" cy="7.4" r="1.5" />
+    </>
+  ),
+  // A stack of coins: money leaving in small amounts, which is what opex is.
+  expenses: (
+    <>
+      <ellipse cx="12" cy="6.4" rx="7" ry="2.6" />
+      <path d="M5 6.4v11c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-11" />
+      <path d="M5 12c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7" />
+    </>
+  ),
+  // A bullseye. The one section that is about where the numbers SHOULD land.
+  targets: (
+    <>
+      <circle cx="12" cy="12" r="8.4" />
+      <circle cx="12" cy="12" r="4.4" />
+      <circle cx="12" cy="12" r="0.9" />
+    </>
+  ),
   // A clock wound backwards. Not a list or a document: every other section here IS a list,
   // and what makes this one different is that it looks at the past.
   audit: (
@@ -195,6 +229,10 @@ const SECTIONS = [
   // last of the two because it is a directory somebody sets up once and then mostly reads.
   { key: 'customers', to: '/admin/customers' },
   { key: 'factories', to: '/admin/factories' },
+  // The buy side, straight after the supplier directory it points at: a container names a
+  // factory, and its lines name the models priced next door.
+  { key: 'procurement', to: '/admin/procurement' },
+  { key: 'models', to: '/admin/product-models' },
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
@@ -202,6 +240,10 @@ const SECTIONS = [
   // sections. Beside Factories would read nicely too, but the directory and the
   // documents are different kinds of thing.
   { key: 'factorySheets', to: '/admin/factory-sheets' },
+  // The money-tracking pair: what actually left, and what was supposed to. Both sit low in
+  // the strip because they are weekly screens, not daily ones.
+  { key: 'expenses', to: '/admin/expenses' },
+  { key: 'targets', to: '/admin/targets' },
   // Last, and deliberately so: it is the section nobody opens daily and everybody wants
   // immediately when a number looks wrong.
   { key: 'audit', to: '/admin/audit' },

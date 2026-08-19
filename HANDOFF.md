@@ -37,9 +37,9 @@ was empty either way). Checking the live site settles such questions in a minute
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Billing & procurement (#21): the backend exists, the panel does not.** Entities,
-   migration, key lists, services, AdminOnly endpoints and 70 tests are in the working tree
-   — see ROADMAP.md for what is left. Two things before it can be used:
+3. **Billing & procurement (#21): backend AND panel screens exist** — /admin/procurement,
+   /admin/product-models, /admin/expenses, /admin/targets, all in the nav and on the home
+   tiles. Left: the importer, then the dashboard. Two things before staff can use it:
    - **Apply the migration**: `dotnet ef database update` against the production database.
      Additive and unread by live code, so it can go ahead of the panel — same shape as the
      two migrations that were staged this way on the 18th.

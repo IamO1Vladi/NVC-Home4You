@@ -26,6 +26,22 @@ const TEXT = {
         name: 'Фабрики',
         blurb: 'Доставчиците, от които сме купували. Избират се при въвеждане на продажба.',
       },
+      procurement: {
+        name: 'Доставки',
+        blurb: 'Цикли и контейнери — какво е поръчано, какво пътува и какво струва реално.',
+      },
+      models: {
+        name: 'Доставни цени',
+        blurb: 'Моделите, които купуваме, и фабричната цена на всеки.',
+      },
+      expenses: {
+        name: 'Разходи',
+        blurb: 'Оперативните разходи — заплати, наем, гориво, реклама.',
+      },
+      targets: {
+        name: 'Цели',
+        blurb: 'Целите по месец, цикъл и година, спрямо които се мери резултатът.',
+      },
       leads: {
         name: 'Запитвания',
         blurb: 'Новите запитвания от сайта. Създайте лийд, за да започнете разговор.',
@@ -79,6 +95,22 @@ const TEXT = {
       factories: {
         name: 'Factories',
         blurb: 'The suppliers we have bought from. Picked when a sale is recorded.',
+      },
+      procurement: {
+        name: 'Procurement',
+        blurb: 'Cycles and containers — what was ordered, what is in transit, what it really cost.',
+      },
+      models: {
+        name: 'Cost prices',
+        blurb: 'The models we buy, and what the factory charges for each.',
+      },
+      expenses: {
+        name: 'Expenses',
+        blurb: 'Operating costs — salaries, rent, fuel, marketing.',
+      },
+      targets: {
+        name: 'Targets',
+        blurb: 'The monthly, cycle and yearly goals results are measured against.',
       },
       leads: {
         name: 'Inquiries',
@@ -212,6 +244,34 @@ export default function AdminHomePage() {
           open={t.open}
         />
         <HomeTile
+          to="/admin/procurement"
+          icon="procurement"
+          name={t.cards.procurement.name}
+          blurb={t.cards.procurement.blurb}
+          open={t.open}
+        />
+        <HomeTile
+          to="/admin/product-models"
+          icon="models"
+          name={t.cards.models.name}
+          blurb={t.cards.models.blurb}
+          open={t.open}
+        />
+        <HomeTile
+          to="/admin/expenses"
+          icon="expenses"
+          name={t.cards.expenses.name}
+          blurb={t.cards.expenses.blurb}
+          open={t.open}
+        />
+        <HomeTile
+          to="/admin/targets"
+          icon="targets"
+          name={t.cards.targets.name}
+          blurb={t.cards.targets.blurb}
+          open={t.open}
+        />
+        <HomeTile
           to="/admin/reviews"
           icon="reviews"
           name={t.cards.reviews.name}
@@ -274,6 +334,32 @@ const TILE_ICON = {
     <>
       <path d="M3.4 6.2a1.8 1.8 0 0 1 1.8-1.8h9.6a1.8 1.8 0 0 1 1.8 1.8v5a1.8 1.8 0 0 1-1.8 1.8H8.2l-3.4 2.8v-2.8a1.4 1.4 0 0 1-1.4-1.4z" />
       <path d="M19 9.4a1.6 1.6 0 0 1 1.6 1.6v4.4a1.6 1.6 0 0 1-1.6 1.6v2.4l-2.8-2.4h-3.6" />
+    </>
+  ),
+  procurement: (
+    <>
+      <rect x="2.8" y="7" width="18.4" height="11" rx="1.6" />
+      <path d="M7.4 7v11M12 7v11M16.6 7v11" />
+    </>
+  ),
+  models: (
+    <>
+      <path d="M20.6 11.6 12.2 3.2H4v8.2l8.4 8.4a1.8 1.8 0 0 0 2.5 0l5.7-5.7a1.8 1.8 0 0 0 0-2.5z" />
+      <circle cx="8.2" cy="7.4" r="1.5" />
+    </>
+  ),
+  expenses: (
+    <>
+      <ellipse cx="12" cy="6.4" rx="7" ry="2.6" />
+      <path d="M5 6.4v11c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7v-11" />
+      <path d="M5 12c0 1.5 3.1 2.7 7 2.7s7-1.2 7-2.7" />
+    </>
+  ),
+  targets: (
+    <>
+      <circle cx="12" cy="12" r="8.4" />
+      <circle cx="12" cy="12" r="4.4" />
+      <circle cx="12" cy="12" r="0.9" />
     </>
   ),
   reviews: <path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z" />,

@@ -35,7 +35,8 @@ commits, notes and conversations still resolve.
   **pending — see HANDOFF.md**), the static key lists served by the API, the admin services
   with the landed-cost arithmetic in one place (`LandedCost`), AdminOnly endpoints under
   `/api/admin/{buy-cycles,shipments,product-models,operating-expenses,targets}`, and 70 tests.
-  What is left: **the panel screens**, then the importer, then the dashboard. The owner's five
+  The panel screens shipped the same day (procurement, cost prices, expenses, targets).
+  What is left: **the importer**, then the dashboard. The owner's five
   questions turned out NOT to block the build — they shape the dashboard, and question 5
   (freight by value or by count) already ships as a parameter rather than a decision.
 - [ ] **27. Order tracking** (carried from the old ROADMAP-next §5, still deliberately
