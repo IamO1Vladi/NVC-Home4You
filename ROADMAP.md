@@ -89,6 +89,8 @@ commits, notes and conversations still resolve.
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
 - [ ] **16. Documents section in the panel** (brochures via Blob). Changing a PDF still
   needs a developer and a deploy; shares everything with the image pipeline already built.
+  **Scoped 2026-08-20 — see the design below.** Stage 1 is small and can start regardless;
+  the rest waits on four questions for the owner.
 
 ### Infrastructure
 
@@ -100,6 +102,123 @@ commits, notes and conversations still resolve.
 - [ ] **19. Secret expiry ~2027-02-04**: Entra client secret, Graph credentials, Quickbase
   token. Each fails silently and partially — see the table in HANDOFF.md. Calendar
   reminder territory, not code.
+
+---
+
+## Documents section — the design (#16)
+
+Scoped 2026-08-20 by reading the gallery image pipeline end to end, mapping every PDF
+reference in the SPA, and then attacking the result. **Nothing here exists in code yet.**
+The four questions marked FOR THE OWNER decide the size of the job and are not technical
+defaults anyone should pick on their behalf.
+
+### What is true today
+
+Six PDFs sit in `NVC Claude version/public/modular-builds/` and are copied wholesale into
+the published site by Vite. Eight distinct hrefs point at them from four pages in three
+languages — and the pages do not agree with themselves: `ModularBuildsPage.jsx:6-9`
+percent-encodes the filename, `ModularHousesPage.jsx:14` does not, `modularBuilds.js` stores
+a bare filename while `steelHouses.js` and `interiors.js` store `modular-builds/...`. Two of
+the six are not data at all — they are hard-coded hrefs in `ModularHousesPage.jsx` at lines
+19 and 25, and they are the two biggest files (19 MB of the 22.7 MB total).
+
+The filenames are Cyrillic, with spaces and typographic quotes. That is survivable as a
+static path and is exactly the wrong thing to turn into a storage key.
+
+### The shape
+
+Bytes in Blob, facts in SQL, a screen in the panel — the gallery pipeline, pointed at PDFs.
+
+**The one idea that carries the design: the public URL is a slug, and it never changes.**
+`/api/brochures/villa-office.pdf`. Replacing a brochure writes a NEW blob under a NEW GUID
+key and repoints the row; the address is untouched. This matters because twelve prerendered
+snapshots carry these links as literal text — if the URL moved on every replacement, every
+replacement would silently stale the snapshots, and `check-prerender-freshness.mjs` would not
+notice (verified: it matches only `/assets/*.js|css`).
+
+### Where the bytes live, and why it cannot leak
+
+The existing **`images` container**, under a new `brochures/` prefix, through a new
+`PublicDocumentStore`. NOT the `lead-files` container — that one holds purchase invoices
+carrying ЕГН and addresses.
+
+Neither container is anonymously readable in Azure; both are created `PublicAccessType.None`.
+**The public/private split here is an application-layer fact, not a storage one**:
+`BlobImageSource` (images) is read by the unauthenticated `ImagesController`, while
+`LeadFileStore` (lead-files) is only ever read by AdminOnly controllers that address files by
+ROW ID, so the blob key never reaches a browser. A brochure route must therefore be as
+paranoid as `ImagesController` is:
+
+- `PublicDocumentKey.IsValid` requires the `brochures/` root, checked as the first line of the
+  read action — the way `ImagesController.cs:34` does it even though every key it serves was
+  minted by us.
+- A startup guard that fails fast if `BLOB_LEAD_FILES_CONTAINER` ever equals
+  `BLOB_IMAGES_CONTAINER`. Both are free text today, and `LeadFileStoreTests` only pins that
+  they differ BY DEFAULT.
+
+**Do not count "the allow-list is .pdf only" as a mitigation.** Every dangerous document here
+is already a PDF — `PurchaseFileKinds` names contracts and delivery notes among them. The real
+control is the wired-slug rule below: under replace-only there is no "add" button, so there is
+nowhere to put a contract.
+
+### The entity
+
+One table, `PublicDocument`, in the usual idiom: `int` id, `Slug` (unique, ASCII, write-once),
+`Title`, `FileName` (the label a customer sees when saving, never the key), `BlobKey`,
+`SizeBytes`, `ContentType`, `SortOrder`, `IsActive`, `CreatedAt`/`UpdatedAt`/`UpdatedByUpn`.
+No `Page` column — `#page=3` belongs on the link, where it already lives. No `HouseId`: a
+brochure is free-standing, addressed by slug. Audited (`AuditedEntities.Included`), which gives
+replacement history for free.
+
+### The blocker the review caught, and its fix
+
+**The panel as first designed could 404 a live marketing page in one click.** Retire, delete and
+slug-edit are each unguarded against a slug that four pages and twelve snapshots hard-code.
+`IsActive = false` does not remove the button — it turns it into a 404, and nothing notices: not
+a test, not the freshness guard, not the publish. Same silent broken-reference class as the
+2026-08-18 outage.
+
+So: a readonly `WiredSlugs` list in the API naming the six the content files use. `Slug` is
+accepted on POST and ignored on PUT. DELETE and `IsActive = false` answer 400 for a wired slug.
+The panel row shows which pages a document appears on. **Replace becomes the only button that is
+safe, which is also the only one the owner actually needs.**
+
+### Stages, each shipping alone
+
+1. **Make all six look the same** — lift the two hard-coded hrefs into the content files, one
+   shared URL helper instead of two that disagree, one path convention. No API, no database, no
+   Azure. *Small, and independent of every question below.* Without it, anyone implementing #16
+   migrates four of six brochures and leaves the two biggest behind.
+2. **Storage, API, panel screen** — invisible to the public site. Entity, migration, store,
+   services, `AdminDocumentsController`, `BrochuresController`, `AdminDocumentsPage.jsx`, four
+   edits in `AdminShell.jsx`. Include from the start: key validation on the read path; an `ETag`
+   taken from the BlobKey GUID (it changes on replacement and never otherwise, so it is a correct
+   strong validator); `Range` forwarding, because Chrome's PDF viewer uses it and the 16.5 MB
+   brochure sits on the page whose whole purpose is that brochure; and a streamed upload rather
+   than buffering 16 MB.
+3. **Import the six** into Blob and SQL, idempotently.
+4. **Point the pages at the slugs** — the old files stay in `public/` throughout.
+5. **Redirects** for the six old URLs, then the files can go.
+
+`verify-brochures` must run SOURCE → ROWS, the way `MigrationVerifier` actually works (it regexes
+the SPA source and checks blob existence; it makes no HTTP calls). Rows → HTTP proves the wrong
+direction: the failure that will happen is a content file naming a slug no active row has.
+
+### FOR THE OWNER — four questions
+
+1. **Replace-only, or add new brochures too?** This decides whether stage 2 is a small screen or a
+   much bigger one. Default: replace-only.
+2. **Must the six current URLs keep working?** Default: yes, six permanent redirects.
+3. **When you retire a brochure, must the file become genuinely unreachable, or is "gone from the
+   website" enough?** Default: gone from the website; the bytes stay in Azure.
+4. **Will there ever be an English or Greek edition of a brochure**, rather than one Bulgarian PDF
+   shown to everyone? Default: no language column now; it is one small migration the day the
+   answer becomes yes.
+
+### Not doing
+
+A public "list all documents" endpoint nobody calls; `TitleBg`/`TitleEl` before question 4 is
+answered; a reorder endpoint for a list of six that no page orders by.
 
 ---
 
