@@ -1,109 +1,423 @@
 /* The customer's order tracking page (ROADMAP #27).
    Its own stylesheet, imported by the page, so nothing here can reach the marketing pages
    or the admin panel — this is the only public page in the app that renders per-customer
-   state, and keeping its styles as contained as its data is the same instinct. */
+   state, and keeping its styles as contained as its data is the same instinct.
+
+   It follows the site's own theming rather than the browser's: everything public here is
+   switched by :root[data-theme] from ThemeContext, and a page that answered
+   prefers-color-scheme instead would sit in light mode inside a dark site the moment a
+   visitor used the theme toggle in the header. That is exactly what this page used to do. */
+
+:root[data-theme='dark'] {
+  --ot-card: #141922;
+  --ot-card-2: #10141c;
+  --ot-border: #ffffff1a;
+  --ot-border-strong: #ffffff2e;
+  --ot-ink: #e5e7eb;
+  --ot-ink-strong: #ffffff;
+  --ot-muted: #9ca3af;
+  --ot-rail: #ffffff14;
+  --ot-tint: #ffffff08;
+  --ot-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+  --ot-warn-bg: #f59e0b1f;
+  --ot-warn-ink: #fbbf24;
+  --ot-stop-bg: #ef44441f;
+  --ot-stop-ink: #fca5a5;
+}
+
+:root[data-theme='light'] {
+  --ot-card: #ffffff;
+  --ot-card-2: #f6f8fb;
+  --ot-border: #00000014;
+  --ot-border-strong: #00000024;
+  --ot-ink: #111827;
+  --ot-ink-strong: #0b1220;
+  --ot-muted: #4b5563;
+  --ot-rail: #0000000f;
+  --ot-tint: #00000006;
+  --ot-shadow: 0 20px 45px rgba(15, 23, 42, .1);
+  --ot-warn-bg: #f59e0b1a;
+  --ot-warn-ink: #92620a;
+  --ot-stop-bg: #ef44441a;
+  --ot-stop-ink: #9f1239;
+}
 
 .order-track {
-  max-width: 720px;
+  /* The brand's own two colours, used the way the rest of the site uses them: as one
+     gradient that runs left to right, never as two flat fills. */
+  --ot-grad: linear-gradient(90deg, var(--brand-teal, #39B5D5), var(--brand-blue, #4C8DF5));
+  color: var(--ot-ink);
+  padding: 28px 0 72px;
+  background:
+    radial-gradient(900px 460px at 12% -12%, rgba(76, 141, 245, .16), transparent),
+    radial-gradient(700px 420px at 88% -8%, rgba(57, 181, 213, .16), transparent);
+}
+
+.ot-wrap {
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 40px 20px 72px;
+  padding: 0 20px;
 }
 
-.order-track-card {
-  background: var(--card, #fff);
-  border: 1px solid rgba(16, 22, 30, .1);
-  border-radius: 16px;
-  padding: 28px 24px;
+.ot-muted { color: var(--ot-muted); }
+.ot-small { font-size: .92rem; }
+
+/* --- The hero: the answer, before any evidence --------------------------------------- */
+
+.ot-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  background: var(--ot-card);
+  border: 1px solid var(--ot-border);
+  border-radius: 22px;
+  box-shadow: var(--ot-shadow);
+  overflow: hidden;
+}
+.ot-hero.has-photo { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); }
+
+.ot-hero-body { padding: 30px 28px; }
+
+/* A cancelled order must not wear the brand gradient as if it were progress. The banner
+   keeps its shape and loses its optimism: one stop-coloured edge, and an eyebrow that no
+   longer glows. */
+.ot-hero.is-cancelled { border-color: color-mix(in srgb, var(--ot-stop-ink) 40%, transparent); }
+.ot-hero.is-cancelled .ot-eyebrow {
+  background-image: none;
+  color: var(--ot-stop-ink);
+  -webkit-text-fill-color: currentColor;
 }
 
-.order-track h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.01em; }
-.order-track h2 { margin: 0 0 6px; font-size: 16px; }
-.order-track-muted { color: rgba(16, 22, 30, .62); font-size: 14.5px; }
+.ot-hero-photo { position: relative; min-height: 220px; order: 2; }
+.ot-hero-photo img { width: 100%; height: 100%; object-fit: cover; }
+/* The photo meets the text with a fade rather than a hard edge, so a bright product shot
+   does not cut a rectangle out of a dark card. */
+.ot-hero-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--ot-card), transparent 42%);
+  pointer-events: none;
+}
 
-/* The timeline. A list, not a bar: the steps have names, and a customer reading on a phone
-   should get the names rather than a percentage they have to interpret. */
+.ot-eyebrow {
+  margin: 0 0 10px;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  background-image: var(--ot-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.ot-headline {
+  margin: 0;
+  font-size: clamp(26px, 4.2vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  font-weight: 900;
+  color: var(--ot-ink-strong);
+}
+
+.ot-lede {
+  margin: 12px 0 0;
+  font-size: clamp(15px, 1.6vw, 17.5px);
+  color: var(--ot-muted);
+  max-width: 46ch;
+}
+
+.ot-model {
+  margin: 16px 0 0;
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid var(--ot-border-strong);
+  border-radius: 999px;
+  font-size: .95rem;
+  font-weight: 600;
+  background: var(--ot-tint);
+}
+
+.ot-progress { margin-top: 24px; }
+
+.ot-rail {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ot-rail);
+  overflow: hidden;
+}
+.ot-rail-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background-image: var(--ot-grad);
+  transition: width .8s cubic-bezier(.22, .61, .36, 1);
+}
+
+.ot-progress-label {
+  margin: 10px 0 0;
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--ot-muted);
+}
+
+/* --- Body ---------------------------------------------------------------------------- */
+
+.ot-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.ot-side { display: grid; gap: 18px; }
+
+.ot-panel {
+  background: var(--ot-card);
+  border: 1px solid var(--ot-border);
+  border-radius: 18px;
+  padding: 22px 22px 24px;
+  box-shadow: var(--ot-shadow);
+}
+
+.ot-panel-title {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .01em;
+  color: var(--ot-ink-strong);
+}
+
+/* --- The timeline. A list, not a bar: the steps have names, and a customer reading on a
+   phone should get the names rather than a percentage they have to interpret. ---------- */
+
 .order-track-steps {
   list-style: none;
-  margin: 26px 0;
+  margin: 0;
   padding: 0;
   display: grid;
   gap: 0;
 }
+
 .order-track-steps li {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
-  padding: 10px 0 10px 2px;
-  color: rgba(16, 22, 30, .45);
+  padding: 11px 0;
+  color: var(--ot-muted);
   font-size: 15px;
 }
+
 /* The connecting line is drawn between dots rather than under the text, so it stays put
    when a translated label wraps to two lines. */
 .order-track-steps li:not(:last-child)::before {
   content: '';
   position: absolute;
-  left: 7px;
-  top: 28px;
-  bottom: -6px;
+  left: 8px;
+  top: 30px;
+  bottom: -4px;
   width: 2px;
-  background: rgba(16, 22, 30, .12);
+  background: var(--ot-rail);
 }
+.order-track-steps li.is-done:not(:last-child)::before {
+  background: color-mix(in srgb, var(--brand-teal, #39B5D5) 55%, transparent);
+}
+
 .order-track-dot {
   flex: none;
-  width: 16px;
-  height: 16px;
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(16, 22, 30, .18);
-  background: #fff;
+  border: 2px solid var(--ot-border-strong);
+  background: var(--ot-card-2);
 }
-.order-track-steps li.is-done { color: rgba(16, 22, 30, .72); }
+
+.ot-step-body { display: grid; gap: 2px; }
+.ot-step-name { font-weight: 600; }
+.ot-step-date { font-size: .86rem; color: var(--ot-muted); }
+
+.order-track-steps li.is-done { color: var(--ot-ink); }
 .order-track-steps li.is-done .order-track-dot {
-  background: var(--brand-teal, #0f9aae);
-  border-color: var(--brand-teal, #0f9aae);
+  background-image: var(--ot-grad);
+  border-color: transparent;
 }
-.order-track-steps li.is-current { color: rgba(16, 22, 30, .95); font-weight: 700; }
+
+.order-track-steps li.is-current { color: var(--ot-ink-strong); }
+.order-track-steps li.is-current .ot-step-name { font-weight: 800; }
 .order-track-steps li.is-current .order-track-dot {
-  border-color: var(--brand-teal, #0f9aae);
-  box-shadow: 0 0 0 4px rgba(15, 154, 174, .18);
+  background: var(--ot-card);
+  border-color: var(--brand-teal, #39B5D5);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-teal, #39B5D5) 22%, transparent);
+  animation: ot-pulse 2.4s ease-in-out infinite;
 }
 
-.order-track-dates { margin: 22px 0; display: grid; gap: 4px; }
-.order-track-dates dt { font-size: 13.5px; color: rgba(16, 22, 30, .62); }
-.order-track-dates dd { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+@keyframes ot-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-teal, #39B5D5) 22%, transparent); }
+  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--brand-teal, #39B5D5) 8%, transparent); }
+}
 
-.order-track-carrier {
-  margin: 22px 0;
-  padding: 14px 16px;
+/* --- Dates --------------------------------------------------------------------------- */
+
+.order-track-dates { margin: 0; display: grid; gap: 14px; }
+.ot-date { display: grid; gap: 4px; }
+.order-track-dates dt { font-size: .85rem; color: var(--ot-muted); }
+.order-track-dates dd {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Every estimate carries this tag. It is small on purpose but never absent — the promise
+   this page makes is that a date is an expectation, not an appointment. */
+.ot-tag {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ot-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--ot-border-strong);
+  border-radius: 999px;
+}
+
+/* --- Carrier ------------------------------------------------------------------------- */
+
+.ot-carrier { background: var(--ot-card-2); }
+.ot-carrier-note { margin: 0 0 6px; font-size: 1rem; }
+.ot-carrier.is-stale { border-color: color-mix(in srgb, var(--ot-warn-ink) 45%, transparent); }
+.ot-stale {
+  margin: 12px 0 0;
+  padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(16, 22, 30, .04);
+  background: var(--ot-warn-bg);
+  color: var(--ot-warn-ink);
+  font-size: .92rem;
 }
-.order-track-carrier p { margin: 0 0 4px; font-size: 15px; }
 
 .order-track-cancelled {
-  margin: 22px 0;
+  margin: 0;
   padding: 14px 16px;
-  border-radius: 12px;
-  background: rgba(190, 40, 40, .08);
-  color: #8c1d1d;
+  border-radius: 14px;
+  background: var(--ot-stop-bg);
+  color: var(--ot-stop-ink);
   font-size: 15px;
 }
 
-@media (prefers-color-scheme: dark) {
-  .order-track-card { background: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .12); }
-  .order-track-muted { color: rgba(255, 255, 255, .6); }
-  .order-track-steps li { color: rgba(255, 255, 255, .45); }
-  .order-track-steps li.is-done { color: rgba(255, 255, 255, .72); }
-  .order-track-steps li.is-current { color: #fff; }
-  .order-track-dot { background: #101620; border-color: rgba(255, 255, 255, .22); }
-  .order-track-steps li:not(:last-child)::before { background: rgba(255, 255, 255, .14); }
-  .order-track-dates dt { color: rgba(255, 255, 255, .6); }
-  .order-track-carrier { background: rgba(255, 255, 255, .06); }
-  .order-track-cancelled { background: rgba(255, 120, 120, .12); color: #ffb4b4; }
+/* --- Contact ------------------------------------------------------------------------- */
+
+.ot-contact h2 { margin: 0 0 6px; font-size: 1rem; font-weight: 800; color: var(--ot-ink-strong); }
+.ot-contact p { margin: 0 0 14px; font-size: .95rem; }
+
+.ot-contact-actions { display: grid; gap: 10px; }
+
+.ot-btn {
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ot-border-strong);
+  background: var(--ot-tint);
+  color: var(--ot-ink);
+  font-weight: 700;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.ot-btn:hover { transform: translateY(-1px); border-color: var(--brand-teal, #39B5D5); }
+.ot-btn-primary {
+  background-image: var(--ot-grad);
+  border-color: transparent;
+  color: #08131c;
+}
+.ot-btn-detail { font-size: .85rem; font-weight: 600; opacity: .82; }
+
+/* --- Footer meta --------------------------------------------------------------------- */
+
+.ot-meta {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  padding: 14px 6px 0;
+  font-size: .9rem;
+  border-top: 1px solid var(--ot-border);
+}
+.ot-meta-item { display: inline-flex; align-items: center; gap: 8px; }
+
+.ot-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .06em;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--ot-tint);
+  border: 1px solid var(--ot-border);
+}
+
+.ot-copy {
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  color: var(--brand-teal, #39B5D5);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ot-copy:hover { text-decoration: underline; }
+
+/* --- Not found ----------------------------------------------------------------------- */
+
+.ot-notfound { max-width: 620px; margin: 0 auto; text-align: center; }
+.ot-notfound h1 { margin: 0 0 10px; font-size: clamp(22px, 3.4vw, 30px); color: var(--ot-ink-strong); }
+.ot-notfound .ot-contact { margin-top: 22px; text-align: left; }
+
+/* --- Loading ------------------------------------------------------------------------- */
+
+.ot-skeleton { display: grid; gap: 18px; }
+.ot-skel-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 18px; }
+.ot-skel {
+  border-radius: 18px;
+  background: linear-gradient(90deg, var(--ot-card) 0%, var(--ot-card-2) 50%, var(--ot-card) 100%);
+  background-size: 200% 100%;
+  border: 1px solid var(--ot-border);
+  animation: ot-shimmer 1.4s linear infinite;
+}
+.ot-skel-hero { height: 240px; border-radius: 22px; }
+.ot-skel-panel { height: 320px; }
+.ot-skel-side { height: 220px; }
+
+@keyframes ot-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* --- Responsive ---------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .ot-hero.has-photo { grid-template-columns: 1fr; }
+  /* On a phone the photo leads, because it is the fastest possible confirmation that this
+     link is about the right house. */
+  .ot-hero-photo { order: 0; min-height: 170px; }
+  .ot-hero-photo::after { background: linear-gradient(0deg, var(--ot-card), transparent 55%); }
+  .ot-grid, .ot-skel-row { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
-  .order-track { padding: 24px 14px 56px; }
-  .order-track-card { padding: 20px 16px; border-radius: 14px; }
-  .order-track h1 { font-size: 22px; }
+  .order-track { padding: 18px 0 56px; }
+  .ot-wrap { padding: 0 14px; }
+  .ot-hero-body { padding: 22px 18px; }
+  .ot-panel { padding: 18px 16px 20px; border-radius: 16px; }
+  .ot-meta { gap: 8px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ot-rail-fill { transition: none; }
+  .order-track-steps li.is-current .order-track-dot { animation: none; }
+  .ot-skel { animation: none; }
+  .ot-btn:hover { transform: none; }
 }

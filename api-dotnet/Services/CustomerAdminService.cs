@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -28,15 +28,23 @@ public sealed class PurchaseInput
     public decimal? InstallationCost { get; set; }
     public decimal? OtherCosts { get; set; }
 
-    // Order tracking (#27). The public reference is NOT here: it is minted by its own
-    // endpoint, never set from a form, so a stray value in a purchase payload can never
-    // hand one order another's tracking link.
-    public string? Status { get; set; }
-    public string? ExpectedAtHarbor { get; set; }
-    public string? ExpectedReadyAt { get; set; }
-    public string? CarrierName { get; set; }
-    public string? TrackingReference { get; set; }
-    public string? CarrierNote { get; set; }
+    // NOTHING about order tracking is here, and the omission is the whole point (#27). The
+    // status, the two expected dates and the carrier fields are written by
+    // OrderTrackingService and by nothing else.
+    //
+    // The public reference was kept out from the start for the obvious reason: minted by its
+    // own endpoint, never set from a form, so a stray value in a payload can never hand one
+    // order another's tracking link. The rest followed it here after the orders board started
+    // putting real data in those columns. This class is a WHOLE-ROW writer — a submission
+    // that omits a field clears it — and the customer's sheet has no inputs for any of them,
+    // so every save of a phone number was silently wiping the tracking number, the carrier
+    // note and both expected dates off every purchase that customer had. The columns cannot
+    // be cleared by a form that has no way to type into them if the form cannot reach them
+    // at all.
+    //
+    // Status has a second reason on top of that one: moving an order has to append an
+    // OrderStatusEvent, and a door onto the column that does not write the history is a move
+    // with no date, no actor, and nothing on the customer's timeline.
     public string? Currency { get; set; }
 
     // "YYYY-MM-DD" from <input type="date">. Parsed by TryParsePurchaseDate.
@@ -240,7 +248,7 @@ public sealed class CustomerAdminService
 
         if (input.Purchases is not null)
         {
-            await SyncPurchasesAsync(customer.Id, input.Purchases, ct);
+            await SyncPurchasesAsync(customer.Id, input.Purchases, actor, ct);
         }
 
         return (await GetAsync(customer.Id, ct))!;
@@ -299,7 +307,7 @@ public sealed class CustomerAdminService
 
         if (input.Purchases is not null)
         {
-            await SyncPurchasesAsync(id, input.Purchases, ct);
+            await SyncPurchasesAsync(id, input.Purchases, actor, ct);
         }
 
         return await GetAsync(id, ct);
@@ -330,8 +338,17 @@ public sealed class CustomerAdminService
     /// panel no longer sends are gone. Deleting by omission is safe here only because
     /// CustomerInput.Purchases distinguishes "not mentioned" (null) from "none" (empty) —
     /// see the note there.
+    ///
+    /// A NEW purchase also gets the first row of its own history, which is the one moment
+    /// nowhere else can observe: every later step is written by the person who makes it from
+    /// the orders board, but "placed" happens here, when the sale is recorded, and if it is
+    /// not written down now there is nothing to reconstruct it from afterwards. Without it
+    /// step one of the customer's timeline is undated forever — not for old orders, for every
+    /// order the business will ever take. This is not the backfill OrderStatusEvent refuses:
+    /// the moment is being watched as it happens, not inferred from an edit timestamp.
     /// </summary>
-    private async Task SyncPurchasesAsync(int customerId, List<PurchaseInput> submitted, CancellationToken ct)
+    private async Task SyncPurchasesAsync(
+        int customerId, List<PurchaseInput> submitted, string? actor, CancellationToken ct)
     {
         var existing = await _db.Purchases
             .Where(p => p.CustomerId == customerId)
@@ -357,6 +374,16 @@ public sealed class CustomerAdminService
             {
                 purchase = new Purchase { CustomerId = customerId, CreatedAt = DateTimeOffset.UtcNow };
                 _db.Purchases.Add(purchase);
+
+                // The navigation rather than the foreign key, so one SaveChanges inserts both
+                // and fixes up PurchaseId itself — the purchase has no id to copy yet.
+                _db.OrderStatusEvents.Add(new OrderStatusEvent
+                {
+                    Purchase = purchase,
+                    Status = purchase.Status,
+                    ChangedAt = purchase.CreatedAt,
+                    ChangedByUpn = AdminText.Clean(actor),
+                });
             }
 
             Apply(purchase, input);
@@ -592,26 +619,9 @@ public sealed class CustomerAdminService
         purchase.InstallationCost = input.InstallationCost;
         purchase.OtherCosts = input.OtherCosts;
 
-        // Order tracking. An unknown status is IGNORED rather than stored: the public
-        // timeline draws from this key, and a typo would render as no step at all.
-        if (OrderStatuses.IsValid(input.Status)) purchase.Status = input.Status!;
-        purchase.CarrierName = AdminText.Clean(input.CarrierName);
-        purchase.TrackingReference = AdminText.Clean(input.TrackingReference);
-
-        // The note and its timestamp move together, always. A note without a date is the
-        // stale-information failure this feature exists to avoid; stamping it here means
-        // "as of" is never a thing someone has to remember to update.
-        var note = AdminText.Clean(input.CarrierNote);
-        if (note != purchase.CarrierNote)
-        {
-            purchase.CarrierNote = note;
-            purchase.CarrierCheckedAt = note is null ? null : DateTimeOffset.UtcNow;
-        }
-
-        if (TryParsePurchaseDate(input.ExpectedAtHarbor, out var atHarbor))
-            purchase.ExpectedAtHarbor = atHarbor;
-        if (TryParsePurchaseDate(input.ExpectedReadyAt, out var readyAt))
-            purchase.ExpectedReadyAt = readyAt;
+        // The order-tracking columns are NOT touched here — see PurchaseInput. This method
+        // writes every field it is given, so reaching them from a form that cannot show them
+        // is how they get erased.
         purchase.Currency = AdminText.Clean(input.Currency) ?? "EUR";
         purchase.Notes = AdminText.Clean(input.Notes);
 

@@ -7,5 +7,10 @@ Allow: /
 Disallow: /admin
 Disallow: /internal/
 
+# One customer's order, behind an unguessable code they were emailed. The page carries
+# noindex too, but that tag only exists once the SPA has booted — this line is what keeps a
+# crawler that never runs the JavaScript from queueing the URL in the first place.
+Disallow: /order/
+
 Sitemap: https://nvc-home4you.eu/sitemap.xml
 Sitemap: https://nvc-home4you.eu/sitemap-gallery.xml

@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<Factory> Factories => Set<Factory>();
     public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<PurchaseFile> PurchaseFiles => Set<PurchaseFile>();
+    public DbSet<OrderStatusEvent> OrderStatusEvents => Set<OrderStatusEvent>();
     public DbSet<SavedConfig> SavedConfigs => Set<SavedConfig>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<FactorySheet> FactorySheets => Set<FactorySheet>();
@@ -323,6 +324,21 @@ public class AppDbContext : DbContext
             // The orders board reads "everything not yet delivered, soonest first".
             e.HasIndex(p => new { p.Status, p.ExpectedReadyAt });
 
+            // Moving an order is a read-modify-write: OrderTrackingService reads the current
+            // status, decides whether this is a REAL move, and only then appends a history
+            // row. Two people pressing the next-step button on the same order — or one person
+            // double-clicking it — each load the same old status, each conclude they are
+            // moving it, and each append an event. The duplicate the append rule exists to
+            // prevent gets written anyway, and the board then names the wrong person as the
+            // one who moved it.
+            //
+            // Making Status the token puts it in the UPDATE's WHERE clause, so the second
+            // write finds no row and throws instead of quietly winning. No column and no
+            // schema change: the value already in the row is the version. A rowversion would
+            // do the same job but would also make two unrelated edits to one purchase collide
+            // on the customer's sheet, which is a different screen with a different problem.
+            e.Property(p => p.Status).IsConcurrencyToken();
+
             // Cascade: a purchase has no meaning without the customer who made it, and
             // deleting a customer is already the deliberate, confirmed act (see
             // CustomerAdminService, which refuses to do it silently).
@@ -348,6 +364,22 @@ public class AppDbContext : DbContext
              .WithMany()
              .HasForeignKey(p => p.HouseId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<OrderStatusEvent>(e =>
+        {
+            // Cascade, and this is the one deletion the table permits: a history of an order
+            // that no longer exists describes nothing. Same shape as LeadActivity hanging off
+            // its lead — and, like it, the rows are otherwise never touched after insert.
+            e.HasOne(x => x.Purchase)
+             .WithMany()
+             .HasForeignKey(x => x.PurchaseId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // Every read of this table is "one order, in order" — the customer's timeline
+            // oldest first, the board's "when was this last touched?" newest first. Both
+            // walk this index; nothing queries it any other way.
+            e.HasIndex(x => new { x.PurchaseId, x.ChangedAt });
         });
 
         b.Entity<PurchaseFile>(e =>

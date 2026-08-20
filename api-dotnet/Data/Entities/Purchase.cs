@@ -98,6 +98,9 @@ public class Purchase
     /// <summary>
     /// Where the order is — a key from OrderStatuses. Never null: an order that exists has
     /// been placed, and a null status would render the public page as a blank timeline.
+    ///
+    /// Also the row's CONCURRENCY TOKEN (see AppDbContext), because moving an order is a
+    /// read-modify-write and two people work this board at once.
     /// </summary>
     [MaxLength(30)] public string Status { get; set; } = OrderStatuses.Placed;
 

@@ -38,8 +38,9 @@ commits, notes and conversations still resolve.
   business rule that was settled with the owner (the VAT reclaim split, USD-in/EUR-out, the
   per-shipment rate, by-value freight allocation, the snapshot unit cost).
 
-  **What is still live:** `Sale`, reduced to a sale linked to a customer, and the
-  `/admin/sales` screen. **What is still in the production database:** the six billing
+  **What is still live:** nothing of the sales half under its own name — `Sale` was merged
+  into `Purchase` on 2026-08-20 (see #27) and the `/admin/sales` screen went with it; what
+  it did lives on as the **Поръчки** board. **What is still in the production database:** the six billing
   tables and their imported rows — `DropBillingTables` exists and is deliberately
   unapplied. **The clock that matters:** the importer only works while the Quickbase token
   lives (~Feb 2027); after that, restoring means re-entering by hand.

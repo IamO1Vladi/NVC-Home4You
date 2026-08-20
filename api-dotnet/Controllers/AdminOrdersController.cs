@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Services;
 
 namespace Controllers;
@@ -32,7 +33,15 @@ public class AdminOrdersController : ControllerBase
     public IActionResult Statuses() =>
         Ok(new { timeline = OrderStatuses.Timeline, all = OrderStatuses.All });
 
-    /// <summary>Moves the order along. Order fields only — see UpdateOrderAsync.</summary>
+    /// <summary>
+    /// Moves the order along. Order fields only — see UpdateOrderAsync.
+    ///
+    /// 409 when somebody else moved the same order between this request reading it and
+    /// writing it (Purchase.Status is a concurrency token — see AppDbContext). Losing that
+    /// race silently is the failure worth refusing: it writes a second history row for a move
+    /// that happened once, credited to whoever committed last. The board answers a 409 by
+    /// re-reading, which shows the move that did land.
+    /// </summary>
     [HttpPut("{purchaseId:int}")]
     public async Task<IActionResult> Update(
         int purchaseId, [FromBody] OrderUpdateInput input, CancellationToken ct)
@@ -41,9 +50,34 @@ public class AdminOrdersController : ControllerBase
             return BadRequest(new { errors = new[] { "That is not an order status." } });
 
         var actor = User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name;
-        return await _svc.UpdateOrderAsync(purchaseId, input!, actor, ct)
-            ? Ok(new { ok = true })
-            : NotFound();
+
+        try
+        {
+            return await _svc.UpdateOrderAsync(purchaseId, input!, actor, ct)
+                ? Ok(new { ok = true })
+                : NotFound();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { errors = new[] { "Somebody else moved this order. Reload the board." } });
+        }
+    }
+
+    /// <summary>
+    /// Every move this order has made, newest first, with the person who made it.
+    ///
+    /// AdminOnly like everything else here, and that is the point of it being a separate
+    /// endpoint rather than a field on the board row: the customer's timeline carries the
+    /// same dates without the names, and the two payloads never meet.
+    ///
+    /// An order nobody has moved answers 200 with an empty list; only a purchase that does
+    /// not exist answers 404.
+    /// </summary>
+    [HttpGet("{purchaseId:int}/history")]
+    public async Task<IActionResult> History(int purchaseId, CancellationToken ct)
+    {
+        var history = await _svc.HistoryAsync(purchaseId, ct);
+        return history is null ? NotFound() : Ok(history);
     }
 
     /// <summary>

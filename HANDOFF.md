@@ -1,11 +1,11 @@
-# Where things stand — 2026-08-19
+# Where things stand — 2026-08-20
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **659 .NET, 258 frontend.**
+Tests: **676 .NET, 281 frontend.**
 
 ---
 
@@ -13,10 +13,10 @@ Tests: **659 .NET, 258 frontend.**
 
 | | |
 |---|---|
-| **Live** | `791896a` (tag `deploy-2026-08-19b`) — the whole buy side: procurement/cost-prices/expenses/targets screens, imported Quickbase data, inline lot editing. Verified from outside: public pages serve prerendered content, bundle + AdminProcurementPage chunk serve as `text/javascript`, all five new APIs 401 anonymous. |
-| **`production` branch** | `791896a` = live. |
-| **`master`** | `791896a` = `production`. Both pushed. |
-| **Migrations** | None pending. `MergeSalesIntoPurchasesAndTrackOrders` applied to production 2026-08-20 (dropped `Sales`, added quantity + sale expenses + the order-tracking columns to `Purchases`). The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md` for the SQL if that is ever wanted. |
+| **Live** | `db24ce5`, tagged **`deploy-2026-08-20`** — order tracking, and the server-side fix that made `/order/{code}` resolve. Verified from outside 2026-08-20: the live bundle `index-BXwZandb.js` is the same hash the shipped snapshots reference and serves as `text/javascript`, and `/order/TESTCODE` answers 200 rather than the 404 every customer link was getting the day before. |
+| **`production` branch** | `db24ce5` = live. Seven commits had gone out untagged before this; the tag was added afterwards, which is why `deploy-2026-08-19c` sat three days behind what was actually running. |
+| **`master`** | `db24ce5` = `production`. Both pushed. `leads-table` is fully merged and holds nothing of its own. |
+| **Migrations** | **One PENDING: `AddOrderStatusHistory`** — generated 2026-08-20, NOT applied anywhere. It adds the append-only `OrderStatusEvents` table; additive only, safe on a database with rows. Apply it with the next publish or the orders board writes history nowhere. `MergeSalesIntoPurchasesAndTrackOrders` is applied to production. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md` for the SQL if that is ever wanted. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -26,28 +26,66 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **The delayed publish is DONE** — tagged `deploy-2026-08-19`. `production` has since been
-   fast-forwarded onto the publish guard (`6645457`), which is build-only and can ship with
-   whatever goes next; DEPLOY.md owns the steps. What may still be outstanding is the
-   post-publish walkthrough: sign in and look at **Одит** (edit something small first) and
+1. **The publish is out and tagged** (`deploy-2026-08-20` → `db24ce5`), and the live site was
+   checked from outside afterwards — see the table above. Two things are still owed from it:
+   the post-publish walkthrough (sign in, edit something small and look at **Одит**, then
    **Фабрични поръчки** — and on whichever browser held the old factory sheet, accept the
-   import banner so the localStorage copy reaches SQL.
+   import banner so the localStorage copy reaches SQL), and **tagging at the time of the
+   publish rather than days later**, which is the only reason anyone had to ask what was live.
+
+   **The NEXT publish carries a migration.** `AddOrderStatusHistory` must be applied, and the
+   prerender re-run before publishing (DEPLOY.md §6b, and the guard will stop the publish if
+   it is not) — the SPA changed, so the bundle hash has moved.
 2. **Search Console, the remainder**: request indexing for the 26 clean product URLs
    (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Order tracking (#27) is BUILT and needs one decision before it is useful.** `Sale` was
-   merged into `Purchase` (2026-08-20) so there is one record of what a customer bought;
-   the admin **Поръчки** board is also the owner's report (customer, model, deposit, final
-   price, left to pay, factory), and `/order/{code}` is the customer's page.
-   - **Decide who moves a status, and when.** Everything else works; a public page nobody
-     updates is worse than no page. This is the whole remaining risk.
-   - Carrier notes are typed by hand. Automating them needs API credentials from the
-     shipping line — then one poller fills four columns and nothing else changes.
-   - Billing (#21) stays archived in `_archive/billing-2026-08-19/`; its six tables sit
-     orphaned in production and Quickbase remains their record. The importer only works
-     while the QB token lives (~Feb 2027).
+3. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
+   The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
+   from the admin Поръчки board. There will be no carrier account and no feed.** That turns
+   hand-entry from a fallback into the product, so the work that followed was about making
+   the manual routine fast and honest rather than about automating it.
+
+   What that surfaced, and what was done:
+   - **The board could never save.** `AdminOrdersPage.save()` PUT to
+     `/api/admin/customers/{id}/purchases/{purchaseId}`, a route that does not exist —
+     purchases are edited nested inside the customer PUT. Every status change from that
+     screen 404'd, so the feature had never actually worked from the screen built for it.
+     It now writes through `PUT /api/admin/orders/{purchaseId}`, the order-fields-only
+     writer that already existed. A test pins the URL, because nothing else would have
+     caught it: the page looked finished.
+   - **Status history** (`OrderStatusEvents`, append-only, one row per real move with who
+     moved it). A hand-updated board cannot answer "when did it actually reach the harbour?"
+     unless each move is recorded as it happens; it also gives the office "has anyone
+     touched this in three weeks?", which is the failure mode a manual board really has.
+     No backfill — orders older than the table show undated steps rather than invented ones.
+   - **The customer's page was rebuilt.** It now answers "where is my house?" in a sentence
+     before any timeline, dates each step from the history, carries the model photo, follows
+     the site's own theme (it was reading `prefers-color-scheme`, so it sat in light mode
+     inside a dark site), and speaks Greek — the site sells in three languages and it had
+     only two. It also stopped pointing customers at `info@nvc-home4you.eu`, which is not
+     the address the rest of the site publishes; it is `contact@`.
+   - **`/order/` is now disallowed in robots.txt.** The noindex tag only exists once the SPA
+     has booted, and this page is not prerendered; the Disallow is what stops a crawler that
+     never runs the JavaScript from queueing a customer's URL at all.
+   - **The customer sheet was quietly wiping the order columns.** Its payload carries no
+     carrier fields, and `Apply()` wrote all six unconditionally, so correcting a phone
+     number erased what a worker had typed on the board that morning. The order fields are
+     now GONE from `PurchaseInput` and `Apply` — `UpdateOrderAsync` is the only door onto
+     `Status`, which is also what makes a move impossible without its history row.
+     **Quantity and the four sale-expense columns are still wiped the same way and are
+     being fixed next** — nothing in the panel can set them, so today the only code that
+     touches them deletes the values the Quickbase import brought in.
+   - **`Purchase.Status` is now a concurrency token**, so two people advancing the same
+     order do not both write a move and credit the wrong one. No migration: the status
+     column IS the version.
+
+   Still true: carrier notes are typed by hand and stamp their own "as of" date, and the four
+   carrier columns stay shaped for a feed if that decision is ever revisited.
+   Billing (#21) stays archived in `_archive/billing-2026-08-19/`; its six tables sit
+   orphaned in production and Quickbase remains their record. The importer only works
+   while the QB token lives (~Feb 2027).
 4. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag

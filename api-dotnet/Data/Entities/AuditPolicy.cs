@@ -55,6 +55,8 @@ public static class AuditedEntities
     ///   conversation to learn nothing the thread does not already say.
     /// Offer / Question — immutable inbound submissions. Nothing edits them, so a history
     ///   would be one "created" row each, forever.
+    /// OrderStatusEvent — is itself the history of a status move, append-only, and already
+    ///   names the person who made it. Auditing it would keep two logs of one fact.
     /// SavedConfig — written by customers using the configurator, not by staff. High volume,
     ///   no human decision behind it.
     /// AuditEntry — auditing the audit log is a loop, and it is append-only anyway.
