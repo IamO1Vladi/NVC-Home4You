@@ -289,6 +289,120 @@ public class CustomerStoreTests
     }
 
     [Fact]
+    public async Task Saving_a_customer_leaves_the_columns_no_form_can_reach_exactly_as_they_were()
+    {
+        // The quantity and the four sale-expense columns came across with the Quickbase
+        // import and no screen in the panel can type into any of them. Apply() wrote all five
+        // unconditionally from a payload that never mentions them, so correcting a phone
+        // number turned three wagons back into one and nulled everything the sale had cost —
+        // quietly, with a 200, on every purchase that customer had. Same disease the order
+        // fields were cured of; this is the rest of it.
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        var created = await svc.CreateAsync(NewInput(phone: "0888 000 000", purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Wagon, FinalPrice = 30000m },
+        }), null, default);
+
+        var purchaseId = created.Purchases[0].Id;
+
+        // The row as the import left it: three wagons, and what the sale itself cost.
+        var imported = await db.Purchases.FirstAsync(p => p.Id == purchaseId);
+        imported.Quantity = 3;
+        imported.PaymentFees = 120m;
+        imported.TransportCost = 250m;
+        imported.InstallationCost = 800m;
+        imported.OtherCosts = 40m;
+        await db.SaveChangesAsync();
+
+        // Somebody corrects the phone number — the exact ten fields the sheet submits.
+        await svc.UpdateAsync(created.Id, NewInput(phone: "0888 111 111", purchases: new List<PurchaseInput>
+        {
+            new() { Id = purchaseId, CategoryKey = HouseCategories.Wagon, FinalPrice = 30000m },
+        }), null, default);
+
+        var after = await db.Purchases.AsNoTracking().FirstAsync(p => p.Id == purchaseId);
+        Assert.Equal(3, after.Quantity);
+        Assert.Equal(120m, after.PaymentFees);
+        Assert.Equal(250m, after.TransportCost);
+        Assert.Equal(800m, after.InstallationCost);
+        Assert.Equal(40m, after.OtherCosts);
+
+        // And all five are still READ back. Closing the write path is not the same as
+        // dropping the columns: the import's numbers are real, they travel with the record,
+        // and nothing in the panel draws them yet — see PurchaseInput, which spells out that
+        // they are import-only history until billing moves across.
+        var dto = Assert.Single((await svc.GetAsync(created.Id, default))!.Purchases);
+        Assert.Equal(1210m, dto.SaleExpenses);
+        Assert.Equal(10000m, dto.UnitPrice);
+    }
+
+    [Fact]
+    public async Task A_quantity_somebody_does_type_is_stored()
+    {
+        // Absent means "leave the count alone"; sent means what it says. Somebody selling two
+        // wagons has to be able to record two, which is why this column kept its door when
+        // the expense ones lost theirs.
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Wagon, FinalPrice = 18000m },
+        }), null, default);
+
+        // A brand-new purchase nobody typed a count into is still one, from the entity
+        // default rather than from Apply overwriting anything.
+        Assert.Equal(1, created.Purchases[0].Quantity);
+
+        var updated = await svc.UpdateAsync(created.Id, NewInput(purchases: new List<PurchaseInput>
+        {
+            new()
+            {
+                Id = created.Purchases[0].Id,
+                CategoryKey = HouseCategories.Wagon,
+                FinalPrice = 18000m,
+                Quantity = 2,
+            },
+        }), null, default);
+
+        Assert.Equal(2, updated!.Purchases[0].Quantity);
+        Assert.Equal(9000m, updated.Purchases[0].UnitPrice);
+    }
+
+    [Fact]
+    public async Task A_quantity_of_zero_or_less_is_refused_rather_than_stored()
+    {
+        // The unit price divides by this, so a purchase of nothing is arithmetic waiting to
+        // happen. Validation is what the panel is told; Apply refuses it a second time so a
+        // caller that skipped validation cannot leave one behind either.
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Wagon, FinalPrice = 18000m, Quantity = 4 },
+        }), null, default);
+
+        var purchaseId = created.Purchases[0].Id;
+
+        foreach (var refused in new[] { 0, -1 })
+        {
+            var input = NewInput(purchases: new List<PurchaseInput>
+            {
+                new() { Id = purchaseId, CategoryKey = HouseCategories.Wagon, Quantity = refused },
+            });
+
+            Assert.Contains(CustomerAdminService.Validate(input), e => e.Contains("quantity"));
+
+            await svc.UpdateAsync(created.Id, input, null, default);
+            var after = await db.Purchases.AsNoTracking().FirstAsync(p => p.Id == purchaseId);
+            Assert.Equal(4, after.Quantity);
+        }
+    }
+
+    [Fact]
     public async Task A_purchase_id_belonging_to_someone_else_is_treated_as_a_new_row()
     {
         // Never as an edit. The alternative is letting one customer's form reach into

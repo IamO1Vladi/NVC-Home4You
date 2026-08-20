@@ -152,7 +152,8 @@ public class AdminCustomersController : ControllerBase
     // --- Invoices and other documents -------------------------------------------------
 
     /// <summary>
-    /// Attaches a document to a purchase — the proforma, the final invoice, a contract.
+    /// Attaches a document to a purchase — one of the four proformas and invoices a sale
+    /// produces, or a contract.
     ///
     /// Uploaded against a SAVED purchase, which is why the panel disables these controls on
     /// a row that has not been saved yet: a file needs something to belong to, and inventing
@@ -216,7 +217,23 @@ public class AdminCustomersController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         Response.Headers["Cache-Control"] = "no-store";
-        return Ok(new { ok = true, id = row.Id, fileName, kind });
+
+        // Answered with the row as the detail read would have described it — the shape of
+        // PurchaseFileDto, download URL included. The panel files documents while somebody
+        // is halfway through editing the customer, so it drops this straight into the sheet
+        // it already has open; the alternative is refetching the customer, which replaces
+        // every unsaved field on the form with the server's copy of it.
+        return Ok(new
+        {
+            ok = true,
+            id = row.Id,
+            kind,
+            fileName,
+            contentType,
+            sizeBytes = row.SizeBytes,
+            downloadUrl = CustomerAdminService.FileDownloadUrl(row.Id),
+            createdAt = row.CreatedAt.ToString("o"),
+        });
     }
 
     /// <summary>

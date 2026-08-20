@@ -389,7 +389,8 @@ public class AppDbContext : DbContext
              .HasForeignKey(f => f.PurchaseId)
              .OnDelete(DeleteBehavior.Cascade);
 
-            // The form renders the two invoice slots side by side, so the read is always
+            // The form renders four document slots — a проформа and a фактура for each of
+            // the two payments — plus a bucket for everything else, so the read is always
             // "this purchase, grouped by kind".
             e.HasIndex(f => new { f.PurchaseId, f.Kind });
 

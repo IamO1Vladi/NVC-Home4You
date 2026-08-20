@@ -17,10 +17,20 @@ async function handle(res) {
   if (!res.ok) {
     // The API reports validation failures as { errors: [...] }. Surfacing those verbatim is
     // the point — "Category is required" is actionable, "Request failed" is not.
+    //
+    // ASP.NET puts a DIFFERENT shape in the same field: ValidationProblemDetails.errors is
+    // an object keyed by whatever failed, and it is what comes back when a body cannot be
+    // bound at all — a fractional number where an int was expected, say, which happens
+    // before a single one of our own rules gets to run. Read only for the array, that
+    // answer degrades to a bare status code, and the panel tells somebody their save failed
+    // without naming one of the fields they could go and fix.
     let detail = ''
     try {
       const body = await res.json()
       if (Array.isArray(body?.errors)) detail = body.errors.join(' ')
+      else if (body?.errors && typeof body.errors === 'object') {
+        detail = Object.values(body.errors).flat().join(' ')
+      }
     } catch {
       /* not JSON; fall through to the status text */
     }

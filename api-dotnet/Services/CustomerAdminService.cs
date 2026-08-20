@@ -22,12 +22,6 @@ public sealed class PurchaseInput
     public decimal? DepositPaid { get; set; }
     public decimal? FinalPrice { get; set; }
 
-    // Absorbed from the archived Sale table.
-    public decimal? PaymentFees { get; set; }
-    public decimal? TransportCost { get; set; }
-    public decimal? InstallationCost { get; set; }
-    public decimal? OtherCosts { get; set; }
-
     // NOTHING about order tracking is here, and the omission is the whole point (#27). The
     // status, the two expected dates and the carrier fields are written by
     // OrderTrackingService and by nothing else.
@@ -45,6 +39,26 @@ public sealed class PurchaseInput
     // Status has a second reason on top of that one: moving an order has to append an
     // OrderStatusEvent, and a door onto the column that does not write the history is a move
     // with no date, no actor, and nothing on the customer's timeline.
+    //
+    // The four sale-expense columns absorbed from the archived Sale table — payment fees,
+    // transport, installation, other costs — went out the same door one bug later, and for
+    // the same reason spelled the same way. They arrived with the Quickbase import, no
+    // screen in the panel can type into any of them, and a whole-row writer that names a
+    // column clears it: every corrected phone number nulled all four on every purchase that
+    // customer had.
+    //
+    // What they are NOW, said plainly so nobody has to guess: import-only history. They came
+    // across with the Quickbase rows, nothing in this repository writes them any more, and
+    // no component in the panel renders them — grep the SPA and the four names appear only
+    // in the test that pins them out of this class. They stay on the entity and in
+    // PurchaseDto, with SaleExpenses computed beside them, so the record travels whole and
+    // the day somebody wants "where does sale money leak?" on screen it is a component and
+    // not another endpoint. Until then the only way to correct one is by hand, in SQL, and
+    // that is a decision this comment is making rather than a state it is describing.
+    //
+    // Quantity stayed, and the difference is worth naming: a field the panel is about to
+    // grow an input for is not the same as a field nothing owns. What changed there is what
+    // ABSENT means — see Apply.
     public string? Currency { get; set; }
 
     // "YYYY-MM-DD" from <input type="date">. Parsed by TryParsePurchaseDate.
@@ -472,6 +486,11 @@ public sealed class CustomerAdminService
                 "rather than linking a catalogue model.";
         }
 
+        // Only when one was actually sent: absent means "leave the count as it is" now, not
+        // "one" (see Apply). Reported rather than rounded up, because the unit price divides
+        // by this and a sale of nothing is a typo somebody should be shown.
+        if (purchase.Quantity is <= 0) yield return "A quantity cannot be less than one.";
+
         if (purchase.DepositPaid is < 0) yield return "A deposit cannot be negative.";
         if (purchase.FinalPrice is < 0) yield return "A price cannot be negative.";
 
@@ -557,8 +576,13 @@ public sealed class CustomerAdminService
     /// </summary>
     /// <summary>
     /// What one unit went for. Null when there is no agreed price — the same reasoning as
-    /// LeftToPay: "not settled yet" is not zero. Quantity is never 0 (see Apply), so the
-    /// division is safe, and the guard is belt and braces for rows written another way.
+    /// LeftToPay: "not settled yet" is not zero.
+    ///
+    /// The zero guard is load-bearing rather than decorative. Nothing this application
+    /// writes can produce a count below one — ValidatePurchase refuses it on the way in and
+    /// the entity defaults to 1 — but the column arrived on a populated table with a
+    /// default of 0 (see BackfillPurchaseQuantityAndStatus), and a division here is not
+    /// where anybody wants to find out that a row slipped past.
     /// </summary>
     public static decimal? UnitPrice(decimal? finalPrice, int quantity) =>
         finalPrice is null || quantity <= 0 ? null : finalPrice.Value / quantity;
@@ -570,6 +594,17 @@ public sealed class CustomerAdminService
 
     public static decimal? LeftToPay(decimal? finalPrice, decimal? depositPaid) =>
         finalPrice is null ? null : finalPrice.Value - (depositPaid ?? 0m);
+
+    /// <summary>
+    /// Where a document is fetched from — by ROW ID, through the authenticated endpoint,
+    /// never by blob key.
+    ///
+    /// One expression rather than two identical strings, because the upload endpoint answers
+    /// with the row in the same shape this read describes it, and the panel drops that answer
+    /// straight into the sheet it already has open. Two copies of a URL is two chances for
+    /// half the documents on a card to point somewhere that no longer exists.
+    /// </summary>
+    public static string FileDownloadUrl(int fileId) => $"/api/admin/customers/files/{fileId}";
 
     // --- Mapping ----------------------------------------------------------------------
 
@@ -609,19 +644,22 @@ public sealed class CustomerAdminService
             : null;
 
         purchase.CustomModel = AdminText.Clean(input.CustomModel);
-        // A quantity nobody typed is one — a customer buying a house is the overwhelming
-        // case, and a zero here would make the unit price a division by zero.
-        purchase.Quantity = input.Quantity is int q && q > 0 ? q : 1;
+
+        // An ABSENT quantity leaves the stored count alone. It used to mean one, which read
+        // sensibly until you remember that the customer's sheet sends no quantity at all:
+        // correcting a phone number turned the three wagons somebody actually bought back
+        // into a single wagon, quietly, with a 200. "Nobody typed a number" still comes out
+        // as one house, but from the entity default on a brand-new row rather than by
+        // overwriting a number somebody did type. Zero and below are refused in validation
+        // rather than clamped here, because the unit price divides by this.
+        if (input.Quantity is int q && q > 0) purchase.Quantity = q;
+
         purchase.DepositPaid = input.DepositPaid;
         purchase.FinalPrice = input.FinalPrice;
-        purchase.PaymentFees = input.PaymentFees;
-        purchase.TransportCost = input.TransportCost;
-        purchase.InstallationCost = input.InstallationCost;
-        purchase.OtherCosts = input.OtherCosts;
 
-        // The order-tracking columns are NOT touched here — see PurchaseInput. This method
-        // writes every field it is given, so reaching them from a form that cannot show them
-        // is how they get erased.
+        // Neither the four sale-expense columns nor the order-tracking ones are touched
+        // here — see PurchaseInput. This method writes every field it is given, so reaching
+        // a column from a form that cannot show it is how the column gets erased.
         purchase.Currency = AdminText.Clean(input.Currency) ?? "EUR";
         purchase.Notes = AdminText.Clean(input.Notes);
 
@@ -757,7 +795,7 @@ public sealed class CustomerAdminService
                 f.FileName,
                 f.ContentType,
                 f.SizeBytes,
-                $"/api/admin/customers/files/{f.Id}",
+                FileDownloadUrl(f.Id),
                 f.CreatedAt.ToString("o")))
             .ToList());
 

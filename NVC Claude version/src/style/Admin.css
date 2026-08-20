@@ -1840,9 +1840,33 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   font-weight: 700;
 }
 
-.adm-invoices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 14px; }
-.adm-invoice-slot { display: grid; gap: 6px; justify-items: start; }
+/* How many of the same thing. Narrow on purpose: a box sized for a price invites a price,
+   and this one never holds more than two digits. */
+.adm-newdeal-grid input.adm-qty { max-width: 110px; }
+
+/* The four documents, in the two pairs the business actually deals in — each payment brings
+   a проформа and then a фактура. The pairing is the whole point of the grouping, so the
+   groups break to their own line before the two slots inside one of them ever separate. */
+.adm-invoices { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 14px; }
+.adm-invoice-group { display: grid; gap: 8px; align-content: start; }
+/* Which payment this pair belongs to. Quieter than the "Плащане" heading above it, because
+   it is a shelf inside that block rather than a block of its own. */
+.adm-invoice-group h6 { margin: 0; font-weight: 700; color: var(--adm-muted); }
+.adm-invoice-group-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.adm-invoice-slot { display: grid; gap: 6px; justify-items: start; align-content: start; }
 .adm-invoice-slot .adm-attach-list { width: 100%; }
+
+/* The sheet goes full-screen at this width, and auto-fit still lays a 300px track when
+   there is less than 300px to lay it in: on a 320px phone the row of groups is wider than
+   the dialog body, and .adm-modal-body scrolls vertically — which computes overflow-x to
+   auto as well — so the whole dialog picks up a horizontal scrollbar. Stacked instead. The
+   pair inside a group stays two-up; the pairing is what the grouping exists for.
+
+   Below the rule it overrides rather than up with the other modal breakpoints, because
+   both selectors are one class deep and the later one would win wherever it sat. */
+@media (max-width: 640px) {
+  .adm-invoices { grid-template-columns: 1fr; }
+}
 
 /* --- The factory directory ---------------------------------------------------------- */
 

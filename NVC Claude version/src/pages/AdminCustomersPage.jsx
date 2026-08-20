@@ -55,6 +55,7 @@ const TEXT = {
     modelFree: 'свободен текст — без връзка с модел от галерията',
     customBuildHint: 'Модулните къщи са проект по поръчка — няма модел от галерията.',
     purchasedAt: 'Дата на покупка',
+    quantity: 'Брой',
     currency: 'Валута',
 
     payment: 'Плащане',
@@ -63,7 +64,8 @@ const TEXT = {
     noPrice: '—',
     wagonHint: 'Фургоните се плащат наведнъж, затова тук няма капаро и фактури.',
 
-    prepaidInvoice: 'Проформа фактура', finalInvoice: 'Финална фактура',
+    documentGroups: { deposit: 'Капаро', final: 'Финално плащане', other: 'Други' },
+    documents: { proforma: 'Проформа', invoice: 'Фактура', other: 'Договор и друго' },
     upload: 'Прикачи', uploading: 'Качване…',
     saveFirst: 'Запазете клиента, за да прикачите файлове.',
     removeFile: 'Премахни',
@@ -115,6 +117,7 @@ const TEXT = {
     modelFree: 'free text — not linked to a gallery model',
     customBuildHint: 'Modular houses are custom builds — there is no catalogue model.',
     purchasedAt: 'Purchase date',
+    quantity: 'Quantity',
     currency: 'Currency',
 
     payment: 'Payment',
@@ -123,7 +126,8 @@ const TEXT = {
     noPrice: '—',
     wagonHint: 'Wagons are paid in one go, so there is no deposit or invoice here.',
 
-    prepaidInvoice: 'Prepaid invoice', finalInvoice: 'Final invoice',
+    documentGroups: { deposit: 'Deposit', final: 'Final payment', other: 'Other' },
+    documents: { proforma: 'Proforma', invoice: 'Invoice', other: 'Contract and other' },
     upload: 'Attach', uploading: 'Uploading…',
     saveFirst: 'Save the customer to attach files.',
     removeFile: 'Remove',
@@ -148,6 +152,42 @@ const TEXT = {
 
 const CURRENCIES = ['EUR', 'BGN']
 
+// The paperwork one sale produces, grouped by the payment that produces it. A customer pays
+// twice — капаро, then the balance — and each payment brings a проформа first and a фактура
+// once the money has actually moved, which is why four slots rather than two.
+//
+// The keys are the server's PurchaseFileKinds and nothing hands them over the way
+// /customers/categories hands over the category list, so this is a second copy that has to
+// move when that one does. A kind the server does not know is answered with a 400 on upload.
+//
+// The last group is not a payment and does not pretend to be. It is where the contracts and
+// delivery notes go — the 'other' kind the server has always accepted and no slot ever
+// offered — and it is also the CATCH-ALL: see filesForSlot.
+const DOCUMENT_GROUPS = [
+  { group: 'deposit', slots: [['deposit-proforma', 'proforma'], ['deposit-invoice', 'invoice']] },
+  { group: 'final', slots: [['final-proforma', 'proforma'], ['final-invoice', 'invoice']] },
+  { group: 'other', slots: [['other', 'other']] },
+]
+
+const PAYMENT_KINDS = DOCUMENT_GROUPS
+  .filter((g) => g.group !== 'other')
+  .flatMap((g) => g.slots.map(([kind]) => kind))
+
+// Which slot a document is drawn in. The four payment kinds take only their own; the last
+// slot takes everything else, INCLUDING a kind this build has never heard of.
+//
+// That last part is the whole reason this is a function rather than a filter on equality.
+// Kinds are renamed by data migration and the code ships separately, so between the two
+// there are rows in the table carrying a key no slot claims — every проформа still filed as
+// 'prepaid-invoice' until RenamePrepaidInvoiceKind is run, for instance. Matched by
+// equality alone they render nowhere at all, which on screen is indistinguishable from
+// having been deleted, and the natural answer to a document that looks deleted is to upload
+// it again. Here they are visible, downloadable and removable wherever they end up.
+const filesForSlot = (files, kind) =>
+  kind === 'other'
+    ? files.filter((f) => !PAYMENT_KINDS.includes(f.kind))
+    : files.filter((f) => f.kind === kind)
+
 // What the panel falls back to if /categories cannot be reached. The endpoint exists so the
 // two cannot drift, but a page that will not render because one request hiccuped is worse
 // than a page working from a slightly stale list.
@@ -159,7 +199,8 @@ const FALLBACK_CATEGORIES = {
 
 const emptyPurchase = () => ({
   id: 0, factoryId: 0, categoryKey: '', houseId: 0, customModel: '', modelText: '',
-  depositPaid: '', finalPrice: '', currency: 'EUR', purchasedAt: '', notes: '', files: [],
+  quantity: 1, depositPaid: '', finalPrice: '', currency: 'EUR', purchasedAt: '',
+  notes: '', files: [],
 })
 
 const emptyCustomer = () => ({
@@ -172,6 +213,22 @@ const emptyCustomer = () => ({
 // price must not report one. Number('') is 0, which is exactly the bug this avoids.
 const numberOrNull = (value) =>
   value === '' || value === null || value === undefined ? null : Number(value)
+
+// For the count, which is an int column on the far side and not a decimal one.
+//
+// A number input with step="1" does not refuse "2.5" — it is a perfectly valid floating
+// point number and e.target.value hands it over as typed. Sent as it is, it fails JSON
+// binding before any of the server's own rules run, and a binding failure comes back as a
+// ProblemDetails naming a JSON path rather than a field, so the panel would report a bare
+// 400 and lose the phone number and the prices typed beside it. Made whole here instead.
+//
+// Zero is deliberately NOT turned into null on the way past: null means "leave the stored
+// count alone", and quietly leaving it alone is how a typo becomes permanent. Zero travels,
+// and the server answers with the reason.
+const wholeNumberOrNull = (value) => {
+  const n = numberOrNull(value)
+  return n === null || !Number.isFinite(n) ? null : Math.trunc(n)
+}
 
 const moneyText = (value, currency) =>
   value === null || value === undefined
@@ -260,6 +317,10 @@ export default function AdminCustomersPage() {
           // The linked model wins when there is one: it is the more precise of the two and
           // the one the box can link straight back up on save.
           modelText: p.houseTitle || p.customModel || '',
+          // Not `?? 1`: the column was added to a populated table with a default of 0 and a
+          // row that predates the backfill still carries it, which `??` sails straight past
+          // and renders as a 0 the box refuses to save and nobody can explain.
+          quantity: p.quantity > 0 ? p.quantity : 1,
           depositPaid: p.depositPaid ?? '',
           finalPrice: p.finalPrice ?? '',
           purchasedAt: p.purchasedAt ?? '',
@@ -297,6 +358,10 @@ export default function AdminCustomersPage() {
           categoryKey: p.categoryKey || null,
           houseId: p.houseId || null,
           customModel: p.customModel || null,
+          // An empty box is "nobody said", not "one": the server leaves an absent quantity
+          // where it is, so a cleared field cannot quietly turn a sale of three into a sale
+          // of one on its way past.
+          quantity: wholeNumberOrNull(p.quantity),
           depositPaid: numberOrNull(p.depositPaid),
           finalPrice: numberOrNull(p.finalPrice),
           currency: p.currency,
@@ -337,12 +402,26 @@ export default function AdminCustomersPage() {
     }
   }
 
+  // Both of these patch the open sheet rather than reopening it, and that is the point.
+  //
+  // open() replaces the dialog wholesale with the server's copy, which is right after a
+  // save and wrong here: a document is filed in the middle of editing, and the sheet is
+  // full of things the server has never been told about. Refetching threw all of it away
+  // silently — a count typed into "Брой" snapped back to the stored number, and a purchase
+  // added with "+ Добави покупка" vanished from the dialog entirely — so the next Запази
+  // wrote the old numbers back over the new ones with a 200. The file endpoints answer with
+  // the row they wrote, so there is nothing a refetch would tell us that is not already here.
   async function uploadFile(purchaseId, kind, file) {
     setBusy(`file-${purchaseId}-${kind}`)
     setError('')
     try {
-      await adminUpload(`/api/admin/customers/purchases/${purchaseId}/files`, file, { kind })
-      await open(editing.id)
+      const added = await adminUpload(`/api/admin/customers/purchases/${purchaseId}/files`, file, { kind })
+      setEditing((c) => ({
+        ...c,
+        purchases: c.purchases.map((p) => (
+          p.id === purchaseId ? { ...p, files: [...p.files, added] } : p
+        )),
+      }))
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setError(err?.message || t.uploadError)
@@ -351,11 +430,16 @@ export default function AdminCustomersPage() {
     }
   }
 
+  // Across every purchase rather than one: the button only knows the file's id, and a row
+  // id is unique in the table, so the purchase that holds it is whichever one it is in.
   async function removeFile(fileId) {
     setError('')
     try {
       await adminDelete(`/api/admin/customers/files/${fileId}`)
-      await open(editing.id)
+      setEditing((c) => ({
+        ...c,
+        purchases: c.purchases.map((p) => ({ ...p, files: p.files.filter((f) => f.id !== fileId) })),
+      }))
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setError(err?.message || t.saveError)
@@ -696,6 +780,20 @@ function PurchaseCard({
               : (isCustomBuild ? t.customBuildHint : (purchase.modelText.trim() ? t.modelFree : ' '))}
           </span>
         </label>
+
+        {/* How many of the same thing — what the orders board reads back as "× 3 бр." and
+            what the final price is divided by for a unit price. It sits with what was
+            bought rather than inside the payment block below, because a wagon is bought by
+            the handful and the payment block is the one thing a wagon does not show. */}
+        <label>
+          <span className="adm-small">{t.quantity}</span>
+          <input
+            className="adm-qty"
+            type="number" min="1" step="1" inputMode="numeric"
+            value={purchase.quantity}
+            onChange={(e) => onPatch({ quantity: e.target.value })}
+          />
+        </label>
       </div>
 
       {tracksPayment ? (
@@ -737,18 +835,29 @@ function PurchaseCard({
           </div>
 
           <div className="adm-invoices">
-            {[['prepaid-invoice', t.prepaidInvoice], ['final-invoice', t.finalInvoice]].map(([kind, label]) => (
-              <InvoiceSlot
-                key={kind}
-                t={t}
-                kind={kind}
-                label={label}
-                purchaseId={purchase.id}
-                files={purchase.files.filter((f) => f.kind === kind)}
-                busy={busy === `file-${purchase.id}-${kind}`}
-                onUpload={onUpload}
-                onRemoveFile={onRemoveFile}
-              />
+            {DOCUMENT_GROUPS.map(({ group, slots }) => (
+              <div key={group} className="adm-invoice-group">
+                <h6 className="adm-small">{t.documentGroups[group]}</h6>
+                <div className="adm-invoice-group-slots">
+                  {slots.map(([kind, doc]) => (
+                    <InvoiceSlot
+                      key={kind}
+                      t={t}
+                      kind={kind}
+                      label={t.documents[doc]}
+                      // "Проформа" is on the page twice and the heading that tells them
+                      // apart is not read out with either of them, so the slot carries the
+                      // payment it belongs to in its own name.
+                      name={`${t.documentGroups[group]}: ${t.documents[doc]}`}
+                      purchaseId={purchase.id}
+                      files={filesForSlot(purchase.files, kind)}
+                      busy={busy === `file-${purchase.id}-${kind}`}
+                      onUpload={onUpload}
+                      onRemoveFile={onRemoveFile}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -766,20 +875,27 @@ function PurchaseCard({
 
 // One document slot. Files are listed rather than replaced: a reissued invoice is a real
 // thing, and silently overwriting the first one loses the version that was actually sent.
-function InvoiceSlot({ t, kind, label, purchaseId, files, busy, onUpload, onRemoveFile }) {
+function InvoiceSlot({ t, kind, label, name, purchaseId, files, busy, onUpload, onRemoveFile }) {
   const picker = React.useRef(null)
   const saved = purchaseId > 0
 
   return (
-    <div className="adm-invoice-slot">
+    <div className="adm-invoice-slot" role="group" aria-label={name}>
       <span className="adm-small">{label}</span>
 
       <ul className="adm-attach-list">
         {files.map((file) => (
           <li key={file.id} className="adm-attach-chip">
             {/* Through the authenticated endpoint by row id — the blob key never reaches
-                the browser, so an invoice cannot be found by guessing a path. */}
-            <a className="adm-attach-name" href={file.downloadUrl} download>{file.fileName}</a>
+                the browser, so an invoice cannot be found by guessing a path.
+
+                The title carries the whole name because the chip does not: it ellipsises,
+                and a slot holding a reissue shows two documents cut to the same dozen
+                characters. Without it the only way to tell "проформа-2.pdf" from
+                "проформа-корекция.pdf" is to download both. */}
+            <a className="adm-attach-name" href={file.downloadUrl} title={file.fileName} download>
+              {file.fileName}
+            </a>
             <button
               type="button"
               className="adm-attach-x"
@@ -792,10 +908,17 @@ function InvoiceSlot({ t, kind, label, purchaseId, files, busy, onUpload, onRemo
         ))}
       </ul>
 
+      {/* .visually-hidden is the clip pattern, not display:none, so this control is still
+          focusable and still in the tab order — four unnamed file inputs per purchase where
+          there used to be two. Named, and taken out of the tab sequence: the button beside
+          it is what operates it, and reaching the same picker twice by keyboard is two
+          stops for one action. */}
       <input
         ref={picker}
         type="file"
         className="visually-hidden"
+        aria-label={name}
+        tabIndex={-1}
         onChange={(e) => {
           const file = e.target.files?.[0]
           // Cleared BEFORE the handler runs, so picking the same file twice still fires a
@@ -808,6 +931,11 @@ function InvoiceSlot({ t, kind, label, purchaseId, files, busy, onUpload, onRemo
       <button
         type="button"
         className="btn ghost adm-btn-sm"
+        // Five of these on a purchase card and every one of them reads "Прикачи". The
+        // group's label is not part of any control's accessible name, and a screen reader
+        // cycling buttons announces no group boundaries at all — so the slot's own name goes
+        // on the control, or a финална фактура gets filed against the капаро.
+        aria-label={`${t.upload}: ${name}`}
         // A file needs a saved purchase to belong to. Disabled with a reason rather than
         // absent, so the control does not appear to be missing.
         disabled={!saved || busy}

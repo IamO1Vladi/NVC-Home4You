@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+using apidotnet.Data.Migrations;
 using Data.Entities;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Services;
 using Xunit;
 
@@ -236,6 +238,137 @@ public class CustomerAdminTests
         Assert.Empty(CustomerAdminService.Validate(input));
     }
 
+    // --- What a customer submission is allowed to write ---------------------------------
+
+    [Fact]
+    public void The_sale_expense_columns_have_no_door_on_the_customer_sheet()
+    {
+        // Payment fees, transport, installation and other costs arrived with the Quickbase
+        // import and nothing in the panel can type into one. PurchaseInput is a whole-row
+        // writer, so a property here IS a way to clear the column — re-adding any of these
+        // is how a corrected phone number starts nulling them again. The behaviour is pinned
+        // by CustomerStoreTests; this pins the shape, because the shape is what somebody
+        // "just wiring up a field" changes first.
+        var written = typeof(PurchaseInput).GetProperties().Select(p => p.Name).ToList();
+
+        foreach (var column in new[] { "PaymentFees", "TransportCost", "InstallationCost", "OtherCosts" })
+        {
+            Assert.DoesNotContain(column, written);
+        }
+
+        // Quantity is the deliberate exception, and belongs here rather than in a comment
+        // somewhere: the panel is growing an input for it. What made it safe was changing
+        // what an ABSENT quantity means, not taking the door away.
+        Assert.Contains("Quantity", written);
+    }
+
+    [Fact]
+    public void A_quantity_is_only_checked_when_one_was_actually_sent()
+    {
+        // Absent is not zero, and absent is the CONTRACT rather than an accident of what the
+        // sheet happens to send: an omitted quantity means "leave the stored count alone",
+        // so a rule that fired on null would refuse every caller that is not writing counts.
+        // The sheet does send one now — that is exactly why the rule has to tolerate absent
+        // rather than lean on nobody sending it.
+        Assert.Empty(CustomerAdminService.Validate(WithQuantity(null)));
+        Assert.Empty(CustomerAdminService.Validate(WithQuantity(3)));
+
+        Assert.Contains(CustomerAdminService.Validate(WithQuantity(0)), e => e.Contains("quantity"));
+        Assert.Contains(CustomerAdminService.Validate(WithQuantity(-2)), e => e.Contains("quantity"));
+    }
+
+    // --- The documents a purchase carries ----------------------------------------------
+
+    [Fact]
+    public void A_sale_produces_four_documents_in_the_order_they_happen()
+    {
+        // A customer pays twice, and each payment is invoiced twice over: a проформа asking
+        // for the money, then a фактура once it has arrived. The order is not decoration —
+        // the panel draws its slots off this list, so a list in the wrong order is a sheet
+        // that reads backwards.
+        Assert.Equal(
+            new[] { "deposit-proforma", "deposit-invoice", "final-proforma", "final-invoice", "other" },
+            PurchaseFileKinds.All);
+
+        // Every one of them is uploadable. IsValid is the whole of the check
+        // AdminCustomersController.UploadFile makes, and the only place a kind is validated
+        // server-side at all.
+        foreach (var kind in PurchaseFileKinds.All)
+        {
+            Assert.True(PurchaseFileKinds.IsValid(kind));
+        }
+    }
+
+    [Fact]
+    public void The_key_that_described_the_wrong_document_is_no_longer_accepted()
+    {
+        // 'prepaid-invoice' held a PROFORMA against the deposit — the panel's label said so
+        // and the constant's own comment said so; only the key disagreed. Its rows move to
+        // 'deposit-proforma' in RenamePrepaidInvoiceKind, and refusing the old key on upload
+        // is what stops a fresh document being filed under a name that now sits between two
+        // of the four slots.
+        Assert.False(PurchaseFileKinds.IsValid("prepaid-invoice"));
+        Assert.False(PurchaseFileKinds.IsValid("проформа"));
+        Assert.False(PurchaseFileKinds.IsValid(null));
+    }
+
+    [Fact]
+    public void The_rename_migration_moves_the_misfiled_rows_and_touches_nothing_else()
+    {
+        // Written by hand: no schema changed, so EF generated an empty Up and Down. Read back
+        // off the migration rather than out of the file, so deleting the statement while
+        // keeping the migration fails here instead of on a database nobody is watching.
+        var migration = new RenamePrepaidInvoiceKind();
+
+        var up = Assert.Single(migration.UpOperations.OfType<SqlOperation>()).Sql;
+        Assert.Contains($"[Kind] = '{PurchaseFileKinds.DepositProforma}'", up);
+        Assert.Contains("[Kind] = 'prepaid-invoice'", up);
+
+        // The two keys that already say what they mean are not in the statement at all —
+        // 'final-invoice' keeping its key is the reason none of its rows have to move.
+        Assert.DoesNotContain(PurchaseFileKinds.FinalInvoice, up);
+        Assert.DoesNotContain(PurchaseFileKinds.Other, up);
+
+        var down = Assert.Single(migration.DownOperations.OfType<SqlOperation>()).Sql;
+        Assert.Contains(
+            $"[Kind] = 'prepaid-invoice' WHERE [Kind] = '{PurchaseFileKinds.DepositProforma}'", down);
+    }
+
+    [Fact]
+    public void The_backfill_gives_the_older_purchases_a_count_and_a_status()
+    {
+        // Quantity and Status were added to a table that already had rows in it, so both
+        // landed on the default a NOT NULL column is given: 0, and ''. Neither is a value
+        // this application can produce or read. 0 is now refused on the way in, which means
+        // a purchase recorded before that migration could not have its customer's phone
+        // number corrected — the sheet answered with a validation error about a count
+        // nobody typed; '' matches no step of OrderStatuses.Timeline, so the customer's
+        // tracking page drew a timeline with nothing reached.
+        //
+        // Read off the migration rather than out of the file, same as the rename above.
+        var migration = new BackfillPurchaseQuantityAndStatus();
+        var up = migration.UpOperations.OfType<SqlOperation>().Select(o => o.Sql).ToList();
+
+        Assert.Contains(up, sql => sql.Contains("[Quantity] = 1") && sql.Contains("[Quantity] <= 0"));
+        Assert.Contains(up, sql =>
+            sql.Contains($"[Status] = '{OrderStatuses.Placed}'") && sql.Contains("[Status] = ''"));
+
+        // Nothing to reverse, deliberately: Down would have to know which rows held the
+        // defaults, and writing a 0 and an '' back recreates the state this exists to end.
+        Assert.Empty(migration.DownOperations);
+    }
+
+    [Fact]
+    public void A_document_is_addressed_by_row_id_and_never_by_blob_key()
+    {
+        // One expression behind two callers — the detail read describes a file with it and
+        // the upload endpoint answers with it, so the panel can drop the row it just filed
+        // into the sheet it already has open. The blob key never appears in a URL: an
+        // invoice carries a name, an address and an ЕГН, and a path that can be guessed is
+        // a path that does not need a session.
+        Assert.Equal("/api/admin/customers/files/90", CustomerAdminService.FileDownloadUrl(90));
+    }
+
     // --- Money -------------------------------------------------------------------------
 
     [Fact]
@@ -357,4 +490,14 @@ public class CustomerAdminTests
         Country = country,
         PersonalId = personalId,
     };
+
+    private static CustomerInput WithQuantity(int? quantity)
+    {
+        var input = Customer(CustomerTypes.Person);
+        input.Purchases = new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Wagon, Quantity = quantity },
+        };
+        return input;
+    }
 }

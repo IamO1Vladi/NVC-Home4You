@@ -5,7 +5,7 @@ handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DE
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **676 .NET, 281 frontend.**
+Tests: **686 .NET, 295 frontend.**
 
 ---
 
@@ -16,7 +16,7 @@ Tests: **676 .NET, 281 frontend.**
 | **Live** | `db24ce5`, tagged **`deploy-2026-08-20`** — order tracking, and the server-side fix that made `/order/{code}` resolve. Verified from outside 2026-08-20: the live bundle `index-BXwZandb.js` is the same hash the shipped snapshots reference and serves as `text/javascript`, and `/order/TESTCODE` answers 200 rather than the 404 every customer link was getting the day before. |
 | **`production` branch** | `db24ce5` = live. Seven commits had gone out untagged before this; the tag was added afterwards, which is why `deploy-2026-08-19c` sat three days behind what was actually running. |
 | **`master`** | `db24ce5` = `production`. Both pushed. `leads-table` is fully merged and holds nothing of its own. |
-| **Migrations** | **One PENDING: `AddOrderStatusHistory`** — generated 2026-08-20, NOT applied anywhere. It adds the append-only `OrderStatusEvents` table; additive only, safe on a database with rows. Apply it with the next publish or the orders board writes history nowhere. `MergeSalesIntoPurchasesAndTrackOrders` is applied to production. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md` for the SQL if that is ever wanted. |
+| **Migrations** | `AddOrderStatusHistory` is **APPLIED to production** (2026-08-20). Additive only, and the live build does not know the table exists, so applying it changed nothing on the site — verified straight afterwards. **TWO STILL PENDING and both ship with the code that needs them:** `RenamePrepaidInvoiceKind` and `BackfillPurchaseQuantityAndStatus`. Migrate BEFORE publishing — DEPLOY.md §5b now carries the reasoning: a migration is readable by the build already running, while the new build ships expecting data the migration has produced. `MergeSalesIntoPurchasesAndTrackOrders` is applied to production. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md` for the SQL if that is ever wanted. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -74,9 +74,14 @@ was empty either way). Checking the live site settles such questions in a minute
      number erased what a worker had typed on the board that morning. The order fields are
      now GONE from `PurchaseInput` and `Apply` — `UpdateOrderAsync` is the only door onto
      `Status`, which is also what makes a move impossible without its history row.
-     **Quantity and the four sale-expense columns are still wiped the same way and are
-     being fixed next** — nothing in the panel can set them, so today the only code that
-     touches them deletes the values the Quickbase import brought in.
+     **The same wipe took Quantity and the four sale-expense columns, and both are now
+     closed.** The expenses left `PurchaseInput` the way the order fields did — import-only
+     history with no screen and no writer until billing moves across. Quantity went the
+     other way: the sheet grew a "Брой" box, so the column has an owner, and what changed
+     is that an ABSENT quantity now leaves the stored count alone instead of meaning one.
+     `BackfillPurchaseQuantityAndStatus` gives the rows that predate the column the 1 and
+     the `placed` they should have had — they were added to a populated table and landed on
+     0 and `''`, and a 0 is refused on save, which blocked the whole customer.
    - **`Purchase.Status` is now a concurrency token**, so two people advancing the same
      order do not both write a move and credit the wrong one. No migration: the status
      column IS the version.

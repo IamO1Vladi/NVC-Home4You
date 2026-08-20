@@ -15,8 +15,10 @@ namespace Data.Entities;
 //
 // Deliberately NOT a billing record. There is no VAT, no payment schedule, no ledger and no
 // document generation here — that logic is still in Quickbase. This holds what sales knows:
-// what was bought, from whom, what has been paid, and where the two invoices are. When
-// billing moves across it can build on this table instead of replacing it.
+// what was bought, from whom, what has been paid, and where the paperwork is — the two
+// проформи and the two фактури a sale produces, plus anything else filed with it (see
+// PurchaseFileKinds). When billing moves across it can build on this table instead of
+// replacing it.
 public class Purchase
 {
     public int Id { get; set; }
@@ -49,11 +51,16 @@ public class Purchase
     [MaxLength(400)] public string? CustomModel { get; set; }
 
     // --- Money ------------------------------------------------------------------------
-    // How many of it. Almost always 1 — a customer buys a house — so it DEFAULTS to 1 and
-    // the form leaves it alone; it exists because the archived Sale table tracked it and
-    // merging the two (owner, 2026-08-19) must not lose the count on the orders that had
-    // one. FinalPrice stays the TOTAL, so unit price is FinalPrice / Quantity, computed in
-    // the DTO and stored nowhere: two price columns is exactly the drift this schema
+    // How many of it. Almost always 1 — a customer buys a house — so a row nobody types a
+    // count into DEFAULTS to 1 here, and that default is the only thing that establishes
+    // the value: the customer's sheet OWNS this field now (there is a "Брой" box on the
+    // purchase card), and an absent quantity in a submission means "leave the stored count
+    // alone" rather than "one". See CustomerAdminService.Apply, where writing 1 for an
+    // absent quantity is what turned somebody's three wagons back into one every time a
+    // phone number was corrected. It exists at all because the archived Sale table tracked
+    // it and merging the two (owner, 2026-08-19) must not lose the count on the orders that
+    // had one. FinalPrice stays the TOTAL, so unit price is FinalPrice / Quantity, computed
+    // in the DTO and stored nowhere: two price columns is exactly the drift this schema
     // refuses everywhere else.
     public int Quantity { get; set; } = 1;
 

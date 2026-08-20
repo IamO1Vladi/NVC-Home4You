@@ -43,10 +43,20 @@ const DETAIL = {
     {
       id: 11, factoryId: 5, factoryName: 'Bursa Prefab', categoryKey: 'prefab',
       houseId: 3, houseTitle: 'Nova 60', customModel: null,
-      depositPaid: 20000, finalPrice: 50000, leftToPay: 30000, currency: 'EUR',
-      purchasedAt: '2026-06-01', notes: '',
+      quantity: 2, depositPaid: 20000, finalPrice: 50000, unitPrice: 25000,
+      leftToPay: 30000, currency: 'EUR', purchasedAt: '2026-06-01', notes: '',
+
+      // Columns this form cannot type into and must never send back. The tracking ones
+      // belong to the orders board, the four expenses came in with the Quickbase import.
+      // They are here so a save that started naming them again has something to fail on.
+      status: 'in-production', publicReference: 'NVC-7Q2M',
+      expectedAtHarbor: '2026-09-10', expectedReadyAt: '2026-08-25',
+      carrierName: 'Speedy', trackingReference: 'SP-99', carrierNote: null, carrierCheckedAt: null,
+      paymentFees: 120, transportCost: 3400, installationCost: 900, otherCosts: 0,
+      saleExpenses: 4420,
+
       files: [
-        { id: 90, kind: 'prepaid-invoice', fileName: 'proforma.pdf', contentType: 'application/pdf', sizeBytes: 1024, downloadUrl: '/api/admin/customers/files/90', createdAt: '2026-06-02T09:00:00Z' },
+        { id: 90, kind: 'deposit-proforma', fileName: 'proforma.pdf', contentType: 'application/pdf', sizeBytes: 1024, downloadUrl: '/api/admin/customers/files/90', createdAt: '2026-06-02T09:00:00Z' },
       ],
     },
   ],
@@ -74,6 +84,22 @@ beforeEach(() => {
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
     if (u.includes('/api/admin/customers/categories')) return json(CATEGORIES)
+    // The upload answers with the row it wrote, in the same shape the detail read describes
+    // a file. That is what lets the sheet patch itself instead of refetching the customer
+    // and replacing everything somebody is halfway through typing.
+    if (u.includes('/api/admin/customers/purchases/') && u.endsWith('/files')) {
+      const id = 900 + calls.filter((c) => c.url.endsWith('/files')).length
+      return json({
+        ok: true,
+        id,
+        kind: options.body.get('kind'),
+        fileName: options.body.get('file').name,
+        contentType: 'application/pdf',
+        sizeBytes: 8,
+        downloadUrl: `/api/admin/customers/files/${id}`,
+        createdAt: '2026-08-20T09:00:00Z',
+      })
+    }
     if (u.includes('/api/admin/customers/1')) {
       if (options.method === 'PUT') return json({ ok: true, customer: detail, duplicateOf: null })
       return json(detail)
@@ -241,6 +267,161 @@ describe('AdminCustomersPage', () => {
     })
   })
 
+  // --- How many ------------------------------------------------------------------------
+
+  it('saves the number of units somebody typed', async () => {
+    // The column existed, the orders board read it back as "× 3 бр.", and nothing on this
+    // panel could put a number in it — every sale of three was recorded as a sale of one.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).getByLabelText('Брой')).toHaveValue(2)
+
+    fireEvent.change(within(dialog).getByLabelText('Брой'), { target: { value: '3' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].quantity).toBe(3)
+    })
+  })
+
+  it('a new purchase is one of the thing until somebody says otherwise', async () => {
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    await user.click(within(dialog).getByRole('button', { name: '+ Добави покупка' }))
+
+    expect(within(dialog).getAllByLabelText('Брой')[1]).toHaveValue(1)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[1].quantity).toBe(1)
+      // And the one that was already two stays two, rather than being reset by the save
+      // that only came to add its neighbour.
+      expect(saved.purchases[0].quantity).toBe(2)
+    })
+  })
+
+  it('a quantity box left empty says nothing rather than one', async () => {
+    // The server leaves an absent quantity alone. Sending 1 for an empty box would turn
+    // "I cleared it by accident" into a sale of three quietly becoming a sale of one.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    fireEvent.change(within(dialog).getByLabelText('Брой'), { target: { value: '' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].quantity).toBeNull()
+    })
+  })
+
+  it('reads a purchase that predates the column as one, not as zero', async () => {
+    // Quantity was added to a populated table and landed on the default a NOT NULL column
+    // gets, so every purchase recorded before that migration carries 0 — which `?? 1` sails
+    // straight past. Rendered as 0 it is a number the server now refuses, and the refusal
+    // blocks the entire customer: identity, prices, notes, all of it, over a box nobody
+    // touched. The database is backfilled too; this is what a row that slipped through
+    // looks like on screen.
+    detail = { ...DETAIL, purchases: [{ ...DETAIL.purchases[0], quantity: 0 }] }
+
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).getByLabelText('Брой')).toHaveValue(1)
+  })
+
+  it('sends a whole number of units, whatever the box was left holding', async () => {
+    // step="1" does not refuse "2.5" — it is a valid number and the input hands it over as
+    // typed. The column on the far side is an int, so that body fails JSON binding before
+    // any rule of ours runs, and the answer names a JSON path rather than a field: the
+    // whole save is lost, the phone number typed beside it with it, and nothing on screen
+    // says which of ten boxes to look at.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    fireEvent.change(within(dialog).getByLabelText('Брой'), { target: { value: '2.5' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].quantity).toBe(2)
+    })
+  })
+
+  it('lets a typed zero travel rather than turning it into "leave it alone"', async () => {
+    // Null is the way to say "this submission is not about the count". A 0 quietly becoming
+    // null would keep the stored number and report success, so the typo survives and the
+    // sale of three still reads as three when somebody meant to correct it.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    fireEvent.change(within(dialog).getByLabelText('Брой'), { target: { value: '0' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].quantity).toBe(0)
+    })
+  })
+
+  it('reads the reason out of a body the server could not bind', async () => {
+    // Our own validation answers { errors: [...] }; ASP.NET answers a binding failure with
+    // ProblemDetails, whose errors is an OBJECT keyed by whatever failed. Read only for the
+    // array, every one of those degrades to a bare status code and the panel names nothing
+    // anybody can go and fix.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    global.fetch.mockImplementation((url, options = {}) => {
+      if (String(url).includes('/api/admin/customers/1') && options.method === 'PUT') {
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: () => Promise.resolve({
+            title: 'One or more validation errors occurred.',
+            errors: { '$.purchases[0].quantity': ['The JSON value could not be converted to System.Int32.'] },
+          }),
+          text: () => Promise.resolve(''),
+        })
+      }
+      return json(detail)
+    })
+
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    expect(await screen.findByText(/could not be converted/)).toBeInTheDocument()
+  })
+
+  it('asks for a quantity even where there is no payment block to put it in', async () => {
+    // A wagon hides the money fields, and wagons are the thing people buy five of. Putting
+    // the box in with the money would have left the commonest case exactly as it was.
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], categoryKey: 'wagon', houseId: null, houseTitle: '',
+        customModel: 'Фургон 6м', depositPaid: null, finalPrice: null, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).queryByLabelText('Платено капаро')).not.toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Брой')).toHaveValue(2)
+  })
+
   // --- The wagon rule -----------------------------------------------------------------
 
   it('hides the payment block for a wagon', async () => {
@@ -388,6 +569,40 @@ describe('AdminCustomersPage', () => {
     })
   })
 
+  it('never sends back the columns no form on this page can reach', async () => {
+    // Order tracking is written by the orders board and the four sale expenses came in with
+    // the Quickbase import; the server takes neither set from here any more. The submission
+    // is a whole row — naming a column it has no input for is how a corrected phone number
+    // used to wipe the carrier and every expense off every purchase this customer had.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      const sent = Object.keys(saved.purchases[0])
+      expect(sent).not.toContain('status')
+      expect(sent).not.toContain('publicReference')
+      expect(sent).not.toContain('expectedAtHarbor')
+      expect(sent).not.toContain('expectedReadyAt')
+      expect(sent).not.toContain('carrierName')
+      expect(sent).not.toContain('trackingReference')
+      expect(sent).not.toContain('carrierNote')
+      expect(sent).not.toContain('carrierCheckedAt')
+      expect(sent).not.toContain('paymentFees')
+      expect(sent).not.toContain('transportCost')
+      expect(sent).not.toContain('installationCost')
+      expect(sent).not.toContain('otherCosts')
+      // Both of these are arithmetic the server does on read, and a form that sends them
+      // is a second version of a figure that can disagree with the first.
+      expect(sent).not.toContain('saleExpenses')
+      expect(sent).not.toContain('unitPrice')
+      expect(sent).not.toContain('leftToPay')
+    })
+  })
+
   it('offers an existing invoice through the authenticated endpoint', async () => {
     const user = userEvent.setup()
     render(<AdminCustomersPage />)
@@ -399,6 +614,137 @@ describe('AdminCustomersPage', () => {
     expect(link).toHaveAttribute('href', '/api/admin/customers/files/90')
   })
 
+  it('offers a slot for each of the four documents a sale produces', async () => {
+    // A customer pays twice and each payment brings a проформа and then a фактура. The two
+    // slots inside a group both read "Проформа" / "Фактура" because the heading above them
+    // says which payment — so the name that has to tell them apart is the accessible one.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).getByRole('group', { name: 'Капаро: Проформа' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Капаро: Фактура' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Финално плащане: Проформа' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('group', { name: 'Финално плащане: Фактура' })).toBeInTheDocument()
+
+    // The existing document is in the deposit's проформа slot and nowhere else.
+    const deposit = within(dialog).getByRole('group', { name: 'Капаро: Проформа' })
+    expect(within(deposit).getByRole('link', { name: 'proforma.pdf' })).toBeInTheDocument()
+  })
+
+  it('files a document under the kind of the slot it was dropped into', async () => {
+    // The kind is what the server files by and what decides which slot the document shows
+    // up in next time. A slot sending its neighbour's kind is invisible until somebody
+    // goes looking for a фактура and finds a проформа.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const slots = [
+      ['Капаро: Проформа', 'deposit-proforma'],
+      ['Капаро: Фактура', 'deposit-invoice'],
+      ['Финално плащане: Проформа', 'final-proforma'],
+      ['Финално плащане: Фактура', 'final-invoice'],
+    ]
+
+    for (const [name, kind] of slots) {
+      const slot = within(dialog).getByRole('group', { name })
+      await user.upload(
+        slot.querySelector('input[type="file"]'),
+        new File(['%PDF-1.4'], `${kind}.pdf`, { type: 'application/pdf' }))
+
+      await waitFor(() => {
+        const sent = calls.filter((c) => c.method === 'POST' && c.url.endsWith('/files')).at(-1)
+        expect(sent.url).toContain('/purchases/11/files')
+        expect(sent.body.get('kind')).toBe(kind)
+        expect(sent.body.get('file').name).toBe(`${kind}.pdf`)
+      })
+    }
+  })
+
+  it('keeps the unsaved half of the sheet when a document is attached', async () => {
+    // Attaching used to refetch the whole customer and replace the dialog with the server's
+    // copy. That is right after a save and wrong in the middle of one: the count typed a
+    // moment earlier snapped back to the stored number with no message, and the next Запази
+    // wrote the old number over the new one and returned 200. A purchase added and not yet
+    // saved disappeared from the dialog altogether.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    fireEvent.change(within(dialog).getByLabelText('Брой'), { target: { value: '3' } })
+    await user.click(within(dialog).getByRole('button', { name: '+ Добави покупка' }))
+
+    const slot = within(dialog).getAllByRole('group', { name: 'Капаро: Фактура' })[0]
+    await user.upload(
+      slot.querySelector('input[type="file"]'),
+      new File(['%PDF-1.4'], 'faktura.pdf', { type: 'application/pdf' }))
+
+    // The document lands in its slot from the answer the upload gave, with no second trip.
+    await waitFor(() => {
+      expect(within(slot).getByRole('link', { name: 'faktura.pdf' })).toBeInTheDocument()
+    })
+    expect(calls.filter((c) => c.method === 'GET' && c.url.endsWith('/api/admin/customers/1')))
+      .toHaveLength(1)
+
+    const counts = within(dialog).getAllByLabelText('Брой')
+    expect(counts).toHaveLength(2)
+    expect(counts[0]).toHaveValue(3)
+  })
+
+  it('shows a document whose kind no slot claims, instead of dropping it', async () => {
+    // The kinds are renamed by a data migration and the code ships separately, so between
+    // the two there are rows carrying a key none of the four payment slots match. Filtered
+    // by equality alone they render nowhere, which on screen is indistinguishable from
+    // having been deleted — and the natural answer to a deleted проформа is to upload it
+    // again, which leaves a duplicate behind once the migration does run.
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0],
+        files: [
+          { id: 91, kind: 'prepaid-invoice', fileName: 'stara-proforma.pdf', contentType: 'application/pdf', sizeBytes: 1024, downloadUrl: '/api/admin/customers/files/91', createdAt: '2026-06-02T09:00:00Z' },
+          { id: 92, kind: 'other', fileName: 'dogovor.pdf', contentType: 'application/pdf', sizeBytes: 2048, downloadUrl: '/api/admin/customers/files/92', createdAt: '2026-06-03T09:00:00Z' },
+        ],
+      }],
+    }
+
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    // Both in the catch-all: the one the server no longer has a name for, and the contract
+    // filed under 'other', which the API has always accepted and no slot ever offered.
+    const bucket = within(dialog).getByRole('group', { name: 'Други: Договор и друго' })
+    expect(within(bucket).getByRole('link', { name: 'stara-proforma.pdf' })).toBeInTheDocument()
+    expect(within(bucket).getByRole('link', { name: 'dogovor.pdf' })).toBeInTheDocument()
+
+    // Visible is not enough on its own — it has to be removable from where it is drawn.
+    await user.click(within(bucket).getByRole('button', { name: 'Премахни: stara-proforma.pdf' }))
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'DELETE' && c.url.endsWith('/files/91'))).toBe(true)
+    })
+    expect(within(dialog).queryByRole('link', { name: 'stara-proforma.pdf' })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('link', { name: 'dogovor.pdf' })).toBeInTheDocument()
+  })
+
+  it('files a contract under the kind the catch-all slot carries', async () => {
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const bucket = within(dialog).getByRole('group', { name: 'Други: Договор и друго' })
+    await user.upload(
+      bucket.querySelector('input[type="file"]'),
+      new File(['%PDF-1.4'], 'dogovor.pdf', { type: 'application/pdf' }))
+
+    await waitFor(() => {
+      const sent = calls.filter((c) => c.method === 'POST' && c.url.endsWith('/files')).at(-1)
+      expect(sent.body.get('kind')).toBe('other')
+    })
+  })
+
   it('cannot attach a file to a purchase that has not been saved yet', async () => {
     const user = userEvent.setup()
     render(<AdminCustomersPage />)
@@ -407,7 +753,10 @@ describe('AdminCustomersPage', () => {
     await user.click(within(dialog).getByRole('button', { name: '+ Добави покупка' }))
 
     // Disabled with a reason rather than absent, so the control does not look missing.
-    const buttons = within(dialog).getAllByRole('button', { name: 'Прикачи' })
+    // Matched on the prefix: each button carries the slot it belongs to in its own name,
+    // because five of them on one card all reading "Прикачи" is five identical buttons to
+    // anybody who cannot see which heading they sit under.
+    const buttons = within(dialog).getAllByRole('button', { name: /^Прикачи: / })
     expect(buttons.at(-1)).toBeDisabled()
     expect(within(dialog).getAllByText(/Запазете клиента/).length).toBeGreaterThan(0)
   })

@@ -52,6 +52,27 @@ the old tracker (now `ROADMAP.md`).
    `--ff-only` is deliberate: if it refuses, someone committed directly to `production`,
    which should never happen. Investigate rather than forcing it.
 
+5b. **Apply any new database migrations — before publishing, not after.**
+   ```bash
+   cd api-dotnet
+   dotnet ef migrations list      # anything without (Applied) is shipping in this release
+   dotnet ef database update
+   ```
+
+   Nothing applies migrations at startup — there is no `Database.Migrate()` anywhere in
+   `Program.cs` — so the code and the schema move in two separate steps, and the order
+   between them is a decision somebody makes every release whether they mean to or not.
+
+   Migrating first is the safe order, and it is safe in one direction only. A migration is
+   readable by the code already running: a renamed column value is a row the old build
+   simply does not recognise, and the old build was written before the new key existed. The
+   new build is not equally forgiving about un-migrated rows — it ships expecting the data
+   the migration produces. Publish first and the window between the two steps is the one
+   where the panel is looking for something that is not there yet.
+
+   Skip it altogether and nothing errors. The site serves, the panel opens, and one part of
+   it is quietly empty until somebody notices.
+
 6. **Publish from the `production` checkout.** In VS Code: right-click the `api-dotnet`
    project → **Publish to Azure** → pick the App Service.
 
