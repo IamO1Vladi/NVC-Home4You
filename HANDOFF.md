@@ -13,10 +13,10 @@ Tests: **686 .NET, 295 frontend.**
 
 | | |
 |---|---|
-| **Live** | `db24ce5`, tagged **`deploy-2026-08-20`** — order tracking, and the server-side fix that made `/order/{code}` resolve. Verified from outside 2026-08-20: the live bundle `index-BXwZandb.js` is the same hash the shipped snapshots reference and serves as `text/javascript`, and `/order/TESTCODE` answers 200 rather than the 404 every customer link was getting the day before. |
-| **`production` branch** | `db24ce5` = live. Seven commits had gone out untagged before this; the tag was added afterwards, which is why `deploy-2026-08-19c` sat three days behind what was actually running. |
-| **`master`** | `db24ce5` = `production`. Both pushed. `leads-table` is fully merged and holds nothing of its own. |
-| **Migrations** | `AddOrderStatusHistory` is **APPLIED to production** (2026-08-20). Additive only, and the live build does not know the table exists, so applying it changed nothing on the site — verified straight afterwards. **TWO STILL PENDING and both ship with the code that needs them:** `RenamePrepaidInvoiceKind` and `BackfillPurchaseQuantityAndStatus`. Migrate BEFORE publishing — DEPLOY.md §5b now carries the reasoning: a migration is readable by the build already running, while the new build ships expecting data the migration has produced. `MergeSalesIntoPurchasesAndTrackOrders` is applied to production. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md` for the SQL if that is ever wanted. |
+| **Live** | `4ccee7d`, tagged **`deploy-2026-08-20b`** — order tracking rebuilt around hand-updating, the four purchase documents, and the write-path fixes. Verified from outside after the publish: the served HTML names `index-Bluv-bNl.js` and that bundle answers `200 text/javascript` rather than the HTML fallback, prerendered copy is in the served page, React boots, 18 routes across all three languages answer 200, `/order/{code}` carries `noindex,nofollow`, and the Greek that was missing renders. |
+| **`production` branch** | `4ccee7d` = live, tagged at publish time this round rather than days later. |
+| **`master`** | `4ccee7d` = `production`. Both pushed. `leads-table` is fully merged and holds nothing of its own. |
+| **Migrations** | **None pending.** All three applied to production 2026-08-20: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, and `BackfillPurchaseQuantityAndStatus`. That last one repaired live rows: `MergeSalesIntoPurchasesAndTrackOrders` had added `Quantity` as `NOT NULL DEFAULT 0` and `Status` as `NOT NULL DEFAULT ''` to an already-populated `Purchases` and backfilled neither, so every purchase older than 19 August carried a quantity of zero and a status matching no step on the timeline. Its `Down` is deliberately empty — there is no way back to a zero nobody meant. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -26,16 +26,19 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **The publish is out and tagged** (`deploy-2026-08-20` → `db24ce5`), and the live site was
-   checked from outside afterwards — see the table above. Two things are still owed from it:
-   the post-publish walkthrough (sign in, edit something small and look at **Одит**, then
-   **Фабрични поръчки** — and on whichever browser held the old factory sheet, accept the
-   import banner so the localStorage copy reaches SQL), and **tagging at the time of the
-   publish rather than days later**, which is the only reason anyone had to ask what was live.
+1. **Two publishes went out on 2026-08-20** — `deploy-2026-08-20` (`db24ce5`) and then
+   `deploy-2026-08-20b` (`4ccee7d`), the second tagged at publish time rather than days later.
+   Migrations were applied BEFORE the publish this round and the prerender re-run first, which
+   is the order DEPLOY.md §5b now argues for and §6b has always required.
 
-   **The NEXT publish carries a migration.** `AddOrderStatusHistory` must be applied, and the
-   prerender re-run before publishing (DEPLOY.md §6b, and the guard will stop the publish if
-   it is not) — the SPA changed, so the bundle hash has moved.
+   **What is still owed:** the post-publish walkthrough nobody has done yet — sign in, edit
+   something small and look at **Одит**, then **Фабрични поръчки**; and on whichever browser
+   held the old factory sheet, accept the import banner so the localStorage copy reaches SQL.
+   Now also worth a look, because neither can be checked from outside without signing in: the
+   **Поръчки** board's advance button and its history panel, and the four document slots on a
+   customer's purchase — including that a document filed before today shows up in the
+   catch-all slot rather than nowhere.
+
 2. **Search Console, the remainder**: request indexing for the 26 clean product URLs
    (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
