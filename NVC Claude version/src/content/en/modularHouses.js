@@ -14,6 +14,8 @@ export default {
     floor: 'Flooring: SPC or PVC laminate',
     assembly: 'Isolation: 100mm Rock Wool / PU / EPS',
     viewPdf: 'Open brochure (page 2)',
+    brochureFile: 'modular-builds.pdf',
+    brochurePage: 2,
   },
   models: {
     house: {
@@ -22,6 +24,8 @@ export default {
       desc: '100/150/200 mm wall panels (Rock wool / PU / SPC), interior wall panels with finished surface. Bathroom, kitchen, AC and boiler included. Fully furnished!',
       alt: 'Modular house exterior',
       aria: 'Open brochure section: Modular house',
+      brochureFile: 'Космически Капсули.pdf',
+      brochurePage: 1,
       walls: '100/150/200 mm — Rock wool / PU / SPC',
       facade: 'Metal / composite / wood',
       flooring: 'SPC / PVC laminate' 
@@ -32,6 +36,8 @@ export default {
       desc: '50/75/100 mm wall panels (Rock wool / PU / SPC). Bathroom and kitchenette included. 3mm thickness of the strucutre. ',
       alt: 'Expandable house extended',
       aria: 'Open brochure section: Expandable modular house',
+      brochureFile: 'Разгъваеми “Бокс” Къща.pdf',
+      brochurePage: 1,
       walls: '50/75/100 mm — Rock wool / PU / SPC',
       facade: 'PU panels or metal facade',
       flooring: 'SPC / PVC laminate'

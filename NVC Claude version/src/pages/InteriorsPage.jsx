@@ -2,13 +2,10 @@ import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import '../style/Interiors.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { brochureUrl } from '../lib/brochure.js'
 
 function asset(path) {
   return `${import.meta.env.BASE_URL}${path}`
-}
-
-function brochureUrl(file, page = 1) {
-  return `${asset(file)}#page=${page}`
 }
 
 function buildInitialScope(content) {
@@ -164,11 +161,11 @@ export default function InteriorsPage({ content }) {
             </ul>
             <a
               className="ir-card-link"
-              href={brochureUrl(quick.brochure.file, quick.brochure.page)}
+              href={brochureUrl(quick.brochureFile, quick.brochurePage)}
               target="_blank"
               rel="noopener noreferrer"
             >
-              {quick.brochure.label}
+              {quick.brochureLabel}
             </a>
           </aside>
         </div>

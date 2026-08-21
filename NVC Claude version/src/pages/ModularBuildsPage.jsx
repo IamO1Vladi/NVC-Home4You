@@ -2,18 +2,14 @@
 import React from 'react'
 import '../style/ModularBuilds.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
-
-function brochureUrl(file, page = 1) {
-  const encoded = encodeURIComponent(file)
-  return `${import.meta.env.BASE_URL}modular-builds/${encoded}#page=${page}`
-}
+import { brochureUrl } from '../lib/brochure.js'
 
 function publicAsset(file) {
   const encoded = encodeURIComponent(file)
   return `${import.meta.env.BASE_URL}modular-builds/${encoded}`
 }
 
-export default function ModularBuildsPage({ lang, content }) {
+export default function ModularBuildsPage({ content }) {
   const products = Array.isArray(content?.products) ? content.products : []
   const fallback = publicAsset('card.svg')
 

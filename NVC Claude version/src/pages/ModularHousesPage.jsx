@@ -3,26 +3,29 @@ import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import '../style/ModularHouses.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { brochureUrl } from '../lib/brochure.js'
 
 
 
 export default function ModularHousesPage({ locale, content }) {
 
-  
+
       const { openOffer, openQuestion } = useModalActions()
       const img = (f) => `${import.meta.env.BASE_URL}houses/${f}`
-      const asset = (f) => `${import.meta.env.BASE_URL}modular-builds/${f}` // PDF + fallback img
-    
+      const asset = (f) => `${import.meta.env.BASE_URL}modular-builds/${f}` // fallback img
+
+      // Only the artwork lives here. Which brochure each card opens is content, and is named
+      // in modularHouses.js next to the copy of the card that links it — these two used to be
+      // hard-coded hrefs, and they are the two biggest PDFs on the site, so anything that went
+      // looking for brochures in the content directory found four of six.
       const models = [
         {
           key: 'house',
-          href: `${asset('Космически Капсули.pdf')}#page=1`,
           image: '/api/img/content/bvk4n834b-rc8-eg-vb.webp',
           fallback: asset('card.svg'),
         },
         {
           key: 'expandable',
-          href: `${asset('Разгъваеми “Бокс” Къща.pdf')}#page=1`,
           image: '/api/img/content/bvk4n834b-rc5-eg-vb.webp',
           fallback: asset('card.svg'),
         }
@@ -54,7 +57,7 @@ export default function ModularHousesPage({ locale, content }) {
                   <li>{content.quick.floor}</li>
                   <li>{content.quick.assembly}</li>
                 </ul>
-                <a className="mh-aside-link" href={`${asset('modular-builds.pdf')}#page=2`} target="_blank" rel="noopener noreferrer">
+                <a className="mh-aside-link" href={brochureUrl(content.quick.brochureFile, content.quick.brochurePage)} target="_blank" rel="noopener noreferrer">
                   {content.quick.viewPdf}
                 </a>
               </div>
@@ -67,7 +70,7 @@ export default function ModularHousesPage({ locale, content }) {
       <section>
         <div className="container mh-card-grid">
           {models.map(m => (
-            <a key={m.key} className="mh-card" href={m.href} target="_blank" rel="noopener noreferrer" aria-label={content.models[m.key].aria}>
+            <a key={m.key} className="mh-card" href={brochureUrl(content.models[m.key].brochureFile, content.models[m.key].brochurePage)} target="_blank" rel="noopener noreferrer" aria-label={content.models[m.key].aria}>
               <img
                 className="mh-card-media"
                 src={cdnImage(m.image, { width: 1024 })}

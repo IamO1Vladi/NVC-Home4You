@@ -21,11 +21,9 @@ export default {
         'Прозрачно ценообразуване и ясно дефиниран обхват',
         'Договор, координация и реални довършителни опции',
       ],
-      brochure: {
-        file: 'modular-builds/modular-builds.pdf',
-        page: 4,
-        label: 'Отвори брошурата (стр. 4)',
-      },
+      brochureFile: 'modular-builds.pdf',
+      brochurePage: 4,
+      brochureLabel: 'Отвори брошурата (стр. 4)',
     },
   },
   tabs: {

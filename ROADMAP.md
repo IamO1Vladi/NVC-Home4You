@@ -197,28 +197,91 @@ safe, which is also the only one the owner actually needs.**
    brochure sits on the page whose whole purpose is that brochure; and a streamed upload rather
    than buffering 16 MB.
 3. **Import the six** into Blob and SQL, idempotently.
-4. **Point the pages at the slugs** — the old files stay in `public/` throughout.
+4. **Point the pages at the slugs** — the old files stay in `public/` throughout. Budget for the
+   locale, which is the part that is not one edit in `brochure.js`: answer 4 puts `?lang=` in the
+   public URL, and three of the four pages that call `brochureUrl` have no locale in scope to
+   give it. `SteelHousesPage({ content })` and `InteriorsPage({ content })` take none, and there
+   is no locale context in the app (`src/context` holds only ModalActions and Theme) — so this
+   stage is also a new prop on two page components and six route files. The cheap way out at
+   that moment is to omit the argument, which is silent: the helper still builds a valid URL and
+   the API still answers, with the Bulgarian edition, for every EN and EL visitor forever, while
+   the owner uploads translations that nothing serves. Pin it with a test that one brochure
+   resolves to three distinct hrefs across bg/el/en — an assertion stage 1 cannot make, because
+   the static path has no language in it.
 5. **Redirects** for the six old URLs, then the files can go.
 
 `verify-brochures` must run SOURCE → ROWS, the way `MigrationVerifier` actually works (it regexes
 the SPA source and checks blob existence; it makes no HTTP calls). Rows → HTTP proves the wrong
 direction: the failure that will happen is a content file naming a slug no active row has.
 
-### FOR THE OWNER — four questions
+### ANSWERED BY THE OWNER — 2026-08-20
 
-1. **Replace-only, or add new brochures too?** This decides whether stage 2 is a small screen or a
-   much bigger one. Default: replace-only.
-2. **Must the six current URLs keep working?** Default: yes, six permanent redirects.
-3. **When you retire a brochure, must the file become genuinely unreachable, or is "gone from the
-   website" enough?** Default: gone from the website; the bytes stay in Azure.
-4. **Will there ever be an English or Greek edition of a brochure**, rather than one Bulgarian PDF
-   shown to everyone? Default: no language column now; it is one small migration the day the
-   answer becomes yes.
+1. **Replace-only.** In the owner's words: *"these are our current catalogues, however we update
+   them from time to time"* — which is replacement, not authoring. The screen is a fixed list of
+   six rows with one Replace button each. No add, no delete, no page-picker.
+
+   The owner asked whether a seventh catalogue could still be added one day. It can, and this is
+   why the answer costs nothing: **a new catalogue arrives with a new page**, and building a page
+   is a development job in any case — copy in three languages, a route, a layout. Adding a row to
+   this table during that work is minutes. The self-service alternative would build a
+   "which page does this appear on" concept now, for a situation that never arrives without a
+   developer already present.
+
+2. **The six current URLs do NOT need to keep working.** No redirects, and stage 5 disappears —
+   the six PDFs are deleted once the pages point at slugs. Cheaper and simpler than the default
+   this design assumed.
+
+   **The six PDFs, not the folder.** `public/modular-builds/` also holds `card.svg`, which is
+   the `onError` fallback in `GlideServices`, `HeroShowcase`, `ProcessTicker`, `ServiceTiles`,
+   `InteriorsPage`, `InternalDoorsPage`, `ModularBuildsPage`, `ModularHousesPage` (twice) and
+   `SteelHousesPage`, and `hero.svg`, which nothing references. A fallback fires only after the
+   primary image has already failed, so it renders in no test and on no smoke click: deleting
+   the directory wholesale would surface as a broken-image icon across the public site on the
+   first day Cloudinary or `/api/img` has a bad minute — precisely the day the fallback was
+   there for. `rm public/modular-builds/*.pdf`, and the folder stays for the placeholder art.
+
+3. **"Gone from the website" is enough.** `IsActive = false` stops the public URL resolving; the
+   bytes stay in Azure. No hard delete, no blob cleanup. (Which is also what makes the wired-slug
+   rule bearable: retiring is the reversible action, and for the six wired slugs it is refused
+   anyway.)
+
+4. **Three editions per brochure — BG, EN, EL.** The owner will produce the translated PDFs
+   themselves; nothing here translates anything.
+
+   So the entity gains a `Lang` column after all, and the slug stops being unique on its own:
+   the unique key is **(Slug, Lang)**. A brochure is therefore a slug with up to three files
+   behind it.
+
+   **The public route falls back rather than 404ing:** `/api/brochures/{slug}.pdf?lang=el`
+   serves the Greek edition if one exists and the Bulgarian one if it does not. A Greek visitor
+   gets a real catalogue from day one, in Bulgarian, and starts getting the Greek edition the
+   moment it is uploaded — with no code change and no page edit, because the URL does not move.
+   Fallback order: requested language, then `bg`, then whatever edition exists.
+
+   The panel row becomes six rows with three slots each, the way the purchase documents screen
+   groups Проформа and Фактура under each payment — an empty EN or EL slot reads as
+   "not translated yet", which is a true and useful thing for the screen to say.
+
+### The catalogue pipeline writes one of these files — found 2026-08-20, after the review
+
+The Бокс brochure is not a file anybody drops in. `scripts/catalogue/README.md:25` documents the
+last step of the catalogue→configurator pipeline as:
+
+```bash
+python compress_brochure.py "<source.pdf>" "../../public/modular-builds/Разгъваеми “Бокс” Къща.pdf"
+```
+
+That script re-encodes the 82.5MB Canva export down to 16.5MB and writes it **straight into the
+directory this design deletes**. So the move must land there too, or the next catalogue rebuild
+silently writes a file nothing serves. `compress_brochure.py` keeps its job — compress to a local
+path — and the README's final instruction becomes "upload the result in the panel". Worth doing
+in the same stage that empties the folder, so the two never disagree.
 
 ### Not doing
 
-A public "list all documents" endpoint nobody calls; `TitleBg`/`TitleEl` before question 4 is
-answered; a reorder endpoint for a list of six that no page orders by.
+A public "list all documents" endpoint nobody calls; a reorder endpoint for a list of six that
+no page orders by; redirects for the old URLs (answer 2); hard delete or blob cleanup (answer 3);
+and any attempt to translate a brochure — the owner supplies the EN and EL editions.
 
 ---
 

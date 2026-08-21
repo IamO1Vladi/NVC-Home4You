@@ -14,11 +14,9 @@ export default {
   title: 'Σπίτια με μεταλλικό σκελετό',
   lead:
     'Ελαφριά, ανθεκτικά και ευέλικτα. Χτίζουμε το σπίτι σας πάνω σε γαλβανισμένο μεταλλικό σκελετό — προσαρμοσμένη κάτοψη, βελτιστοποιημένη ως προς το κόστος και τα χρονοδιαγράμματα.',
-  brochure: {
-    file: 'modular-builds/modular-builds.pdf',
-    page: 3,
-    label: 'Δείτε το έντυπο (σελίδα 3)',
-  },
+  brochureFile: 'modular-builds.pdf',
+  brochurePage: 3,
+  brochureLabel: 'Δείτε το έντυπο (σελίδα 3)',
   specs: [
     { label: 'Εμβαδόν', value: '20–90 m²' },
     { label: 'Όροφοι', value: '1–2' },

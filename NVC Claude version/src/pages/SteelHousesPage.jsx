@@ -3,13 +3,10 @@ import { useModalActions } from '../context/ModalActions.jsx'
 import ProcessTicker from '../components/ProcessTicker.jsx'
 import '../style/SteelHouses.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { brochureUrl } from '../lib/brochure.js'
 
 function asset(path) {
   return `${import.meta.env.BASE_URL}${path}`
-}
-
-function brochureUrl(file, page = 1) {
-  return `${asset(file)}#page=${page}`
 }
 
 function fillTemplate(template, value) {
@@ -67,11 +64,11 @@ export default function SteelHousesPage({ content }) {
               <button className="btn" onClick={openOffer}>{content.getOffer}</button>
               <a
                 className="btn ghost"
-                href={brochureUrl(content.brochure.file, content.brochure.page)}
+                href={brochureUrl(content.brochureFile, content.brochurePage)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {content.brochure.label}
+                {content.brochureLabel}
               </a>
             </div>
           </div>

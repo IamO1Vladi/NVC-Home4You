@@ -21,11 +21,9 @@ export default {
         'Διαφανής τιμολόγηση και σαφώς καθορισμένο αντικείμενο',
         'Δομή σύμβασης, συντονισμός και επιλογές φινιρίσματος',
       ],
-      brochure: {
-        file: 'modular-builds/modular-builds.pdf',
-        page: 4,
-        label: 'Άνοιγμα εντύπου (σελ. 4)',
-      },
+      brochureFile: 'modular-builds.pdf',
+      brochurePage: 4,
+      brochureLabel: 'Άνοιγμα εντύπου (σελ. 4)',
     },
   },
   tabs: {

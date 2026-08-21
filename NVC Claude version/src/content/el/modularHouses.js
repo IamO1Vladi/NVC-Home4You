@@ -14,6 +14,8 @@ export default {
     floor: 'Δάπεδο: SPC ή laminate PVC',
     assembly: 'Μόνωση: 100mm πετροβάμβακας / PU / EPS',
     viewPdf: 'Άνοιγμα εντύπου (σελίδα 2)',
+    brochureFile: 'modular-builds.pdf',
+    brochurePage: 2,
   },
   models: {
     house: {
@@ -22,6 +24,8 @@ export default {
       desc: 'Πάνελ τοίχου 100/150/200 mm (πετροβάμβακας / PU / SPC), εσωτερικά πάνελ τοίχου με έτοιμη επιφάνεια. Περιλαμβάνονται μπάνιο, κουζίνα, κλιματιστικό και μπόιλερ. Πλήρως επιπλωμένο!',
       alt: 'Εξωτερικό δομικού σπιτιού',
       aria: 'Άνοιγμα ενότητας εντύπου: Δομικό σπίτι',
+      brochureFile: 'Космически Капсули.pdf',
+      brochurePage: 1,
       walls: '100/150/200 mm — πετροβάμβακας / PU / SPC',
       facade: 'Μέταλλο / σύνθετο / ξύλο',
       flooring: 'SPC / laminate PVC'
@@ -32,6 +36,8 @@ export default {
       desc: 'Πάνελ τοίχου 50/75/100 mm (πετροβάμβακας / PU / SPC). Περιλαμβάνεται μπάνιο και μικρή κουζίνα. Πάχος κατασκευής 3mm.',
       alt: 'Επεκτεινόμενο σπίτι ανοιγμένο',
       aria: 'Άνοιγμα ενότητας εντύπου: Επεκτεινόμενο δομικό σπίτι',
+      brochureFile: 'Разгъваеми “Бокс” Къща.pdf',
+      brochurePage: 1,
       walls: '50/75/100 mm — πετροβάμβακας / PU / SPC',
       facade: 'Πάνελ PU ή μεταλλική πρόσοψη',
       flooring: 'SPC / laminate PVC'
