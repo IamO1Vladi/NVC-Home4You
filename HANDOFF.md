@@ -1,11 +1,11 @@
-# Where things stand — 2026-08-20
+# Where things stand — 2026-08-21
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **686 .NET, 295 frontend.**
+Tests: **738 .NET, 389 frontend.**
 
 ---
 
@@ -13,10 +13,10 @@ Tests: **686 .NET, 295 frontend.**
 
 | | |
 |---|---|
-| **Live** | `4ccee7d`, tagged **`deploy-2026-08-20b`** — order tracking rebuilt around hand-updating, the four purchase documents, and the write-path fixes. Verified from outside after the publish: the served HTML names `index-Bluv-bNl.js` and that bundle answers `200 text/javascript` rather than the HTML fallback, prerendered copy is in the served page, React boots, 18 routes across all three languages answer 200, `/order/{code}` carries `noindex,nofollow`, and the Greek that was missing renders. |
-| **`production` branch** | `4ccee7d` = live, tagged at publish time this round rather than days later. |
-| **`master`** | `4ccee7d` = `production`. Both pushed. `leads-table` is fully merged and holds nothing of its own. |
-| **Migrations** | **None pending.** All three applied to production 2026-08-20: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, and `BackfillPurchaseQuantityAndStatus`. That last one repaired live rows: `MergeSalesIntoPurchasesAndTrackOrders` had added `Quantity` as `NOT NULL DEFAULT 0` and `Status` as `NOT NULL DEFAULT ''` to an already-populated `Purchases` and backfilled neither, so every purchase older than 19 August carried a quantity of zero and a status matching no step on the timeline. Its `Down` is deliberately empty — there is no way back to a zero nobody meant. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| **Live** | `62365ab`, tagged **`deploy-2026-08-21`** — order tracking, the four purchase documents, the write-path fixes, the brochure cleanup and the whole leads batch. Verified from outside after the publish: the served HTML names `index-BraZ7Ctl.js` and that bundle answers `200 text/javascript`, React boots, 15 routes answer 200, and all six brochures resolve as application/pdf in all three languages with their #page anchors intact. |
+| **`production` branch** | `62365ab` = live. |
+| **`master`** | `62365ab` = `production`. Both pushed. |
+| **Migrations** | **None pending.** Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -26,18 +26,23 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **Two publishes went out on 2026-08-20** — `deploy-2026-08-20` (`db24ce5`) and then
-   `deploy-2026-08-20b` (`4ccee7d`), the second tagged at publish time rather than days later.
-   Migrations were applied BEFORE the publish this round and the prerender re-run first, which
-   is the order DEPLOY.md §5b now argues for and §6b has always required.
+1. **Three publishes: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
+   Each was tagged at publish time, migrations applied BEFORE the publish, prerender re-run
+   first — the order DEPLOY.md §5b argues for and §6b has always required.
 
-   **What is still owed:** the post-publish walkthrough nobody has done yet — sign in, edit
-   something small and look at **Одит**, then **Фабрични поръчки**; and on whichever browser
-   held the old factory sheet, accept the import banner so the localStorage copy reaches SQL.
-   Now also worth a look, because neither can be checked from outside without signing in: the
-   **Поръчки** board's advance button and its history panel, and the four document slots on a
-   customer's purchase — including that a document filed before today shows up in the
-   catch-all slot rather than nowhere.
+   **ADMIN_ALLOWED_USERS is now set** (owner, 2026-08-21). Until then it was unset, which the
+   AdminOnly policy treats as "anyone signed in to the tenant" — every M365 mailbox the company
+   issued had full access to leads, ЕГН, invoices and the audit log. It is now the three staff
+   addresses. Adding a fourth person means adding them there, or they are refused.
+
+   **What is still owed — none of it checkable from outside, all of it needs a signed-in look:**
+   the **Поръчки** board's advance button and history panel; the four document slots on a
+   customer's purchase, including that a document filed before the rename shows up in the
+   catch-all slot rather than nowhere; the **awaiting-reply badge** on a lead that has replied;
+   and one deliberate mistake — blank a lead's name and confirm the modal stays open with the
+   typing intact rather than closing and losing it. Also still owed from 20 Aug: **Одит** after
+   a small edit, **Фабрични поръчки**, and accepting the factory-sheet import banner on
+   whichever browser still holds the old localStorage copy.
 
 2. **Search Console, the remainder**: request indexing for the 26 clean product URLs
    (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
