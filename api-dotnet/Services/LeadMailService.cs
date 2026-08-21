@@ -185,6 +185,13 @@ public class LeadMailService
             if (tracked.LastActivityAt is null || now > tracked.LastActivityAt) tracked.LastActivityAt = now;
             tracked.UpdatedAt = now;
 
+            // A reply is a move like any other, so it schedules the next one. Here rather
+            // than only in LeadService.AddActivityAsync because this path writes its own
+            // activity — the send has to happen first, so it cannot go through that method —
+            // and a rule that held for a logged call but not for the email somebody actually
+            // sent would be the one people noticed.
+            tracked.NextContactAt = LeadService.FollowUpAfterOurMove(tracked.NextContactAt, now);
+
             await _db.SaveChangesAsync(ct);
 
             return new SendResult(SendOutcome.Sent, activity.Id, null);

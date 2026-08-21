@@ -4,6 +4,7 @@ import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import RichTextEditor from '../admin/RichTextEditor.jsx'
 import { adminGet, adminSend, adminSendForm, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
+import { adminSave, keepsTheEditorOpen } from '../admin/adminSave.js'
 import { resolveModel, modelsFor, WITH_GALLERY_MODELS_FALLBACK } from '../admin/modelPicker.js'
 import {
   sanitizeRichText, isRichTextEmpty, escapeHtml, plainTextToRichHtml, richTextToPlain,
@@ -36,6 +37,10 @@ const TEXT = {
     noDate: 'без дата',
     dueToday: 'днес',
     overdue: (n) => `${n} ${n === 1 ? 'ден' : 'дни'} закъснение`,
+    // The other kind of urgent, and it sits beside the first: an overdue date is a promise
+    // WE broke, this is a message left unanswered, and one lead can be both at once.
+    awaiting: 'Чака отговор',
+    awaitingHint: 'Последното в разговора е от клиента — топката е в нашето поле.',
     sendReport: 'Изпрати справка',
     reportTitle: 'Изпрати справка за връзка',
     reportHint: 'Справката съдържа само имената и връзки към панела — без съдържанието на разговорите.',
@@ -68,7 +73,7 @@ const TEXT = {
     dBuild: 'Място на строеж', dNext: 'Следваща стъпка', dNotes: 'Бележки',
     saved: 'Запазено',
     backToList: '← Лийдове',
-    create: 'Създай', cancel: 'Откажи', nameRequired: 'Името е задължително.',
+    create: 'Създай', creating: 'Създаване…', cancel: 'Откажи', nameRequired: 'Името е задължително.',
     pick: 'Изберете лийд отляво.',
     status: {
       new: 'Нова', contacted: 'Свързахме се', quoted: 'Оферта',
@@ -77,18 +82,23 @@ const TEXT = {
     owner: 'Отговорник', unassigned: 'Никой', takeIt: 'Поеми',
     makeCustomer: 'Направи клиент',
     makeCustomerHint: 'Създава клиент от този лийд и отваря картона му, където се добавя покупката.',
-    nextStep: 'Следваща стъпка', save: 'Запази',
+    nextStep: 'Следваща стъпка', save: 'Запази', saving: 'Запазване…',
     thread: 'Разговор', noThread: 'Още няма съобщения.',
     them: 'Клиент', us: 'Ние',
     reply: 'Отговор', replyPlaceholder: 'Напишете отговора си…',
     send: 'Изпрати', sending: 'Изпращане…',
-    logNote: '+ Бележка',
-    logNoteHint: 'Записва текста и файловете в разговора, без да ги изпраща на клиента.',
+    logAs: 'Запиши като',
+    logHint: 'Записва текста и файловете в разговора, без да ги изпраща на клиента.',
+    logNeedsWords: 'Опишете какво се случи — обаждане или среща се записва с текст.',
     attach: 'Прикачи файл',
-    attachHint: 'Файловете тръгват с отговора. По-големите запазете с „+ Бележка“.',
+    // Named by the action, not by the button's caption: that caption is now whichever kind
+    // is chosen, so a hint that said „+ Бележка“ sent people looking for a button that is
+    // not on screen — and mailing the file instead, which is the size limit the hint exists
+    // to steer them around.
+    attachHint: 'Файловете тръгват с отговора. По-големите ги запишете в разговора.',
     removeFile: 'Премахни',
     attaching: 'Качване…',
-    archivedEmpty: 'Няма архивирани лийдове.', note: 'Бележка', call: 'Обаждане',
+    archivedEmpty: 'Няма архивирани лийдове.', note: 'Бележка', call: 'Обаждане', meeting: 'Среща',
     draft: 'Чернова с AI', drafting: 'Пиша чернова…',
     draftHint: 'Черновата е предложение — прочетете и редактирайте, преди да изпратите.',
     quiet: 'без активност', days: 'дни', today: 'днес', yesterday: 'вчера',
@@ -121,6 +131,8 @@ const TEXT = {
     noDate: 'no date',
     dueToday: 'today',
     overdue: (n) => `${n} ${n === 1 ? 'day' : 'days'} late`,
+    awaiting: 'Awaiting reply',
+    awaitingHint: 'The customer wrote last — the ball is in our court.',
     sendReport: 'Send report',
     reportTitle: 'Send the follow-up report',
     reportHint: 'The report carries names and links back to the panel — never the contents of a conversation.',
@@ -153,7 +165,7 @@ const TEXT = {
     dBuild: 'Build location', dNext: 'Next step', dNotes: 'Notes',
     saved: 'Saved',
     backToList: '← Leads',
-    create: 'Create', cancel: 'Cancel', nameRequired: 'A name is required.',
+    create: 'Create', creating: 'Creating…', cancel: 'Cancel', nameRequired: 'A name is required.',
     pick: 'Pick a lead on the left.',
     status: {
       new: 'New', contacted: 'Contacted', quoted: 'Quoted',
@@ -162,18 +174,19 @@ const TEXT = {
     owner: 'Owner', unassigned: 'Nobody', takeIt: 'Take it',
     makeCustomer: 'Make customer',
     makeCustomerHint: 'Creates a customer from this lead and opens their card, where the purchase is added.',
-    nextStep: 'Next step', save: 'Save',
+    nextStep: 'Next step', save: 'Save', saving: 'Saving…',
     thread: 'Conversation', noThread: 'No messages yet.',
     them: 'Customer', us: 'Us',
     reply: 'Reply', replyPlaceholder: 'Write your reply…',
     send: 'Send', sending: 'Sending…',
-    logNote: '+ Note',
-    logNoteHint: 'Saves the text and files to the conversation without emailing the customer.',
+    logAs: 'Log as',
+    logHint: 'Saves the text and files to the conversation without emailing the customer.',
+    logNeedsWords: 'Write what happened — a call or a meeting is logged with words.',
     attach: 'Attach a file',
-    attachHint: 'Files go out with the reply. Keep bigger ones with “+ Note”.',
+    attachHint: 'Files go out with the reply. Keep bigger ones by logging them to the conversation.',
     removeFile: 'Remove',
     attaching: 'Uploading…',
-    archivedEmpty: 'Nothing archived yet.', note: 'Note', call: 'Call',
+    archivedEmpty: 'Nothing archived yet.', note: 'Note', call: 'Call', meeting: 'Meeting',
     draft: 'Draft with AI', drafting: 'Drafting…',
     draftHint: 'A draft is a suggestion — read it and edit before sending.',
     quiet: 'quiet for', days: 'days', today: 'today', yesterday: 'yesterday',
@@ -240,6 +253,20 @@ function signatureHtml(me, locale) {
 }
 
 const STAGES = ['new', 'contacted', 'quoted', 'negotiating', 'won', 'lost']
+
+// What a person can file by hand, in the order the composer offers it. A note comes first
+// because it is the common case and nobody should have to choose to jot something down.
+//
+// ONE list for two jobs — the options in the composer and the label an entry wears in the
+// thread — because they are the same words about the same thing, and two copies would let
+// someone log a "Среща" that the thread then calls nothing at all. That is exactly what was
+// here before: the composer only ever posted a note, and the thread knew how to label a call
+// and a note but had never heard of a meeting.
+//
+// The keys are the server's LeadActivityTypes, and the endpoint takes precisely these three
+// plus email_out (LeadActivityTypes.ManuallyLoggable) — email_out belongs to Send, which
+// actually sends something, so it is not on offer here.
+const LOG_TYPES = ['note', 'call', 'meeting']
 
 // The four categories the gallery filters on, and the only ones that can lead to a list of
 // models. Kept in step with galleryUtils.FILTER_IDS and HouseCategories on the server.
@@ -364,8 +391,13 @@ function Entry({ activity, t, lang }) {
       <div className="adm-bubble">
         <div className="adm-bubble-head adm-small">
           <span className="adm-bubble-who">{mine ? t.us : t.them}</span>
-          {activity.type === 'call' ? <span className="adm-muted"> · {t.call}</span> : null}
-          {activity.type === 'note' ? <span className="adm-muted"> · {t.note}</span> : null}
+          {/* Only the hand-filed kinds are named. An email needs no label — the thread is
+              a mail conversation, so email_in and email_out are what a bubble already
+              means, and saying so on every one of them would bury the three entries that
+              are genuinely something else. */}
+          {LOG_TYPES.includes(activity.type)
+            ? <span className="adm-muted"> · {t[activity.type]}</span>
+            : null}
           <time dateTime={activity.occurredAt}>{formatWhen(activity.occurredAt, lang)}</time>
         </div>
         {activity.subject ? <div className="adm-bubble-subject">{activity.subject}</div> : null}
@@ -491,6 +523,10 @@ export default function AdminPipelinePage() {
   // The last signature this page prefilled, so "the box holds only the signature" is
   // answerable — that state disables Send, and it is what the box returns to after one.
   const prefill = React.useRef('')
+  // What the log button files. Deliberately NOT reset between leads: someone working
+  // through a call list files call after call, and making them pick "Обаждане" again on
+  // every customer is the kind of friction that ends with everything logged as a note.
+  const [logType, setLogType] = React.useState('note')
   // Picked but not yet sent. Held here rather than uploaded on selection, so a file can be
   // removed before it becomes part of the record — and so the reply and its attachments
   // succeed or fail as one thing.
@@ -637,10 +673,33 @@ export default function AdminPipelinePage() {
     })
   }, [lead?.id])
 
+  // The follow-up date is the one field the SERVER also writes: logging a call, a meeting or
+  // a note schedules the next contact for three days out, silently, because a promise made
+  // is a promise someone has to be reminded of. The header line picks that up on its own —
+  // it reads the reloaded lead — but the sheet took its copy above, once, when the lead was
+  // opened. So without this the two disagree the moment anything is logged, and the sheet is
+  // the half with a Save button under it: the stale date would be written straight back over
+  // the one the server had just set, undoing the reminder without a word.
+  //
+  // Keyed on the server's value alone. A date somebody is halfway through typing into the
+  // sheet changes `fields` and not `lead`, so it can never trigger this and be overwritten
+  // by its own edit.
+  React.useEffect(() => {
+    const scheduled = dateInputValue(lead?.nextContactAt)
+    setFields((f) => (f && f.nextContactAt !== scheduled ? { ...f, nextContactAt: scheduled } : f))
+  }, [lead?.id, lead?.nextContactAt])
+
   // Moving to another lead closes the sheet. It is a way of working on ONE customer, and
   // keeping it open across a selection change would show lead A's header over lead B's
   // fields — with a Save button under them.
   React.useEffect(() => { setSheetOpen(false) }, [selectedId])
+
+  // What the screen is showing RIGHT NOW, for the one caller that runs after a delay. A save
+  // handed to the background retries lands up to half a minute later, by which time the
+  // person has usually moved on — and loadLead sets the pane unconditionally, so refreshing
+  // the lead they WERE on would drag the screen back to it mid-sentence.
+  const showing = React.useRef({ leadId: null, tab })
+  React.useEffect(() => { showing.current = { leadId: selectedId, tab } }, [selectedId, tab])
 
   // Tolerates failure on purpose: without the catalogue the model dropdown falls back to
   // the free-text box, which is worse than having it and far better than a page that will
@@ -693,6 +752,16 @@ export default function AdminPipelinePage() {
     () => richTextToPlain(reply.replace(prefill.current, '')),
     [reply],
   )
+
+  // What the log button may do with what is in the composer.
+  //
+  // A NOTE CAN BE A FILE ON ITS OWN: the upload endpoint files an attachment as a note, so
+  // the record exists either way and always has. A CALL OR A MEETING CANNOT. It is written
+  // as its own entry, the endpoint refuses an empty one, and letting the click through would
+  // store the drawing as a note and lose the call entirely — the exact silent loss the kinds
+  // were added to stop. Refusing the click and saying why is the honest half of that rule.
+  const canLog = logType === 'note' ? Boolean(composed) || files.length > 0 : Boolean(composed)
+  const logNeedsWords = !canLog && files.length > 0
 
   // Newest message in view when a thread opens or grows. A chat that opens at the top of
   // a six-month history shows the least useful part of it.
@@ -771,30 +840,43 @@ export default function AdminPipelinePage() {
     if (result?.customerId) navigate(`/admin/customers?customer=${result.customerId}`)
   }, t.saveError)
 
-  const logNote = () => run('save', async () => {
-    // WITHOUT the signature. A note is internal — sales talking to sales — and signing
-    // it like customer mail would just be noise in the thread.
+  const logActivity = () => run('save', async () => {
+    // WITHOUT the signature. Nothing filed here is sent anywhere — it is sales talking to
+    // sales — and signing it like customer mail would just be noise in the thread.
     const body = sanitizeRichText(reply.replace(prefill.current, ''))
     if (isRichTextEmpty(body) && files.length === 0) return
 
-    if (files.length === 0) {
-      await adminSend(`/api/admin/pipeline/${selectedId}/activities`, 'POST', { type: 'note', body })
-    } else {
-      // One entry per file, because that is what the upload endpoint files them as: an
-      // attachment and the words that came with it belong together. The typed text
-      // captions the first one; the rest carry their own name.
-      //
-      // This is also the way to keep a file that is too big to email — the note path
-      // stores up to the full 20 MB, the reply path is capped by what Graph will send.
-      //
-      // The caption is plain text — it labels a file, it is not a document.
-      for (const [index, file] of files.entries()) {
-        await adminUpload(
-          `/api/admin/pipeline/${selectedId}/attachments`,
-          file,
-          index === 0 && composed ? { caption: composed } : {},
-        )
-      }
+    // A file cannot carry a kind: the upload endpoint files every attachment as a note, and
+    // it is right to — an attachment and the words that came with it belong together, which
+    // is why the typed text captions the first one and the rest carry their own name. So a
+    // note with files stays exactly one write per file, as it has always been.
+    //
+    // A CALL or a MEETING with files is two writes instead, because the alternative is to
+    // let the kind fall away silently: the person picks "Обаждане", attaches the drawing
+    // they were sent afterwards, and the thread shows a note. The entry says what happened
+    // and the uploads carry the documents under their own names — one caption on two rows
+    // would print the same sentence twice.
+    const separately = files.length > 0 && logType !== 'note'
+
+    // Once the kind is not a note it is ALWAYS written down, never skipped for want of a
+    // body — skipping is how "log a call" ends as a note about a file, which is the failure
+    // the kinds were added to fix. The composer refuses the click when a call or a meeting
+    // has nothing typed (see canLog), so what arrives here has words; if it somehow does
+    // not, the endpoint says no and the person reads why.
+    if (files.length === 0 || separately) {
+      await adminSend(`/api/admin/pipeline/${selectedId}/activities`, 'POST', { type: logType, body })
+    }
+
+    // This is also the way to keep a file that is too big to email — the note path stores up
+    // to the full 20 MB, the reply path is capped by what Graph will send.
+    //
+    // The caption is plain text — it labels a file, it is not a document.
+    for (const [index, file] of files.entries()) {
+      await adminUpload(
+        `/api/admin/pipeline/${selectedId}/attachments`,
+        file,
+        !separately && index === 0 && composed ? { caption: composed } : {},
+      )
     }
 
     setReply(prefill.current)
@@ -820,25 +902,57 @@ export default function AdminPipelinePage() {
     // new-lead dialog guards its own name because there is nothing stored yet to keep; here
     // there is, and the refusal lands in the sheet's alert with the edits still on screen.
     const { modelText, ...body } = fields
-    await adminSend(`/api/admin/pipeline/${selectedId}/fields`, 'POST', body)
-    setSavedAt(Date.now())
+    const leadId = selectedId
+    const answer = await adminSave({
+      url: `/api/admin/pipeline/${leadId}/fields`,
+      body,
+      lang,
+      subject: body.name,
+      // A POST that is really an update: it writes these fields onto a lead that already
+      // exists, so sending it twice lands on the same row rather than making a second lead.
+      // Said out loud because the default reads the method and would guess otherwise.
+      repeatable: true,
+      onLateSuccess: () => {
+        // The board is always worth refreshing; the conversation only if it is still the
+        // one on screen. See `showing`.
+        loadBoard(showing.current.tab).catch(() => { /* the next load collects it */ })
+        if (showing.current.leadId === leadId) loadLead(leadId).catch(() => {})
+      },
+    })
+
+    // The refusal the server owns — a blanked name, chiefly. The sheet keeps every edit and
+    // wears the reason; nothing is retried, because re-sending it would only be told no
+    // again, four more times.
+    if (keepsTheEditorOpen(answer)) { setError(answer.message || t.saveError); return }
+
     // A successful save closes the sheet — pressing Save means "I am done here", and
     // making people close it by hand after every edit was the feedback that led to this.
-    // Only on success: a failed save keeps the sheet open with everything still typed,
-    // because closing over an error would throw away the very edits that did not land.
+    // A save that fell back to the retries closes it too: the typing is safe inside the
+    // request by then, and the banner is what reports on it from here.
     setSheetOpen(false)
-    await Promise.all([loadLead(selectedId), loadBoard(tab)])
+    if (answer.outcome !== 'saved') return
+
+    setSavedAt(Date.now())
+    await Promise.all([loadLead(leadId), loadBoard(tab)])
   }, t.saveError)
 
   const createDeal = () => run('save', async () => {
     const name = draftLead.name.trim()
     if (!name) { setError(t.nameRequired); return }
-    const result = await adminSend('/api/admin/pipeline', 'POST', { ...draftLead, name })
+    // No onLateSuccess and no background: a create is never handed to the retries, so this
+    // dialog either closes on an answer or stays open on one. See adminSave's `repeatable`.
+    const answer = await adminSave({ url: '/api/admin/pipeline', body: { ...draftLead, name }, lang, subject: name })
+
+    // Refused, or sent into silence: either way the dialog keeps the phone number and the
+    // notes that were typed into it. A create is the one save the retries may NOT have,
+    // because a lead written twice is two people to ring about the same house.
+    if (keepsTheEditorOpen(answer)) { setError(answer.message || t.saveError); return }
+
     setCreating(false)
     setDraftLead(emptyDeal())
     await loadBoard(tab)
     // Straight into the new thread — the point of creating it was to talk to someone.
-    if (result?.id) setParams({ lead: String(result.id) })
+    if (answer.result?.id) setParams({ lead: String(answer.result.id) })
   }, t.saveError)
 
   const sendReport = () => run('report', async () => {
@@ -882,7 +996,11 @@ export default function AdminPipelinePage() {
       </nav>
 
       <div className="adm-pipeline-toolbar">
-        <button type="button" className="btn" onClick={() => setCreating(true)}>
+        {/* The error is the page's, and this dialog renders it. Opening without clearing it
+            would put a failed reply's sentence above an empty form, where it reads as
+            though creating a lead had already gone wrong — the sheet's opener below has
+            cleared it for the same reason since the day it started showing one. */}
+        <button type="button" className="btn" onClick={() => { setError(''); setCreating(true) }}>
           + {t.newDeal}
         </button>
         {/* The report goes with the view it reports on. On the other tabs it would be a
@@ -978,11 +1096,16 @@ export default function AdminPipelinePage() {
               onClick={createDeal}
               disabled={!draftLead.name.trim() || busy !== ''}
             >
-              {t.create}
+              {busy === 'save' ? t.creating : t.create}
             </button>
           </>
         )}
       >
+        {/* The page's own alert is behind this dialog. A refusal keeps the dialog open with
+            everything typed still in it, so the reason has to be inside it or the Create
+            button reads as one that does nothing. */}
+        {error ? <div className="adm-alert" role="alert">{error}</div> : null}
+
         <div className="adm-newdeal-grid">
           {NEW_DEAL_FIELDS.map(([field, labelKey]) => (
             <label key={field}>
@@ -1065,6 +1188,16 @@ export default function AdminPipelinePage() {
               >
                 <span className="adm-name">{row.name || '—'}</span>
                 <span className={`adm-badge adm-stage-${row.status}`}>{t.status[row.status] ?? row.status}</span>
+                {/* "They wrote last." It reads as a badge because it is a state of the lead
+                    like the stage above it, and it says its own name rather than relying on
+                    the colour — the two things this board shouts about are different kinds
+                    of urgent and a lead is regularly both, so "we are late" and "they are
+                    waiting" must never come down to telling two tints apart. */}
+                {row.awaitingReply ? (
+                  <span className="adm-badge adm-badge-awaiting" title={t.awaitingHint}>
+                    {t.awaiting}
+                  </span>
+                ) : null}
                 {row.modelLabel ? <span className="adm-muted adm-small">{row.modelLabel}</span> : null}
                 <DueLabel iso={row.nextContactAt} t={t} className="adm-small" />
                 {row.lastActivityAt ? (
@@ -1214,7 +1347,7 @@ export default function AdminPipelinePage() {
                       {t.close}
                     </button>
                     <button type="button" className="btn" onClick={saveFields} disabled={busy !== ''}>
-                      {t.save}
+                      {busy === 'save' ? t.saving : t.save}
                     </button>
                   </>
                 )}
@@ -1478,16 +1611,36 @@ export default function AdminPipelinePage() {
                     </svg>
                     <span>{t.attach}</span>
                   </button>
+                  {/* What happened, then the button that files it — in that order, because
+                      the button's own label is the answer to the dropdown beside it and
+                      reading "Запиши като: Обаждане" then "+ Обаждане" is how someone
+                      confirms the kind without opening the thread afterwards. */}
+                  <label className="adm-filter adm-small adm-muted">
+                    <span>{t.logAs}</span>
+                    <select
+                      value={logType}
+                      disabled={busy !== ''}
+                      onChange={(e) => setLogType(e.target.value)}
+                    >
+                      {LOG_TYPES.map((key) => <option key={key} value={key}>{t[key]}</option>)}
+                    </select>
+                  </label>
                   <button
                     type="button"
                     className="btn ghost"
-                    title={t.logNoteHint}
-                    onClick={logNote}
-                    disabled={(!composed && files.length === 0) || busy !== ''}
+                    title={t.logHint}
+                    onClick={logActivity}
+                    disabled={!canLog || busy !== ''}
                   >
-                    {t.logNote}
+                    + {t[logType]}
                   </button>
                 </div>
+                {/* Said out loud rather than left to the button's title: a browser shows no
+                    tooltip on a disabled control, so the one moment the sentence is needed
+                    is the one moment nobody could read it. */}
+                {logNeedsWords ? (
+                  <p className="adm-small adm-muted" role="status">{t.logNeedsWords}</p>
+                ) : null}
               </div>
             </>
           )}

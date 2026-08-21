@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminOrdersPage from './AdminOrdersPage.jsx'
+import SubmitStatus from '../components/SubmitStatus.jsx'
+import { _resetSubmissions, _setRetryDelays } from '../lib/backgroundSubmit.js'
 
 // The orders board, which is now the whole logistics product: there is no carrier API, so a
 // person moves every order along from this screen.
@@ -22,8 +24,10 @@ import AdminOrdersPage from './AdminOrdersPage.jsx'
 // The THIRD is the staleness marker, which is the only thing on the screen that notices
 // nobody has been here.
 
+// The banner is rendered app-wide from App.jsx, above every route including this one, so a
+// page test that wants to read what a save reported has to put it back.
 const render = (ui) =>
-  rtlRender(<MemoryRouter initialEntries={['/admin/orders']}>{ui}</MemoryRouter>)
+  rtlRender(<MemoryRouter initialEntries={['/admin/orders']}>{ui}<SubmitStatus /></MemoryRouter>)
 
 const json = (body, status = 200) => Promise.resolve({
   ok: status < 400,
@@ -133,6 +137,8 @@ let putFails = false
 let statusesFail = false
 let boardFailsAfterWrite = false
 let boardBroken = false
+// A refusal from the order writer, set by the tests that care how the editor answers one.
+let writeAnswer = null
 
 // The row on screen after a move, so the quiet reload that follows an advance answers with
 // what the server would actually say next rather than with the old board.
@@ -144,7 +150,12 @@ beforeEach(() => {
   statusesFail = false
   boardFailsAfterWrite = false
   boardBroken = false
+  writeAnswer = null
   board = BOARD.map((r) => ({ ...r }))
+  _resetSubmissions()
+  // Zero backoff, so a save handed to the retries finishes inside the test that started it
+  // rather than firing into the next one's call log.
+  _setRetryDelays([0, 0, 0, 0])
 
   vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
     const u = String(url)
@@ -164,6 +175,7 @@ beforeEach(() => {
     const write = u.match(/\/api\/admin\/orders\/(\d+)$/)
     if (write && method === 'PUT') {
       if (putFails) return json({ errors: ['Не се записа.'] }, 500)
+      if (writeAnswer) return writeAnswer()
       const row = board.find((r) => r.purchaseId === Number(write[1]))
       const sent = JSON.parse(options.body)
       // The writer only moves an order when a status is actually sent and it differs — a
@@ -185,7 +197,7 @@ beforeEach(() => {
   }))
 })
 
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => { vi.unstubAllGlobals(); _resetSubmissions(); _setRetryDelays() })
 
 const bodyOf = (call) => JSON.parse(call.body)
 
@@ -467,5 +479,149 @@ describe('AdminOrdersPage', () => {
 
     await waitFor(() => expect(screen.getByText('Не се записа.')).toBeInTheDocument())
     expect(screen.queryByText('Преместена: Иван Петров → Насрочена за товарене')).not.toBeInTheDocument()
+  })
+  // --- What the editor does with each of the three answers -----------------------------
+
+  const openEditor = async (user, name) => {
+    await user.click(within(findRow(name)).getByRole('button', { name: 'Редактирай' }))
+    return waitFor(() => screen.getByRole('dialog'))
+  }
+
+  it('a save that lands closes the editor and reports itself in the banner', async () => {
+    const user = userEvent.setup()
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+
+    const dialog = await openEditor(user, 'Иван Петров')
+    await user.type(within(dialog).getByLabelText(/Последно от превозвача/), ' Тръгва в петък.')
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    // Whose order, because the banner outlives the editor that started it.
+    expect(await screen.findByText(/Запазено · Иван Петров/)).toBeInTheDocument()
+  })
+
+  it('a refused save keeps the editor open with the note still in it', async () => {
+    // The writer refuses dates it cannot read and statuses that are not on the timeline.
+    // Closing on that answer would take the carrier's words away with it — and those were
+    // read off a phone call nobody is going to make twice.
+    writeAnswer = () => json({ errors: ['Датата не е разчетена.'] }, 400)
+    const user = userEvent.setup()
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+
+    const dialog = await openEditor(user, 'Иван Петров')
+    const note = within(dialog).getByLabelText(/Последно от превозвача/)
+    await user.type(note, ' Тръгва в петък.')
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Датата не е разчетена.')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(note).toHaveValue('Загружда се в сряда. Тръгва в петък.')
+    // Asked once: identical input refused once is input refused five times.
+    expect(calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
+  })
+
+  it('cancelling a refused edit takes its reason with it', async () => {
+    // The alert belongs to an edit that no longer exists. Left set, it moves out onto the
+    // board the moment the editor closes, where it refers to nothing and stays there until
+    // the next thing that happens to clear it.
+    writeAnswer = () => json({ errors: ['Датата не е разчетена.'] }, 400)
+    const user = userEvent.setup()
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+
+    const dialog = await openEditor(user, 'Иван Петров')
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+    expect(await within(dialog).findByRole('alert')).toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Откажи' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByText('Датата не е разчетена.')).not.toBeInTheDocument()
+  })
+
+  it('refuses to close the editor while its save is still running', async () => {
+    // `editing` is the only copy of what was typed. Cancel, ✕, Escape and the backdrop all
+    // set it to null, and none of them was disabled by a save in flight — so closing a slow
+    // save left the 400 that came back a second later with no form to land in.
+    let release = null
+    writeAnswer = () => new Promise((resolve) => {
+      release = () => resolve(json({ errors: ['Датата не е разчетена.'] }, 400))
+    })
+
+    const user = userEvent.setup()
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+
+    const dialog = await openEditor(user, 'Иван Петров')
+    const note = within(dialog).getByLabelText(/Последно от превозвача/)
+    await user.type(note, ' Тръгва в петък.')
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+    await waitFor(() => expect(release).not.toBeNull())
+
+    expect(within(dialog).getByRole('button', { name: 'Откажи' })).toBeDisabled()
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // And when the refusal does arrive, the words read off the phone call are still here.
+    release()
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Датата не е разчетена.')
+    expect(within(dialog).getByLabelText(/Последно от превозвача/))
+      .toHaveValue('Загружда се в сряда. Тръгва в петък.')
+  })
+
+  it('a save landing late does not pull the open editor out from under somebody', async () => {
+    // The retry arrives half a minute after the editor closed, by which time the person is
+    // in ANOTHER order, on the phone to the carrier. Reloading the board through load()
+    // would drop the page back to 'loading', and the shell renders nothing at all in that
+    // state — so the dialog is destroyed and rebuilt and every keystroke after it goes
+    // nowhere. The quiet reload exists for exactly this.
+    let attempt = 0
+    let release = null
+    writeAnswer = () => {
+      attempt += 1
+      if (attempt === 1) return json({ errors: ['Later.'] }, 503)
+      return new Promise((resolve) => { release = () => resolve(json({ ok: true })) })
+    }
+
+    const user = userEvent.setup()
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+
+    const first = await openEditor(user, 'Иван Петров')
+    await user.click(within(first).getByRole('button', { name: 'Запази' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    // On to the next order, with the retry still in flight behind it.
+    const second = await openEditor(user, 'Дария Тонева')
+    const carrier = within(second).getByLabelText(/Превозвач/)
+    await waitFor(() => expect(release).not.toBeNull())
+
+    release()
+    await waitFor(() => expect(screen.getByText(/Запазено/)).toBeInTheDocument())
+
+    // The same input node, not a rebuilt one: a replacement takes the cursor with it.
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(carrier.isConnected).toBe(true)
+    expect(within(screen.getByRole('dialog')).getByLabelText(/Превозвач/)).toBe(carrier)
+  })
+
+  it('a server having a bad minute closes the editor and finishes in the banner', async () => {
+    writeAnswer = () => json({ errors: ['Няма връзка с базата.'] }, 503)
+    const user = userEvent.setup()
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+
+    const dialog = await openEditor(user, 'Иван Петров')
+    await user.type(within(dialog).getByLabelText(/Последно от превозвача/), ' Тръгва в петък.')
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByText(/Запазването не успя/)).toBeInTheDocument()
+    // The editor's own attempt is a PUT like every retry behind it, so the board's move
+    // never happened and the row still says what it said.
+    expect(calls.filter((c) => c.method === 'PUT').length).toBeGreaterThan(1)
+    expect(screen.getByRole('button', { name: 'Опитай пак' })).toBeInTheDocument()
   })
 })

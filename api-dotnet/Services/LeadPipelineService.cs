@@ -133,6 +133,8 @@ public class LeadPipelineService
             .Select(g => new { LeadId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.LeadId, x => x.Count, ct);
 
+        var awaiting = await AwaitingReplyAsync(ids, ct);
+
         return leads.Select(l => new LeadSummaryDto
         {
             Id = l.Id,
@@ -145,7 +147,55 @@ public class LeadPipelineService
             CreatedAt = Iso(l.CreatedAt),
             LastActivityAt = l.LastActivityAt is null ? null : Iso(l.LastActivityAt.Value),
             ActivityCount = counts.TryGetValue(l.Id, out var n) ? n : 0,
+            AwaitingReply = awaiting.Contains(l.Id),
         }).ToList();
+    }
+
+    /// <summary>
+    /// The leads whose most recent thread entry came from the customer — the ones where the
+    /// ball is in our court.
+    ///
+    /// "From the customer" is ActorUpn == null, the same encoding LeadActivity documents and
+    /// ToDto already reads for FromCustomer. Deliberately not the type string: an email_in is
+    /// not the only thing a customer can be the author of, and a second definition would
+    /// eventually disagree with the first about the same row.
+    ///
+    /// It follows that nothing but the customer may be written with a null UPN: an
+    /// out-of-office filed as an inbound message would light this for the whole holiday, and
+    /// the only way to put it out is to write into the thread. That rule is kept where the
+    /// mail arrives — see LeadMailPoller.IsAutomated — rather than by teaching the board to
+    /// second-guess entries it did not create.
+    ///
+    /// NOT AN UNREAD FLAG, and that is the point. There is no read tracking here, no
+    /// per-user state and no new table — a reply somebody opened on Monday and never
+    /// answered is still flagged on Thursday, because "I have seen it" was never the
+    /// question the board is asking. It clears itself the moment anyone replies, logs the
+    /// call they made instead, or moves the status, because all of those write a thread
+    /// entry with a UPN on it.
+    /// </summary>
+    /// <remarks>
+    /// ONE QUERY, not one per lead: this is the board, and it lists up to MaxRows of them.
+    /// Same greatest-n-per-group shape as OrderTrackingService.LastMovedAsync — "no later
+    /// entry exists for this lead" — which walks the existing (LeadId, OccurredAt) index
+    /// rather than reading every lead's whole history and sorting it in memory. That index
+    /// is already there for the thread view, so this needs no migration; Id breaks the tie
+    /// inside a clock tick and rides along in the index as the row locator.
+    /// </remarks>
+    private async Task<HashSet<int>> AwaitingReplyAsync(List<int> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return new HashSet<int>();
+
+        var latest = await _db.LeadActivities
+            .AsNoTracking()
+            .Where(a => ids.Contains(a.LeadId))
+            .Where(a => !_db.LeadActivities.Any(later =>
+                later.LeadId == a.LeadId &&
+                (later.OccurredAt > a.OccurredAt ||
+                 (later.OccurredAt == a.OccurredAt && later.Id > a.Id))))
+            .Select(a => new { a.LeadId, a.ActorUpn })
+            .ToListAsync(ct);
+
+        return latest.Where(a => a.ActorUpn == null).Select(a => a.LeadId).ToHashSet();
     }
 
     /// <summary>

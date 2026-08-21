@@ -34,12 +34,30 @@ async function handle(res) {
     } catch {
       /* not JSON; fall through to the status text */
     }
-    throw new Error(detail || `Request failed (${res.status})`)
+    // The code rides along with the sentence. A save that is refused and a save that hit a
+    // server having a bad minute read almost identically as prose, and the panel owes them
+    // opposite answers — keep the dialog open on the first, hand the request to the retries
+    // on the second (adminSave.js). A network failure never reaches this branch at all, and
+    // the status it therefore does NOT carry is how the caller recognises one.
+    const error = new Error(detail || `Request failed (${res.status})`)
+    error.status = res.status
+    throw error
   }
 
   if (res.status === 204) return null
+
+  // The success body is parsed inside its own try for the same reason the code above is
+  // attached to the error: a truncated 200 throws a SyntaxError, which carries no status,
+  // and a status-less error is precisely how adminSave recognises a request that never got
+  // an answer. It would hand a write the server has ALREADY COMMITTED to the retries.
   const text = await res.text()
-  return text ? JSON.parse(text) : null
+  try {
+    return text ? JSON.parse(text) : null
+  } catch {
+    const error = new Error(`The server answered ${res.status}, but the answer could not be read.`)
+    error.status = res.status
+    throw error
+  }
 }
 
 export const adminGet = (url) => fetch(url, { headers: { Accept: 'application/json' } }).then(handle)

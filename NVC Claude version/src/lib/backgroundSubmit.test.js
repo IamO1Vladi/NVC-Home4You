@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   sendWithRetry, submitInBackground, subscribeSubmissions, dismissSubmission,
-  _resetSubmissions, MAX_ATTEMPTS,
+  announceSuccess, _resetSubmissions, MAX_ATTEMPTS,
 } from './backgroundSubmit.js'
 
 // The engine behind "close the modal and let it send itself".
@@ -52,6 +52,17 @@ describe('sendWithRetry', () => {
 
     expect(result.ok).toBe(false)
     expect(fetchImpl).toHaveBeenCalledTimes(MAX_ATTEMPTS)
+  })
+
+  it('sends an edit as the PUT it is, not as a second POST', async () => {
+    // The public forms all POST to a create endpoint; an edit in the panel is a PUT to the
+    // row it edits, and retrying THAT as a POST would leave a duplicate record behind every
+    // time the wifi dropped.
+    const fetchImpl = vi.fn(ok)
+
+    await sendWithRetry('/api/admin/orders/7', {}, { ...fast, fetchImpl, method: 'PUT' })
+
+    expect(fetchImpl.mock.calls[0][1].method).toBe('PUT')
   })
 
   it('retries a 503 but never a 400', async () => {
@@ -198,5 +209,18 @@ describe('the submission store', () => {
     // Attempt 1 reads as plain "sending" — nobody should see "attempt 1 of 5" on a
     // request that is going normally. Attempt 2 reads as retrying.
     expect(states.some((s) => s[0]?.status === 'retrying' && s[0]?.attempt === 2)).toBe(true)
+  })
+  it('announces a save that already landed, with no request behind it', async () => {
+    // The admin panel's saves are confirmed while the dialog is still open, so by the time
+    // there is anything to say, the write is done. It shares this store rather than growing
+    // a second banner: one strip of status text in the corner, whichever half of the
+    // product put it there.
+    const states = seen()
+
+    announceSuccess({ success: 'Запазено' }, { successTtlMs: 0 })
+
+    expect(states.at(-1)[0].status).toBe('success')
+    // And it thanks and leaves, exactly like a submission that ran through the retries.
+    await until(() => states.at(-1).length === 0)
   })
 })

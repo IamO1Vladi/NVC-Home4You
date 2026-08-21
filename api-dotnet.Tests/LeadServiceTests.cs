@@ -415,6 +415,137 @@ public class LeadServiceTests
         Assert.Equal(0, await db.LeadActivities.CountAsync());
     }
 
+    // --- Logging something schedules the next contact ------------------------------------
+    //
+    // Silent, server-side, and only ever forward: doing something on a lead dates the next
+    // move three days out, unless a date is already sitting in the future — the customer who
+    // said "call me after the holidays" must not be dragged to Thursday because somebody
+    // added a note.
+
+    private static DateTimeOffset Today =>
+        new(DateTimeOffset.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
+
+    [Fact]
+    public void An_empty_follow_up_date_is_set_three_days_out()
+    {
+        Assert.Equal(Today.AddDays(3), LeadService.FollowUpAfterOurMove(null, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void A_date_that_has_already_passed_is_moved_on()
+    {
+        var overdue = Today.AddDays(-11);
+
+        Assert.Equal(Today.AddDays(3), LeadService.FollowUpAfterOurMove(overdue, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void A_date_in_the_future_is_left_exactly_where_someone_put_it()
+    {
+        var afterTheHolidays = Today.AddDays(30);
+
+        Assert.Equal(afterTheHolidays, LeadService.FollowUpAfterOurMove(afterTheHolidays, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void Todays_date_counts_as_arrived_rather_than_future()
+    {
+        // ListDueAsync reads a follow-up as due from the start of its day, so a lead dated
+        // today is one we owe a move now — and logging the call we just made is that move.
+        // Leaving it would keep the lead on the due report for something already done.
+        Assert.Equal(Today.AddDays(3), LeadService.FollowUpAfterOurMove(Today, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void The_new_date_is_midnight_utc_like_every_other_follow_up()
+    {
+        // A stray time would make "due today" begin at whatever hour the note was saved, and
+        // the report would then disagree with itself depending on where the server runs.
+        var scheduled = LeadService.FollowUpAfterOurMove(null, DateTimeOffset.Parse("2026-08-21T17:42:09+03:00"))!.Value;
+
+        Assert.Equal(TimeSpan.Zero, scheduled.Offset);
+        Assert.Equal(TimeSpan.Zero, scheduled.TimeOfDay);
+
+        // 17:42 in Sofia is 14:42 UTC on the same day, so three days out is the 24th.
+        Assert.Equal(new DateTime(2026, 8, 24), scheduled.UtcDateTime.Date);
+    }
+
+    [Theory]
+    [InlineData(LeadActivityTypes.Note)]
+    [InlineData(LeadActivityTypes.Call)]
+    [InlineData(LeadActivityTypes.Meeting)]
+    [InlineData(LeadActivityTypes.EmailOut)]
+    public async Task Logging_what_we_did_schedules_the_next_contact(string type)
+    {
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        await svc.AddActivityAsync(lead.Id, type, null, "Spoke about the plot.", "s@x.eu");
+
+        var saved = await db.Leads.SingleAsync(l => l.Id == lead.Id);
+        Assert.Equal(Today.AddDays(3), saved.NextContactAt);
+    }
+
+    [Fact]
+    public async Task A_customers_own_email_does_not_schedule_anything()
+    {
+        // The customer writing to us is not us promising to do something. Letting an inbound
+        // message move the date would push every lead's follow-up forward whenever mail
+        // arrived, which is exactly how a due report stops meaning anything.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        await svc.AddActivityAsync(lead.Id, LeadActivityTypes.EmailIn, null, "Any news?", null);
+
+        Assert.Null((await db.Leads.SingleAsync(l => l.Id == lead.Id)).NextContactAt);
+    }
+
+    [Fact]
+    public async Task Moving_the_status_does_not_schedule_anything_either()
+    {
+        // Where a lead stands is not an action taken towards the customer.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        await svc.SetStatusAsync(lead.Id, LeadStatuses.Quoted, "s@x.eu");
+
+        Assert.Null((await db.Leads.SingleAsync(l => l.Id == lead.Id)).NextContactAt);
+    }
+
+    [Fact]
+    public async Task A_note_does_not_disturb_a_date_someone_set_for_next_month()
+    {
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var afterTheHolidays = Today.AddDays(30);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan", NextContactAt = afterTheHolidays });
+
+        await svc.AddActivityAsync(lead.Id, LeadActivityTypes.Note, null, "Brother-in-law decides.", "s@x.eu");
+
+        Assert.Equal(afterTheHolidays, (await db.Leads.SingleAsync(l => l.Id == lead.Id)).NextContactAt);
+    }
+
+    [Fact]
+    public async Task A_call_logged_late_still_schedules_from_today()
+    {
+        // Dated from now rather than from when the call happened, for the same reason
+        // LastActivityAt only moves forward: a call typed in this morning is a promise made
+        // this morning, and three days from the backdated moment would file it as overdue
+        // the instant it was written.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        await svc.AddActivityAsync(
+            lead.Id, LeadActivityTypes.Call, null, "Forgot to log this one", "s@x.eu",
+            occurredAt: DateTimeOffset.UtcNow.AddDays(-7));
+
+        Assert.Equal(Today.AddDays(3), (await db.Leads.SingleAsync(l => l.Id == lead.Id)).NextContactAt);
+    }
+
     // --- Status ------------------------------------------------------------------------
 
     [Fact]

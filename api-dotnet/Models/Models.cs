@@ -313,6 +313,11 @@ public class LeadSummaryDto
     public string CreatedAt { get; set; } = "";
     public string? LastActivityAt { get; set; }
     public int ActivityCount { get; set; }
+
+    // True when the last thing on the thread came from the customer — see
+    // LeadPipelineService.AwaitingReplyAsync for how that is decided and why this is
+    // deliberately not an unread flag.
+    public bool AwaitingReply { get; set; }
 }
 
 // Counts of the enquiry queue. Everything except Archived counts the WORKING queue only —

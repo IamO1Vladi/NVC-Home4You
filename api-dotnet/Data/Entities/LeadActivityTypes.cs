@@ -39,4 +39,24 @@ public static class LeadActivityTypes
     };
 
     public static bool IsManuallyLoggable(string? key) => key is not null && ManuallyLoggable.Contains(key);
+
+    // The types that mean WE did something, and therefore that we owe the customer a next
+    // move — see LeadService.FollowUpAfterOurMove, which dates that move.
+    //
+    // EmailIn is out because a customer writing to us is not us promising anything, and
+    // StatusChange is out because moving a lead to Quoted records where it stands rather
+    // than an action anyone took towards the customer. Letting either in would push the
+    // follow-up date forward every time mail arrived or a stage was corrected, which is
+    // exactly how a due report stops meaning anything.
+    //
+    // Spelled out rather than reusing ManuallyLoggable, whose members happen to coincide
+    // today. That list answers "what may a person POST to the activities endpoint"; this one
+    // answers "does this entry put the ball back in our court", and the reply path writes an
+    // EmailOut without going near that endpoint at all.
+    public static readonly IReadOnlyList<string> OurMove = new[]
+    {
+        EmailOut, Call, Meeting, Note,
+    };
+
+    public static bool IsOurMove(string? key) => key is not null && OurMove.Contains(key);
 }

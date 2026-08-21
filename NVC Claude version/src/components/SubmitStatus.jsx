@@ -14,7 +14,9 @@ import './SubmitStatus.css'
 //             rather than as a hang.
 //   success   green tick, dismisses itself — it thanks and leaves.
 //   error     stays until acted on. All five attempts failed, and auto-dismissing THAT
-//             would silently lose the visitor's enquiry. Offers retry and close.
+//             would silently lose the visitor's enquiry. Offers retry and close — except
+//             when the item is marked `expired`, where the session ran out mid-retry and
+//             the only honest thing on offer is signing in again.
 //
 // aria-live="polite" on the container: screen readers hear the outcome without the modal —
 // which announced results before — having to stay open for it.
@@ -32,7 +34,7 @@ function Item({ item }) {
         {status === 'sending' && labels.sending}
         {status === 'retrying' && `${labels.retrying} (${attempt}/${MAX_ATTEMPTS})`}
         {status === 'success' && labels.success}
-        {status === 'error' && labels.error}
+        {status === 'error' && (item.expired ? labels.expired || labels.error : labels.error)}
       </span>
 
       {status === 'error' ? (

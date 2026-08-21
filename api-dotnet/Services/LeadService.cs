@@ -204,6 +204,15 @@ public class LeadService
         if (lead.LastActivityAt is null || when > lead.LastActivityAt) lead.LastActivityAt = when;
         lead.UpdatedAt = DateTimeOffset.UtcNow;
 
+        // Doing something schedules the next thing. Silent on purpose — nobody is asked, and
+        // a date already set for the future is left alone; see FollowUpAfterOurMove.
+        //
+        // Dated from now rather than from `when`, for the same reason LastActivityAt is: a
+        // call typed in this morning and dated to last week is still a promise made today,
+        // and taking three days from the backdated moment would file it as already overdue.
+        if (LeadActivityTypes.IsOurMove(type))
+            lead.NextContactAt = FollowUpAfterOurMove(lead.NextContactAt, DateTimeOffset.UtcNow);
+
         await _db.SaveChangesAsync(ct);
         return activity;
     }
@@ -434,6 +443,44 @@ public class LeadService
         // and keeping a stray time makes "due today" start at an arbitrary hour.
         value = new DateTimeOffset(parsed.UtcDateTime.Date, TimeSpan.Zero);
         return true;
+    }
+
+    /// <summary>
+    /// How far out logging something pushes the follow-up date. THE OWNER'S CHOICE, given
+    /// when this rule was agreed: long enough that a customer has had a working day or two
+    /// to answer, short enough that nothing sits for a week unnoticed. It is a decision
+    /// about how this company sells, not a computed interval, which is why it is written
+    /// down here as a named one rather than left as a 3 in the middle of a method.
+    /// </summary>
+    public const int AutoFollowUpDays = 3;
+
+    /// <summary>
+    /// The follow-up date after we have done something on a lead: three days out when there
+    /// is no date or the one there has already come round, and untouched when it is set to a
+    /// future day.
+    ///
+    /// That last half is the rule that matters. A lead deliberately dated for next month —
+    /// the customer who said "call me after the holidays" — must not be dragged to Thursday
+    /// because somebody added a note to it, and a system that did that would teach people to
+    /// stop dating leads at all.
+    ///
+    /// A date of TODAY counts as arrived, not as future. ListDueAsync reads a follow-up as
+    /// due from the start of its day, so a lead dated today is one we owe a move now — and
+    /// logging the call we just made is precisely that move.
+    /// </summary>
+    /// <remarks>
+    /// Midnight UTC, exactly as TryParseFollowUpDate stores what a person types. A follow-up
+    /// is a day and never a minute; a stray time here would make "due today" begin at
+    /// whatever hour the note happened to be saved, and the report would disagree with
+    /// itself depending on where the server runs.
+    /// </remarks>
+    public static DateTimeOffset? FollowUpAfterOurMove(DateTimeOffset? current, DateTimeOffset now)
+    {
+        var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+
+        if (current is not null && current.Value > today) return current;
+
+        return today.AddDays(AutoFollowUpDays);
     }
 
     // An emptied box means "clear this", which is null in the database — storing "" would

@@ -1585,6 +1585,22 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 .adm-stage-won { background: var(--adm-ok-bg); color: var(--adm-ok); }
 .adm-stage-lost { background: var(--adm-stop-bg); color: var(--adm-stop); }
 
+/* "They wrote last", which is not the same alarm as an overdue date and has to stay
+   readable beside one — a lead is regularly both at the same time. So it deliberately does
+   NOT borrow --adm-warn: the late date and every in-play stage already own that colour, and
+   a third orange thing on the same row is one the eye stops separating.
+   The ring is what carries it. A new lead's stage band is this same soft fill, and on the
+   selected row the whole item is too, so fill alone would leave the flag invisible exactly
+   where someone is looking. And justify-self keeps it hugging its own words: the stage above
+   stretches the full width of the item, so a second full-width band would read as a second
+   stage rather than as a different kind of fact. */
+.adm-badge-awaiting {
+  justify-self: start;
+  background: var(--adm-accent-soft);
+  color: var(--adm-accent-ink);
+  box-shadow: inset 0 0 0 1.5px var(--adm-accent);
+}
+
 @media (max-width: 900px) {
   .adm-pipeline { grid-template-columns: 1fr; }
   .adm-pipeline-list { max-height: 30vh; }

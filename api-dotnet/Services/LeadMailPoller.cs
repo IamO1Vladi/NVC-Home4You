@@ -29,6 +29,13 @@ namespace Services;
 /// payoff is bigger than the admin panel: a reply to mail someone sent straight from
 /// Outlook lands in the thread too, so nobody has to live in the panel for the history to
 /// be complete.
+///
+/// When there is no such conversation the sender's address is tried instead — see
+/// RouteToLead for why that fallback had to exist and where it stops, and InboundActivity
+/// for why a message placed that way records no conversation of its own.
+///
+/// What lands in a thread is the customer speaking, and only that: our own sent copy is
+/// skipped, and so is anything a machine generated — see IsAutomated.
 /// </summary>
 public class LeadMailPoller : BackgroundService
 {
@@ -127,14 +134,28 @@ public class LeadMailPoller : BackgroundService
             .Distinct()
             .ToList();
 
-        var leadByConversation = await db.LeadActivities
-            .AsNoTracking()
-            .Where(a => a.ConversationId != null && conversationIds.Contains(a.ConversationId))
-            .Select(a => new { a.ConversationId, a.LeadId })
-            .Distinct()
-            .ToDictionaryAsync(x => x.ConversationId!, x => x.LeadId, ct);
+        var leadByConversation = await LeadsByConversationAsync(db, conversationIds!, ct);
 
-        if (leadByConversation.Count == 0) return 0;
+        // The fallback's input: everyone who wrote to us in a conversation we do not know.
+        // Gathered for the whole batch and looked up once — a tick carries up to PageSize
+        // messages, and a query each would turn a quiet mailbox into fifty round trips.
+        //
+        // Our own sent mail is excluded here as well as below, so a tick that contains
+        // nothing but outbound copies does not go looking for a lead with contact@ in its
+        // Email column.
+        var unplacedSenders = messages
+            .Where(m => string.IsNullOrWhiteSpace(m.ConversationId)
+                        || !leadByConversation.ContainsKey(m.ConversationId!))
+            .Where(m => !IsFromUs(m.FromAddress))
+            .Select(m => m.FromAddress)
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Select(a => a!.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        var leadByAddress = await LeadsByAddressAsync(db, unplacedSenders, ct);
+
+        if (leadByConversation.Count == 0 && leadByAddress.Count == 0) return 0;
 
         // Belt and braces alongside the unique index: checking first turns the common case
         // (nothing new since last tick) into one query instead of a batch of failed inserts.
@@ -146,29 +167,49 @@ public class LeadMailPoller : BackgroundService
             .ToListAsync(ct);
         var known = alreadyFiled.ToHashSet(StringComparer.Ordinal);
 
-        var filed = 0;
+        // Every message placed before anything is written, so the leads they land on can be
+        // loaded in one query instead of one per message.
+        var routed = new List<(MailMessage Message, Placement Where)>();
 
         foreach (var message in messages)
         {
-            if (string.IsNullOrWhiteSpace(message.ConversationId)) continue;
             if (known.Contains(message.Id)) continue;
-            if (!leadByConversation.TryGetValue(message.ConversationId!, out var leadId)) continue;
 
             // Skip our own sent mail. It is already in the thread from the moment we sent
             // it, and filing it again would double every outbound message.
             if (IsFromUs(message.FromAddress)) continue;
 
-            var activity = new LeadActivity
+            var placement = RouteToLead(message.ConversationId, message.FromAddress, leadByConversation, leadByAddress);
+            if (placement is null) continue;
+
+            // Asked only about mail that would otherwise be filed, so the mailbox's ordinary
+            // traffic costs nothing. See IsAutomatedAsync for why the headers are fetched a
+            // message at a time rather than pulled down with the list.
+            if (await IsAutomatedAsync(token, message.Id, ct))
             {
-                LeadId = leadId,
-                Type = LeadActivityTypes.EmailIn,
-                Subject = message.Subject,
-                Body = TrimQuotedHistory(message.Body),
-                ActorUpn = null,                    // null means the customer
-                ConversationId = message.ConversationId,
-                ExternalMessageId = message.Id,
-                OccurredAt = message.ReceivedAt,
-            };
+                _log.LogInformation(
+                    "Message {MessageId} is an automatic reply; not filing it as the customer speaking",
+                    message.Id);
+                continue;
+            }
+
+            routed.Add((message, placement.Value));
+        }
+
+        if (routed.Count == 0) return 0;
+
+        var routedLeadIds = routed.Select(r => r.Where.LeadId).Distinct().ToList();
+        var leads = await db.Leads
+            .Where(l => routedLeadIds.Contains(l.Id))
+            .ToDictionaryAsync(l => l.Id, ct);
+
+        var filed = 0;
+
+        foreach (var (message, where) in routed)
+        {
+            var leadId = where.LeadId;
+            var activity = InboundActivity(
+                where, message.ConversationId, message.Id, message.Subject, message.Body, message.ReceivedAt);
 
             // The plot survey, the bank confirmation, the photo of where it is going —
             // customers send these constantly, and until now they stayed in the mailbox
@@ -199,9 +240,11 @@ public class LeadMailPoller : BackgroundService
 
             db.LeadActivities.Add(activity);
 
-            var lead = await db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
-            if (lead is not null && (lead.LastActivityAt is null || message.ReceivedAt > lead.LastActivityAt))
+            if (leads.TryGetValue(leadId, out var lead)
+                && (lead.LastActivityAt is null || message.ReceivedAt > lead.LastActivityAt))
+            {
                 lead.LastActivityAt = message.ReceivedAt;
+            }
 
             filed++;
         }
@@ -224,9 +267,300 @@ public class LeadMailPoller : BackgroundService
         return filed;
     }
 
-    private bool IsFromUs(string? address) =>
+    private bool IsFromUs(string? address) => IsFromUs(address, _env.GraphSender);
+
+    // Static twin so the rule can be exercised without a mailbox behind it. Unchanged and
+    // still load-bearing: our own copy of an outbound message is already in the thread.
+    public static bool IsFromUs(string? address, string? mailbox) =>
         !string.IsNullOrWhiteSpace(address)
-        && address.Equals(_env.GraphSender, StringComparison.OrdinalIgnoreCase);
+        && !string.IsNullOrWhiteSpace(mailbox)
+        && address.Trim().Equals(mailbox.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether a Graph message is a machine answering rather than the customer speaking —
+    /// the out-of-office, the delivery report, the ticket system's acknowledgement.
+    ///
+    /// It matters because the thread's newest entry with no UPN on it is what the board
+    /// reads as "they are waiting on us" (LeadPipelineService.AwaitingReplyAsync). A holiday
+    /// notice would raise that flag for as long as the customer is away, and the only way to
+    /// lower it is to write into the thread — so the board would be asking somebody to
+    /// answer an autoresponder.
+    /// </summary>
+    /// <remarks>
+    /// RFC 3834's Auto-Submitted is the whole rule, plus the two X- headers that predate it.
+    /// It is what Exchange, Gmail and every mailing list stamp on generated mail, and it says
+    /// so in a field rather than in prose — no subject sniffing, which would have to guess at
+    /// "Automatic reply", "Автоматичен отговор" and whatever the customer's client writes.
+    ///
+    /// X-Auto-Response-Suppress is deliberately NOT on the list, though a Microsoft
+    /// autoresponder does carry it. It is an instruction about future mail, and a corporate
+    /// gateway that stamps it on everything leaving the building would make us drop a real
+    /// customer's real reply — a far worse trade than a badge that stays lit for a week.
+    /// </remarks>
+    public static bool IsAutomated(string? messageJson)
+    {
+        if (string.IsNullOrWhiteSpace(messageJson)) return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(messageJson!);
+            if (!doc.RootElement.TryGetProperty("internetMessageHeaders", out var headers)
+                || headers.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            foreach (var header in headers.EnumerateArray())
+            {
+                var name = header.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                if (name!.Equals("X-Autoreply", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("X-Autorespond", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (!name.Equals("Auto-Submitted", StringComparison.OrdinalIgnoreCase)) continue;
+
+                // "no" is the RFC's way for an ordinary message to say so explicitly.
+                // Everything else — auto-replied, auto-generated — is a machine.
+                var value = header.TryGetProperty("value", out var valueEl) ? valueEl.GetString() : null;
+                if (!string.IsNullOrWhiteSpace(value)
+                    && !value!.Trim().Equals("no", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Unreadable headers are not evidence of anything. Filing the message is the
+            // behaviour we had before this rule existed, and it loses nothing.
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Fetches one message's internet headers and asks IsAutomated about them.
+    /// </summary>
+    /// <remarks>
+    /// A MESSAGE AT A TIME, not on the list query's $select. internetMessageHeaders is a
+    /// property Graph returns only when asked for, and asking for it across a collection is
+    /// the sort of thing Graph refuses for some properties and not others — a refusal here
+    /// would be a 400 on the ONE request the whole feature stands on, every two minutes.
+    /// This costs one small request per message that is about to be filed — a handful on a
+    /// busy day — and nothing at all for the mailbox's ordinary traffic. An automatic reply
+    /// is never recorded, so it is asked about again each tick until it ages out of the
+    /// lookback window, which is the cheap half of the trade.
+    ///
+    /// Any failure means "not automated", so a Graph hiccup files the message as usual
+    /// rather than silently dropping a customer's reply.
+    /// </remarks>
+    private async Task<bool> IsAutomatedAsync(string token, string messageId, CancellationToken ct)
+    {
+        try
+        {
+            var url =
+                $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}" +
+                $"/messages/{Uri.EscapeDataString(messageId)}?$select=internetMessageHeaders";
+
+            var http = _httpFactory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var response = await http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) return false;
+
+            return IsAutomated(await response.Content.ReadAsStringAsync(ct));
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _log.LogInformation(ex,
+                "Could not read the headers of message {MessageId}; filing it as ordinary mail", messageId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Where a message was filed, and which of the two rules put it there. The second half
+    /// is not bookkeeping: an anchor is only ever recorded for a message the CONVERSATION
+    /// placed — see InboundActivity.
+    /// </summary>
+    public readonly record struct Placement(int LeadId, bool ByConversation);
+
+    /// <summary>
+    /// Which lead a message belongs to, or null for mail that belongs to none.
+    ///
+    /// THE CONVERSATION IS THE FAST PATH and stays first. It is exact, it is what
+    /// LeadMailService wrote down when the panel sent, and it keeps working when a customer
+    /// answers from a second address or a colleague's mailbox.
+    ///
+    /// THE SENDER'S ADDRESS IS THE FALLBACK, and it exists because a conversation id is
+    /// only ever recorded when somebody emailed the lead FROM THE PANEL. The autoresponder
+    /// records nothing, so a customer who simply hit reply on their acknowledgement — the
+    /// most ordinary thing a customer can do — was skipped with nothing in the logs. Matched
+    /// exactly and case-insensitively against Lead.Email: no domain matching, because half a
+    /// company's staff share a domain with each other and with our own suppliers, and no
+    /// fuzzy matching, because a near miss files a stranger's message into someone's thread.
+    ///
+    /// THE LINE THIS MUST NOT CROSS: ordinary company mail from an address that belongs to
+    /// no lead is still ignored, exactly as before. An accountant, a supplier, a newsletter —
+    /// none of them appear in Lead.Email, so none of them are filed, and the mailbox does not
+    /// become the pipeline.
+    /// </summary>
+    public static Placement? RouteToLead(
+        string? conversationId,
+        string? fromAddress,
+        IReadOnlyDictionary<string, int> leadByConversation,
+        IReadOnlyDictionary<string, int> leadByAddress)
+    {
+        if (!string.IsNullOrWhiteSpace(conversationId)
+            && leadByConversation.TryGetValue(conversationId!, out var byConversation))
+        {
+            return new Placement(byConversation, ByConversation: true);
+        }
+
+        if (!string.IsNullOrWhiteSpace(fromAddress)
+            && leadByAddress.TryGetValue(fromAddress!.Trim().ToLowerInvariant(), out var byAddress))
+        {
+            return new Placement(byAddress, ByConversation: false);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// One inbound message as a thread entry, before its files are hung on it.
+    /// </summary>
+    /// <remarks>
+    /// THE CONVERSATION ID IS RECORDED ONLY WHEN THE CONVERSATION IS WHAT PLACED THE
+    /// MESSAGE, so an anchor always means "we emailed this lead in this thread" and never
+    /// "we guessed once". Writing a guessed one down would promote it to the fast path
+    /// above, and the fast path answers before the sender's address is even looked at:
+    ///
+    ///   Ivan and Maria are two leads. Ivan writes, CCing Maria; the address places him on
+    ///   his lead. Stamp that thread onto Ivan's lead and Maria's reply-all — her words, her
+    ///   plot survey — is filed on Ivan's thread as though she were him, while her own lead
+    ///   reports a customer nobody has heard from. Nothing in the panel can move it back.
+    ///
+    /// The cost of leaving it off is that every further reply in such a thread is placed by
+    /// address again. That is the guess LeadsByAddressAsync documents and accepts: it is
+    /// deterministic, and when it is wrong the message is still on one of THAT customer's
+    /// own threads rather than on a stranger's.
+    /// </remarks>
+    public static LeadActivity InboundActivity(
+        Placement where, string? conversationId, string externalMessageId,
+        string? subject, string? body, DateTimeOffset receivedAt) => new()
+        {
+            LeadId = where.LeadId,
+            Type = LeadActivityTypes.EmailIn,
+            Subject = subject,
+            Body = TrimQuotedHistory(body),
+            ActorUpn = null,                    // null means the customer
+            ConversationId = where.ByConversation ? conversationId : null,
+            ExternalMessageId = externalMessageId,
+            OccurredAt = receivedAt,
+        };
+
+    /// <summary>
+    /// The lead each of these conversations belongs to. One query for the whole tick.
+    /// </summary>
+    /// <remarks>
+    /// TOLERANT OF A CONVERSATION THAT SPANS TWO LEADS, because the alternative is an
+    /// outage. Keyed straight into a dictionary this would throw on the second row, inside
+    /// the tick's first query — and a poller that throws files nothing at all, for every
+    /// lead, until the offending thread falls out of the Lookback window. Graph decides what
+    /// a conversation is, and it groups by participants and topic: a returning customer with
+    /// two open leads, mailed twice from the panel under the same default subject, is enough
+    /// to produce one.
+    ///
+    /// THE LEAD IT WAS LAST USED ON WINS, which is the same instinct as LeadsByAddressAsync
+    /// — the thread somebody is actually in — and it is stable, since filing a message
+    /// against that lead only reinforces the answer.
+    /// </remarks>
+    public static async Task<Dictionary<string, int>> LeadsByConversationAsync(
+        AppDbContext db, IReadOnlyCollection<string> conversationIds, CancellationToken ct)
+    {
+        var empty = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (conversationIds.Count == 0) return empty;
+
+        var wanted = conversationIds.ToList();
+
+        // Grouped in the database rather than here: a long thread is one row per message,
+        // and the poller only ever needs the newest of them.
+        var candidates = await db.LeadActivities
+            .AsNoTracking()
+            .Where(a => a.ConversationId != null && wanted.Contains(a.ConversationId))
+            .GroupBy(a => new { a.ConversationId, a.LeadId })
+            .Select(g => new { g.Key.ConversationId, g.Key.LeadId, Latest = g.Max(a => a.OccurredAt) })
+            .ToListAsync(ct);
+
+        return candidates
+            .GroupBy(x => x.ConversationId!, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                // Id last so two leads mailed within the same clock tick still resolve the
+                // same way on every poll.
+                g => g.OrderByDescending(x => x.Latest)
+                      .ThenByDescending(x => x.LeadId)
+                      .First().LeadId,
+                StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// The lead behind each of these addresses, keyed by the lower-cased address. One query
+    /// for the whole tick.
+    /// </summary>
+    /// <remarks>
+    /// Several leads sharing an address is normal rather than exceptional: a returning
+    /// customer asking about a second house, a builder who enquires for every client he has.
+    /// So the tie has to be broken by a rule rather than by whichever row the database
+    /// happened to return.
+    ///
+    /// MOST RECENTLY ACTIVE, OPEN FIRST. An open lead is one somebody is working; a Won or
+    /// Lost one is finished, and a reply about a finished deal is nearly always about the
+    /// next thing rather than the old one. Among the open ones the most recently active is
+    /// the conversation the customer is most likely continuing.
+    ///
+    /// What it costs when it is wrong: the message lands on the customer's other lead. The
+    /// text is still in the panel, still attributed to them, still searchable — a person
+    /// reading two threads sees it in the wrong one and can say so. Nothing is lost, which
+    /// is the whole reason a guess is acceptable here and would not be if the alternative
+    /// were deleting the message.
+    /// </remarks>
+    public static async Task<Dictionary<string, int>> LeadsByAddressAsync(
+        AppDbContext db, IReadOnlyCollection<string> addresses, CancellationToken ct)
+    {
+        var empty = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (addresses.Count == 0) return empty;
+
+        var wanted = addresses.ToList();
+
+        var candidates = await db.Leads
+            .AsNoTracking()
+            .Where(l => l.Email != null && wanted.Contains(l.Email.ToLower()))
+            .Select(l => new { l.Id, l.Email, l.Status, l.LastActivityAt })
+            .ToListAsync(ct);
+
+        return candidates
+            .GroupBy(l => l.Email!.Trim().ToLowerInvariant(), StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                // Id last so the answer is the same on every tick even for two leads created
+                // in the same second with nothing on either thread yet.
+                g => g.OrderByDescending(l => LeadStatuses.IsOpen(l.Status))
+                      .ThenByDescending(l => l.LastActivityAt ?? DateTimeOffset.MinValue)
+                      .ThenByDescending(l => l.Id)
+                      .First().Id,
+                StringComparer.Ordinal);
+    }
 
     private record MailMessage(string Id, string? ConversationId, string? Subject, string Body,
         string? FromAddress, DateTimeOffset ReceivedAt, bool HasAttachments);

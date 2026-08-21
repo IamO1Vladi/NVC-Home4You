@@ -2,6 +2,7 @@ import React from 'react'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminSend, adminDelete, UnauthorizedError } from '../admin/adminApi.js'
+import { adminSave, keepsTheEditorOpen } from '../admin/adminSave.js'
 
 // Orders: where staff move an order along, and the report the owner asked for — customer,
 // model, deposit, final price, left to pay, factory — in one row each (ROADMAP #27).
@@ -40,7 +41,7 @@ const TEXT = {
     copied: 'Копирано',
     noLink: 'Още няма линк за този клиент.',
     linkHint: 'Само този линк отваря страницата. Тя показва статус и дати — никога цени или данни на клиента.',
-    edit: 'Редактирай', save: 'Запази', cancel: 'Откажи', close: 'Затвори',
+    edit: 'Редактирай', save: 'Запази', saving: 'Запазване…', cancel: 'Откажи', close: 'Затвори',
     editTitle: 'Поръчка',
     confirmRevoke: 'Да премахна ли линка? Клиентът повече няма да вижда страницата.',
     saveError: 'Промяната не беше запазена.',
@@ -84,7 +85,7 @@ const TEXT = {
     copied: 'Copied',
     noLink: 'No link for this customer yet.',
     linkHint: 'Only this link opens the page. It shows status and dates — never prices or customer data.',
-    edit: 'Edit', save: 'Save', cancel: 'Cancel', close: 'Close',
+    edit: 'Edit', save: 'Save', saving: 'Saving…', cancel: 'Cancel', close: 'Close',
     editTitle: 'Order',
     confirmRevoke: 'Revoke the link? The customer will stop seeing the page.',
     saveError: 'That change was not saved.',
@@ -275,13 +276,21 @@ export default function AdminOrdersPage() {
 
   const applyFilter = (status) => { setFilter(status); load(status) }
 
+  // Which chips are lit RIGHT NOW. A reload can be handed to a save that lands half a
+  // minute later, by which time the filter it was written against may not be the one on
+  // screen — and repopulating the board with the previous filter's rows under the current
+  // filter's chips is a board that is quietly lying.
+  const showingFilter = React.useRef('')
+  React.useEffect(() => { showingFilter.current = filter }, [filter])
+
   // Re-reads the board WITHOUT dropping it back to the spinner. After a one-click move the
   // only things that changed are one row's status and its last-moved stamp; blanking the
-  // whole screen to collect them loses the reader's place on a list they were scanning.
+  // whole screen to collect them loses the reader's place on a list they were scanning —
+  // and, for a save that lands late, takes the open editor down with it.
   const refresh = React.useCallback(async () => {
-    const orders = await adminGet(ordersUrl(filter))
+    const orders = await adminGet(ordersUrl(showingFilter.current))
     setRows(Array.isArray(orders) ? orders : [])
-  }, [filter])
+  }, [])
 
   // Every move this order has made, fetched when the editor opens rather than with the
   // board: it answers one question ("when did it actually leave?") that gets asked about one
@@ -329,16 +338,47 @@ export default function AdminOrdersPage() {
       // can see that happened without opening the history.
       if (editing.status === openedStatus) delete body.status
 
-      await adminSend(`/api/admin/orders/${editing.purchaseId}`, 'PUT', body)
+      const answer = await adminSave({
+        url: `/api/admin/orders/${editing.purchaseId}`,
+        method: 'PUT',
+        body,
+        lang,
+        subject: editing.customerName,
+        // The board is a report as much as a queue, so a save that landed late still has to
+        // show up on it without anybody thinking to reload. The QUIET reload, because a late
+        // one arrives while somebody is working: load() drops the page back to the spinner,
+        // and the shell renders nothing at all until it is ready — which would destroy and
+        // rebuild whichever editor happens to be open, mid-sentence.
+        onLateSuccess: refresh,
+      })
+
+      // Refused, or lost with no way to ask again safely. The editor stays exactly as it
+      // was, carrying the reason.
+      if (keepsTheEditorOpen(answer)) { setError(answer.message || t.saveError); return }
+
       setEditing(null)
-      setNotice(t.updated)
-      await load()
+      if (answer.outcome === 'saved') await load()
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setError(err?.message || t.saveError)
     } finally {
       setBusy(false)
     }
+  }
+
+  // Closing the editor, from the ✕, Escape, the backdrop or Откажи — all four end here.
+  //
+  // REFUSED WHILE A SAVE IS RUNNING, because `editing` is the only copy of what was typed.
+  // Throwing it away mid-request means the 400 that comes back a second later has no form
+  // left to land in: the carrier's words, read off a phone call nobody will make twice, are
+  // gone and the reason for the refusal is on the board instead.
+  //
+  // And it clears the error, because the alert it leaves behind is about an edit that no
+  // longer exists — the board would carry "Датата не е валидна." with nothing to fix.
+  const closeEditor = () => {
+    if (busy) return
+    setEditing(null)
+    setError('')
   }
 
   // The daily routine, in one click: this order reached the next step.
@@ -443,7 +483,10 @@ export default function AdminOrdersPage() {
       state={state}
       onRetry={() => load()}
     >
-      {error ? <div className="adm-alert">{error}</div> : null}
+      {/* A refused save keeps the editor open on top of this line, so the editor shows its
+          own copy and the board reports only what happened out here — a failed move, a
+          link that could not be made. */}
+      {error && editing === null ? <div className="adm-alert">{error}</div> : null}
       {notice ? <div className="adm-note">{notice}</div> : null}
 
       {/* Status filter */}
@@ -563,16 +606,19 @@ export default function AdminOrdersPage() {
         title={t.editTitle}
         subtitle={editing ? `${editing.customerName}${editing.model ? ` · ${editing.model}` : ''}` : ''}
         closeLabel={t.close}
-        onClose={() => setEditing(null)}
+        onClose={closeEditor}
         footer={(
           <>
-            <button type="button" className="btn ghost" onClick={() => setEditing(null)}>{t.cancel}</button>
-            <button type="button" className="btn" onClick={save} disabled={busy}>{t.save}</button>
+            <button type="button" className="btn ghost" onClick={closeEditor} disabled={busy}>{t.cancel}</button>
+            <button type="button" className="btn" onClick={save} disabled={busy}>
+              {busy ? t.saving : t.save}
+            </button>
           </>
         )}
       >
         {editing ? (
           <div className="adm-sheet">
+            {error ? <div className="adm-alert" role="alert">{error}</div> : null}
             <section>
               <h3>{t.status}</h3>
               <div className="adm-newdeal-grid">

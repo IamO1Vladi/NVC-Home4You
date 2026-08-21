@@ -183,6 +183,169 @@ public class LeadPipelineTests
         Assert.Equal(3, row.ActivityCount);
     }
 
+    // --- Who spoke last ----------------------------------------------------------------
+    //
+    // The board's most useful column and the cheapest one to get subtly wrong. It is NOT an
+    // unread flag: nothing tracks who has looked at what, so a reply somebody read on Monday
+    // and never answered is still flagged on Thursday — which is the failure the column
+    // exists to catch.
+
+    private static LeadActivity Said(int leadId, string? actorUpn, DateTimeOffset when, string body) =>
+        new()
+        {
+            LeadId = leadId,
+            Type = actorUpn is null ? LeadActivityTypes.EmailIn : LeadActivityTypes.EmailOut,
+            Body = body,
+            ActorUpn = actorUpn,      // null == the customer, exactly as LeadActivity documents
+            OccurredAt = when,
+        };
+
+    [Fact]
+    public async Task A_lead_whose_last_word_was_the_customers_is_awaiting_a_reply()
+    {
+        using var db = NewDb();
+        var lead = NewLead("Ivan", LeadStatuses.Quoted);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        db.LeadActivities.AddRange(
+            Said(lead.Id, "maria@nvc-home4you.eu", DateTimeOffset.UtcNow.AddDays(-4), "Here is the quote."),
+            Said(lead.Id, null, DateTimeOffset.UtcNow.AddDays(-3), "Can you do it in oak?"));
+        await db.SaveChangesAsync();
+
+        var row = Assert.Single(await new LeadPipelineService(db).ListAsync(null, null, CancellationToken.None));
+
+        Assert.True(row.AwaitingReply);
+    }
+
+    [Fact]
+    public async Task Answering_clears_the_flag_without_anyone_marking_anything_read()
+    {
+        using var db = NewDb();
+        var lead = NewLead("Ivan", LeadStatuses.Quoted);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        db.LeadActivities.Add(Said(lead.Id, null, DateTimeOffset.UtcNow.AddDays(-3), "Can you do it in oak?"));
+        await db.SaveChangesAsync();
+
+        Assert.True(Assert.Single(await new LeadPipelineService(db)
+            .ListAsync(null, null, CancellationToken.None)).AwaitingReply);
+
+        db.LeadActivities.Add(Said(lead.Id, "maria@nvc-home4you.eu", DateTimeOffset.UtcNow, "Oak, yes — costed below."));
+        await db.SaveChangesAsync();
+
+        Assert.False(Assert.Single(await new LeadPipelineService(db)
+            .ListAsync(null, null, CancellationToken.None)).AwaitingReply);
+    }
+
+    [Fact]
+    public async Task An_old_unanswered_reply_is_still_flagged_however_long_it_has_sat()
+    {
+        // The whole reason this is not an unread flag. Read on Monday, unanswered on
+        // Thursday, and the board has to keep saying so.
+        using var db = NewDb();
+        var lead = NewLead("Ivan", LeadStatuses.Negotiating);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        db.LeadActivities.Add(Said(lead.Id, null, DateTimeOffset.UtcNow.AddDays(-45), "Well?"));
+        await db.SaveChangesAsync();
+
+        var row = Assert.Single(await new LeadPipelineService(db).ListAsync(null, null, CancellationToken.None));
+
+        Assert.True(row.AwaitingReply);
+    }
+
+    [Fact]
+    public async Task A_lead_nobody_has_said_anything_on_is_not_awaiting_a_reply()
+    {
+        // An empty thread is a lead nobody has started, which is a different problem and
+        // one the quietest-first ordering already shows.
+        using var db = NewDb();
+        db.Leads.Add(NewLead("Ivan", LeadStatuses.New));
+        await db.SaveChangesAsync();
+
+        var row = Assert.Single(await new LeadPipelineService(db).ListAsync(null, null, CancellationToken.None));
+
+        Assert.False(row.AwaitingReply);
+    }
+
+    [Fact]
+    public async Task The_flag_follows_who_spoke_last_and_not_the_kind_of_entry()
+    {
+        // A status move is written by one of us, so it answers the customer's message as far
+        // as this column is concerned — the definition is the actor, never the type string.
+        using var db = NewDb();
+        var lead = NewLead("Ivan", LeadStatuses.Quoted);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        db.LeadActivities.AddRange(
+            Said(lead.Id, null, DateTimeOffset.UtcNow.AddDays(-2), "We are thinking about it."),
+            new LeadActivity
+            {
+                LeadId = lead.Id,
+                Type = LeadActivityTypes.StatusChange,
+                Body = "quoted → negotiating",
+                ActorUpn = "maria@nvc-home4you.eu",
+                OccurredAt = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+        await db.SaveChangesAsync();
+
+        var row = Assert.Single(await new LeadPipelineService(db).ListAsync(null, null, CancellationToken.None));
+
+        Assert.False(row.AwaitingReply);
+    }
+
+    [Fact]
+    public async Task Two_entries_in_the_same_second_are_broken_by_the_later_insert()
+    {
+        // A customer's message and our answer saved inside one clock tick. The later row is
+        // the later truth — the same tie-break the orders board uses.
+        using var db = NewDb();
+        var lead = NewLead("Ivan", LeadStatuses.Quoted);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        var sameMoment = DateTimeOffset.UtcNow.AddHours(-1);
+        db.LeadActivities.AddRange(
+            Said(lead.Id, null, sameMoment, "Can you do it in oak?"),
+            Said(lead.Id, "maria@nvc-home4you.eu", sameMoment, "Oak, yes."));
+        await db.SaveChangesAsync();
+
+        var row = Assert.Single(await new LeadPipelineService(db).ListAsync(null, null, CancellationToken.None));
+
+        Assert.False(row.AwaitingReply);
+    }
+
+    [Fact]
+    public async Task Every_lead_on_the_board_gets_its_own_answer()
+    {
+        // One query serves the whole board, so the risk is not an N+1 that shows in a test —
+        // it is one lead's last word being reported for another.
+        using var db = NewDb();
+        var waiting = NewLead("Waiting", LeadStatuses.Quoted);
+        var answered = NewLead("Answered", LeadStatuses.Quoted);
+        var silent = NewLead("Silent", LeadStatuses.New);
+        db.Leads.AddRange(waiting, answered, silent);
+        await db.SaveChangesAsync();
+
+        db.LeadActivities.AddRange(
+            Said(waiting.Id, "maria@nvc-home4you.eu", DateTimeOffset.UtcNow.AddDays(-5), "Quote attached."),
+            Said(waiting.Id, null, DateTimeOffset.UtcNow.AddDays(-4), "One question…"),
+            Said(answered.Id, null, DateTimeOffset.UtcNow.AddDays(-6), "Is it in stock?"),
+            Said(answered.Id, "maria@nvc-home4you.eu", DateTimeOffset.UtcNow.AddDays(-5), "It is."));
+        await db.SaveChangesAsync();
+
+        var board = await new LeadPipelineService(db).ListAsync(null, null, CancellationToken.None);
+        var byName = board.ToDictionary(r => r.Name, r => r.AwaitingReply);
+
+        Assert.True(byName["Waiting"]);
+        Assert.False(byName["Answered"]);
+        Assert.False(byName["Silent"]);
+    }
+
     // --- The detail view --------------------------------------------------------------
 
     [Fact]

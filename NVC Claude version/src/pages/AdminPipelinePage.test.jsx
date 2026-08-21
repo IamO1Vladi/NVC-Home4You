@@ -4,9 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import AdminPipelinePage from './AdminPipelinePage.jsx'
+import SubmitStatus from '../components/SubmitStatus.jsx'
+import { MAX_ATTEMPTS, _resetSubmissions, _setRetryDelays } from '../lib/backgroundSubmit.js'
 
+// The banner is rendered app-wide from App.jsx, above every route including this one, so a
+// page test that wants to read what a save reported has to put it back.
 const render = (ui, entry = '/admin/pipeline') =>
-  rtlRender(<MemoryRouter initialEntries={[entry]}>{ui}</MemoryRouter>)
+  rtlRender(<MemoryRouter initialEntries={[entry]}>{ui}<SubmitStatus /></MemoryRouter>)
 
 const json = (body) => Promise.resolve({
   ok: true, status: 200, json: () => Promise.resolve(body), text: () => Promise.resolve(JSON.stringify(body)),
@@ -51,6 +55,10 @@ beforeEach(() => {
   detail = DETAIL
   boardRows = BOARD
   withGalleryModels = ['wagon', 'modular']
+  _resetSubmissions()
+  // Zero backoff. A save that fell back to the retries would otherwise still be firing
+  // requests into the NEXT test's call log a second after this one ended.
+  _setRetryDelays([0, 0, 0, 0])
   // jsdom has no layout engine, so scrollIntoView is undefined on every element.
   Element.prototype.scrollIntoView = vi.fn()
 
@@ -90,7 +98,7 @@ beforeEach(() => {
   }))
 })
 
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); _resetSubmissions(); _setRetryDelays() })
 
 describe('AdminPipelinePage', () => {
   it('opens on the lead that has been quiet longest so the morning view needs no click', async () => {
@@ -502,28 +510,131 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
-  it('a failed save keeps the sheet open and says why, inside the sheet', async () => {
-    // Closing over an error would throw away the very edits that did not land — and the
+  // Answers /fields with one status and body, leaving every other call alone.
+  const refuseFields = (status, body) => {
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => {
+      if (!String(url).includes('/fields')) return passthrough(url, options)
+      calls.push({ url, method: options.method || 'GET', body: options.body })
+      return Promise.resolve({
+        ok: false,
+        status,
+        json: () => Promise.resolve(body),
+        text: () => Promise.resolve(''),
+      })
+    })
+  }
+
+  it('a REFUSED save keeps the sheet open and says why, inside the sheet', async () => {
+    // Closing over a refusal would throw away the very edits that did not land — and the
     // page's own error banner renders BEHIND the modal, where nobody would see it.
+    //
+    // A 4xx specifically. The sheet used to keep itself open for any failure at all, which
+    // meant a server having a bad minute also left somebody staring at a dialog with nothing
+    // to fix in it; that case now closes and retries itself, one test below.
     const user = userEvent.setup()
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
     const dialog = await openSheet(user)
-
-    const passthrough = global.fetch
-    vi.stubGlobal('fetch', (url, options = {}) => String(url).includes('/fields')
-      ? Promise.resolve({
-          ok: false, status: 500,
-          json: () => Promise.resolve({ errors: ['The database said no.'] }),
-          text: () => Promise.resolve(''),
-        })
-      : passthrough(url, options))
+    refuseFields(400, { errors: ['The database said no.'] })
 
     await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('The database said no.')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // Asked once and left alone. The retries are for requests that might yet be accepted.
+    expect(calls.filter((c) => c.url.includes('/fields'))).toHaveLength(1)
+  })
+
+  it('the new-lead dialog opens without somebody else’s failure already on it', async () => {
+    // `error` is the page's, and this dialog now renders it. Opening without clearing one
+    // puts a failed reply's sentence above an empty form, where it reads as though creating
+    // a lead had gone wrong before anything was typed. Every other editor in the panel
+    // clears it as it opens; this was the one that did not.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => (String(url).includes('/reply')
+      ? Promise.resolve({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ errors: ['Mail server is down.'] }),
+          text: () => Promise.resolve(''),
+        })
+      : passthrough(url, options)))
+
+    typeReply('<p>Ще се видим в петък.</p>')
+    await user.click(screen.getByRole('button', { name: /^Изпрати$|^Send$/ }))
+    await waitFor(() => expect(screen.getByText('Mail server is down.')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /Нов лийд|New lead/ }))
+    const dialog = await waitFor(() => screen.getByRole('dialog'))
+
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('Mail server is down.')).not.toBeInTheDocument()
+  })
+
+  it('a refused new lead keeps the dialog and everything typed into it', async () => {
+    // The create dialog has the most to lose of any editor in the panel: nothing it holds
+    // exists anywhere yet, so a refusal that closed it would not be a save gone wrong, it
+    // would be the record never having been written down at all.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /Нов лийд|New lead/ }))
+    const dialog = await waitFor(() => screen.getByRole('dialog'))
+    const name = within(dialog).getByLabelText(/^Име \*$|^Name \*$/)
+    const phone = within(dialog).getByLabelText(/^Телефон$|^Phone$/)
+    await user.type(name, 'Георги Иванов')
+    await user.type(phone, 'not a phone number')
+
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => {
+      const creating = String(url).endsWith('/api/admin/pipeline') && options.method === 'POST'
+      if (!creating) return passthrough(url, options)
+      calls.push({ url, method: 'POST', body: options.body })
+      return Promise.resolve({
+        ok: false, status: 400,
+        json: () => Promise.resolve({ errors: ['That phone number is not one.'] }),
+        text: () => Promise.resolve(''),
+      })
+    })
+
+    await user.click(within(dialog).getByRole('button', { name: /^Създай$|^Create$/ }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('That phone number is not one.')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText(/^Име \*$|^Name \*$/)).toHaveValue('Георги Иванов')
+    expect(within(dialog).getByLabelText(/^Телефон$|^Phone$/)).toHaveValue('not a phone number')
+    expect(calls.filter((c) => c.method === 'POST' && String(c.url).endsWith('/api/admin/pipeline'))).toHaveLength(1)
+  })
+
+  it('a save the SERVER fumbled closes the sheet and finishes in the banner', async () => {
+    // The other half of the same rule. Nothing here is the typist's fault and nothing they
+    // can fix by looking at the form, so the sheet gets out of the way and the request
+    // carries on without them — the same machinery, banner and backoff, that the public
+    // offer form has used since visitors started pressing Send five times.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    await user.type(nameBox(dialog), 'ff')
+    refuseFields(503, { errors: ['Try later.'] })
+
+    await user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    // Named, because by the time this is read the sheet is long gone.
+    expect(await screen.findByText(/Ivan Petrovff/)).toBeInTheDocument()
+    expect(screen.getByText(/Запазването не успя|did not go through/)).toBeInTheDocument()
+    // The sheet's own attempt, then the full public budget behind it.
+    expect(calls.filter((c) => c.url.includes('/fields'))).toHaveLength(1 + MAX_ATTEMPTS)
+    expect(screen.getByRole('button', { name: /Опитай пак|Try again/ })).toBeInTheDocument()
   })
 
   // --- Board filters ------------------------------------------------------------------
@@ -1091,6 +1202,242 @@ describe('AdminPipelinePage', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: /Опитай отново|Try again/ })).not.toBeInTheDocument()
+  })
+
+  // --- "They are waiting on us" --------------------------------------------------------
+
+  const awaitingBadge = () => within(list()).queryByText(/Чака отговор|Awaiting reply/)
+
+  it('flags the leads whose last word was the customer’s', async () => {
+    boardRows = [{ ...BOARD[0], awaitingReply: true }]
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Ivan Petrov')).toBeInTheDocument())
+
+    // Its own words, not a tint: "we are late" and "they are waiting" are different kinds
+    // of urgent and a lead is regularly both, so neither may come down to a colour.
+    expect(awaitingBadge()).toBeInTheDocument()
+  })
+
+  it('says nothing on a lead where the last word was ours', async () => {
+    boardRows = [{ ...BOARD[0], awaitingReply: false }]
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Ivan Petrov')).toBeInTheDocument())
+
+    expect(awaitingBadge()).not.toBeInTheDocument()
+  })
+
+  it('reads as a different thing from the stage beside it and from an overdue date', async () => {
+    // The whole point of the flag is that it can appear ON a lead that is already late.
+    // Sharing the stage badge's class, or the due label's, would make the row say one thing
+    // twice and the other not at all.
+    boardRows = [{ ...BOARD[0], awaitingReply: true, nextContactAt: '2020-01-01T00:00:00Z' }]
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Ivan Petrov')).toBeInTheDocument())
+
+    const badge = awaitingBadge()
+    expect(badge).toHaveClass('adm-badge', 'adm-badge-awaiting')
+    expect(badge.className).not.toMatch(/adm-stage-|adm-due/)
+    // And the late date is still there, saying its own separate thing.
+    expect(within(list()).getByText(/закъснение|late/)).toBeInTheDocument()
+  })
+
+  // --- Logging a call or a meeting -----------------------------------------------------
+
+  const logKindBox = () => screen.getByRole('combobox', { name: /Запиши като|Log as/ })
+  const logButton = (name) => screen.getByRole('button', { name })
+
+  it('logs a call as a call rather than as a note', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    typeReply('<p>Обади се — иска да види мостра в събота.</p>')
+    await user.selectOptions(logKindBox(), 'call')
+    await user.click(logButton(/\+ Обаждане|\+ Call/))
+
+    await waitFor(() => {
+      const logged = calls.find((c) => c.url.includes('/activities') && c.method === 'POST')
+      expect(JSON.parse(logged.body).type).toBe('call')
+    })
+    // Never through the reply endpoint: logging a call must not mail the customer.
+    expect(calls.some((c) => c.url.includes('/reply'))).toBe(false)
+  })
+
+  it('jotting something down still takes no choosing', async () => {
+    // The common case. A composer that made people pick a kind before every scribble is one
+    // where everything ends up logged as whatever was left selected.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    expect(logKindBox()).toHaveValue('note')
+
+    typeReply('<p>Предпочита обаждания след шест.</p>')
+    await user.click(logButton(/\+ Бележка|\+ Note/))
+
+    await waitFor(() => {
+      const logged = calls.find((c) => c.url.includes('/activities') && c.method === 'POST')
+      expect(JSON.parse(logged.body).type).toBe('note')
+    })
+  })
+
+  it('offers exactly the three kinds a person may file by hand', async () => {
+    // email_out belongs to Send, which actually sends something, and a status row is written
+    // by the app as a side effect of a real status change — offering either here would put a
+    // claim in the thread that nothing backs up.
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    expect([...logKindBox().querySelectorAll('option')].map((o) => o.value))
+      .toEqual(['note', 'call', 'meeting'])
+  })
+
+  it('the thread names a meeting, which it used to render as an unlabelled bubble', async () => {
+    // The composer could only ever post a note, so this was the entry no screen could make
+    // and no screen could describe.
+    detail = {
+      ...DETAIL,
+      activities: [
+        { id: 30, type: 'meeting', subject: '', body: 'Видяхме се на място.', actorUpn: 's@x.eu', fromCustomer: false, occurredAt: '2026-07-03T09:00:00Z', attachments: [] },
+      ],
+    }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByText('Видяхме се на място.')).toBeInTheDocument())
+
+    const bubble = screen.getByText('Видяхме се на място.').closest('.adm-bubble')
+    expect(within(bubble).getByText(/Среща|Meeting/)).toBeInTheDocument()
+  })
+
+  it('a call that comes with a file stays a call, and the file is still filed', async () => {
+    // The upload endpoint writes every attachment as a note — that is its rule and a
+    // caption and its file belong together. So the kind is written separately rather than
+    // being allowed to fall away: pick "Обаждане", attach the drawing that followed, and
+    // the thread would otherwise show a note.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.upload(
+      document.querySelector('input[type="file"]'),
+      new File(['x'], 'skica.pdf', { type: 'application/pdf' }))
+
+    typeReply('<p>Обади се и прати скицата.</p>')
+    await user.selectOptions(logKindBox(), 'call')
+    await user.click(logButton(/\+ Обаждане|\+ Call/))
+
+    await waitFor(() => {
+      const logged = calls.find((c) => c.url.includes('/activities') && c.method === 'POST')
+      expect(JSON.parse(logged.body).type).toBe('call')
+      expect(calls.some((c) => c.url.includes('/attachments') && c.method === 'POST')).toBe(true)
+    })
+  })
+
+  it('will not let a call be filed with a file and nothing said', async () => {
+    // The failure the kinds were added to fix, arriving by the other door. `separately` is
+    // true, the activity was gated behind a non-empty body, and the upload endpoint files
+    // every attachment as a note — so pressing "+ Обаждане" with only a drawing attached
+    // logged a note and lost the call, silently, with the button happily enabled.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.upload(
+      document.querySelector('input[type="file"]'),
+      new File(['x'], 'skica.pdf', { type: 'application/pdf' }))
+    await user.selectOptions(logKindBox(), 'call')
+
+    expect(logButton(/\+ Обаждане|\+ Call/)).toBeDisabled()
+    // Said on screen, not in a tooltip: a browser shows no title on a disabled control.
+    expect(screen.getByText(/Опишете какво се случи|Write what happened/)).toBeInTheDocument()
+    expect(calls.some((c) => c.url.includes('/attachments'))).toBe(false)
+
+    // And it is the words that unlock it, not the kind going back to a note.
+    typeReply('<p>Обади се и прати скицата.</p>')
+    await waitFor(() => expect(logButton(/\+ Обаждане|\+ Call/)).toBeEnabled())
+  })
+
+  it('a note with a file is still one write per file, captioned as it always was', async () => {
+    // The unchanged half. Here the words ARE the file's label, so splitting them would print
+    // the same sentence twice.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.upload(
+      document.querySelector('input[type="file"]'),
+      new File(['x'], 'survey.pdf', { type: 'application/pdf' }))
+
+    typeReply('<p>Геодезията.</p>')
+    await user.click(logButton(/\+ Бележка|\+ Note/))
+
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/attachments'))).toBe(true))
+    expect(calls.some((c) => c.url.includes('/activities') && c.method === 'POST')).toBe(false)
+  })
+
+  // --- The follow-up date the server sets by itself ------------------------------------
+
+  it('shows the follow-up date the server just scheduled, without a reload', async () => {
+    // Logging what we did schedules the next contact three days out, server-side and
+    // silently. A page holding the lead it loaded before that write would go on showing the
+    // old date, and the person would decide the rule does not work.
+    //
+    // The date is far out on purpose: near ones start reading as "late" once real time
+    // passes them, and the assertion would begin failing by itself.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    detail = { ...DETAIL, nextContactAt: '2099-06-01T00:00:00.0000000Z' }
+
+    typeReply('<p>Обади се, ще мисли до петък.</p>')
+    await user.selectOptions(logKindBox(), 'call')
+    await user.click(logButton(/\+ Обаждане|\+ Call/))
+
+    await waitFor(() => expect(screen.getByText(/Jun 2099/)).toBeInTheDocument())
+  })
+
+  it('the sheet offers the scheduled date too, so saving cannot undo it', async () => {
+    // The sheet takes its copy of the lead once, when the lead is opened — and it is the
+    // half with a Save button under it. A stale date here is not merely wrong on screen: it
+    // gets written back over the one the server set, cancelling the reminder silently.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    detail = { ...DETAIL, nextContactAt: '2099-06-01T00:00:00.0000000Z' }
+
+    typeReply('<p>Записах срещата.</p>')
+    await user.selectOptions(logKindBox(), 'meeting')
+    await user.click(logButton(/\+ Среща|\+ Meeting/))
+    await waitFor(() => expect(screen.getByText(/Jun 2099/)).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    expect(dialog.querySelector('input[type="date"]')).toHaveValue('2099-06-01')
+
+    await saveSheet(dialog, user)
+    await waitFor(() => {
+      const saved = calls.filter((c) => c.url.includes('/fields') && c.method === 'POST')
+      expect(JSON.parse(saved[saved.length - 1].body).nextContactAt).toBe('2099-06-01')
+    })
+  })
+
+  it('a date somebody is typing into the sheet survives a reload that did not move it', async () => {
+    // The sync watches the SERVER's value, so a lead re-read that says the same date leaves
+    // the sheet alone. Re-taking the whole form from every reload instead would throw away
+    // an unsaved date every time anything behind the sheet wrote to the lead.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    const dateBox = dialog.querySelector('input[type="date"]')
+    fireEvent.change(dateBox, { target: { value: '2026-09-30' } })
+
+    // A status move is the shortest write that re-reads the lead underneath.
+    fireEvent.change(document.getElementById('dealStatus'), { target: { value: 'won' } })
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/1/status'))).toBe(true))
+
+    expect(dateBox).toHaveValue('2026-09-30')
   })
 
   it('the report is of the view it reports on, owner filter included', async () => {

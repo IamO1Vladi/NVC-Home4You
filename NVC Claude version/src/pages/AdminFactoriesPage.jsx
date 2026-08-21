@@ -1,7 +1,8 @@
 import React from 'react'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
-import { adminGet, adminSend, adminDelete, UnauthorizedError } from '../admin/adminApi.js'
+import { adminGet, adminDelete, UnauthorizedError } from '../admin/adminApi.js'
+import { adminSave, keepsTheEditorOpen } from '../admin/adminSave.js'
 
 // The supplier directory: the factories we have bought houses and materials from.
 //
@@ -28,13 +29,12 @@ const TEXT = {
     purchases: (n) => `${n} ${n === 1 ? 'продажба' : 'продажби'}`,
     noPurchases: 'няма продажби',
     edit: 'Редактирай', remove: 'Изтрий',
-    save: 'Запази', cancel: 'Откажи', close: 'Затвори',
+    save: 'Запази', saving: 'Запазване…', cancel: 'Откажи', close: 'Затвори',
     editTitle: 'Фабрика', newTitle: 'Нова фабрика',
     confirmDelete: (name) => `Да изтрия ли „${name}“?`,
     inUse: 'Тази фабрика е посочена по съществуващи продажби. Направете я неактивна вместо да я триете.',
     duplicate: (name) => `Вече има фабрика с името „${name}“. Проверете дали не е същата.`,
     saveError: 'Промяната не беше запазена.',
-    updated: 'Запазено',
   },
   en: {
     title: 'Factories',
@@ -50,13 +50,12 @@ const TEXT = {
     purchases: (n) => `${n} ${n === 1 ? 'purchase' : 'purchases'}`,
     noPurchases: 'no purchases',
     edit: 'Edit', remove: 'Delete',
-    save: 'Save', cancel: 'Cancel', close: 'Close',
+    save: 'Save', saving: 'Saving…', cancel: 'Cancel', close: 'Close',
     editTitle: 'Factory', newTitle: 'New factory',
     confirmDelete: (name) => `Delete “${name}”?`,
     inUse: 'This factory is named by existing purchases. Make it inactive rather than deleting it.',
     duplicate: (name) => `There is already a factory called “${name}”. Check it is not the same one.`,
     saveError: 'That change was not saved.',
-    updated: 'Saved',
   },
 }
 
@@ -96,20 +95,54 @@ export default function AdminFactoriesPage() {
 
   React.useEffect(() => { load() }, [load])
 
+  // Re-reads the directory WITHOUT dropping it back to the spinner, the way the orders board
+  // does. It is what a save landing late has to use: the shell renders nothing at all while
+  // the page says 'loading', so reloading through load() would destroy and rebuild whatever
+  // editor is open at that moment, taking the cursor out of it.
+  const refresh = React.useCallback(async () => {
+    setRows(await adminGet('/api/admin/factories') ?? [])
+  }, [])
+
+  // The ✕, Escape, the backdrop and Откажи. Refused while a save is running, because
+  // `editing` is the only copy of what was typed and a refusal arriving after it is gone has
+  // no form left to land in. Clears the error on the way out, so a reason about an edit
+  // nobody is making any more does not end up on the directory behind it.
+  const closeEditor = () => {
+    if (busy) return
+    setEditing(null)
+    setError('')
+  }
+
   async function save() {
     setBusy(true)
     setError('')
+    setNotice('')
     try {
       const { id, ...body } = editing
-      const result = id
-        ? await adminSend(`/api/admin/factories/${id}`, 'PUT', body)
-        : await adminSend('/api/admin/factories', 'POST', body)
+      const answer = await adminSave({
+        url: id ? `/api/admin/factories/${id}` : '/api/admin/factories',
+        method: id ? 'PUT' : 'POST',
+        body,
+        lang,
+        subject: body.name,
+        // Only reached when the save had to fall back to the retries — which only an EDIT
+        // can do, since a create is not safe to send twice. The row exists by then and the
+        // directory on screen does not know it.
+        onLateSuccess: refresh,
+      })
+
+      // Refused, or lost with nobody able to say whether the row was written. Either way the
+      // dialog keeps everything typed and wears the reason — see adminSave.js for why these
+      // are the cases the panel does not hand to the background.
+      if (keepsTheEditorOpen(answer)) { setError(answer.message || t.saveError); return }
 
       setEditing(null)
       // A warning, not a failure — two suppliers can share a name across countries, so the
-      // row is saved either way and the person decides whether it was a mistake.
-      setNotice(result?.duplicateName ? t.duplicate(body.name) : t.updated)
-      await load()
+      // row is saved either way and the person decides whether it was a mistake. Only an
+      // immediate save can raise it: the flag arrives in the response body, and a save that
+      // went to the retries has nobody left holding one.
+      if (answer.result?.duplicateName) setNotice(t.duplicate(body.name))
+      if (answer.outcome === 'saved') await load()
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
       setError(err?.message || t.saveError)
@@ -154,7 +187,9 @@ export default function AdminFactoriesPage() {
         </button>
       )}
     >
-      {error ? <div className="adm-alert">{error}</div> : null}
+      {/* A refused save keeps the dialog open, and the dialog is covering this line — so a
+          failure from the editor is shown inside it and only deleting reports out here. */}
+      {error && editing === null ? <div className="adm-alert">{error}</div> : null}
       {notice ? <div className="adm-note">{notice}</div> : null}
 
       {rows.length === 0 ? (
@@ -211,18 +246,19 @@ export default function AdminFactoriesPage() {
         title={editing?.id ? t.editTitle : t.newTitle}
         subtitle={editing?.id ? editing.name : ''}
         closeLabel={t.close}
-        onClose={() => setEditing(null)}
+        onClose={closeEditor}
         footer={(
           <>
-            <button type="button" className="btn ghost" onClick={() => setEditing(null)}>{t.cancel}</button>
+            <button type="button" className="btn ghost" onClick={closeEditor} disabled={busy}>{t.cancel}</button>
             <button type="button" className="btn" onClick={save} disabled={busy || !editing?.name?.trim()}>
-              {t.save}
+              {busy ? t.saving : t.save}
             </button>
           </>
         )}
       >
         {editing ? (
           <div className="adm-sheet">
+            {error ? <div className="adm-alert" role="alert">{error}</div> : null}
             <div className="adm-newdeal-grid">
               {FIELDS.map(([field, label]) => (
                 <label key={field}>
