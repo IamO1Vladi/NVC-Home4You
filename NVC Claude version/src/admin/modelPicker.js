@@ -45,3 +45,19 @@ export function modelsFor(houses, categoryKey, allowedCategories) {
   if (allowedCategories && !allowedCategories.includes(categoryKey)) return []
   return (houses || []).filter((h) => h.categoryKey === categoryKey)
 }
+
+/**
+ * What to pass as `allowedCategories` until the server has answered.
+ *
+ * The server owns the real answer — /api/admin/customers/categories serves it as
+ * withGalleryModels, out of PurchaseCategories — because it changes when the catalogue does
+ * and not when this file does. This is only what the two sheets fall back to while that
+ * request is in flight or if it fails, since a model box that will not render because one
+ * request hiccuped is worse than one working from a slightly stale rule.
+ *
+ * It lives HERE, beside modelsFor, because it is the argument modelsFor takes and both
+ * sheets ask it of the same catalogue. A copy per page is how the leads sheet and the
+ * customer sheet ended up disagreeing with each other and with the server at once — and the
+ * disagreement is invisible until the day the request fails, which is the day it matters.
+ */
+export const WITH_GALLERY_MODELS_FALLBACK = ['wagon', 'modular']

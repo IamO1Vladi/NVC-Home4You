@@ -56,9 +56,16 @@ public class LeadFollowUpService
     /// rather than configured: this app is reached on more than one hostname over its life
     /// (the App Service default, then the real domain), and a link built from a stale
     /// setting is a link that silently goes nowhere.
+    ///
+    /// <paramref name="ownerUpn"/> narrows it to one salesperson, and null is the whole
+    /// team. It is passed in rather than assumed because the panel's button sits beside the
+    /// due tab's owner filter: a report that always sent everybody's list would answer a
+    /// screen showing twelve rows with a mail carrying three hundred, and the only thing
+    /// contradicting it would be a dropdown the reader cannot see from their inbox.
     /// </summary>
     public async Task<ReportResult> SendDueReportAsync(
-        IReadOnlyCollection<string> recipients, string baseUrl, string? requestedBy, CancellationToken ct)
+        IReadOnlyCollection<string> recipients, string baseUrl, string? requestedBy,
+        string? ownerUpn, CancellationToken ct)
     {
         if (!IsConfigured)
             return new ReportResult(ReportOutcome.NotConfigured, 0, recipients, "Email is not configured.");
@@ -66,7 +73,7 @@ public class LeadFollowUpService
         if (recipients.Count == 0)
             return new ReportResult(ReportOutcome.NoRecipients, 0, recipients, "No valid email address to send to.");
 
-        var due = await _pipeline.ListDueAsync(DateTimeOffset.UtcNow, ownerUpn: null, ct);
+        var due = await _pipeline.ListDueAsync(DateTimeOffset.UtcNow, ownerUpn, ct);
 
         // Nothing due is a real answer and worth reporting as one, but it is not worth an
         // email. Sending "you have 0 things to do" every morning is how a report becomes
@@ -74,7 +81,12 @@ public class LeadFollowUpService
         if (due.Count == 0)
             return new ReportResult(ReportOutcome.NothingDue, 0, recipients, null);
 
-        var subject = $"NVC — {due.Count} {(due.Count == 1 ? "lead" : "leads")} за връзка / to follow up";
+        // Whose list it is, in the line a recipient sees before opening anything. A narrowed
+        // report and a whole-team one are different documents and must not arrive looking
+        // identical — a manager forwarding one person's overdue rows is entitled to have the
+        // mail say so, and so is the colleague who receives it.
+        var whose = string.IsNullOrWhiteSpace(ownerUpn) ? "" : $" · {ownerUpn}";
+        var subject = $"NVC — {due.Count} {(due.Count == 1 ? "lead" : "leads")} за връзка / to follow up{whose}";
         var html = BuildHtml(due, baseUrl);
 
         var sent = await _email.TrySendInternalReportAsync(recipients, subject, html, ct);

@@ -6,7 +6,7 @@ import RecordHistory from '../admin/RecordHistory.jsx'
 import {
   adminGet, adminSend, adminDelete, adminUpload, UnauthorizedError,
 } from '../admin/adminApi.js'
-import { resolveModel, modelsFor } from '../admin/modelPicker.js'
+import { resolveModel, modelsFor, WITH_GALLERY_MODELS_FALLBACK } from '../admin/modelPicker.js'
 
 // People who have actually bought, and what they bought.
 //
@@ -53,7 +53,7 @@ const TEXT = {
     modelHint: 'Изберете модел от списъка или опишете свободно.',
     modelLinked: (title) => `свързан модел: ${title}`,
     modelFree: 'свободен текст — без връзка с модел от галерията',
-    customBuildHint: 'Модулните къщи са проект по поръчка — няма модел от галерията.',
+    noCatalogueHint: 'Каталогът няма модели в тази категория — опишете какво е купено.',
     purchasedAt: 'Дата на покупка',
     quantity: 'Брой',
     currency: 'Валута',
@@ -115,7 +115,7 @@ const TEXT = {
     modelHint: 'Pick a model from the list, or describe it.',
     modelLinked: (title) => `linked model: ${title}`,
     modelFree: 'free text — not linked to a gallery model',
-    customBuildHint: 'Modular houses are custom builds — there is no catalogue model.',
+    noCatalogueHint: 'The catalogue has no models in this category — describe what was bought.',
     purchasedAt: 'Purchase date',
     quantity: 'Quantity',
     currency: 'Currency',
@@ -191,9 +191,15 @@ const filesForSlot = (files, kind) =>
 // What the panel falls back to if /categories cannot be reached. The endpoint exists so the
 // two cannot drift, but a page that will not render because one request hiccuped is worse
 // than a page working from a slightly stale list.
+//
+// withGalleryModels is IMPORTED rather than written out, and that is the one of the three
+// that has already gone wrong: the leads sheet asks the same question of the same catalogue,
+// and while each page kept its own copy this one sat a catalogue revision behind. The cost
+// is not cosmetic — a stale list here turns a linked purchase's model box into free text,
+// and the next save writes that reading back over a HouseId somebody chose.
 const FALLBACK_CATEGORIES = {
   all: ['prefab', 'wagon', 'modular', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
-  withGalleryModels: ['prefab', 'wagon', 'garage'],
+  withGalleryModels: WITH_GALLERY_MODELS_FALLBACK,
   stagedPayment: ['prefab', 'modular', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
 }
 
@@ -704,7 +710,13 @@ function PurchaseCard({
   const paidInOneGo = purchase.categoryKey && !categories.stagedPayment.includes(purchase.categoryKey)
   const tracksPayment = !paidInOneGo || hasMoney
 
-  const isCustomBuild = purchase.categoryKey
+  // A category IS chosen and the catalogue holds nothing under it — not the same state as
+  // no category chosen yet, and only the first of the two has anything to say under the box.
+  //
+  // It used to be called isCustomBuild, and the caption it drew said modular houses are
+  // custom builds. Both were the old reading of this list: the question is whether the
+  // GALLERY carries models under the key, and modular is the key it carries most of.
+  const noCatalogue = purchase.categoryKey
     && !categories.withGalleryModels.includes(purchase.categoryKey)
 
   return (
@@ -760,8 +772,8 @@ function PurchaseCard({
         </label>
 
         {/* One box, suggestions where we have them — the same control as the leads sheet,
-            for the same reason. A modular house has no catalogue row to suggest, so the
-            list is empty and it behaves as the free-text description it has to be. */}
+            for the same reason. A category the catalogue holds no models under has an empty
+            list, and the box behaves as the free-text description it has to be. */}
         <label className="adm-span-2">
           <span className="adm-small">{t.model}</span>
           <input
@@ -777,7 +789,7 @@ function PurchaseCard({
           <span className="adm-small adm-muted adm-model-state">
             {purchase.houseId > 0
               ? `✓ ${t.modelLinked(purchase.modelText)}`
-              : (isCustomBuild ? t.customBuildHint : (purchase.modelText.trim() ? t.modelFree : ' '))}
+              : (noCatalogue ? t.noCatalogueHint : (purchase.modelText.trim() ? t.modelFree : ' '))}
           </span>
         </label>
 

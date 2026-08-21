@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using apidotnet.Data.Migrations;
 using Data;
 using Data.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Services;
 using Xunit;
 
@@ -389,6 +394,169 @@ public class LeadPipelineTests
         Assert.Equal("Sofia, ul. Vitosha 1", saved.CustomerAddress);
     }
 
+    // --- Correcting who the customer is -------------------------------------------------
+    //
+    // These three were not editable at all until now, and the consequence was not cosmetic:
+    // the offer behind a lead is an immutable event and must keep saying what the form said,
+    // so the lead row is the only place a mistyped name or address can be put right. Without
+    // it, "Ivna" stayed Ivna in every list forever and a reply went to an address nobody
+    // reads.
+
+    [Fact]
+    public async Task The_customers_name_email_and_phone_can_be_put_right()
+    {
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead
+        {
+            Name = "Ivna Petrov", Email = "ivna@exmaple.com", Phone = "+359 88 000 0000",
+        });
+
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: null, notes: null, projectName: null, buildLocation: null,
+            customerAddress: null, country: null,
+            name: "Ivan Petrov", email: "ivan@example.com", phone: "+359 88 123 4567");
+
+        var saved = await db.Leads.SingleAsync();
+        Assert.Equal("Ivan Petrov", saved.Name);
+        Assert.Equal("ivan@example.com", saved.Email);
+        Assert.Equal("+359 88 123 4567", saved.Phone);
+
+        // ...and it is the detail view the panel reads back, not just the column.
+        var detail = await new LeadPipelineService(db).GetAsync(lead.Id, CancellationToken.None);
+        Assert.Equal("Ivan Petrov", detail!.Name);
+        Assert.Equal("ivan@example.com", detail.Email);
+        Assert.Equal("+359 88 123 4567", detail.Phone);
+    }
+
+    [Fact]
+    public async Task A_save_that_does_not_mention_the_customer_leaves_all_three_alone()
+    {
+        // Absent and empty are different here for the same reason they are everywhere else on
+        // this endpoint: a form that saves a note without carrying a phone number must not
+        // wipe the phone number.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead
+        {
+            Name = "Ivan Petrov", Email = "ivan@example.com", Phone = "+359 88 123 4567",
+        });
+
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: "Send quote", notes: null, projectName: null, buildLocation: null,
+            customerAddress: null, country: null);
+
+        var saved = await db.Leads.SingleAsync();
+        Assert.Equal("Ivan Petrov", saved.Name);
+        Assert.Equal("ivan@example.com", saved.Email);
+        Assert.Equal("+359 88 123 4567", saved.Phone);
+    }
+
+    [Fact]
+    public async Task An_email_or_a_phone_can_be_cleared_because_plenty_of_leads_have_neither()
+    {
+        // A walk-in who left a phone number and nothing else is a real lead, so both columns
+        // have to be emptiable — and emptied means null, not "", or every "do we have an
+        // address for them?" query answers yes.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead
+        {
+            Name = "Ivan Petrov", Email = "ivan@example.com", Phone = "+359 88 123 4567",
+        });
+
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: null, notes: null, projectName: null, buildLocation: null,
+            customerAddress: null, country: null, email: "", phone: "   ");
+
+        var saved = await db.Leads.SingleAsync();
+        Assert.Null(saved.Email);
+        Assert.Null(saved.Phone);
+    }
+
+    [Fact]
+    public async Task A_blank_name_leaves_the_stored_one_standing()
+    {
+        // The controller refuses this outright — see AdminValidationTests. What is pinned
+        // here is what the service does if it is ever reached with one anyway: the column is
+        // NOT NULL and every list on the board is a column of names, so the least destructive
+        // reading of an edit that cannot be carried out is to carry out nothing.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan Petrov" });
+
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: null, notes: null, projectName: null, buildLocation: null,
+            customerAddress: null, country: null, name: "   ");
+
+        Assert.Equal("Ivan Petrov", (await db.Leads.SingleAsync()).Name);
+    }
+
+    [Fact]
+    public async Task The_stored_address_can_be_read_back_to_tell_an_edit_from_a_resend()
+    {
+        // What the endpoint compares against so a bad address blocks an attempt to CHANGE it
+        // rather than every other edit on the row — see AdminValidationTests for the rule and
+        // LeadService.StoredEmailAsync for why the column holds values no parser accepts.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan", Email = "ivan@abv.bg, maria@abv.bg" });
+        var noAddress = await svc.CreateAsync(new Lead { Name = "Walk-in" });
+
+        Assert.Equal("ivan@abv.bg, maria@abv.bg", await svc.StoredEmailAsync(lead.Id));
+        Assert.Null(await svc.StoredEmailAsync(noAddress.Id));
+
+        // A lead that is not there reads the same as one with no address, and that is fine:
+        // the caller's own save answers the missing row with a 404 a moment later.
+        Assert.Null(await svc.StoredEmailAsync(999));
+    }
+
+    [Fact]
+    public async Task Correcting_the_customer_stays_out_of_the_thread()
+    {
+        // Same judgement as the working notes above: a corrected typo is not a fact about the
+        // relationship. Status and owner, which are, still each write their line.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivna" });
+
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: null, notes: null, projectName: null, buildLocation: null,
+            customerAddress: null, country: null, name: "Ivan", email: "ivan@example.com");
+
+        Assert.Equal(0, await db.LeadActivities.CountAsync());
+    }
+
+    [Fact]
+    public async Task A_modular_lead_keeps_the_catalogue_model_it_was_given()
+    {
+        // Modular is the category the catalogue carries most of — eight models against
+        // wagon's six on 2026-08-21 — and it is now the category the picker offers first. The
+        // leads endpoint takes whatever house it is handed as long as the house exists; what
+        // decides whether a dropdown appears at all is PurchaseCategories.WithGalleryModels,
+        // which is where the previous rule went wrong.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 4, Title = "Nova 60", CategoryKey = HouseCategories.Modular });
+        await db.SaveChangesAsync();
+
+        var svc = new LeadService(db);
+        var lead = await svc.CreateAsync(new Lead { Name = "Ivan" });
+
+        Assert.True(await svc.HouseExistsAsync(4));
+        await svc.UpdateFieldsAsync(
+            lead.Id, nextStep: null, notes: null, projectName: null, buildLocation: null,
+            customerAddress: null, country: null, categoryKey: HouseCategories.Modular, houseId: 4);
+
+        var saved = await db.Leads.SingleAsync();
+        Assert.Equal(HouseCategories.Modular, saved.CategoryKey);
+        Assert.Equal(4, saved.HouseId);
+
+        // And the picker follows the catalogue rather than the word: garage sounds like a
+        // building and has nothing in the gallery to offer.
+        Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Modular));
+        Assert.False(PurchaseCategories.AllowsGalleryModel(HouseCategories.Garage));
+    }
+
     [Fact]
     public async Task The_detail_view_returns_every_field_sales_maintains()
     {
@@ -492,6 +660,52 @@ public class LeadPipelineTests
     }
 
     [Fact]
+    public async Task The_emailed_report_narrows_to_the_same_owner_the_screen_does()
+    {
+        // The report goes with the VIEW it reports on, and the Send report button sits two
+        // controls from the due tab's owner filter. It used to pass ownerUpn: null whatever
+        // was on screen — so a manager who narrowed to one salesperson, read her twelve
+        // overdue rows and pressed Send mailed the whole team's three hundred, the first hint
+        // being a confirmation whose number matched nothing in front of them.
+        //
+        // Pinned on the "nothing due" answer because it is returned before a single byte goes
+        // near a transport: with the owner ignored these two rows would be found and the send
+        // attempted instead.
+        using var db = NewDb();
+        db.Leads.AddRange(
+            DueLead("Maria's", 4, owner: "maria@x.eu"),
+            DueLead("Vladi's", 9, owner: "vladi@x.eu"));
+        await db.SaveChangesAsync();
+
+        var result = await NewFollowUps(db).SendDueReportAsync(
+            new[] { "boss@x.eu" }, "https://nvc-home4you.eu", "boss@x.eu",
+            ownerUpn: "nobody@x.eu", ct: CancellationToken.None);
+
+        Assert.Equal(LeadFollowUpService.ReportOutcome.NothingDue, result.Outcome);
+        Assert.Equal(0, result.Count);
+    }
+
+    // Configured enough for SendDueReportAsync to get past its "email is not configured"
+    // guard and reach the query, which is the part under test. The transport is never
+    // exercised — every assertion here is on an outcome returned before the send.
+    private static LeadFollowUpService NewFollowUps(AppDbContext db)
+    {
+        var env = new EnvConfig(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SMTP_USER"] = "panel@x.eu",
+                ["SMTP_PASSWORD"] = "not-a-real-secret",
+                ["SMTP_FROM"] = "panel@x.eu",
+            }).Build());
+
+        return new LeadFollowUpService(
+            new LeadPipelineService(db),
+            new EmailService(env, new StubHttpClientFactory(), NullLogger<EmailService>.Instance),
+            env,
+            NullLogger<LeadFollowUpService>.Instance);
+    }
+
+    [Fact]
     public async Task The_due_date_travels_on_both_projections()
     {
         // The board shows the label and the report links the row; both read the same
@@ -565,5 +779,61 @@ public class LeadPipelineTests
         await svc.UpdateFieldsAsync(lead.Id, null, null, null, null, null, null, "2026-08-20");
         await svc.UpdateFieldsAsync(lead.Id, "call them", null, null, null, null, null, null);
         Assert.NotNull((await db.Leads.SingleAsync()).NextContactAt);
+    }
+
+    // --- Renaming the owners ------------------------------------------------------------
+
+    [Fact]
+    public void The_owner_rename_moves_assignments_and_leaves_the_history_alone()
+    {
+        // Read back off the migration rather than out of the file, the same way the purchase
+        // migrations are pinned: deleting a statement while keeping the migration fails here
+        // instead of on a database nobody is watching.
+        var migration = new RenameLeadOwners();
+        var up = migration.UpOperations.OfType<SqlOperation>().Select(o => o.Sql).ToList();
+
+        Assert.Equal(3, up.Count);
+        foreach (var (before, after) in new[]
+                 {
+                     ("bonin01@abv.bg", "tbonin@nvc-home4you.eu"),
+                     ("vvladimirov@quickbase.com", "vvladimirov@nvc-home4you.eu"),
+                     ("radinaivanova64@gmail.com", "rivanova@nvc-home4you.eu"),
+                 })
+        {
+            Assert.Contains(up, sql =>
+                sql.Contains($"[OwnerUpn] = '{after}'") && sql.Contains($"[OwnerUpn] = '{before}'"));
+        }
+
+        // THE POINT OF THE MIGRATION, and the reason it is three narrow statements rather than
+        // a sweep over every UPN column. OwnerUpn is an assignment — a fact about now — so
+        // moving it is correcting where an answer points. Every other UPN in this database
+        // records who did something on the day they did it, at the address that was theirs
+        // that day; rewriting one to match a later rename would have the log claim an account
+        // sent an email months before that account existed.
+        var everySql = up.Concat(migration.DownOperations.OfType<SqlOperation>().Select(o => o.Sql));
+        foreach (var sql in everySql)
+        {
+            Assert.Contains("[Leads]", sql);
+            foreach (var actorColumn in new[]
+                     {
+                         "ActorUpn", "UpdatedByUpn", "UploadedByUpn", "ChangedByUpn",
+                         "LeadActivities", "AuditEntries",
+                     })
+            {
+                Assert.DoesNotContain(actorColumn, sql);
+            }
+        }
+
+        // ONE-WAY, and pinned as such so nobody restores the symmetric Down that used to be
+        // here. It read every lead owned by a new address back onto the old one, on the
+        // reasoning that only Up could have put a new address there. It could not: the old
+        // addresses are what the CRM import copies out of Quickbase, while the app itself
+        // writes the signed-in UPN (LeadService.CreateAsync, PromoteOfferAsync) and everybody
+        // has signed in on the nvc-home4you.eu tenant since the move. Every lead created in
+        // the panel since then already carries an address this migration renames TO — a
+        // rollback would have swept all of them onto accounts that no longer exist, emptied
+        // their owners' "Mine" tab, and put the dead addresses back in the assignable
+        // dropdown, which is the exact condition Up exists to remove.
+        Assert.Empty(migration.DownOperations);
     }
 }

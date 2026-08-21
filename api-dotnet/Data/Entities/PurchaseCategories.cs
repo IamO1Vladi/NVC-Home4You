@@ -34,20 +34,36 @@ public static class PurchaseCategories
     /// <summary>
     /// The categories where picking a model out of the catalogue makes sense.
     ///
-    /// MODULAR IS DELIBERATELY ABSENT, and it is the only entry here that needs explaining.
-    /// The gallery lists modular houses and a modular LEAD can be linked to one, because at
-    /// enquiry time a customer is pointing at a picture. What actually gets built and sold is
-    /// a custom project every time — so a modular purchase carries a written description in
-    /// CustomModel, not a foreign key to a catalogue row it does not match.
+    /// THIS LIST TRACKS THE CATALOGUE, not the vocabulary. The tempting reading is to ask
+    /// which of the four gallery keys sound like a building somebody could point at — and it
+    /// is the wrong question, because the dropdown is filled from the gallery and an empty
+    /// dropdown helps nobody. The checkable question is "does the gallery hold models filed
+    /// under this key?", and counted against the live gallery on 2026-08-21 the answer was:
+    /// modular 8, wagon 6, prefab 0, garage 0. So the picker follows the models — wagon and
+    /// modular offer one, prefab and garage are typed by hand until there is something to
+    /// offer.
     ///
-    /// Confirmed as the business rule 2026-08-14. If modular houses ever start shipping to
-    /// catalogue spec, adding the key back here is the whole change.
+    /// Modular's earlier absence was the other reading, and it cost the category the catalogue
+    /// carries most of: the purchases screen filtered its eight modular houses out of the
+    /// picker, so a modular purchase could not be linked to one at all, and an API caller who
+    /// tried was refused with "a modular house is a custom build". Not silent — a hard no to a
+    /// link the catalogue plainly supports.
+    ///
+    /// WHICH IS THE COST OF BEING WRONG IN EITHER DIRECTION, and it is not symmetric. Adding a
+    /// key only ever permits something. REMOVING one refuses every save of a customer who
+    /// already has a purchase filed under it with a model attached, including saves that are
+    /// about their phone number — see ValidatePurchase, which runs over every purchase in the
+    /// submission before anything is written. Prefab and garage came off this list in the same
+    /// change that added modular, and BackfillPurchaseModelLinks is what made that safe.
+    ///
+    /// Confirmed with the owner 2026-08-21, superseding the 2026-08-14 rule that read modular
+    /// as always-custom. If the catalogue ever grows prefab or garage models, adding the key
+    /// back here is the whole change; taking one off needs the stored rows dealt with first.
     /// </summary>
     public static readonly IReadOnlyList<string> WithGalleryModels = new[]
     {
-        HouseCategories.Prefab,
         HouseCategories.Wagon,
-        HouseCategories.Garage,
+        HouseCategories.Modular,
     };
 
     public static bool AllowsGalleryModel(string? key) =>

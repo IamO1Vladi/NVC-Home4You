@@ -435,23 +435,53 @@ public class CustomerStoreTests
         // Applied on write as well as in validation, so a category changed after the fact
         // cannot leave a stale foreign key pointing at a house this purchase is not.
         using var db = NewDb();
-        db.Houses.Add(new House { Id = 4, Title = "Nova 40", CategoryKey = HouseCategories.Prefab });
+        db.Houses.Add(new House { Id = 4, Title = "Nova 40", CategoryKey = HouseCategories.Modular });
         await db.SaveChangesAsync();
 
         var svc = new CustomerAdminService(db);
         var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
         {
-            new() { CategoryKey = HouseCategories.Prefab, HouseId = 4 },
+            new() { CategoryKey = HouseCategories.Modular, HouseId = 4 },
         }), null, default);
 
         Assert.Equal(4, created.Purchases[0].HouseId);
 
         var moved = await svc.UpdateAsync(created.Id, NewInput(purchases: new List<PurchaseInput>
         {
-            new() { Id = created.Purchases[0].Id, CategoryKey = HouseCategories.Modular, HouseId = 4 },
+            new() { Id = created.Purchases[0].Id, CategoryKey = HouseCategories.Garage, HouseId = 4 },
         }), null, default);
 
         Assert.Null(moved!.Purchases[0].HouseId);
+    }
+
+    [Fact]
+    public async Task A_modular_purchase_keeps_the_model_that_was_picked_for_it()
+    {
+        // What the category change bought, pinned at the layer that writes it: modular is on
+        // WithGalleryModels now, so Apply() keeps the foreign key instead of dropping it.
+        //
+        // The old behaviour was not a silent loss, and it is worth being exact about that,
+        // because the two failures call for opposite fixes. Before this change the panel
+        // filtered modular out of the picker, so the eight modular houses the catalogue
+        // carries could not be chosen at all; a caller who sent one anyway was refused with a
+        // 400 by ValidatePurchase, which runs over every purchase before either write. The
+        // model was unreachable, not discarded — see the comment on Apply for why the null
+        // branch below is defence in depth rather than the path anything took.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 4, Title = "Nova 60", CategoryKey = HouseCategories.Modular });
+        await db.SaveChangesAsync();
+
+        var svc = new CustomerAdminService(db);
+        var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Modular, HouseId = 4 },
+        }), null, default);
+
+        Assert.Equal(4, created.Purchases[0].HouseId);
+        Assert.Equal("Nova 60", created.Purchases[0].HouseTitle);
+
+        // And it is really in the column, not just echoed back out of the submission.
+        Assert.Equal(4, (await db.Purchases.AsNoTracking().SingleAsync()).HouseId);
     }
 
     // --- Totals on the list -------------------------------------------------------------

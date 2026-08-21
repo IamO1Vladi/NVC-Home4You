@@ -34,7 +34,7 @@ public class ConfigEmailController : ControllerBase
         if (req is null || req.Config.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
             return BadRequest(new { error = "missing_config" });
 
-        if (string.IsNullOrWhiteSpace(req.Email) || !IsValidEmail(req.Email))
+        if (!EmailService.IsValidAddress(req.Email))
             return BadRequest(new { error = "invalid_email" });
 
         var code = await _saved.SaveAsync(
@@ -68,18 +68,5 @@ public class ConfigEmailController : ControllerBase
             sb.Append(e.Message);
         }
         return sb.ToString();
-    }
-
-    private static bool IsValidEmail(string email)
-    {
-        try
-        {
-            var addr = new System.Net.Mail.MailAddress(email.Trim());
-            return addr.Address == email.Trim();
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

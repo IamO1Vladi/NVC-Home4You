@@ -41,9 +41,11 @@ public class Purchase
     // The catalogue model, when it was one. A real foreign key so the record follows the
     // house when its title is corrected, exactly as on Lead.
     //
-    // Null for a modular house: those are custom builds with no catalogue row, and
-    // CustomModel below carries the description instead. Also null for anything the gallery
-    // does not list.
+    // Null wherever the catalogue has no row to point at — a materials order, a logistics
+    // job, and any gallery category holding no models of its own. Which categories those are
+    // is measured rather than argued about; see PurchaseCategories.WithGalleryModels, which
+    // is also the list validation enforces. CustomModel below carries the description in
+    // every case this is null.
     public int? HouseId { get; set; }
     public House? House { get; set; }
 

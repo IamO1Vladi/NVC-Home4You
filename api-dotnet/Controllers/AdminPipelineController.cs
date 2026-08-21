@@ -82,7 +82,7 @@ public class AdminPipelineController : ControllerBase
         return Ok(await _read.ListAssignableAsync(_env.AdminAllowedUsers, CurrentUpn, ct));
     }
 
-    public record ReportRequest(string? To);
+    public record ReportRequest(string? To, string? Owner);
 
     /// <summary>
     /// Emails the overdue follow-up list, with every lead in it linking back here.
@@ -90,6 +90,12 @@ public class AdminPipelineController : ControllerBase
     /// Recipients come from the request, not from configuration: the person pressing the
     /// button decides who reads it, and defaulting to the whole sales list would make a
     /// stray click mail three colleagues. The panel prefills their own address.
+    ///
+    /// Owner comes from the request for a different reason: the button sits in the toolbar
+    /// beside the due tab's owner filter, and a report that ignored it would mail the whole
+    /// team's list to somebody who had just narrowed the screen to one person and pressed
+    /// Send to forward what they were reading. Absent is everyone, exactly as it is on the
+    /// list endpoint this reports from.
     /// </summary>
     [HttpPost("due/report")]
     public async Task<IActionResult> SendDueReport([FromBody] ReportRequest? body, CancellationToken ct)
@@ -102,7 +108,13 @@ public class AdminPipelineController : ControllerBase
         // is actually signed in to rather than one written down in a setting months ago.
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
-        var result = await _followUps.SendDueReportAsync(recipients, baseUrl, CurrentUpn, ct);
+        // "mine" resolves the same way it does on the list endpoint, so a link or a script
+        // that says owner=mine cannot mean one thing on the board and another in the mail.
+        var owner = string.Equals(body?.Owner, "mine", System.StringComparison.OrdinalIgnoreCase)
+            ? CurrentUpn
+            : body?.Owner;
+
+        var result = await _followUps.SendDueReportAsync(recipients, baseUrl, CurrentUpn, owner, ct);
 
         return result.Outcome switch
         {
@@ -266,12 +278,18 @@ public class AdminPipelineController : ControllerBase
     public record FieldsChange(
         string? NextStep, string? Notes, string? ProjectName, string? BuildLocation,
         string? CustomerAddress, string? Country, string? NextContactAt,
-        string? CategoryKey, int? HouseId, string? CustomModel);
+        string? CategoryKey, int? HouseId, string? CustomModel,
+        string? Name, string? Email, string? Phone);
 
     [HttpPost("{id:int}/fields")]
     public async Task<IActionResult> SetFields(int id, [FromBody] FieldsChange body, CancellationToken ct)
     {
         if (body is null) return BadRequest(new { errors = new[] { "Nothing to update." } });
+
+        // Read before anything is judged, because one of the rules is about what CHANGED
+        // rather than about what arrived. See ValidateContact and LeadService.StoredEmailAsync.
+        var errors = ValidateContact(body, await _leads.StoredEmailAsync(id, ct));
+        if (errors.Count > 0) return BadRequest(new { errors });
 
         // Refused here rather than absorbed. A date the server cannot read would otherwise
         // save as "no follow-up", and the lead would silently drop out of the one report
@@ -290,9 +308,81 @@ public class AdminPipelineController : ControllerBase
         var ok = await _leads.UpdateFieldsAsync(
             id, body.NextStep, body.Notes, body.ProjectName, body.BuildLocation,
             body.CustomerAddress, body.Country, body.NextContactAt,
-            body.CategoryKey, houseId, clearHouse, body.CustomModel, ct);
+            body.CategoryKey, houseId, clearHouse, body.CustomModel,
+            body.Name, body.Email, body.Phone, ct);
 
         return ok ? Ok(new { ok = true, id }) : NotFound();
+    }
+
+    /// <summary>
+    /// Everything wrong with the customer's own details on a field edit.
+    ///
+    /// These three are here at all because a name or an address mistyped at enquiry time was
+    /// previously uncorrectable: the offer behind the lead is an immutable event and must
+    /// keep saying what the form said, so the lead row is the only place the correction can
+    /// go, and this endpoint did not accept it.
+    ///
+    /// ABSENT AND EMPTY ARE DIFFERENT here, exactly as they are for every other field on
+    /// this endpoint: null is "this save is not about that box, leave it alone", and a blank
+    /// string is "clear it". Collapsing the two would make the panel wipe a phone number
+    /// every time somebody saved a note from a form that does not carry one.
+    ///
+    /// The refusals are English, like every other one in the panel's API (see
+    /// CustomerAdminService.Validate) — the SPA translates stable KEYS for stored values, and
+    /// validation messages have always travelled as prose instead. Worth saying because these
+    /// are the first refusals on this screen an ordinary working day will produce.
+    /// </summary>
+    /// <param name="storedEmail">
+    /// What is in the column now. The panel resends every field on every save, so the email
+    /// box arrives on a save that was about the follow-up date — and this column has never
+    /// been validated on the way in (see LeadService.StoredEmailAsync). Comparing against it
+    /// is what keeps a pre-existing bad address blocking an attempt to change it rather than
+    /// every other edit on the row.
+    /// </param>
+    private static List<string> ValidateContact(FieldsChange body, string? storedEmail)
+    {
+        var errors = new List<string>();
+
+        // Blank is a real edit for the other two and an impossible one for this: the column
+        // is NOT NULL, and every list on the board is a column of names — a nameless row is
+        // one nobody can find again to fix. So it is refused rather than stored or quietly
+        // ignored, because a save that reports success and keeps the old name is how someone
+        // walks away believing they renamed a lead.
+        if (body.Name is not null && string.IsNullOrWhiteSpace(body.Name))
+            errors.Add("A lead has to keep a name.");
+        else if (body.Name is not null && body.Name.Trim().Length > 200)
+            errors.Add("That name is too long.");
+
+        // Only when there is something to check, and only when it is not what is already
+        // there. Clearing an address is legitimate — plenty of leads arrive by phone with
+        // nothing but a number — so an empty box means "no email", not "a malformed one";
+        // and an untouched box means this save is not about the email at all, whatever
+        // happens to be sitting in it.
+        //
+        // That second half is not defensive tidiness. The imported book is full of addresses
+        // no parser accepts, the panel resends the box on every save, and without the
+        // comparison the lead most likely to need a note or a follow-up date — an imported
+        // one nobody has cleaned up — is the one lead on which nothing can be saved at all,
+        // over a field the person never opened.
+        var emailChanged = !string.Equals(
+            (body.Email ?? "").Trim(), (storedEmail ?? "").Trim(), System.StringComparison.Ordinal);
+
+        if (emailChanged && !string.IsNullOrWhiteSpace(body.Email))
+        {
+            // The same rule the config-email endpoint sends to; see EmailService for why it
+            // is a parser and not a regex. Refused rather than stored, because an address
+            // the mail transport will reject is one whose failure surfaces days later, in a
+            // reply that never arrived.
+            if (!EmailService.IsValidAddress(body.Email))
+                errors.Add("That does not look like an email address.");
+            else if (body.Email.Trim().Length > 320)
+                errors.Add("That email address is too long.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(body.Phone) && body.Phone.Trim().Length > 64)
+            errors.Add("That phone number is too long.");
+
+        return errors;
     }
 
     // --- The thread ------------------------------------------------------------------

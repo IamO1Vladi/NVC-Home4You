@@ -4,7 +4,7 @@ import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import RichTextEditor from '../admin/RichTextEditor.jsx'
 import { adminGet, adminSend, adminSendForm, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
-import { resolveModel } from '../admin/modelPicker.js'
+import { resolveModel, modelsFor, WITH_GALLERY_MODELS_FALLBACK } from '../admin/modelPicker.js'
 import {
   sanitizeRichText, isRichTextEmpty, escapeHtml, plainTextToRichHtml, richTextToPlain,
 } from '../lib/sanitizeRichText.js'
@@ -27,6 +27,9 @@ const TEXT = {
     tabs: { due: 'За връзка', open: 'Активни', mine: 'Мои', all: 'Всички', archived: 'Архив' },
     empty: 'Няма лийдове в този изглед.',
     dueEmpty: 'Няма просрочени лийдове. Всичко е по график.',
+    // Names the person, because the whole point is that this is NOT a statement about
+    // everyone — see the empty-state block for what it replaced.
+    ownerEmpty: (owner) => `Няма просрочени лийдове за ${owner}. Останалите не са проверени.`,
     dueSubtitle: 'Лийдове с дата за следващ контакт днес или по-рано.',
     nextContact: 'Следващ контакт',
     nextContactHint: 'Кога сте обещали да се обадите. Появява се в справката, ако датата мине.',
@@ -46,8 +49,10 @@ const TEXT = {
     noCategory: '— не е избрана —',
     model: 'Какво търси',
     modelHint: 'Изберете модел от списъка или напишете свободно.',
+    modelHintFree: 'Каталогът няма модели в тази категория — опишете какво търси клиентът.',
     modelLinked: (title) => `свързан модел: ${title}`,
     modelFree: 'свободен текст — без връзка с модел от галерията',
+    modelNoCatalogue: 'свободен текст — каталогът няма модели в тази категория',
     categories: {
       prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', garage: 'Гараж',
     },
@@ -93,6 +98,8 @@ const TEXT = {
     saveError: 'Промяната не беше запазена.',
     filterStatus: 'Статус',
     filterModified: 'Активност',
+    filterOwner: 'Отговорник',
+    filterOwnerAll: '— на всички —',
     filterAny: '— всички —',
     modified: {
       today: 'днес', week: 'последните 7 дни', month: 'последните 30 дни',
@@ -107,6 +114,7 @@ const TEXT = {
     tabs: { due: 'Due', open: 'Active', mine: 'Mine', all: 'All', archived: 'Archived' },
     empty: 'No leads in this view.',
     dueEmpty: 'Nothing overdue. Everything is on schedule.',
+    ownerEmpty: (owner) => `Nothing overdue for ${owner}. Nobody else was checked.`,
     dueSubtitle: 'Leads whose next contact was due today or earlier.',
     nextContact: 'Next contact',
     nextContactHint: 'When you promised to get back to them. Shows up in the report once the date passes.',
@@ -126,8 +134,10 @@ const TEXT = {
     noCategory: '— none chosen —',
     model: 'What they want',
     modelHint: 'Pick a model from the list, or write it out.',
+    modelHintFree: 'The catalogue has no models in this category — write out what they want.',
     modelLinked: (title) => `linked model: ${title}`,
     modelFree: 'free text — not linked to a gallery model',
+    modelNoCatalogue: 'free text — the catalogue has no models in this category',
     categories: {
       prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', garage: 'Garage',
     },
@@ -173,6 +183,8 @@ const TEXT = {
     saveError: 'That change was not saved.',
     filterStatus: 'Status',
     filterModified: 'Activity',
+    filterOwner: 'Owner',
+    filterOwnerAll: '— everyone —',
     filterAny: '— any —',
     modified: {
       today: 'today', week: 'last 7 days', month: 'last 30 days',
@@ -236,6 +248,12 @@ const STAGES = ['new', 'contacted', 'quoted', 'negotiating', 'won', 'lost']
 // real enquiries that the gallery has no filter for. That is precisely why this list is
 // separate from whatever a lead happens to hold — it answers "can we offer models for
 // this?", which is a different question from "what did they ask about?".
+//
+// And a third question again: which of the four the gallery actually HOLDS models under.
+// That one changes when the catalogue does rather than when this file does, so the server
+// answers it and the panel only carries a fallback — WITH_GALLERY_MODELS_FALLBACK, in
+// modelPicker.js beside the function that takes it, so the two admin screens cannot end up
+// disagreeing about the same catalogue.
 const GALLERY_CATEGORIES = ['prefab', 'wagon', 'modular', 'garage']
 
 const TABS = [
@@ -267,6 +285,16 @@ function dateInputValue(iso) {
   return typeof iso === 'string' && iso.length >= 10 ? iso.slice(0, 10) : ''
 }
 
+
+// Are these two the same person? A UPN is an email address, and an email address does not
+// change identity with its capitals — which is also the judgement the server already made
+// when it merged the configured allow-list with the owners on existing leads and deduplicated
+// them OrdinalIgnoreCase. Deciding it differently here is how the same person ends up in one
+// dropdown twice.
+function sameUser(a, b) {
+  return typeof a === 'string' && typeof b === 'string'
+    && a.trim().toLowerCase() === b.trim().toLowerCase()
+}
 
 // Whole days between the follow-up date and today, in UTC on both sides.
 function daysOverdue(iso) {
@@ -437,6 +465,13 @@ export default function AdminPipelinePage() {
   // browser is holding would make every filter click a network round trip.
   const [statusFilter, setStatusFilter] = React.useState('')
   const [modifiedFilter, setModifiedFilter] = React.useState('')
+  // Narrowing the DUE view to one person's promises. Unlike the two above this one asks the
+  // server, because the two filters are not equivalent: the due query takes the thousand
+  // most overdue leads and stops, so narrowing in the browser would search one owner's
+  // promises only among the rows that survived that cap — and the person most likely to
+  // reach for this filter is the one whose team is furthest behind. Sent as owner= beside
+  // due=true, which the list endpoint has always taken.
+  const [dueOwner, setDueOwner] = React.useState('')
   const [selectedId, setSelectedId] = React.useState(null)
   const [lead, setLead] = React.useState(null)
   const [state, setState] = React.useState('loading')
@@ -445,6 +480,8 @@ export default function AdminPipelinePage() {
   const [houses, setHouses] = React.useState([])
   // Who a lead can be assigned to. Also fetched once — the team does not change mid-shift.
   const [users, setUsers] = React.useState([])
+  // Which categories the catalogue actually has models for; see the fallback constant.
+  const [withGalleryModels, setWithGalleryModels] = React.useState(WITH_GALLERY_MODELS_FALLBACK)
   // Who is signed in, for the signature. Null until /api/admin/me answers.
   const [me, setMe] = React.useState(null)
 
@@ -460,6 +497,14 @@ export default function AdminPipelinePage() {
   const [files, setFiles] = React.useState([])
   const [busy, setBusy] = React.useState('')      // '' | 'send' | 'draft' | 'save' | 'report'
   const [error, setError] = React.useState('')
+
+  // What the error screen's Retry moves, so the load runs again through the ONE path that
+  // reports what happened. Retry used to be handed loadBoard directly, which reports
+  // nothing: AdminShell renders the page only while state is 'ready', so a retry that
+  // succeeded left the error screen exactly where it was, and one that met an expired
+  // session surfaced as an unhandled rejection — the button could be pressed all afternoon
+  // without ever being told to sign in again.
+  const [retryAt, setRetryAt] = React.useState(0)
 
   // The lead sheet — details, next step and the conversation on one screen — and the
   // send-report dialog.
@@ -479,14 +524,53 @@ export default function AdminPipelinePage() {
     (!statusFilter || row.status === statusFilter)
     && (!modifiedFilter || MODIFIED_WINDOWS[modifiedFilter]?.(daysSince(row.lastActivityAt)))
   ), [board, statusFilter, modifiedFilter])
-  const filtering = statusFilter !== '' || modifiedFilter !== ''
+
+  // The two kinds of narrowing are counted separately because the empty list cannot be read
+  // the same way for both. These two hide rows the browser is still holding, so "the filters
+  // hid everything" is provable — board still has the rows.
+  const narrowedHere = statusFilter !== '' || modifiedFilter !== ''
+  // The owner filter narrows at the SERVER, so a person with nothing overdue comes back as
+  // an empty board rather than as a board filtered down to nothing. Testing board.length
+  // would therefore report the whole team as up to date, which is the one sentence this
+  // screen must never say wrongly.
+  const narrowedToOwner = tab === 'due' && dueOwner !== ''
+  const filtering = narrowedHere || narrowedToOwner
+
+  // Every narrowing this page offers, undone together. Leaving one on while the button
+  // claims to have cleared them is the same fault in a smaller place.
+  const clearFilters = () => { setStatusFilter(''); setModifiedFilter(''); setDueOwner('') }
+
+  // What the model box is, for the category currently chosen: a picker over the catalogue,
+  // or a plain box to write in. It follows the CATEGORY rather than whether any models
+  // happen to have loaded — a wagon whose picker is empty because the gallery request
+  // failed is a visible fault, while the same wagon silently demoted to a text box is one
+  // more lead typed in by hand that should have been linked to a model.
+  const canPickModel = withGalleryModels.includes(fields?.categoryKey)
+  // "A category is chosen and the catalogue has nothing filed under it" — a different state
+  // from "no category chosen yet", and the two must not share a sentence. A lead arriving by
+  // phone or off a trade-fair list has no category, and telling that person the catalogue is
+  // empty answers a question nobody asked: the line sits permanently under an empty box,
+  // never changes whatever is typed into it, and the one instruction they actually need —
+  // choose a category first — is never given.
+  const noCatalogue = Boolean(fields?.categoryKey) && !canPickModel
+  // Filtered through the same rule, so a stray catalogue row filed under a category that
+  // does not offer a picker can never be linked to by the box that is not showing it.
+  const leadModels = modelsFor(houses, fields?.categoryKey, withGalleryModels)
 
   const loadBoard = React.useCallback(async (which) => {
-    const query = TABS.find((x) => x.key === which)?.query ?? ''
+    // The owner narrowing rides on every load of this tab rather than on the one the
+    // dropdown triggers, because the board is re-fetched after every save, reply and note.
+    // Built here, once, so a filter that is on screen cannot be missing from the request
+    // that answers it — which would quietly widen the list back out under someone.
+    const query = [
+      TABS.find((x) => x.key === which)?.query ?? '',
+      which === 'due' && dueOwner ? `owner=${encodeURIComponent(dueOwner)}` : '',
+    ].filter(Boolean).join('&')
+
     const rows = await adminGet(`/api/admin/pipeline${query ? `?${query}` : ''}`)
     setBoard(rows ?? [])
     return rows ?? []
-  }, [])
+  }, [dueOwner])
 
   const loadLead = React.useCallback(async (id) => {
     if (!id) { setLead(null); return }
@@ -516,7 +600,7 @@ export default function AdminPipelinePage() {
       })
       .catch((err) => { if (alive) setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error') })
     return () => { alive = false }
-  }, [loadBoard, tab, params])
+  }, [loadBoard, tab, params, retryAt])
 
   React.useEffect(() => {
     let alive = true
@@ -530,6 +614,13 @@ export default function AdminPipelinePage() {
   React.useEffect(() => {
     if (!lead) { setFields(null); return }
     setFields({
+      // The customer's own details. Correctable here because this is the only place they
+      // can be: the enquiry behind a lead is an immutable event and has to keep saying
+      // what the form said, so a name misheard over the phone or an email with a typo in
+      // it was, until now, wrong for good.
+      name: lead.name || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
       projectName: lead.projectName || '',
       country: lead.country || '',
       customerAddress: lead.customerAddress || '',
@@ -572,6 +663,14 @@ export default function AdminPipelinePage() {
     adminGet('/api/admin/me')
       .then((who) => { if (alive && who) setMe(who) })
       .catch(() => { /* no signature; the composer still works */ })
+    // Which categories carry catalogue models, from the list that already serves the
+    // customer purchases screen — the two screens ask the same question of the same
+    // catalogue, and a second copy of the answer in here is one that drifts silently.
+    adminGet('/api/admin/customers/categories')
+      .then((res) => {
+        if (alive && Array.isArray(res?.withGalleryModels)) setWithGalleryModels(res.withGalleryModels)
+      })
+      .catch(() => { /* WITH_GALLERY_MODELS_FALLBACK */ })
     return () => { alive = false }
   }, [])
 
@@ -704,9 +803,22 @@ export default function AdminPipelinePage() {
   }, t.saveError)
 
   const saveFields = () => run('save', async () => {
+    // Retracted before the attempt, not after it. The chip means "this save just
+    // succeeded", and a refusal leaves the sheet open — so without this the footer answers
+    // a blanked name with a green "Запазено" sitting beside the red alert that says the
+    // opposite, and the chip is the half people read.
+    setSavedAt(0)
+
     // modelText is what the merged box displays; houseId and customModel are what the
     // server stores. Stripped rather than sent and ignored, so the request says what it
     // means.
+    //
+    // The name goes out as typed, blank included, rather than being caught here first. The
+    // endpoint refuses an empty one with a reason, and duplicating that rule in the panel
+    // would give the field two definitions of "required" that have to agree forever — and
+    // it is the panel's copy that would be quietly wrong the day the server's changes. The
+    // new-lead dialog guards its own name because there is nothing stored yet to keep; here
+    // there is, and the refusal lands in the sheet's alert with the edits still on screen.
     const { modelText, ...body } = fields
     await adminSend(`/api/admin/pipeline/${selectedId}/fields`, 'POST', body)
     setSavedAt(Date.now())
@@ -732,6 +844,12 @@ export default function AdminPipelinePage() {
   const sendReport = () => run('report', async () => {
     const result = await adminSend('/api/admin/pipeline/due/report', 'POST', {
       to: reportTo.trim() || null,
+      // The narrowing travels with the report, because the button sits two controls from
+      // the filter and the invariant above it is that the report is of the view it reports
+      // on. Without this a manager reads one salesperson's twelve overdue rows, presses
+      // Send report to forward exactly those, and mails the team's three hundred — the
+      // first hint being a confirmation whose number matches nothing on screen.
+      owner: dueOwner || null,
     })
     setReporting(false)
     // The dialog closes either way; what happened is said on the page. "Nothing was due"
@@ -747,7 +865,7 @@ export default function AdminPipelinePage() {
       title={t.title}
       subtitle={t.subtitle}
       state={state}
-      onRetry={() => loadBoard(tab)}
+      onRetry={() => setRetryAt(Date.now())}
     >
       <nav className="adm-tabs" aria-label={t.title}>
         {TABS.map(({ key }) => (
@@ -773,6 +891,22 @@ export default function AdminPipelinePage() {
           <button type="button" className="btn ghost" onClick={() => setReporting(true)}>
             {t.sendReport}
           </button>
+        ) : null}
+        {/* Whose promises. On this tab only, because the other views already answer the
+            ownership question their own way — "Mine" is a tab, and the board is read by
+            everyone as everyone's. A blank value is everyone rather than "nobody", since
+            that is what the server reads an absent owner= as; an unassigned overdue lead
+            is therefore always in view, which is the right way round for the one thing
+            nobody has picked up. The list is the assignment dropdown's, unchanged: a
+            second idea of who can own a lead is a second list to keep in step. */}
+        {tab === 'due' ? (
+          <label className="adm-filter">
+            <span className="adm-small adm-muted">{t.filterOwner}</span>
+            <select value={dueOwner} onChange={(e) => setDueOwner(e.target.value)}>
+              <option value="">{t.filterOwnerAll}</option>
+              {users.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
         ) : null}
         <label className="adm-filter">
           <span className="adm-small adm-muted">{t.filterStatus}</span>
@@ -888,15 +1022,30 @@ export default function AdminPipelinePage() {
               <li className="adm-empty">
                 {/* "The filters hid everything" and "this view is empty" are different
                     situations with different fixes, and the first needs its one-click way
-                    back — an empty list with active filters otherwise reads as data loss. */}
-                {filtering && board.length > 0 ? (
+                    back — an empty list with active filters otherwise reads as data loss.
+
+                    The owner narrowing gets a third case rather than sharing the second,
+                    because it is the server that dropped the rows: the board comes back
+                    EMPTY instead of being filtered down to nothing, so board.length — the
+                    test the second case turns on — cannot see it. Which is why the sentence
+                    it used to fall through to was "nothing overdue, everything is on
+                    schedule": a claim about the whole team, made while one person was
+                    selected, with only a dropdown three controls away saying otherwise.
+
+                    Ordered by which narrowing actually emptied the list. An owner with rows
+                    on the board that the status filter then hid is the SECOND case, not
+                    this one — the owner is not why there is nothing to look at. */}
+                {narrowedToOwner && board.length === 0 ? (
+                  <>
+                    <p>{t.ownerEmpty(dueOwner)}</p>
+                    <button type="button" className="adm-linkbtn" onClick={clearFilters}>
+                      {t.clearFilters}
+                    </button>
+                  </>
+                ) : narrowedHere && board.length > 0 ? (
                   <>
                     <p>{t.filteredEmpty}</p>
-                    <button
-                      type="button"
-                      className="adm-linkbtn"
-                      onClick={() => { setStatusFilter(''); setModifiedFilter('') }}
-                    >
+                    <button type="button" className="adm-linkbtn" onClick={clearFilters}>
                       {t.clearFilters}
                     </button>
                   </>
@@ -976,7 +1125,15 @@ export default function AdminPipelinePage() {
                       onChange={(e) => assignTo(e.target.value)}
                     >
                       <option value="">{t.unassigned}</option>
-                      {(users.includes(lead.ownerUpn) || !lead.ownerUpn ? users : [lead.ownerUpn, ...users])
+                      {/* Case-insensitively, because that is how the server decided what
+                          counted as a duplicate when it merged ADMIN_ALLOWED_USERS with the
+                          owners already on leads. Comparing exactly here would readmit the
+                          very duplicate that merge removed: an owner stored as
+                          Vvladimirov@… against a list carrying vvladimirov@… reads as
+                          missing, gets prepended, and the same person appears twice. */}
+                      {(!lead.ownerUpn || users.some((u) => sameUser(u, lead.ownerUpn))
+                        ? users
+                        : [lead.ownerUpn, ...users])
                         .map((u) => <option key={u} value={u}>{u}</option>)}
                     </select>
                   </label>
@@ -1007,10 +1164,13 @@ export default function AdminPipelinePage() {
                   <button
                     type="button"
                     className="btn adm-open-sheet"
-                    // The stale error is cleared on open: a message about the LAST failed
-                    // action, shown inside a sheet someone has only just opened, reads as
-                    // "this sheet is broken".
-                    onClick={() => { setError(''); setSheetOpen(true) }}
+                    // Both stale answers are cleared on open, for the same reason and with
+                    // opposite signs. An error about the LAST failed action, shown inside a
+                    // sheet someone has only just opened, reads as "this sheet is broken";
+                    // a "Saved" chip in the footer of a sheet nobody has touched reads as
+                    // "your edits are safe", which is worse, because it is the thing people
+                    // scan for and it is answering about a save from ten minutes ago.
+                    onClick={() => { setError(''); setSavedAt(0); setSheetOpen(true) }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
                          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1091,15 +1251,22 @@ export default function AdminPipelinePage() {
 
                     <section>
                       <h3 className="adm-sheet-head">{t.details}</h3>
+                      {/* The customer first, then the job. Same order as the new-lead
+                          dialog, and the same three boxes — a name, an email and a phone
+                          number are what somebody comes here to correct, and having them
+                          readable in the header but only typeable in a dialog that creates
+                          a SECOND lead is how the panel used to answer that. */}
                       <div className="adm-newdeal-grid">
                         {[
+                          ['name', t.fName, 'text'], ['email', t.fEmail, 'email'],
+                          ['phone', t.fPhone, 'tel'],
                           ['projectName', t.dProject], ['country', t.dCountry],
                           ['customerAddress', t.dAddress], ['buildLocation', t.dBuild],
-                        ].map(([field, label]) => (
+                        ].map(([field, label, type = 'text']) => (
                           <label key={field}>
-                            <span className="adm-small">{label}</span>
+                            <span className="adm-small">{label}{field === 'name' ? ' *' : ''}</span>
                             <input
-                              type="text"
+                              type={type}
                               value={fields[field]}
                               onChange={(e) => setFields((f) => ({ ...f, [field]: e.target.value }))}
                             />
@@ -1121,7 +1288,22 @@ export default function AdminPipelinePage() {
                               // against the new one. A title that is a real model in both
                               // stays linked; anything else drops to free text rather than
                               // lingering as a mismatch nobody notices.
-                              ...resolveModel(f.modelText, e.target.value, houses),
+                              //
+                              // WHAT WAS TYPED ALWAYS SURVIVES THE SWITCH — only the link
+                              // to a catalogue row can fall away. Moving a lead from
+                              // modular to garage leaves "Nova 60" sitting in the box that
+                              // has just become free text, and the line underneath changes
+                              // from "linked model" to "free text", so the one thing that
+                              // did change is the one thing that gets said out loud.
+                              // Emptying the box instead would throw away a sentence
+                              // somebody typed to fix a dropdown they got wrong, and
+                              // keeping the old foreign key would leave a garage lead
+                              // pointing at a modular house that no screen would ever show
+                              // them again.
+                              ...resolveModel(
+                                f.modelText, e.target.value,
+                                modelsFor(houses, e.target.value, withGalleryModels),
+                              ),
                             }))}
                           >
                             <option value="">{t.noCategory}</option>
@@ -1134,41 +1316,66 @@ export default function AdminPipelinePage() {
                           </select>
                         </label>
 
-                        {/* One box, suggestions where we have them. A <datalist> rather than
-                            a <select> because the answer is sometimes a catalogue model and
-                            sometimes a sentence, and a dropdown cannot hold the second kind
-                            while a text box with suggestions holds both.
+                        {/* One box, and what it offers follows the category.
 
-                            The list is empty for a category the gallery has no models for —
-                            a container, a logistics job, an interior fit-out — and the box
-                            simply behaves as free text, which is the same outcome the old
-                            conditional rendering produced with more moving parts. */}
+                            Where the catalogue has models — wagons and modular houses, as
+                            the server's list reads today — it is a <datalist> combobox, so
+                            the answer can be picked and the lead comes out LINKED to a real
+                            row rather than to a title somebody spelled their own way. A
+                            <select> would be the stricter control and the wrong one: even
+                            in those categories the answer is sometimes "two wagons joined",
+                            and a dropdown cannot hold that.
+
+                            Where it has none — prefab and garage today, and every imported
+                            category the gallery never had a filter for — it is a plain text
+                            box. Not a cosmetic difference: a combobox whose list is empty
+                            has an arrow that opens onto nothing, which reads as a catalogue
+                            that failed to load rather than as a category with nothing to
+                            offer, and the second reading is the one that gets reported as a
+                            bug. */}
                         <label className="adm-span-2">
                           <span className="adm-small">{t.model}</span>
                           <input
                             type="text"
-                            list="leadModelOptions"
-                            title={t.modelHint}
+                            // Undefined rather than '' when there is no list to point at: an
+                            // <input> carrying a list attribute IS a combobox to a browser
+                            // and to a screen reader, so naming a datalist that is not
+                            // rendered promises a dropdown that never opens.
+                            list={canPickModel ? 'leadModelOptions' : undefined}
+                            title={noCatalogue ? t.modelHintFree : t.modelHint}
                             value={fields.modelText}
                             onChange={(e) => setFields((f) => ({
                               ...f,
-                              ...resolveModel(e.target.value, f.categoryKey, houses),
+                              ...resolveModel(e.target.value, f.categoryKey, leadModels),
                             }))}
                           />
-                          <datalist id="leadModelOptions">
-                            {houses
-                              .filter((h) => h.categoryKey === fields.categoryKey)
-                              .map((h) => <option key={h.id} value={h.title} />)}
-                          </datalist>
+                          {canPickModel ? (
+                            <datalist id="leadModelOptions">
+                              {leadModels.map((h) => <option key={h.id} value={h.title} />)}
+                            </datalist>
+                          ) : null}
 
                           {/* Which of the two things just happened, said out loud. The
                               linking is the one part of this control a person cannot see,
                               and an invisible foreign key is how a lead ends up attached to
-                              a house nobody meant to attach it to. */}
+                              a house nobody meant to attach it to.
+
+                              An EMPTY box is the first test, ahead of the catalogue one,
+                              because nothing has happened yet to describe. A caption under
+                              a box nobody has typed in is a permanent line about a state
+                              the person never asked to be in — and on a lead with no
+                              category chosen yet, which is the ordinary state of a phone
+                              lead and of a good share of the imported ones, it blamed the
+                              catalogue for holding nothing before anybody had asked it for
+                              anything. It never went away whatever was typed, and it never
+                              gave the instruction that would have helped: choose a
+                              category first. */}
                           <span className="adm-small adm-muted adm-model-state">
                             {fields.houseId > 0
                               ? `✓ ${t.modelLinked(fields.modelText)}`
-                              : (fields.modelText.trim() ? t.modelFree : ' ')}
+                              : !fields.modelText.trim()
+                                ? ' '
+                                : (noCatalogue ? t.modelNoCatalogue : t.modelFree)}
                           </span>
                         </label>
                       </div>

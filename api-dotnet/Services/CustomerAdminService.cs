@@ -460,9 +460,18 @@ public sealed class CustomerAdminService
                 "If it is a foreign identity number, set the country first.");
         }
 
-        foreach (var purchase in input.Purchases ?? new List<PurchaseInput>())
+        // NUMBERED, because the panel renders these straight into one alert above a form that
+        // can hold several purchases at once. "A deposit cannot be negative" over a customer
+        // with four of them names nothing to go and fix, and the reflex is to hunt through
+        // every box on the card. The number is 1-based to match the heading the panel prints
+        // over each card ("Покупка 1"), so the sentence points at something on screen.
+        var purchases = input.Purchases ?? new List<PurchaseInput>();
+        for (var i = 0; i < purchases.Count; i++)
         {
-            errors.AddRange(ValidatePurchase(purchase));
+            foreach (var error in ValidatePurchase(purchases[i]))
+            {
+                errors.Add($"Purchase {i + 1}: {error}");
+            }
         }
 
         return errors;
@@ -476,14 +485,22 @@ public sealed class CustomerAdminService
             yield return $"'{purchase.CategoryKey}' is not one of the things we sell.";
         }
 
-        // Refused rather than absorbed: a modular purchase pointing at a catalogue row is a
-        // claim that what shipped matches that row, and it does not. See
-        // PurchaseCategories.WithGalleryModels.
+        // Refused rather than absorbed: a purchase pointing at a catalogue row is a claim
+        // that what shipped matches that row, and under a category the catalogue carries no
+        // models for there is no row it could be matching. See
+        // PurchaseCategories.WithGalleryModels for which categories those are and why the
+        // list is measured rather than reasoned about.
         if (purchase.HouseId is > 0 && !PurchaseCategories.AllowsGalleryModel(purchase.CategoryKey))
         {
+            // The category is named as well as numbered by the caller, because this is the one
+            // refusal here that can fire over a value nobody typed: the panel resends every
+            // purchase on every save, so a link stored under a category that has since left
+            // WithGalleryModels blocks a save that was about the customer's phone number.
+            // BackfillPurchaseModelLinks cleared the rows that could do that as of 2026-08-21;
+            // the next removal from that list needs the same treatment before it ships.
             yield return
-                "A modular house is a custom build — describe it in the free-text field " +
-                "rather than linking a catalogue model.";
+                $"The catalogue carries no models under '{purchase.CategoryKey}' — describe " +
+                "what was bought in the free-text field rather than linking a model.";
         }
 
         // Only when one was actually sent: absent means "leave the count as it is" now, not
@@ -636,9 +653,19 @@ public sealed class CustomerAdminService
         purchase.FactoryId = input.FactoryId is > 0 ? input.FactoryId : null;
         purchase.CategoryKey = AdminText.Clean(input.CategoryKey);
 
-        // A model only survives on a category that can carry one — the same rule validation
-        // refuses, applied again here so a category changed after the fact cannot leave a
-        // stale foreign key pointing at a house this purchase is not.
+        // A model only survives on a category the catalogue carries models for — the same
+        // rule validation refuses, applied again here so a category changed after the fact
+        // cannot leave a stale foreign key pointing at a house this purchase is not.
+        //
+        // DEFENCE IN DEPTH, not the live path, and worth saying because the opposite is the
+        // easy assumption. This predicate is the exact negation of ValidatePurchase's, and
+        // AdminCustomersController runs that over every purchase in a submission before
+        // either CreateAsync or UpdateAsync — so an HTTP caller sending a HouseId under a
+        // category that cannot carry one gets a 400 and never reaches this line. What it
+        // still catches is a service-level caller, and the day validation and this drift
+        // apart. Do not read it as a silent-loss path when weighing what belongs in
+        // WithGalleryModels: a key missing from that list costs a hard refusal, not a
+        // quiet 200.
         purchase.HouseId = input.HouseId is > 0 && PurchaseCategories.AllowsGalleryModel(input.CategoryKey)
             ? input.HouseId
             : null;

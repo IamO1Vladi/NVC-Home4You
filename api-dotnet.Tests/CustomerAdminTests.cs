@@ -162,17 +162,43 @@ public class CustomerAdminTests
     // --- What was bought ---------------------------------------------------------------
 
     [Fact]
-    public void A_modular_house_cannot_be_linked_to_a_catalogue_model()
+    public void A_garage_cannot_be_linked_to_a_catalogue_model()
     {
-        // Confirmed as the business rule: modular houses ship as custom builds, so a foreign
-        // key to a catalogue row would be a claim that what shipped matches that row.
+        // Not because a garage is inherently custom, but because the catalogue has no garages
+        // in it to link to — see PurchaseCategories.WithGalleryModels. A foreign key here
+        // would be a claim about a row that could not be the one that shipped.
         var input = Customer("person");
         input.Purchases = new List<PurchaseInput>
         {
-            new() { CategoryKey = HouseCategories.Modular, HouseId = 4 },
+            new() { CategoryKey = HouseCategories.Garage, HouseId = 4 },
         };
 
-        Assert.Contains(CustomerAdminService.Validate(input), e => e.Contains("custom build"));
+        // And it names the category, because this is the one refusal on this form that can
+        // fire over a value nobody typed — the panel resends every purchase on every save.
+        Assert.Contains(CustomerAdminService.Validate(input), e => e.Contains("'garage'"));
+    }
+
+    [Fact]
+    public void Every_refusal_says_which_purchase_it_is_about()
+    {
+        // One alert, above a form that holds as many purchase cards as the customer has
+        // sales. "A deposit cannot be negative" over four of them names nothing to go and
+        // fix, and the reflex is to hunt through every box on the card. The number is
+        // 1-based to match the heading the panel prints over each card.
+        var input = Customer("person");
+        input.Purchases = new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Wagon, Quantity = 2 },
+            new() { CategoryKey = HouseCategories.Garage, HouseId = 4 },
+            new() { CategoryKey = HouseCategories.Wagon, DepositPaid = -1m },
+        };
+
+        var errors = CustomerAdminService.Validate(input);
+
+        Assert.Contains(errors, e => e.StartsWith("Purchase 2:") && e.Contains("no models"));
+        Assert.Contains(errors, e => e.StartsWith("Purchase 3:") && e.Contains("deposit"));
+        // The one that is fine is not mentioned at all.
+        Assert.DoesNotContain(errors, e => e.StartsWith("Purchase 1:"));
     }
 
     [Fact]
@@ -188,10 +214,32 @@ public class CustomerAdminTests
     }
 
     [Fact]
-    public void Modular_is_a_category_we_sell_even_though_it_carries_no_model()
+    public void The_picker_follows_the_catalogue_rather_than_what_sounds_like_a_house()
     {
-        Assert.True(PurchaseCategories.IsValid(HouseCategories.Modular));
-        Assert.False(PurchaseCategories.AllowsGalleryModel(HouseCategories.Modular));
+        // The measured list, pinned. Counted against the live gallery on 2026-08-21: modular
+        // 8 models, wagon 6, prefab 0, garage 0 — so the two that can fill a dropdown offer
+        // one and the two that cannot are typed by hand. Reading it the other way is what
+        // left the category the catalogue carries most of unable to link to a model at all:
+        // the picker did not offer them, and an API caller who sent one was refused.
+        //
+        // The removals in the same change are the half that needed data behind it — a key
+        // coming OFF this list turns any stored purchase carrying it into a customer who
+        // cannot be saved at all. See BackfillPurchaseModelLinks.
+        Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Modular));
+        Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Wagon));
+        Assert.False(PurchaseCategories.AllowsGalleryModel(HouseCategories.Prefab));
+        Assert.False(PurchaseCategories.AllowsGalleryModel(HouseCategories.Garage));
+
+        // All four remain things we sell; carrying no catalogue model is not the same as not
+        // being on the price list.
+        foreach (var key in new[]
+                 {
+                     HouseCategories.Modular, HouseCategories.Wagon,
+                     HouseCategories.Prefab, HouseCategories.Garage,
+                 })
+        {
+            Assert.True(PurchaseCategories.IsValid(key));
+        }
     }
 
     [Fact]
@@ -355,6 +403,42 @@ public class CustomerAdminTests
 
         // Nothing to reverse, deliberately: Down would have to know which rows held the
         // defaults, and writing a 0 and an '' back recreates the state this exists to end.
+        Assert.Empty(migration.DownOperations);
+    }
+
+    [Fact]
+    public void The_model_backfill_unlinks_the_categories_that_stopped_carrying_one()
+    {
+        // The half of the category change that needed data behind it. Prefab and garage came
+        // off WithGalleryModels, and ValidatePurchase refuses a HouseId under any category
+        // that is not on it — over every purchase in the submission, before a column is
+        // written. So a row filed as prefab with a model attached, legal to save until this
+        // release, would have refused every future save of the CUSTOMER holding it: their
+        // phone number, their address, their notes, all of it, behind a 400 about a box
+        // nobody opened.
+        //
+        // Converted rather than left to detonate: the house's title goes into CustomModel,
+        // which is the column that exists for describing what the catalogue has no row for,
+        // and the foreign key is cleared.
+        var migration = new BackfillPurchaseModelLinks();
+        var up = Assert.Single(migration.UpOperations.OfType<SqlOperation>()).Sql;
+
+        Assert.Contains("[HouseId] = NULL", up);
+        Assert.Contains("[CustomModel]", up);
+        // A purchase that already described itself keeps its own words: what somebody wrote
+        // about this sale outranks a title copied off a catalogue row.
+        Assert.Contains("COALESCE", up);
+
+        // The list is written out rather than read from PurchaseCategories, which is right
+        // for a migration and wrong anywhere else — this statement has to keep meaning what
+        // it meant on the day it ran, however the constant moves afterwards.
+        foreach (var key in PurchaseCategories.WithGalleryModels) Assert.Contains($"'{key}'", up);
+        Assert.DoesNotContain($"'{HouseCategories.Prefab}'", up);
+        Assert.DoesNotContain($"'{HouseCategories.Garage}'", up);
+
+        // Nothing to reverse: Up destroys the only record of which row each purchase pointed
+        // at, and guessing them back by matching titles would relink purchases that never
+        // had a model — anywhere somebody had typed a house's name in by hand.
         Assert.Empty(migration.DownOperations);
     }
 

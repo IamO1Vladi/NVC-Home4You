@@ -71,10 +71,14 @@ const CATEGORIES = {
 
 let calls = []
 let detail = DETAIL
+// Whether /categories answers at all. The page swallows a failure there and runs on its
+// own constant, so this is the only way to reach the fallback the constant exists for.
+let categoriesFail = false
 
 beforeEach(() => {
   calls = []
   detail = DETAIL
+  categoriesFail = false
   Element.prototype.scrollIntoView = vi.fn()
 
   vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
@@ -83,7 +87,11 @@ beforeEach(() => {
     if (u.includes('/api/admin/me')) return json({ name: 'Sales' })
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
-    if (u.includes('/api/admin/customers/categories')) return json(CATEGORIES)
+    if (u.includes('/api/admin/customers/categories')) {
+      return categoriesFail
+        ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}), text: () => Promise.resolve('') })
+        : json(CATEGORIES)
+    }
     // The upload answers with the row it wrote, in the same shape the detail read describes
     // a file. That is what lets the sheet patch itself instead of refetching the customer
     // and replacing everything somebody is halfway through typing.
@@ -482,7 +490,12 @@ describe('AdminCustomersPage', () => {
     expect(titles).toEqual(['Nova 60', 'Nova 40'])
   })
 
-  it('offers no model for a modular house, because it is a custom build', async () => {
+  it('offers no model where the served list says the catalogue has none', async () => {
+    // The list is the SERVER'S — it tracks which categories the gallery actually holds
+    // models under, and it changes when the catalogue does rather than when this file does.
+    // So the page is pinned against what was served, not against what this build believes:
+    // the mock says modular carries none, and Modul 90 is in the gallery and still not
+    // offered.
     detail = {
       ...DETAIL,
       purchases: [{
@@ -494,9 +507,39 @@ describe('AdminCustomersPage', () => {
     render(<AdminCustomersPage />)
     const dialog = await openCustomer(user)
 
-    // Modul 90 exists in the gallery and is deliberately still not offered here.
     expect(dialog.querySelectorAll('#purchaseModels-0 option')).toHaveLength(0)
-    expect(within(dialog).getByText(/проект по поръчка/)).toBeInTheDocument()
+    // And the caption says what is true of the CATEGORY rather than of modular houses. It
+    // used to read "modular houses are custom builds", which was the old reading of this
+    // list and is now the wrong sentence under every prefab and garage purchase.
+    expect(within(dialog).getByText(/няма модели в тази категория/)).toBeInTheDocument()
+  })
+
+  it('falls back to a list that still knows modular carries models', async () => {
+    // The one thing the fallback exists for: /categories failing, which the page swallows
+    // on purpose. While the two admin screens each kept their own copy of that list this
+    // one sat a catalogue revision behind — so a modular purchase lost its picker, its
+    // stored link resolved against an empty list to houseId 0, and the next save wrote that
+    // reading back over a model somebody had chosen. A 200, and an empty box next time.
+    categoriesFail = true
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], categoryKey: 'modular',
+        houseId: 8, houseTitle: 'Modul 90', customModel: null, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const titles = [...dialog.querySelectorAll('#purchaseModels-0 option')].map((o) => o.value)
+    expect(titles).toEqual(['Modul 90'])
+
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].houseId).toBe(8)
+    })
   })
 
   it('links a catalogue model as a foreign key when one is picked', async () => {

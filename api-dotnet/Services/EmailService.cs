@@ -150,9 +150,51 @@ public class EmailService
     /// <summary>One file travelling with a message, small enough to hold in memory.</summary>
     private sealed record Attached(string FileName, string ContentType, byte[] Content);
 
+    /// <summary>
+    /// Whether a single string is an address we would be willing to send to.
+    ///
+    /// MailAddress does the parsing, and the round-trip comparison is the actual check: the
+    /// parser happily accepts "Ivan &lt;ivan@example.com&gt;" and a trailing comment, so
+    /// without it a display name typed into an email box would pass and then be stored as
+    /// something no mail client will match the customer on. A regex was not written here for
+    /// the usual reason — the ones people write reject real addresses and accept broken ones.
+    ///
+    /// IT IS NOT THE ONLY RULE IN THE CODEBASE, and pretending otherwise would mislead the
+    /// next person to reach for it. This is the strict one, for a SINGLE address about to be
+    /// stored against a person: the lead sheet's email box and the configurator's "email me
+    /// my config". ParseRecipients directly below is deliberately lax, and CustomerAdminService
+    /// and FactoryAdminService still ask only for an '@' — both because those columns already
+    /// hold years of imported values no parser accepts, and tightening the rule under a box
+    /// somebody resends untouched refuses edits nobody made. Sharpen one of them only with
+    /// the stored data in hand.
+    /// </summary>
+    public static bool IsValidAddress(string? raw)
+    {
+        var trimmed = (raw ?? "").Trim();
+        if (trimmed.Length == 0) return false;
+
+        try
+        {
+            return new MailAddress(trimmed).Address == trimmed;
+        }
+        catch
+        {
+            // MailAddress reports malformed input by throwing, and "malformed" is exactly
+            // the answer this method exists to give.
+            return false;
+        }
+    }
+
     // Public because callers need to validate what a person typed into a "send this to"
     // box against the same rule the configured list is read with — two different notions
     // of "is that an address?" is how one of them ends up silently dropping recipients.
+    //
+    // Lax on purpose, and NOT the rule IsValidAddress above applies. This reads a list
+    // somebody typed a moment ago and is about to watch the result of: a token that turns
+    // out to be undeliverable comes back as a bounce they can see, whereas a token silently
+    // dropped for failing a strict parse is a colleague who never got the report and nobody
+    // ever finds out. The strict rule belongs where an address is STORED against a person
+    // and read back months later by someone who was not there when it was typed.
     public static IReadOnlyCollection<string> ParseRecipients(string? raw) =>
         (raw ?? "")
             .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

@@ -165,6 +165,23 @@ the date range are what you expect, then set the flag.
 stay and the next run retries them; a failure is logged as `AUDIT GAP` or as an explicit
 archive error. The worker runs daily, ten minutes after startup.
 
+## Release: sales owners on the company domain
+
+One extra step, and it has to happen in a particular order. The migration
+`RenameLeadOwners` moves the three salespeople's leads from their old personal addresses
+(`bonin01@abv.bg`, `vvladimirov@quickbase.com`, `radinaivanova64@gmail.com`) onto their
+`@nvc-home4you.eu` accounts.
+
+**Apply the migration first, then change `ADMIN_ALLOWED_USERS`.** An address only leaves
+the отговорник dropdown — and the due tab's owner filter, which is fed from the same list —
+once *both* have stopped naming it: `LeadPipelineService.ListAssignableAsync` is
+`ADMIN_ALLOWED_USERS` plus every distinct `OwnerUpn` on a lead, so configuration and the
+rows each keep an address alive on their own.
+
+Do it the other way round and both dropdowns list six people, which is the same three
+twice, with nothing on screen saying which entry is current. `RenameLeadOwners` does not
+reverse — see the comment on its `Down`.
+
 ## Release: gallery + cases to SQL and Blob
 
 **Read this whole section before starting.** Roughly an hour, most of it waiting on

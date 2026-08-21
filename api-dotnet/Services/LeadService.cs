@@ -292,11 +292,14 @@ public class LeadService
     }
 
     /// <summary>
-    /// The free-text fields sales maintains by hand. Null leaves a field alone, so one
-    /// box can be edited without restating the rest and clobbering a colleague's change.
+    /// The fields sales maintains by hand. Null leaves a field alone, so one box can be
+    /// edited without restating the rest and clobbering a colleague's change.
     ///
     /// Deliberately NOT written to the thread: these are working notes that get corrected
     /// constantly, and an activity per keystroke-save would drown the actual conversation.
+    /// The customer's own details go the same way, and that is a judgement rather than an
+    /// oversight — a corrected typo is not a fact about the relationship, and status and
+    /// owner, which are, still each write their line.
     /// </summary>
     public async Task<bool> UpdateFieldsAsync(
         int leadId,
@@ -311,10 +314,31 @@ public class LeadService
         int? houseId = null,
         bool clearHouse = false,
         string? customModel = null,
+        string? name = null,
+        string? email = null,
+        string? phone = null,
         CancellationToken ct = default)
     {
         var lead = await _db.Leads.FirstOrDefaultAsync(l => l.Id == leadId, ct);
         if (lead is null) return false;
+
+        // WHO the lead is, correctable here because a name or an address typed wrong at
+        // enquiry time otherwise stays wrong forever — the offer behind it is an immutable
+        // event and must keep saying what the form said, so the lead is the only row where
+        // the correction can land.
+        //
+        // Name is the odd one out: the column is NOT NULL and every list on the board is a
+        // row of names, so a blank one is a lead nobody can find again. The caller is
+        // expected to have refused it already (see AdminPipelineController.SetFields);
+        // reaching here with one leaves the stored name alone, which is the least
+        // destructive reading of an edit that cannot be carried out.
+        if (!string.IsNullOrWhiteSpace(name)) lead.Name = name.Trim();
+
+        // Both legitimately empty — a walk-in who left a phone number and no email address is
+        // a real lead, and so is the reverse — so these clear like every other field here
+        // rather than being defended.
+        if (email is not null) lead.Email = Trimmed(email);
+        if (phone is not null) lead.Phone = Trimmed(phone);
 
         if (categoryKey is not null) lead.CategoryKey = Trimmed(categoryKey);
         if (customModel is not null) lead.CustomModel = Trimmed(customModel);
@@ -356,6 +380,31 @@ public class LeadService
     /// </summary>
     public Task<bool> HouseExistsAsync(int houseId, CancellationToken ct = default) =>
         _db.Houses.AsNoTracking().AnyAsync(h => h.Id == houseId, ct);
+
+    /// <summary>
+    /// The email address currently stored on a lead, so a save can tell an EDIT of that box
+    /// from a resend of what was already in it.
+    ///
+    /// This column has never been validated on the way in and holds whatever its source had.
+    /// CrmLeadImportService takes it straight off the Quickbase field with nothing but a
+    /// truncation, across the whole imported book, and the public forms carry no format
+    /// attribute either — so "ivan@abv.bg, maria@abv.bg", "Ivan Petrov &lt;ivan@abv.bg&gt;",
+    /// "n/a" and a bare phone number are all things really sitting in it.
+    ///
+    /// The panel resends every field on every save, the untouched ones included. Without
+    /// this comparison, one of those addresses would refuse every future edit to the lead
+    /// that holds it — the notes, the next step, the follow-up date — over a box nobody
+    /// opened, with a message naming no field. A bad address must block an attempt to CHANGE
+    /// it, not the rest of the row.
+    ///
+    /// Null for a lead that does not exist, which is the same answer as a lead with no
+    /// address; the caller's own save reports the missing row as a 404 straight after.
+    /// </summary>
+    public Task<string?> StoredEmailAsync(int leadId, CancellationToken ct = default) =>
+        _db.Leads.AsNoTracking()
+            .Where(l => l.Id == leadId)
+            .Select(l => l.Email)
+            .FirstOrDefaultAsync(ct);
 
     /// <summary>
     /// Reads a follow-up date off the wire. Blank is a real answer — it means "no date" —

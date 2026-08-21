@@ -41,11 +41,16 @@ let detail = DETAIL
 // relative to NOW — hard-coded dates would make "last 7 days" drift out of the window as
 // real time passes, and the test would start failing by itself weeks later.
 let boardRows = BOARD
+// Which categories the server says carry catalogue models. Mutable so a test can serve a
+// list the panel does not hold a copy of, which is the only way to tell "reads the server"
+// apart from "happens to agree with it".
+let withGalleryModels = ['wagon', 'modular']
 
 beforeEach(() => {
   calls = []
   detail = DETAIL
   boardRows = BOARD
+  withGalleryModels = ['wagon', 'modular']
   // jsdom has no layout engine, so scrollIntoView is undefined on every element.
   Element.prototype.scrollIntoView = vi.fn()
 
@@ -60,6 +65,15 @@ beforeEach(() => {
     if (u.includes('/api/admin/pipeline/1/attachments')) return json({ ok: true, activityId: 98 })
     if (u.includes('/api/admin/pipeline/due/report')) return json({ ok: true, count: 2, recipients: ['me@x.eu'] })
     if (u.includes('/api/admin/pipeline/1/convert')) return json({ ok: true, customerId: 42, created: true })
+    // The leads sheet reads the purchases screen's category list rather than keeping a
+    // second copy: it is the same question about the same catalogue.
+    if (u.includes('/api/admin/customers/categories')) {
+      return json({
+        all: ['prefab', 'wagon', 'modular', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
+        withGalleryModels,
+        stagedPayment: ['prefab', 'modular', 'garage'],
+      })
+    }
     if (u.includes('/api/admin/gallery')) {
       return json([
         { id: 3, title: 'Nova 60', categoryKey: 'modular', isPublished: true },
@@ -342,6 +356,20 @@ describe('AdminPipelinePage', () => {
     expect(values).toContain('maria@x.eu')
   })
 
+  it('does not list the same person twice over a difference in capitals', async () => {
+    // The server merges ADMIN_ALLOWED_USERS with the owners already on leads and dedupes
+    // them case-insensitively, so the list comes back with one spelling. Comparing exactly
+    // on this side would decide the stored owner was missing and prepend it — putting the
+    // same person in the dropdown twice, which is what the merge existed to prevent.
+    detail = { ...DETAIL, ownerUpn: 'Maria@X.eu' }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const values = [...ownerBox().querySelectorAll('option')].map((o) => o.value)
+    const maria = values.filter((v) => v.toLowerCase() === 'maria@x.eu')
+    expect(maria).toHaveLength(1)
+  })
+
   it('surfaces the next step where it cannot be missed', async () => {
     render(<AdminPipelinePage />)
 
@@ -383,7 +411,10 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => {
       const sent = calls.find((c) => c.url.includes('/due/report') && c.method === 'POST')
       expect(sent).toBeTruthy()
-      expect(JSON.parse(sent.body)).toEqual({ to: 'boss@nvc-home4you.eu' })
+      // owner rides along even when it is null, because the server reads absent and null
+      // the same way — everyone — and sending the key unconditionally keeps the request
+      // saying which view it came from.
+      expect(JSON.parse(sent.body)).toEqual({ to: 'boss@nvc-home4you.eu', owner: null })
     })
     // The outcome is said on the page — a report that vanishes into silence gets sent
     // twice "to be sure".
@@ -562,8 +593,11 @@ describe('AdminPipelinePage', () => {
   // merging the CONTROLS did not merge the COLUMNS: HouseId is still a foreign key when the
   // answer is a catalogue model, and still empty when it is not.
 
+  // By its label rather than its role, because the role is now the thing under test: the
+  // same field is a combobox where the catalogue has models to offer and a plain text box
+  // where it has none.
   const modelBox = (dialog) =>
-    within(dialog).getByRole('combobox', { name: /Какво търси|What they want/ })
+    within(dialog).getByLabelText(/Какво търси|What they want/)
 
   it('suggests the models in the chosen category, and only those', async () => {
     const user = userEvent.setup()
@@ -672,5 +706,411 @@ describe('AdminPipelinePage', () => {
 
     expect(category).toHaveValue('Logistics')
     expect(within(category).getByRole('option', { name: 'Logistics' })).toBeInTheDocument()
+  })
+
+  // --- The customer's own details -----------------------------------------------------
+  //
+  // A name misheard over the phone or an email with a typo in it used to be wrong for good.
+  // The enquiry behind a lead is an immutable event and has to keep saying what the form
+  // said, so the lead row is the only place a correction can go — and this sheet is the
+  // only screen that edits it.
+
+  const nameBox = (dialog) => within(dialog).getByLabelText(/^Име \*$|^Name \*$/)
+  const emailBox = (dialog) => within(dialog).getByLabelText(/^Имейл$|^Email$/)
+  const phoneBox = (dialog) => within(dialog).getByLabelText(/^Телефон$|^Phone$/)
+  const saveSheet = (dialog, user) =>
+    user.click(within(dialog).getByRole('button', { name: /Запази|^Save$/ }))
+
+  it('corrects the name, the email and the phone through the save that was already there', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    await user.clear(nameBox(dialog))
+    await user.type(nameBox(dialog), 'Ivan Petroff')
+    await user.clear(emailBox(dialog))
+    await user.type(emailBox(dialog), 'ivan@nvc-home4you.eu')
+    await user.type(phoneBox(dialog), '0888 123 456')
+
+    await saveSheet(dialog, user)
+
+    await waitFor(() => {
+      const writes = calls.filter((c) => c.method === 'POST')
+      // ONE writer. Three more boxes on a sheet that already saves in a single request is
+      // not a reason for a second endpoint, and two ways to write a lead is how the two
+      // start disagreeing about what it says.
+      expect(writes).toHaveLength(1)
+      expect(writes[0].url).toContain('/fields')
+
+      const saved = JSON.parse(writes[0].body)
+      expect(saved.name).toBe('Ivan Petroff')
+      expect(saved.email).toBe('ivan@nvc-home4you.eu')
+      expect(saved.phone).toBe('0888 123 456')
+      // Riding with the rest of the sheet, the boxes nobody touched included.
+      expect(saved.nextStep).toBe('Send revised quote')
+    })
+  })
+
+  it('a blanked name comes back refused rather than looking saved', async () => {
+    // The rule is the server's, and the panel deliberately does not pre-empt it: two
+    // definitions of "required" is one that goes quietly out of date. What the panel owes
+    // is the refusal, in the sheet, with the edits still on screen.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => {
+      if (!String(url).includes('/fields')) return passthrough(url, options)
+      calls.push({ url, method: options.method || 'GET', body: options.body })
+      return Promise.resolve({
+        ok: false, status: 400,
+        json: () => Promise.resolve({ errors: ['A lead has to keep a name.'] }),
+        text: () => Promise.resolve(''),
+      })
+    })
+
+    await user.clear(nameBox(dialog))
+    await saveSheet(dialog, user)
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/fields') && c.method === 'POST')
+      // Sent blank rather than swallowed here, so the server is the one saying no.
+      expect(JSON.parse(sent.body).name).toBe('')
+    })
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('A lead has to keep a name.')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(nameBox(dialog)).toHaveValue('')
+
+    // And the footer does not answer the same question the other way at the same time. The
+    // chip means "this save just succeeded"; a refused save keeps the sheet open, so a
+    // stale one sits in green beside the red alert, and it is the half people scan for.
+    expect(within(dialog).queryByText(/^Запазено$|^Saved$/)).not.toBeInTheDocument()
+  })
+
+  it('the Saved chip belongs to the save that earned it, not to the next opening', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    await user.type(nameBox(dialog), 'ff')
+    await saveSheet(dialog, user)
+
+    // A successful save closes the sheet, so the chip is never on screen for the save that
+    // set it — which makes every LATER opening the only place it was ever visible.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    const reopened = await openSheet(user)
+    expect(within(reopened).queryByText(/^Запазено$|^Saved$/)).not.toBeInTheDocument()
+  })
+
+  // --- A picker or a plain box, decided by the category --------------------------------
+
+  const categoryBox = (dialog) =>
+    within(dialog).getByRole('combobox', { name: /Категория|^Category$/ })
+  const suggestions = (dialog) =>
+    [...dialog.querySelectorAll('#leadModelOptions option')].map((o) => o.value)
+
+  it('offers the catalogue for the categories that have one', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    // The lead arrives as modular: a picker, holding the models filed under it.
+    expect(modelBox(dialog)).toHaveAttribute('list', 'leadModelOptions')
+    expect(suggestions(dialog)).toEqual(['Nova 60', 'Nova 40'])
+
+    await user.selectOptions(categoryBox(dialog), 'wagon')
+
+    expect(modelBox(dialog)).toHaveAttribute('list', 'leadModelOptions')
+    expect(suggestions(dialog)).toEqual(['Site cabin'])
+  })
+
+  it('asks for a description where the catalogue has nothing to offer', async () => {
+    // An input with a list attribute IS a combobox to a browser and to a screen reader, so
+    // this is the difference a person sees: an arrow that opens onto the catalogue, or a
+    // box to write in.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    for (const key of ['garage', 'prefab']) {
+      await user.selectOptions(categoryBox(dialog), key)
+
+      expect(modelBox(dialog)).not.toHaveAttribute('list')
+      expect(dialog.querySelector('#leadModelOptions')).toBeNull()
+      expect(within(dialog).queryByRole('combobox', { name: /Какво търси|What they want/ }))
+        .not.toBeInTheDocument()
+    }
+  })
+
+  it('switching category keeps what was typed and drops only the link', async () => {
+    // The deliberate half of this: the words always survive, the foreign key does not.
+    // Emptying the box would throw away a sentence somebody typed to fix a dropdown they
+    // got wrong, and keeping the old id would leave a garage lead pointing at a modular
+    // house that no screen would ever show them again.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    expect(modelBox(dialog)).toHaveValue('Nova 60')
+
+    await user.selectOptions(categoryBox(dialog), 'garage')
+
+    expect(modelBox(dialog)).toHaveValue('Nova 60')
+    // And the one thing that did change is the one thing said out loud.
+    expect(within(dialog).getByText(/каталогът няма модели|the catalogue has no models/))
+      .toBeInTheDocument()
+
+    await saveSheet(dialog, user)
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.url.includes('/fields')).body)
+      expect(saved.categoryKey).toBe('garage')
+      expect(saved.customModel).toBe('Nova 60')
+      // 0, not null: the server reads 0 as "clear it" and null as "leave it alone".
+      expect(saved.houseId).toBe(0)
+    })
+  })
+
+  it('says nothing under the box until there is something to say', async () => {
+    // The caption answers "which of the two things just happened", so an untouched box has
+    // no answer to give. Testing the catalogue first put a permanent line under every lead
+    // with no category yet — the ordinary state of a phone lead, a trade-fair lead and a
+    // good share of the imported ones — blaming the catalogue for holding nothing before
+    // anybody had asked it for anything, and never giving the instruction that would have
+    // helped: choose a category.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+    const noCatalogue = /каталогът няма модели|the catalogue has no models/
+
+    await user.selectOptions(categoryBox(dialog), '')
+    await user.clear(modelBox(dialog))
+    expect(within(dialog).queryByText(noCatalogue)).not.toBeInTheDocument()
+
+    // Typing under no category is free text — true, and not a complaint about the
+    // catalogue, which has not been asked anything.
+    await user.type(modelBox(dialog), 'Something off a photo')
+    expect(within(dialog).getByText(/свободен текст — без връзка|free text — not linked/))
+      .toBeInTheDocument()
+    expect(within(dialog).queryByText(noCatalogue)).not.toBeInTheDocument()
+
+    // An empty box stays silent on a real category with no models, too.
+    await user.selectOptions(categoryBox(dialog), 'garage')
+    await user.clear(modelBox(dialog))
+    expect(within(dialog).queryByText(noCatalogue)).not.toBeInTheDocument()
+
+    // And the line appears once there is a description it is actually about.
+    await user.type(modelBox(dialog), 'Two bays, 6m')
+    expect(within(dialog).getByText(noCatalogue)).toBeInTheDocument()
+  })
+
+  it('reads which categories have models from the server, not from a list in here', async () => {
+    // The catalogue decides this, and it changes without the SPA being rebuilt. Serving a
+    // list the panel holds no copy of is the only way to tell reading the server apart from
+    // happening to agree with it.
+    withGalleryModels = ['prefab']
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const dialog = await openSheet(user)
+
+    // Modular is off the served list, whatever this page used to believe about it.
+    await waitFor(() => expect(modelBox(dialog)).not.toHaveAttribute('list'))
+
+    // And prefab is on it, so it gets the picker even though the gallery mock carries no
+    // prefab models: the control follows the CATEGORY, not whether models happened to load.
+    // An empty picker on a category that should have one is a visible fault; the same
+    // category silently demoted to a text box is a lead typed in by hand for ever.
+    await user.selectOptions(categoryBox(dialog), 'prefab')
+    expect(modelBox(dialog)).toHaveAttribute('list', 'leadModelOptions')
+    expect(suggestions(dialog)).toEqual([])
+  })
+
+  // --- The due tab's owner filter ------------------------------------------------------
+
+  const toolbar = () => document.querySelector('.adm-pipeline-toolbar')
+  // Scoped to the toolbar on purpose: the assignment dropdown in the lead header answers a
+  // different question under the same word.
+  const dueOwnerBox = () =>
+    within(toolbar()).getByRole('combobox', { name: /Отговорник|Owner/ })
+  const queryDueOwnerBox = () =>
+    within(toolbar()).queryByRole('combobox', { name: /Отговорник|Owner/ })
+
+  const boardCalls = () =>
+    calls.filter((c) => c.method === 'GET' && c.url.includes('/api/admin/pipeline?'))
+
+  it('narrows the due list to one owner, at the server', async () => {
+    // Asked of the server rather than of the rows already in hand: the due query takes the
+    // thousand most overdue leads and stops, so narrowing here would search one owner's
+    // promises among whatever survived that cap.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+
+    await waitFor(() => expect(calls.some((c) =>
+      c.url.includes('due=true') && c.url.includes('owner=maria%40x.eu'))).toBe(true))
+  })
+
+  it('starts on everyone, so the morning view needs no picking', async () => {
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(calls.some((c) => c.url.includes('due=true'))).toBe(true))
+
+    expect(dueOwnerBox()).toHaveValue('')
+    expect(boardCalls().every((c) => !c.url.includes('owner='))).toBe(true)
+  })
+
+  it('offers the people the assignment dropdown does, from the one request', async () => {
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(calls.some((c) => c.url.includes('due=true'))).toBe(true))
+
+    await waitFor(() =>
+      expect([...dueOwnerBox().querySelectorAll('option')].map((o) => o.value))
+        .toEqual(['', 'maria@x.eu', 'vladi@x.eu']))
+    // A second idea of who can own a lead would be a second list to keep in step.
+    expect(calls.filter((c) => c.url.includes('/api/admin/pipeline/users'))).toHaveLength(1)
+  })
+
+  it('the filter belongs to the due tab and appears on no other', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    // The other views answer the ownership question their own way — "Mine" is a tab.
+    expect(queryDueOwnerBox()).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /За връзка|^Due$/ }))
+    await waitFor(() => expect(queryDueOwnerBox()).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /Активни|^Active$/ }))
+    await waitFor(() => expect(queryDueOwnerBox()).not.toBeInTheDocument())
+  })
+
+  it('the filter is still on the request when the board reloads under it', async () => {
+    // The board is re-fetched after every save, reply and note. A filter that is on screen
+    // but missing from the request that answers it widens the list back out under someone.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await waitFor(() => expect(calls.some((c) => c.url.includes('owner=maria%40x.eu'))).toBe(true))
+
+    // A status move is the shortest write that reloads the board behind it.
+    fireEvent.change(document.getElementById('dealStatus'), { target: { value: 'won' } })
+
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/1/status'))).toBe(true))
+    await waitFor(() => {
+      const board = boardCalls()
+      expect(board[board.length - 1].url).toContain('owner=maria%40x.eu')
+    })
+  })
+
+  it('an owner with nothing overdue is not reported as the whole team being clear', async () => {
+    // The filter narrows at the SERVER, so a person who is up to date comes back as an
+    // EMPTY board rather than as a board filtered down to nothing — which is why the
+    // "filters hid everything" branch, which tests board.length, could not catch this.
+    // What fell through instead was "Nothing overdue. Everything is on schedule.": a claim
+    // about the entire pipeline, made while one person was selected, with the only thing
+    // contradicting it a dropdown three controls away.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    boardRows = []
+    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+
+    const empty = await screen.findByText(/maria@x\.eu/, { selector: '.adm-empty p' })
+    expect(empty).toBeInTheDocument()
+    expect(screen.queryByText(/Всичко е по график|Everything is on schedule/)).not.toBeInTheDocument()
+  })
+
+  it('the way back out clears the owner along with the other two', async () => {
+    // A clear-filters button that leaves one narrowing on is the same fault in a smaller
+    // place: the list stays empty and the button has said it did something.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    boardRows = []
+    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await screen.findByRole('button', { name: /Изчисти филтрите|Clear filters/ })
+
+    boardRows = BOARD
+    await user.click(screen.getByRole('button', { name: /Изчисти филтрите|Clear filters/ }))
+
+    await waitFor(() => expect(dueOwnerBox()).toHaveValue(''))
+    await waitFor(() => {
+      const board = boardCalls()
+      expect(board[board.length - 1].url).not.toContain('owner=')
+    })
+  })
+
+  it('Retry actually reloads the board and reports what happened', async () => {
+    // Retry used to be handed the bare loader, which reports nothing. AdminShell renders the
+    // page only while the state is 'ready', so a retry that SUCCEEDED left the error screen
+    // exactly where it was, and one that met an expired session became an unhandled
+    // rejection instead of the sign-in prompt — the button could be pressed all afternoon.
+    let boardFails = true
+    const user = userEvent.setup()
+
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => {
+      const u = String(url)
+      if (boardFails && u.includes('/api/admin/pipeline?')) {
+        calls.push({ url, method: options.method || 'GET', body: options.body })
+        return Promise.resolve({
+          ok: false, status: 500,
+          json: () => Promise.resolve({}), text: () => Promise.resolve(''),
+        })
+      }
+      return passthrough(url, options)
+    })
+
+    render(<AdminPipelinePage />)
+    const retry = await screen.findByRole('button', { name: /Опитай отново|Try again/ })
+
+    boardFails = false
+    await user.click(retry)
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Опитай отново|Try again/ })).not.toBeInTheDocument()
+  })
+
+  it('the report is of the view it reports on, owner filter included', async () => {
+    // The button sits two controls from the filter. Sending the team's list while one
+    // salesperson is on screen mails three hundred rows to answer a screen showing twelve,
+    // and the confirmation is the first hint — a number that matches nothing in front of
+    // the person who pressed it.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />, '/admin/pipeline?view=due')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await user.click(screen.getByRole('button', { name: /Изпрати справка|Send report/ }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^Изпрати$|^Send$/ }))
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/due/report') && c.method === 'POST')
+      expect(JSON.parse(sent.body).owner).toBe('maria@x.eu')
+    })
   })
 })
