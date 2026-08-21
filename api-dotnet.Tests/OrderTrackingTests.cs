@@ -576,6 +576,76 @@ public class OrderTrackingTests
         Assert.IsType<ConflictObjectResult>(response);
     }
 
+    [Fact]
+    public async Task Two_people_moving_the_same_order_at_once_cannot_both_write_the_move()
+    {
+        // The failure a hand-worked board actually has once two people work it. Anna moves the
+        // order on; Boris, looking at a row that still reads "scheduled", moves it somewhere
+        // else. Both read the old status, both conclude they are the one making the move, and
+        // without the token the second write would land on top of the first — the board would
+        // then show a step nobody who is looking at it took.
+        var shared = $"orders-{Guid.NewGuid()}";
+        using var seed = NewDb(shared);
+        var purchase = await SeedAsync(seed, OrderStatuses.Scheduled);
+
+        using var anna = NewDb(shared);
+        using var boris = NewDb(shared);
+
+        // Both requests read the order BEFORE either of them writes, which is the whole of
+        // the race: after this point neither can be told anything by the other.
+        await anna.Purchases.FirstAsync(p => p.Id == purchase.Id);
+        await boris.Purchases.FirstAsync(p => p.Id == purchase.Id);
+
+        Assert.True(await NewService(anna).UpdateOrderAsync(
+            purchase.Id, new OrderUpdateInput { Status = OrderStatuses.Travelling }, "anna@nvc.bg", Ct));
+
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => NewService(boris).UpdateOrderAsync(
+            purchase.Id, new OrderUpdateInput { Status = OrderStatuses.Delivered }, "boris@nvc.bg", Ct));
+
+        // One move, and the order carries the one that was actually made.
+        //
+        // Not asserted here: that the losing request left no event behind either. It does not,
+        // in production — UpdateOrderAsync appends the event and writes the status in a single
+        // SaveChanges, which SQL Server runs as one transaction, so the rejected update rolls
+        // the append back with it. The in-memory provider has no transaction: it applies the
+        // append, then throws on the status, and keeps the orphan. Asserting it here would be
+        // asserting a property of the provider rather than of the code.
+        using var after = NewDb(shared);
+        var reread = await after.Purchases.AsNoTracking().FirstAsync(p => p.Id == purchase.Id);
+        Assert.Equal(OrderStatuses.Travelling, reread.Status);
+    }
+
+    [Fact]
+    public async Task The_losing_half_of_a_race_is_a_409_rather_than_a_silent_win()
+    {
+        // What the board is told, so it can re-read and show the move that did land. A 500
+        // would read as "the system is broken"; the truth is "you are looking at an old row".
+        var shared = $"orders-{Guid.NewGuid()}";
+        using var seed = NewDb(shared);
+        var purchase = await SeedAsync(seed, OrderStatuses.Scheduled);
+
+        using var first = NewDb(shared);
+        using var second = NewDb(shared);
+        await first.Purchases.FirstAsync(p => p.Id == purchase.Id);
+        await second.Purchases.FirstAsync(p => p.Id == purchase.Id);
+
+        await NewService(first).UpdateOrderAsync(
+            purchase.Id, new OrderUpdateInput { Status = OrderStatuses.Travelling }, "anna@nvc.bg", Ct);
+
+        // The controller reads a signed-in name before it reaches the service, so it needs a
+        // context to read one from. Which name is beside the point here: this move loses the
+        // race and is never written, so there is nobody to credit it to.
+        var controller = new AdminOrdersController(NewService(second))
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
+
+        var response = await controller.Update(
+            purchase.Id, new OrderUpdateInput { Status = OrderStatuses.Travelling }, Ct);
+
+        Assert.IsType<ConflictObjectResult>(response);
+    }
+
     // --- Who is allowed to write an order's progress -------------------------------------
 
     [Fact]
