@@ -462,7 +462,88 @@ describe('AdminCustomersPage', () => {
     render(<AdminCustomersPage />)
     const dialog = await openCustomer(user)
 
-    expect(within(dialog).getByLabelText('Платено капаро')).toHaveValue(500)
+    // A string, not 500: these are text inputs rather than number ones, which is what lets
+    // "16 000" be typed into them at all. See parseMoney.
+    expect(within(dialog).getByLabelText('Платено капаро')).toHaveValue('500')
+  })
+
+  // --- How a price may be typed ---------------------------------------------------------
+  //
+  // The office writes prices the way it says them, and a number input silently discards the
+  // moment a space or a second separator appears: value comes back '' and the figure is gone
+  // before any of this code runs. These pin the readings parseMoney gives the four shapes
+  // that actually get typed here.
+
+  it.each([
+    ['16 000', 16000],       // the reported one: a space for the thousand
+    ['16000', 16000],
+    ['16,000', 16000],       // a comma grouping the thousand
+    ['16.000', 16000],       // a dot doing the same
+    ['16000,50', 16000.5],   // Bulgarian decimal comma
+    ['16000.50', 16000.5],
+    ['1.234,56', 1234.56],   // both, European order
+    ['1,234.56', 1234.56],   // both, Anglo order
+  ])('reads a price typed as %s as %s', async (typed, expected) => {
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const box = within(dialog).getByLabelText('Крайна цена')
+    await user.clear(box)
+    await user.type(box, typed)
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].finalPrice).toBe(expected)
+    })
+  })
+
+  it('leaves a price that is not a number out rather than sending a guess', async () => {
+    // NaN survives JSON.stringify as null, so an unparseable box would reach the server
+    // looking exactly like "no price agreed". It has to be the same null either way, and
+    // the box keeps the text so the typo can be seen and fixed.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const box = within(dialog).getByLabelText('Крайна цена')
+    await user.clear(box)
+    await user.type(box, '16 лв')
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].finalPrice).toBeNull()
+    })
+  })
+
+  it('settles the box to the figure it is going to save', async () => {
+    // The confirmation that the space was understood. Without it "16 000" stays on screen
+    // looking exactly like the input that used to be thrown away.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const box = within(dialog).getByLabelText('Крайна цена')
+    await user.clear(box)
+    await user.type(box, '16 000')
+    await user.tab()
+
+    await waitFor(() => expect(box).toHaveValue('16000'))
+  })
+
+  it('closes the sheet on a successful save and says so', async () => {
+    // It used to reopen, which reads as a save that did not take — people pressed Запази
+    // again to make it stick.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByText('Запазено')).toBeInTheDocument()
   })
 
   it('a purchase with no category chosen yet is not treated as a wagon', async () => {

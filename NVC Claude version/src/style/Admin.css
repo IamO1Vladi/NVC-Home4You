@@ -1481,13 +1481,24 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   align-items: center;
   gap: 8px;
   max-width: 100%;
+  /* A flex item's automatic minimum is its content, so without this the chip refuses to be
+     narrower than the filename inside it and pushes its way out of the slot. */
+  min-width: 0;
   padding: 5px 6px 5px 11px;
   border: 1px solid var(--adm-line-firm);
   border-radius: 999px;
   background: var(--adm-card);
   font-size: 13px;
 }
-.adm-attach-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+/* Capped by whichever is smaller: the composer's comfortable 220px, or the width actually
+   available. A fixed 220px is the wrong cap in an invoice slot, whose track is 140px. */
+.adm-attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: min(220px, 100%);
+}
 .adm-attach-x {
   border: 0;
   border-radius: 50%;
@@ -1869,8 +1880,22 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
    it is a shelf inside that block rather than a block of its own. */
 .adm-invoice-group h6 { margin: 0; font-weight: 700; color: var(--adm-muted); }
 .adm-invoice-group-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-.adm-invoice-slot { display: grid; gap: 6px; justify-items: start; align-content: start; }
-.adm-invoice-slot .adm-attach-list { width: 100%; }
+/* A long filename used to run out of its slot and paint over the one beside it. Measured
+   against "proforma-invoice-final-corrected-2026-08.pdf": 117px of overhang in a 320px
+   dialog, 97px at 360, 67px at 420, still 17px at 520 — only past roughly 590px did a chip
+   fit inside its own slot.
+
+   Two things caused it, and both are fixed here. The name was capped at a fixed 220px,
+   which is wider than the 140px track a slot lives in; and nothing between the slot and the
+   chip carried min-width:0, so the auto-sized column inside .adm-invoice-slot took the
+   chip's max-content width — 271px — instead of the 154px the slot actually had. The
+   ellipsis was in the CSS the whole time and never fired, because the name was never made
+   narrow enough to need it.
+
+   With min-width:0 down the chain and the cap tracking the slot, the chip measures exactly
+   the slot's width at every dialog size and the ellipsis does the trimming. */
+.adm-invoice-slot { display: grid; gap: 6px; justify-items: start; align-content: start; min-width: 0; }
+.adm-invoice-slot .adm-attach-list { width: 100%; min-width: 0; }
 
 /* The sheet goes full-screen at this width, and auto-fit still lays a 300px track when
    there is less than 300px to lay it in: on a 320px phone the row of groups is wider than

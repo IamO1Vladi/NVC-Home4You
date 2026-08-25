@@ -167,6 +167,73 @@ public class LeadPipelineTests
         Assert.Equal("Mine", Assert.Single(mine).Name);
     }
 
+    // --- The archive rule, from the board's side ---------------------------------------
+    //
+    // Nothing pinned this until 2026-08-25, when the Mine tab was reported as showing an
+    // already-archived lead. It does not, and these say so. Mine is the one tab that sends
+    // no status at all, so it rests entirely on ClosedAt rather than on a stage filter —
+    // exactly the path nothing was covering.
+    //
+    // Dated relative to ArchiveAfter rather than to a literal three days, so changing the
+    // window moves these with it instead of breaking them.
+
+    [Fact]
+    public async Task A_lead_closed_beyond_the_window_is_off_the_mine_tab_too()
+    {
+        using var db = NewDb();
+        var gone = NewLead("Won and finished", LeadStatuses.Won, owner: "ivan@nvc-home4you.eu");
+        gone.ClosedAt = DateTimeOffset.UtcNow - LeadPipelineService.ArchiveAfter - TimeSpan.FromDays(1);
+        db.Leads.AddRange(gone, NewLead("Still open", LeadStatuses.Quoted, owner: "ivan@nvc-home4you.eu"));
+        await db.SaveChangesAsync();
+
+        // owner=mine with no status — what the Mine tab actually sends.
+        var mine = await new LeadPipelineService(db).ListAsync(null, "ivan@nvc-home4you.eu", CancellationToken.None);
+
+        Assert.Equal("Still open", Assert.Single(mine).Name);
+    }
+
+    [Fact]
+    public async Task A_lead_closed_inside_the_window_stays_on_the_board_on_purpose()
+    {
+        // The grace period is the feature, not an oversight: a deal just won still has
+        // paperwork, a deposit and a last email attached to it. A Won lead sitting on the
+        // board for a couple of days is this rule working, and it is the likeliest thing
+        // anyone means when they report seeing a finished lead there.
+        using var db = NewDb();
+        var justWon = NewLead("Won this morning", LeadStatuses.Won, owner: "ivan@nvc-home4you.eu");
+        justWon.ClosedAt = DateTimeOffset.UtcNow - LeadPipelineService.ArchiveAfter + TimeSpan.FromHours(1);
+        db.Leads.Add(justWon);
+        await db.SaveChangesAsync();
+
+        var mine = await new LeadPipelineService(db).ListAsync(null, "ivan@nvc-home4you.eu", CancellationToken.None);
+
+        Assert.Equal("Won this morning", Assert.Single(mine).Name);
+    }
+
+    [Fact]
+    public async Task The_archive_tab_holds_exactly_what_the_board_dropped()
+    {
+        // The board and the archive are two separate predicates rather than one negated,
+        // so nothing but a test stops them drifting into a gap that loses a lead from both
+        // views at once — the failure that shows up as "where did that deal go?".
+        using var db = NewDb();
+        var gone = NewLead("Won and finished", LeadStatuses.Won);
+        gone.ClosedAt = DateTimeOffset.UtcNow - LeadPipelineService.ArchiveAfter - TimeSpan.FromDays(1);
+        var justWon = NewLead("Won this morning", LeadStatuses.Won);
+        justWon.ClosedAt = DateTimeOffset.UtcNow - LeadPipelineService.ArchiveAfter + TimeSpan.FromHours(1);
+        db.Leads.AddRange(gone, justWon, NewLead("Still open", LeadStatuses.Quoted));
+        await db.SaveChangesAsync();
+
+        var svc = new LeadPipelineService(db);
+        var archived = await svc.ListAsync("archived", null, CancellationToken.None);
+        var board = await svc.ListAsync(null, null, CancellationToken.None);
+
+        Assert.Equal("Won and finished", Assert.Single(archived).Name);
+        Assert.Equal(
+            new[] { "Still open", "Won this morning" },
+            board.Select(l => l.Name).OrderBy(n => n, StringComparer.Ordinal).ToArray());
+    }
+
     [Fact]
     public async Task The_board_counts_the_thread_without_loading_it()
     {

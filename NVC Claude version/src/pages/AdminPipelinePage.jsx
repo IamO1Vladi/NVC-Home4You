@@ -111,6 +111,11 @@ const TEXT = {
     filterOwner: 'Отговорник',
     filterOwnerAll: '— на всички —',
     filterAny: '— всички —',
+    filterName: 'Име на клиента',
+    filterNamePlaceholder: 'търсене по име',
+    filterNameMode: 'Съвпадение',
+    nameContains: 'съдържа',
+    nameEquals: 'точно съвпадение',
     modified: {
       today: 'днес', week: 'последните 7 дни', month: 'последните 30 дни',
       stale: 'без активност от 30+ дни',
@@ -199,6 +204,11 @@ const TEXT = {
     filterOwner: 'Owner',
     filterOwnerAll: '— everyone —',
     filterAny: '— any —',
+    filterName: 'Customer name',
+    filterNamePlaceholder: 'search by name',
+    filterNameMode: 'Match',
+    nameContains: 'contains',
+    nameEquals: 'exact match',
     modified: {
       today: 'today', week: 'last 7 days', month: 'last 30 days',
       stale: 'quiet for 30+ days',
@@ -212,6 +222,20 @@ const TEXT = {
 // last activity". Declarative so the dropdown and the filtering cannot disagree about what
 // a key means. "stale" answers the opposite question from the rest — who has been
 // FORGOTTEN — and includes leads with no activity at all, which are the most forgotten.
+// Case-insensitive in both alphabets this panel is read in. toLocaleLowerCase rather than
+// toLowerCase because the two differ for a handful of letters, and a filter that misses
+// "Иван" when you type "иван" is a filter nobody uses twice.
+const foldName = (value) => (value ?? '').trim().toLocaleLowerCase('bg')
+
+// Contains is the default because it is what a half-remembered name needs; equals is there
+// for the case contains is bad at — a short name that is a substring of a dozen others.
+const nameMatches = (name, query, mode) => {
+  const needle = foldName(query)
+  if (needle === '') return true
+  const hay = foldName(name)
+  return mode === 'equals' ? hay === needle : hay.includes(needle)
+}
+
 const MODIFIED_WINDOWS = {
   today: (days) => days !== null && days <= 0,
   week: (days) => days !== null && days <= 7,
@@ -497,6 +521,11 @@ export default function AdminPipelinePage() {
   // browser is holding would make every filter click a network round trip.
   const [statusFilter, setStatusFilter] = React.useState('')
   const [modifiedFilter, setModifiedFilter] = React.useState('')
+  // Finding one customer by name, on every tab. Client-side like the two above, which is
+  // what makes it work identically on За връзка, Активни, Мои, Всички and Архив without any
+  // of the five queries behind them learning a new parameter.
+  const [nameFilter, setNameFilter] = React.useState('')
+  const [nameMode, setNameMode] = React.useState('contains')
   // Narrowing the DUE view to one person's promises. Unlike the two above this one asks the
   // server, because the two filters are not equivalent: the due query takes the thousand
   // most overdue leads and stops, so narrowing in the browser would search one owner's
@@ -559,12 +588,13 @@ export default function AdminPipelinePage() {
   const visibleBoard = React.useMemo(() => board.filter((row) =>
     (!statusFilter || row.status === statusFilter)
     && (!modifiedFilter || MODIFIED_WINDOWS[modifiedFilter]?.(daysSince(row.lastActivityAt)))
-  ), [board, statusFilter, modifiedFilter])
+    && nameMatches(row.name, nameFilter, nameMode)
+  ), [board, statusFilter, modifiedFilter, nameFilter, nameMode])
 
   // The two kinds of narrowing are counted separately because the empty list cannot be read
   // the same way for both. These two hide rows the browser is still holding, so "the filters
   // hid everything" is provable — board still has the rows.
-  const narrowedHere = statusFilter !== '' || modifiedFilter !== ''
+  const narrowedHere = statusFilter !== '' || modifiedFilter !== '' || nameFilter.trim() !== ''
   // The owner filter narrows at the SERVER, so a person with nothing overdue comes back as
   // an empty board rather than as a board filtered down to nothing. Testing board.length
   // would therefore report the whole team as up to date, which is the one sentence this
@@ -574,7 +604,9 @@ export default function AdminPipelinePage() {
 
   // Every narrowing this page offers, undone together. Leaving one on while the button
   // claims to have cleared them is the same fault in a smaller place.
-  const clearFilters = () => { setStatusFilter(''); setModifiedFilter(''); setDueOwner('') }
+  const clearFilters = () => {
+    setStatusFilter(''); setModifiedFilter(''); setDueOwner(''); setNameFilter('')
+  }
 
   // What the model box is, for the category currently chosen: a picker over the catalogue,
   // or a plain box to write in. It follows the CATEGORY rather than whether any models
@@ -1023,6 +1055,31 @@ export default function AdminPipelinePage() {
             <select value={dueOwner} onChange={(e) => setDueOwner(e.target.value)}>
               <option value="">{t.filterOwnerAll}</option>
               {users.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
+        ) : null}
+        {/* On every tab, unlike the owner filter above: "where is that customer?" is the
+            same question on the working board and in the archive, and the answer has to be
+            findable in both. */}
+        <label className="adm-filter">
+          <span className="adm-small adm-muted">{t.filterName}</span>
+          <input
+            type="search"
+            className="adm-filter-name"
+            value={nameFilter}
+            placeholder={t.filterNamePlaceholder}
+            onChange={(e) => setNameFilter(e.target.value)}
+          />
+        </label>
+        {/* Only once there is something to match. An empty box needs no mode, and a
+            permanently visible dropdown explaining how nothing is being matched is the kind
+            of control people learn to read past. */}
+        {nameFilter.trim() !== '' ? (
+          <label className="adm-filter">
+            <span className="adm-small adm-muted">{t.filterNameMode}</span>
+            <select value={nameMode} onChange={(e) => setNameMode(e.target.value)}>
+              <option value="contains">{t.nameContains}</option>
+              <option value="equals">{t.nameEquals}</option>
             </select>
           </label>
         ) : null}

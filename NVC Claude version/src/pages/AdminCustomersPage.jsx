@@ -220,6 +220,71 @@ const emptyCustomer = () => ({
 const numberOrNull = (value) =>
   value === '' || value === null || value === undefined ? null : Number(value)
 
+// Spaces and apostrophes, which is what separates a thousand when someone types a price the
+// way they say it. JavaScript's \s already covers the non-breaking and thin spaces a figure
+// pasted out of Word or a browser's own formatting carries, so naming them again would only
+// be a longer way of writing the same class.
+const MONEY_NOISE = /[\s'’]/g
+
+// The two money boxes take TEXT, not a number input, and this is why: a number input holds
+// no space and no second separator, so the instant somebody types "16 000" the browser
+// reports value as '' and the figure is gone before any code here sees it. The team writes
+// prices as they are said — "16 000", "16000,50", "16.000" — so the box accepts that and the
+// meaning is worked out here.
+//
+// The rule for a LONE separator is the three-digit one: "16.000" and "16,000" are sixteen
+// thousand, "16.50" and "16,5" are sixteen and a half. Those are the only two conventions
+// typed here — the office's thousands dot and Bulgarian's decimal comma — and this is the
+// reading that matches what was meant in every case anyone has reported.
+//
+// A repeated separator is always grouping ("1.234.567"), and where BOTH appear the last one
+// is the decimal point, which is true of the European and the Anglo convention at once.
+//
+// Returns null for empty and for anything that is not a number, never NaN. NaN survives
+// JSON.stringify as null and would reach the database looking exactly like "nobody said" —
+// the one thing a price column must not confuse with a typo.
+function parseMoney(raw) {
+  if (raw === null || raw === undefined) return null
+
+  const text = String(raw).replace(MONEY_NOISE, '')
+  if (text === '') return null
+
+  const dots = (text.match(/\./g) || []).length
+  const commas = (text.match(/,/g) || []).length
+
+  let decimal = ''
+  if (dots > 0 && commas > 0) {
+    decimal = text.lastIndexOf('.') > text.lastIndexOf(',') ? '.' : ','
+  } else if (dots === 1 || commas === 1) {
+    const sep = dots === 1 ? '.' : ','
+    const at = text.indexOf(sep)
+    // Three digits behind it and at least one in front is a thousands group, not a fraction.
+    decimal = (text.length - at - 1 === 3 && at > 0) ? '' : sep
+  }
+
+  // Grouping separators come out, then the decimal one becomes the point Number() reads.
+  const grouped = decimal === '.' ? ',' : '.'
+  const digits = decimal === ''
+    ? text.replace(/[.,]/g, '')
+    : text.split(grouped).join('').replace(decimal, '.')
+
+  // Number('') is 0 and Number('12abc') is NaN; neither is a price. Checked rather than
+  // trusted, so "16 лв" lands as "not a number" instead of as sixteen.
+  if (!/^-?(\d+(\.\d*)?|\.\d+)$/.test(digits)) return null
+
+  const n = Number(digits)
+  return Number.isFinite(n) ? n : null
+}
+
+// What the box shows once focus leaves it: the figure the save is actually going to send.
+// Normalising on blur rather than on every keystroke is what lets the space in "16 000" be
+// typed at all — rewriting mid-word would fight the typing. Anything unparseable is left
+// exactly as typed, so it can be seen and corrected rather than silently blanked.
+const moneyBoxText = (raw) => {
+  const n = parseMoney(raw)
+  return n === null ? (raw ?? '') : String(n)
+}
+
 // For the count, which is an int column on the far side and not a decimal one.
 //
 // A number input with step="1" does not refuse "2.5" — it is a perfectly valid floating
@@ -303,6 +368,7 @@ export default function AdminCustomersPage() {
 
   async function open(id) {
     setError('')
+    setNotice('')
     try {
       const customer = await adminGet(`/api/admin/customers/${id}`)
       setEditing({
@@ -368,8 +434,8 @@ export default function AdminCustomersPage() {
           // where it is, so a cleared field cannot quietly turn a sale of three into a sale
           // of one on its way past.
           quantity: wholeNumberOrNull(p.quantity),
-          depositPaid: numberOrNull(p.depositPaid),
-          finalPrice: numberOrNull(p.finalPrice),
+          depositPaid: parseMoney(p.depositPaid),
+          finalPrice: parseMoney(p.finalPrice),
           currency: p.currency,
           purchasedAt: p.purchasedAt || null,
           notes: p.notes || null,
@@ -380,10 +446,15 @@ export default function AdminCustomersPage() {
         ? await adminSend(`/api/admin/customers/${editing.id}`, 'PUT', body)
         : await adminSend('/api/admin/customers', 'POST', body)
 
-      // Reopened rather than closed, so the purchases that were just created come back with
-      // ids and their invoice slots become usable without a second trip through the list.
-      if (result?.customer?.id) await open(result.customer.id)
-
+      // CLOSED on success, and the message lands on the list behind it.
+      //
+      // It used to reopen, so that purchases created by this very save came back carrying
+      // the ids their document slots need. That is a real convenience and it cost more than
+      // it was worth: a dialog that shuts and springs open again in the same breath reads as
+      // a save that did not take, and people pressed Запази a second time to make it stick.
+      // Filing a document is a deliberate second act anyway — it starts by reopening the
+      // row, which is one click and unambiguous.
+      setEditing(null)
       setNotice(result?.duplicateOf ? t.duplicate(result.duplicateOf) : t.saved)
       await load(search)
     } catch (err) {
@@ -471,7 +542,7 @@ export default function AdminCustomersPage() {
       state={state}
       onRetry={() => load(search)}
       actions={(
-        <button type="button" className="btn" onClick={() => { setEditing(emptyCustomer()); setError('') }}>
+        <button type="button" className="btn" onClick={() => { setEditing(emptyCustomer()); setError(''); setNotice('') }}>
           {t.add}
         </button>
       )}
@@ -691,8 +762,8 @@ function PurchaseCard({
   const listId = `purchaseModels-${index}`
   const models = modelsFor(houses, purchase.categoryKey, categories.withGalleryModels)
 
-  const deposit = numberOrNull(purchase.depositPaid)
-  const finalPrice = numberOrNull(purchase.finalPrice)
+  const deposit = parseMoney(purchase.depositPaid)
+  const finalPrice = parseMoney(purchase.finalPrice)
 
   // Recomputed here as the numbers are typed rather than read back from the server, so the
   // figure on screen is always the one the two boxes above it imply. It is never stored —
@@ -815,17 +886,21 @@ function PurchaseCard({
             <label>
               <span className="adm-small">{t.deposit}</span>
               <input
-                type="number" min="0" step="0.01" inputMode="decimal"
+                type="text" inputMode="decimal"
                 value={purchase.depositPaid}
+                aria-invalid={purchase.depositPaid !== '' && parseMoney(purchase.depositPaid) === null}
                 onChange={(e) => onPatch({ depositPaid: e.target.value })}
+                onBlur={() => onPatch({ depositPaid: moneyBoxText(purchase.depositPaid) })}
               />
             </label>
             <label>
               <span className="adm-small">{t.finalPrice}</span>
               <input
-                type="number" min="0" step="0.01" inputMode="decimal"
+                type="text" inputMode="decimal"
                 value={purchase.finalPrice}
+                aria-invalid={purchase.finalPrice !== '' && parseMoney(purchase.finalPrice) === null}
                 onChange={(e) => onPatch({ finalPrice: e.target.value })}
+                onBlur={() => onPatch({ finalPrice: moneyBoxText(purchase.finalPrice) })}
               />
             </label>
             <label>

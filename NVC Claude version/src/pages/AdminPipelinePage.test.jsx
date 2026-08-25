@@ -696,6 +696,97 @@ describe('AdminPipelinePage', () => {
     expect(within(list()).getByText('Maria Dimitrova')).toBeInTheDocument()
   })
 
+  // --- Finding one customer by name -----------------------------------------------------
+  //
+  // Cyrillic on purpose. The folding is what decides whether typing "иван" finds "Иван", and
+  // toLowerCase and toLocaleLowerCase do not agree on every letter — a filter that misses the
+  // name you can see on screen is one nobody uses a second time.
+
+  const CYRILLIC_BOARD = [
+    { ...BOARD[0], id: 1, name: 'Иван Петров' },
+    { ...BOARD[1], id: 2, name: 'Иванка Петрова' },
+    { ...BOARD[1], id: 3, name: 'Мария Димитрова' },
+  ]
+
+  const findByName = () => screen.getByRole('searchbox', { name: /Име на клиента|Customer name/ })
+
+  it('finds every customer whose name contains what was typed', async () => {
+    boardRows = CYRILLIC_BOARD
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument())
+
+    const before = calls.length
+    await user.type(findByName(), 'иван')
+
+    // Lower case against capitals, and a prefix rather than a whole name.
+    expect(within(list()).getByText('Иван Петров')).toBeInTheDocument()
+    expect(within(list()).getByText('Иванка Петрова')).toBeInTheDocument()
+    expect(within(list()).queryByText('Мария Димитрова')).not.toBeInTheDocument()
+    // Narrowed in the browser, like the status and activity filters beside it.
+    expect(calls.length).toBe(before)
+  })
+
+  it('exact match takes the name that is only a prefix of another', async () => {
+    // The case contains is bad at, and the reason the mode exists at all.
+    boardRows = CYRILLIC_BOARD
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument())
+
+    await user.type(findByName(), 'иван петров')
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /Съвпадение|^Match$/ }), 'equals')
+
+    expect(within(list()).getByText('Иван Петров')).toBeInTheDocument()
+    expect(within(list()).queryByText('Иванка Петрова')).not.toBeInTheDocument()
+  })
+
+  it('the mode picker only appears once there is something to match', async () => {
+    boardRows = CYRILLIC_BOARD
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument())
+
+    expect(screen.queryByRole('combobox', { name: /Съвпадение|^Match$/ })).not.toBeInTheDocument()
+    await user.type(findByName(), 'и')
+    expect(screen.getByRole('combobox', { name: /Съвпадение|^Match$/ })).toBeInTheDocument()
+  })
+
+  it('narrows the archive the same way it narrows the working board', async () => {
+    // The whole point of filtering in the browser: five tabs, one filter, and no endpoint
+    // had to learn a name parameter for it to work on all of them.
+    boardRows = CYRILLIC_BOARD
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /^Архив$|^Archived$/ }))
+    await waitFor(() => expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument())
+
+    await user.type(findByName(), 'иванка')
+
+    expect(within(list()).getByText('Иванка Петрова')).toBeInTheDocument()
+    expect(within(list()).queryByText('Мария Димитрова')).not.toBeInTheDocument()
+  })
+
+  it('clearing the filters clears the name with them', async () => {
+    // "Every narrowing this page offers, undone together" — a button that leaves one filter
+    // running is worse than no button, because the list stays wrong and looks reset.
+    boardRows = CYRILLIC_BOARD
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument())
+
+    await user.type(findByName(), 'няма такъв')
+    expect(within(list()).getByText(/Няма лийдове, отговарящи|No leads match/)).toBeInTheDocument()
+
+    await user.click(within(list()).getByRole('button', { name: /Изчисти филтрите|Clear filters/ }))
+
+    expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument()
+    expect(findByName()).toHaveValue('')
+  })
+
   // --- The merged "what they want" box ------------------------------------------------
   //
   // This used to be two controls asking the same question — a dropdown of catalogue models
