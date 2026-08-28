@@ -1,27 +1,27 @@
 // The product brochures, addressed the same way from every page that links one.
 //
-// Two conventions were disagreeing before this file existed. ModularBuildsPage percent-encoded
-// the file name and ModularHousesPage did not, so one PDF had two spellings on the same site;
-// and the content files were split between a bare file name and a 'modular-builds/'-prefixed
-// path, so there was no single string you could grep for to find every brochure. Both matter
-// because these PDFs are due to move behind an API route (#16), and a migration driven by
-// editing the content directory would have missed whichever half it did not know about.
+// Since stage 4 of #16 the address is the API route, not a static file: the content files
+// name a SLUG ('villa-office'), and the bytes live in Azure Blob behind
+// /api/brochures/{slug}.pdf. The old Cyrillic file names — spaces, typographic quotes and
+// all — are gone from the URLs entirely, which is what they were exactly wrong for.
+// Replacing a catalogue in the admin panel changes what this address serves without
+// changing the address, so nothing here ever needs to know a brochure was updated.
 
-// Where the bytes happen to sit is a fact about the deployment, not about the brochure, so the
-// content files name the FILE and this constant owns the folder. When the PDFs move behind the
-// API route the edit is one line here rather than two dozen across three languages. (The folder
-// itself outlives them: card.svg in it is the broken-image fallback nine components reach for.)
-const BROCHURE_DIR = 'modular-builds/'
+// The route prefix is a deployment fact, not a fact about a brochure, so the content files
+// carry the bare slug and this constant owns the path — the same division of labour the
+// static folder had.
+const BROCHURE_API = 'api/brochures/'
 
 /**
- * The href for a brochure named in a content file, opened at `page`.
+ * The href for a brochure named in a content file, opened at `page` in `lang`.
  *
- * The names are Cyrillic, with spaces and typographic quotes. Un-encoded they still resolve —
- * the browser escapes the address on its way out and the server decodes the path before it
- * matches — so this is a fix with nothing behind it to break. It is worth making anyway: the
- * raw spelling leaks into whatever copies the href, and one URL with two spellings is exactly
- * what a later migration reads as two different documents.
+ * `lang` rides in the query and the API falls back requested → bg → whatever exists, so a
+ * missing translation serves the Bulgarian edition rather than a 404. DO NOT lean on that
+ * by omitting the argument: a page that drops it serves Bulgarian to every visitor forever
+ * and nothing at runtime will ever say so. The href tests pin ?lang= into every link
+ * precisely so that omission fails a test instead of shipping.
  */
-export function brochureUrl(file, page = 1) {
-  return `${import.meta.env.BASE_URL}${BROCHURE_DIR}${encodeURIComponent(file)}#page=${page}`
+export function brochureUrl(slug, page = 1, lang) {
+  const query = lang ? `?lang=${lang}` : ''
+  return `${import.meta.env.BASE_URL}${BROCHURE_API}${slug}.pdf${query}#page=${page}`
 }

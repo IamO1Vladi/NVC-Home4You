@@ -24,7 +24,7 @@ export default function BgSteelHousesRoute() {
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 
-      <SteelHousesPage content={content} />
+      <SteelHousesPage locale="bg" content={content} />
     </>
   )
 }

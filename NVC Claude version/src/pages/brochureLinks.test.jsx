@@ -24,10 +24,11 @@ import enSteelHouses from '../content/en/steelHouses.js'
 
 // The eight brochure links a visitor can actually click, rendered.
 //
-// brochure.test.js proves the content files hold the right names and that the helper encodes
-// them; this proves each page hands the helper the right pair. The two are different failures:
-// a page reading `content.quick.brochurePage` where it means `content.models.house.brochurePage`
-// passes every data test and opens the wrong catalogue at the wrong page.
+// brochure.test.js proves the content files hold the right slugs and that the helper
+// addresses the API; this proves each page hands the helper the right TRIPLE — slug, page,
+// and its own locale. The failures are different: a page reading the wrong node passes
+// every data test and opens the wrong catalogue, and a page dropping the locale renders a
+// working link that serves Bulgarian to a Greek visitor forever.
 
 const PAGES = {
   bg: { modularHouses: bgModularHouses, modularBuilds: bgModularBuilds, steelHouses: bgSteelHouses, interiors: bgInteriors },
@@ -35,13 +36,7 @@ const PAGES = {
   en: { modularHouses: enModularHouses, modularBuilds: enModularBuilds, steelHouses: enSteelHouses, interiors: enInteriors },
 }
 
-const CAPSULES = '%D0%9A%D0%BE%D1%81%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%20%D0%9A%D0%B0%D0%BF%D1%81%D1%83%D0%BB%D0%B8.pdf'
-const BOX = '%D0%A0%D0%B0%D0%B7%D0%B3%D1%8A%D0%B2%D0%B0%D0%B5%D0%BC%D0%B8%20%E2%80%9C%D0%91%D0%BE%D0%BA%D1%81%E2%80%9D%20%D0%9A%D1%8A%D1%89%D0%B0.pdf'
-const CONTAINERS = '%D0%A1%D1%82%D0%B0%D0%BD%D0%B4%D0%B0%D1%80%D1%82%D0%BD%D0%B8%20%D0%BA%D0%BE%D0%BD%D1%82%D0%B5%D0%B9%D0%BD%D0%B5%D1%80%D0%B8.pdf'
-const VILLA = '%D0%92%D0%B8%D0%BB%D0%B0-%D0%9E%D1%84%D0%B8%D1%81.pdf'
-const SLOPED = '%D0%A1%D0%BA%D0%BE%D1%81%D0%B5%D0%BD%20%D0%BF%D0%BE%D0%BA%D1%80%D0%B8%D0%B2.pdf'
-
-const dir = '/modular-builds/'
+const dir = '/api/brochures/'
 
 function renderPage(element) {
   const { container } = render(
@@ -56,7 +51,7 @@ function renderPage(element) {
 
 /** Every brochure link on the page, in document order. */
 function brochureLinks(container) {
-  return [...container.querySelectorAll('a[href*="/modular-builds/"]')]
+  return [...container.querySelectorAll('a[href*="/api/brochures/"]')]
     .filter((a) => a.getAttribute('href').includes('.pdf'))
 }
 
@@ -69,32 +64,32 @@ describe.each(Object.keys(PAGES))('%s', (locale) => {
     const container = renderPage(<ModularHousesPage locale={locale} content={content.modularHouses} />)
 
     expect(hrefsOf(container)).toEqual([
-      `${dir}modular-builds.pdf#page=2`,
-      `${dir}${CAPSULES}#page=1`,
-      `${dir}${BOX}#page=1`,
+      `${dir}modular-builds.pdf?lang=${locale}#page=2`,
+      `${dir}space-capsules.pdf?lang=${locale}#page=1`,
+      `${dir}box-house.pdf?lang=${locale}#page=1`,
     ])
   })
 
   it('the modular builds page opens one catalogue per product card', () => {
-    const container = renderPage(<ModularBuildsPage content={content.modularBuilds} />)
+    const container = renderPage(<ModularBuildsPage locale={locale} content={content.modularBuilds} />)
 
     expect(hrefsOf(container)).toEqual([
-      `${dir}${CONTAINERS}#page=1`,
-      `${dir}${VILLA}#page=1`,
-      `${dir}${SLOPED}#page=1`,
+      `${dir}standard-containers.pdf?lang=${locale}#page=1`,
+      `${dir}villa-office.pdf?lang=${locale}#page=1`,
+      `${dir}sloped-roof.pdf?lang=${locale}#page=1`,
     ])
   })
 
   it('the steel houses page opens the summary brochure at page 3', () => {
-    const container = renderPage(<SteelHousesPage content={content.steelHouses} />)
+    const container = renderPage(<SteelHousesPage locale={locale} content={content.steelHouses} />)
 
-    expect(hrefsOf(container)).toEqual([`${dir}modular-builds.pdf#page=3`])
+    expect(hrefsOf(container)).toEqual([`${dir}modular-builds.pdf?lang=${locale}#page=3`])
   })
 
   it('the interiors page opens the summary brochure at page 4', () => {
-    const container = renderPage(<InteriorsPage content={content.interiors} />)
+    const container = renderPage(<InteriorsPage locale={locale} content={content.interiors} />)
 
-    expect(hrefsOf(container)).toEqual([`${dir}modular-builds.pdf#page=4`])
+    expect(hrefsOf(container)).toEqual([`${dir}modular-builds.pdf?lang=${locale}#page=4`])
   })
 
   it('keeps the wording a visitor reads on each brochure link', () => {
@@ -103,17 +98,17 @@ describe.each(Object.keys(PAGES))('%s', (locale) => {
     const houses = renderPage(<ModularHousesPage locale={locale} content={content.modularHouses} />)
     expect(brochureLinks(houses)[0].textContent.trim()).toBe(content.modularHouses.quick.viewPdf)
 
-    const steel = renderPage(<SteelHousesPage content={content.steelHouses} />)
+    const steel = renderPage(<SteelHousesPage locale={locale} content={content.steelHouses} />)
     expect(brochureLinks(steel)[0].textContent.trim()).toBe(content.steelHouses.brochureLabel)
 
-    const interiors = renderPage(<InteriorsPage content={content.interiors} />)
+    const interiors = renderPage(<InteriorsPage locale={locale} content={content.interiors} />)
     expect(brochureLinks(interiors)[0].textContent.trim())
       .toBe(content.interiors.hero.quick.brochureLabel)
   })
 
   it('labels each product card link for a screen reader', () => {
     // The cards are images, so the aria-label is the only wording there is.
-    const builds = renderPage(<ModularBuildsPage content={content.modularBuilds} />)
+    const builds = renderPage(<ModularBuildsPage locale={locale} content={content.modularBuilds} />)
     expect(brochureLinks(builds).map((a) => a.getAttribute('aria-label')))
       .toEqual(content.modularBuilds.products.map((p) => p.aria))
 

@@ -163,6 +163,15 @@ const Icon = {
       <path d="M3.8 7.6 12 11.8l8.2-4.2M12 11.8v8.8" />
     </>
   ),
+  // An open booklet, spine down the middle. The brochures are the one document section a
+  // CUSTOMER reads, which is what separates this from the factory sheet's single page
+  // below — that one is a form we fill in, this one is a thing people leaf through.
+  documents: (
+    <>
+      <path d="M12 6.2c-1.5-1.3-3.6-2-6.2-2-1 0-1.9.1-2.6.3v14.2c.7-.2 1.6-.3 2.6-.3 2.6 0 4.7.7 6.2 2 1.5-1.3 3.6-2 6.2-2 1 0 1.9.1 2.6.3V4.5c-.7-.2-1.6-.3-2.6-.3-2.6 0-4.7.7-6.2 2z" />
+      <path d="M12 6.2v14.2" />
+    </>
+  ),
   // A sheet of paper with a fold. It is a DOCUMENT we hand the factory, which is what
   // separates it from the factory directory sitting above it in the nav.
   factorySheets: (

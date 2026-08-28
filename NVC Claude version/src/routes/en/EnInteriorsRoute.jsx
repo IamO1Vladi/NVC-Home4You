@@ -25,7 +25,7 @@ export default function EnInteriorsRoute() {
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 
-      <InteriorsPage content={content} />
+      <InteriorsPage locale="en" content={content} />
     </>
   )
 }

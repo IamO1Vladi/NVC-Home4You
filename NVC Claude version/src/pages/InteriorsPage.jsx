@@ -124,7 +124,7 @@ function BeforeAfter({ before, after, altBefore, altAfter, labels, initial = 50 
   )
 }
 
-export default function InteriorsPage({ content }) {
+export default function InteriorsPage({ locale, content }) {
   const { openOffer, openQuestion } = useModalActions()
   const [tab, setTab] = React.useState('bath')
   const [scope, setScope] = React.useState(() => buildInitialScope(content))
@@ -161,7 +161,7 @@ export default function InteriorsPage({ content }) {
             </ul>
             <a
               className="ir-card-link"
-              href={brochureUrl(quick.brochureFile, quick.brochurePage)}
+              href={brochureUrl(quick.brochureSlug, quick.brochurePage, locale)}
               target="_blank"
               rel="noopener noreferrer"
             >

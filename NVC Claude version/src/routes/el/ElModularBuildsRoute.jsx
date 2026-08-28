@@ -45,7 +45,7 @@ export default function ElModularBuildsRoute() {
         defaultCurrency={content.currency}
       />
 
-      <ModularBuildsPage content={content} />
+      <ModularBuildsPage locale="el" content={content} />
     </>
   )
 }

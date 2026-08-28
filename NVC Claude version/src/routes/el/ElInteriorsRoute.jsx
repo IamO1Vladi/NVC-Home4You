@@ -25,7 +25,7 @@ export default function ElInteriorsRoute() {
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 
-      <InteriorsPage content={content} />
+      <InteriorsPage locale="el" content={content} />
     </>
   )
 }

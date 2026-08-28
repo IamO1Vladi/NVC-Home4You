@@ -87,14 +87,6 @@ commits, notes and conversations still resolve.
 - [ ] **10. Accessibility audit.** The EU Accessibility Act applies since June 2025.
 - [ ] **11. Greek translation completeness audit.**
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
-- [~] **16. Documents section in the panel** (brochures via Blob) — **stages 1–3 BUILT**
-  (stage 1 shipped 2026-08-21; stages 2–3 written 2026-08-28: entity, migration, stores,
-  both controllers, the panel screen and the `import-brochures` command). What remains is
-  operational — apply the migration, run the import, publish — and then **stage 4**, the
-  one that changes the public site: point the four pages at `/api/brochures/{slug}.pdf`,
-  thread the locale into `SteelHousesPage`/`InteriorsPage`, delete the six PDFs (not the
-  folder — card.svg is the onError fallback), and move `compress_brochure.py`'s output
-  out of the deleted directory. Sequence in HANDOFF.md.
 
 ### Infrastructure
 
@@ -189,8 +181,10 @@ safe, which is also the only one the owner actually needs.**
 
 ### Stages, each shipping alone
 
-Status 2026-08-28: 1 shipped (`a3b3ff5`), 2 and 3 built and committed, 4 not started, 5
-dissolved by answer 2.
+Status 2026-08-28: ALL DONE — 1 shipped 2026-08-21, 2–3 built, imported and published the
+same day (migration applied, six PDFs carried into Blob + SQL, `deploy-2026-08-28`), 4
+built the same afternoon (pages on the slugs, locale threaded through nine routes, the six
+PDFs deleted, the catalogue README repointed at the panel), 5 dissolved by answer 2.
 
 1. **Make all six look the same** — lift the two hard-coded hrefs into the content files, one
    shared URL helper instead of two that disagree, one path convention. No API, no database, no
@@ -507,6 +501,16 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
    pick at import time.
 
 ## DONE — newest first
+
+- [x] **16. Documents section in the panel** (2026-08-28, all stages). The six brochures
+  live in Blob + SQL behind `/api/brochures/{slug}.pdf` — an address that survives every
+  replacement — with a three-slot-per-brochure panel screen (Брошури) where replacing a
+  catalogue is one upload and no deploy. The public pages link the slugs and carry the
+  visitor's language; the API falls back requested → bg → whatever exists, so the EN and EL
+  editions start serving the moment the owner uploads them. The six PDFs are gone from
+  `public/modular-builds/` (card.svg stays — it is the onError fallback nine components
+  use), and the catalogue pipeline's compress step now ends "upload in the panel" instead
+  of writing into a folder nothing serves. Design and the owner's four answers below.
 
 - [x] **21a. Billing & procurement: data layer and API** (2026-08-19). Six tables, one
   additive migration, the landed-cost formula in one testable place, AdminOnly endpoints and

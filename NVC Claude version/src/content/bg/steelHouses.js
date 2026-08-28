@@ -14,7 +14,7 @@ export default {
   title: 'Къщи от стоманена конструкция',
   lead:
     'Леки, здрави и гъвкави. Изграждаме вашия дом върху галванизирана стоманена рамка — разпределение по избор, оптимизирани срокове и цена.',
-  brochureFile: 'modular-builds.pdf',
+  brochureSlug: 'modular-builds',
   brochurePage: 3,
   brochureLabel: 'Виж брошурата (стр. 3)',
   specs: [

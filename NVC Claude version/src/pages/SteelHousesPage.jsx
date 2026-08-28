@@ -13,7 +13,7 @@ function fillTemplate(template, value) {
   return String(template || '').replace('{idx}', value)
 }
 
-export default function SteelHousesPage({ content }) {
+export default function SteelHousesPage({ locale, content }) {
   const { openOffer, openQuestion } = useModalActions()
   const slides = Array.isArray(content?.gallery?.slides) ? content.gallery.slides : []
   const [active, setActive] = useState(0)
@@ -64,7 +64,7 @@ export default function SteelHousesPage({ content }) {
               <button className="btn" onClick={openOffer}>{content.getOffer}</button>
               <a
                 className="btn ghost"
-                href={brochureUrl(content.brochureFile, content.brochurePage)}
+                href={brochureUrl(content.brochureSlug, content.brochurePage, locale)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

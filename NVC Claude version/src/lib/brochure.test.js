@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { brochureUrl } from './brochure.js'
@@ -16,13 +16,14 @@ import bgSteelHouses from '../content/bg/steelHouses.js'
 import elSteelHouses from '../content/el/steelHouses.js'
 import enSteelHouses from '../content/en/steelHouses.js'
 
-// Guards the six product brochures — 22.7 MB of PDF that four pages in three languages link.
+// Guards the six product brochures — served from Blob behind /api/brochures/{slug}.pdf
+// since stage 4 of #16, linked by four pages in three languages.
 //
-// Nothing here is about rendering. It is about the brochures being FINDABLE: named as data in
-// the content files, spelled one way, and reachable through one helper. Before this file
-// existed two of the six were hard-coded hrefs in ModularHousesPage — the two biggest, 19 MB
-// between them — so anyone migrating the brochures by walking the content directory would have
-// moved four and quietly left the other two pointing at a folder that was being deleted.
+// Nothing here is about rendering. It is about the brochures being FINDABLE and correctly
+// ADDRESSED: named as slugs in the content files, spelled one way, reachable through one
+// helper, and carrying the visitor's language — because the API falls back to Bulgarian
+// so quietly that a dropped ?lang= would serve Bulgarian to every Greek visitor forever
+// without one error anywhere.
 
 const CONTENT = {
   bg: { interiors: bgInteriors, modularBuilds: bgModularBuilds, modularHouses: bgModularHouses, steelHouses: bgSteelHouses },
@@ -30,6 +31,16 @@ const CONTENT = {
   en: { interiors: enInteriors, modularBuilds: enModularBuilds, modularHouses: enModularHouses, steelHouses: enSteelHouses },
 }
 const LOCALES = Object.keys(CONTENT)
+
+// The six slugs the site is wired for. The AUTHORITY is PublicDocumentSlugs.Wired in the
+// API — the write paths refuse to strand these — and PublicDocumentTests pins that the
+// importer covers exactly the same set. This copy exists because the SPA cannot read a C#
+// constant; if the two ever disagree, a linked slug 404s on the public site, which the
+// resolves-and-covers tests below turn into a red test instead.
+const WIRED = [
+  'modular-builds', 'standard-containers', 'villa-office',
+  'sloped-roof', 'space-capsules', 'box-house',
+]
 
 /** Every .js/.jsx file under `dir`, so a check can be made against the source text itself. */
 function jsFilesIn(dir) {
@@ -43,15 +54,15 @@ function jsFilesIn(dir) {
 }
 
 /**
- * Every brochure reference the site holds, for one language, read the way the pages read it.
- *
- * Reaching into the content shapes by hand rather than searching for a `brochureFile` key is
- * deliberate: if a page stops using one of these fields, or a translator drops one, the access
- * below yields undefined and the tests fail. A generic walk would just find one fewer.
+ * Every brochure reference the site holds, for one language, read the way the pages read
+ * it. Reaching into the content shapes by hand rather than searching for a `brochureSlug`
+ * key is deliberate: if a page stops using one of these fields, or a translator drops one,
+ * the access below yields undefined and the tests fail. A generic walk would just find one
+ * fewer.
  */
 function referencesFor(locale) {
   const { interiors, modularBuilds, modularHouses, steelHouses } = CONTENT[locale]
-  const at = (where, node) => ({ where, file: node.brochureFile, page: node.brochurePage })
+  const at = (where, node) => ({ where, slug: node.brochureSlug, page: node.brochurePage })
   return [
     at('modularHouses.quick', modularHouses.quick),
     at('modularHouses.models.house', modularHouses.models.house),
@@ -62,22 +73,16 @@ function referencesFor(locale) {
   ]
 }
 
-const CAPSULES = '%D0%9A%D0%BE%D1%81%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%20%D0%9A%D0%B0%D0%BF%D1%81%D1%83%D0%BB%D0%B8.pdf'
-const BOX = '%D0%A0%D0%B0%D0%B7%D0%B3%D1%8A%D0%B2%D0%B0%D0%B5%D0%BC%D0%B8%20%E2%80%9C%D0%91%D0%BE%D0%BA%D1%81%E2%80%9D%20%D0%9A%D1%8A%D1%89%D0%B0.pdf'
-const CONTAINERS = '%D0%A1%D1%82%D0%B0%D0%BD%D0%B4%D0%B0%D1%80%D1%82%D0%BD%D0%B8%20%D0%BA%D0%BE%D0%BD%D1%82%D0%B5%D0%B9%D0%BD%D0%B5%D1%80%D0%B8.pdf'
-const VILLA = '%D0%92%D0%B8%D0%BB%D0%B0-%D0%9E%D1%84%D0%B8%D1%81.pdf'
-const SLOPED = '%D0%A1%D0%BA%D0%BE%D1%81%D0%B5%D0%BD%20%D0%BF%D0%BE%D0%BA%D1%80%D0%B8%D0%B2.pdf'
-
-/** Where each reference must land, keyed the way `referencesFor` names it. */
-const EXPECTED_HREFS = {
-  'modularHouses.quick': '/modular-builds/modular-builds.pdf#page=2',
-  'modularHouses.models.house': `/modular-builds/${CAPSULES}#page=1`,
-  'modularHouses.models.expandable': `/modular-builds/${BOX}#page=1`,
-  'modularBuilds.products.standard': `/modular-builds/${CONTAINERS}#page=1`,
-  'modularBuilds.products.villa': `/modular-builds/${VILLA}#page=1`,
-  'modularBuilds.products.retail': `/modular-builds/${SLOPED}#page=1`,
-  steelHouses: '/modular-builds/modular-builds.pdf#page=3',
-  'interiors.hero.quick': '/modular-builds/modular-builds.pdf#page=4',
+/** Where each reference must land — the slug and page are locale-invariant, ?lang= is not. */
+const EXPECTED = {
+  'modularHouses.quick': ['modular-builds', 2],
+  'modularHouses.models.house': ['space-capsules', 1],
+  'modularHouses.models.expandable': ['box-house', 1],
+  'modularBuilds.products.standard': ['standard-containers', 1],
+  'modularBuilds.products.villa': ['villa-office', 1],
+  'modularBuilds.products.retail': ['sloped-roof', 1],
+  steelHouses: ['modular-builds', 3],
+  'interiors.hero.quick': ['modular-builds', 4],
 }
 
 describe('brochureUrl', () => {
@@ -87,23 +92,26 @@ describe('brochureUrl', () => {
     expect(import.meta.env.BASE_URL).toBe('/')
   })
 
-  it('percent-encodes the Cyrillic, the spaces and the typographic quotes', () => {
-    expect(brochureUrl('Разгъваеми “Бокс” Къща.pdf')).toBe(`/modular-builds/${BOX}#page=1`)
-    expect(brochureUrl('Скосен покрив.pdf')).toBe(`/modular-builds/${SLOPED}#page=1`)
-  })
-
-  it('leaves an ASCII name alone', () => {
-    expect(brochureUrl('modular-builds.pdf')).toBe('/modular-builds/modular-builds.pdf#page=1')
+  it('addresses the API route, with the language in the query', () => {
+    expect(brochureUrl('villa-office', 1, 'el')).toBe('/api/brochures/villa-office.pdf?lang=el#page=1')
+    expect(brochureUrl('modular-builds', 3, 'bg')).toBe('/api/brochures/modular-builds.pdf?lang=bg#page=3')
   })
 
   it('carries the page anchor through unchanged', () => {
-    expect(brochureUrl('modular-builds.pdf', 4)).toBe('/modular-builds/modular-builds.pdf#page=4')
+    expect(brochureUrl('modular-builds', 4, 'en')).toBe('/api/brochures/modular-builds.pdf?lang=en#page=4')
   })
 
   it('opens at page one when no page is named', () => {
     // Every link on the site carries an anchor today, and the default keeps it that way for
     // the next one — a brochure with no `#page` would open wherever the reader last left it.
-    expect(brochureUrl('Вила-Офис.pdf')).toBe(`/modular-builds/${VILLA}#page=1`)
+    expect(brochureUrl('villa-office', undefined, 'bg')).toBe('/api/brochures/villa-office.pdf?lang=bg#page=1')
+  })
+
+  it('omits the query rather than writing lang=undefined when the language is dropped', () => {
+    // The API then serves the Bulgarian edition — a working page, and a silently wrong one
+    // for two of three locales. That is why the href tests below pin ?lang= into every
+    // rendered link: this fallback existing is not permission to lean on it.
+    expect(brochureUrl('villa-office')).toBe('/api/brochures/villa-office.pdf#page=1')
   })
 })
 
@@ -113,77 +121,71 @@ describe('the brochures the content files name', () => {
     for (const locale of LOCALES) {
       const refs = referencesFor(locale)
       expect(refs.map((r) => r.where), locale).toEqual(bg.map((r) => r.where))
-      // The PDFs themselves are not translated — one file, linked from all three languages.
-      expect(refs.map((r) => `${r.file}#${r.page}`), locale).toEqual(bg.map((r) => `${r.file}#${r.page}`))
+      // The slug and page are shared across languages — the LANGUAGE is the URL's query,
+      // decided by the page, never a third thing for a translator to keep in sync.
+      expect(refs.map((r) => `${r.slug}#${r.page}`), locale).toEqual(bg.map((r) => `${r.slug}#${r.page}`))
     }
   })
 
-  it('resolves to the eight hrefs the site published before this refactor', () => {
+  it('lands every reference on the slug and page the old static links carried', () => {
     for (const locale of LOCALES) {
       for (const ref of referencesFor(locale)) {
-        expect(brochureUrl(ref.file, ref.page), `${locale} ${ref.where}`)
-          .toBe(EXPECTED_HREFS[ref.where])
+        expect([ref.slug, ref.page], `${locale} ${ref.where}`).toEqual(EXPECTED[ref.where])
       }
     }
   })
 
-  it('covers all six PDFs in the folder', () => {
-    // The count is the point. Four of six were reachable from the content directory before;
-    // if a seventh brochure is dropped in and never linked, or a linked one is renamed away,
-    // this is the test that notices.
-    const linked = new Set(referencesFor('bg').map((r) => r.file))
-    const onDisk = readdirSync(resolve(process.cwd(), 'public/modular-builds'))
-      .filter((name) => name.toLowerCase().endsWith('.pdf'))
-
-    expect([...linked].sort()).toEqual([...onDisk].sort())
+  it('resolves one brochure to three distinct hrefs across the three languages', () => {
+    // THE stage-4 assertion, the one the static path could never make because it had no
+    // language in it. If any page ever drops the locale argument, its three languages
+    // collapse onto one href and this fails naming the reference.
+    for (const ref of referencesFor('bg')) {
+      const hrefs = LOCALES.map((locale) => brochureUrl(ref.slug, ref.page, locale))
+      expect(new Set(hrefs).size, `${ref.where} -> ${hrefs.join(' | ')}`).toBe(LOCALES.length)
+    }
   })
 
-  it('names a file that actually exists', () => {
+  it('links every wired slug and nothing else', () => {
+    // Two lists, one from the site's side and one from the API's. A slug linked here that
+    // the API does not serve is a 404 on a marketing page; a wired slug nothing links is
+    // an API promise nobody needs any more. Either way this is the test that says so.
+    const linked = new Set(referencesFor('bg').map((r) => r.slug))
+    expect([...linked].sort()).toEqual([...WIRED].sort())
+  })
+
+  it('stores a slug in slug shape, never a file name and never a path', () => {
+    // The Cyrillic file names — spaces, typographic quotes — are exactly what the slug
+    // exists to keep out of URLs. Mirrors PublicDocumentSlugs.IsValidSlug.
     for (const locale of LOCALES) {
       for (const ref of referencesFor(locale)) {
-        const path = resolve(process.cwd(), 'public/modular-builds', ref.file)
-        expect(existsSync(path), `${locale} ${ref.where} -> ${ref.file}`).toBe(true)
+        expect(ref.slug, `${locale} ${ref.where}`).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+        expect(ref.page, `${locale} ${ref.where}`).toBeTypeOf('number')
       }
     }
   })
 
-  it('names every brochure with the same key, so one grep finds all eight', () => {
-    // The convention that makes the next migration safe is the KEY as much as the value.
-    // Two of the eight used to live in a nested `brochure: { file, page }`, so searching the
-    // content directory for brochureFile returned six — the same 'found four of six' trap
-    // this stage exists to close, moved out of the pages and into the key names. Stage 4
-    // adds a slug beside the file name, and it should be one mechanical pass, not two.
+  it('keeps PDF file names out of the content directory altogether', () => {
+    // Before stage 4 the one allowed key was brochureFile; now the content files speak
+    // only slugs, so ANY .pdf string in them is a stray reference the migration missed or
+    // a regression toward hard-coded names.
     const stray = []
     for (const file of jsFilesIn(resolve(process.cwd(), 'src/content'))) {
       readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-        if (/\.pdf['"`]/i.test(line) && !/^\s*brochureFile:/.test(line)) {
+        if (/\.pdf['"`]/i.test(line)) {
           stray.push(`${file.replace(process.cwd(), '')}:${i + 1} ${line.trim()}`)
         }
       })
     }
 
-    expect(stray, `A brochure named under any other key is one a grep will miss:\n  ${stray.join('\n  ')}`)
+    expect(stray, `A PDF named in a content file is one the slug migration missed:\n  ${stray.join('\n  ')}`)
       .toEqual([])
-  })
-
-  it('stores a bare file name, never a path', () => {
-    // The one convention. steelHouses.js and interiors.js used to store
-    // 'modular-builds/modular-builds.pdf' while modularBuilds.js stored the bare name, which
-    // is why there were two URL helpers to begin with — a prefixed value cannot survive
-    // encodeURIComponent, because the slash comes out as %2F and the link 404s.
-    for (const locale of LOCALES) {
-      for (const ref of referencesFor(locale)) {
-        expect(ref.file, `${locale} ${ref.where}`).not.toMatch(/[/\\]/)
-        expect(ref.page, `${locale} ${ref.where}`).toBeTypeOf('number')
-      }
-    }
   })
 })
 
 describe('no page names a brochure itself', () => {
-  // The regression this whole stage exists to prevent, and the reason it is checked against
-  // the source text rather than the rendered output: a hard-coded href renders perfectly.
-  // It is only invisible to whoever goes looking for brochures in the content directory.
+  // The regression stage 1 existed to prevent, still guarded after stage 4: a hard-coded
+  // href renders perfectly and is only invisible to whoever goes looking for brochures in
+  // the content directory.
   const roots = ['src/pages', 'src/components', 'src/routes'].map((d) => resolve(process.cwd(), d))
 
   // Block comments are dropped first: AdminCustomersPage explains a filename clash in prose,
@@ -197,7 +199,7 @@ describe('no page names a brochure itself', () => {
     expect(sources.length).toBeGreaterThan(20)
   })
 
-  it('leaves every PDF file name in the content files', () => {
+  it('leaves every PDF reference out of the pages', () => {
     const offenders = []
     for (const { file, code } of sources) {
       for (const match of code.matchAll(/(['"`])([^'"`\n]*\.pdf)\1/gi)) {
@@ -207,8 +209,8 @@ describe('no page names a brochure itself', () => {
 
     expect(
       offenders,
-      `A brochure named in a page is a brochure the next migration will miss. Move it into ` +
-        `src/content/{bg,el,en}/ and link it with brochureUrl():\n  ${offenders.join('\n  ')}`,
+      `A brochure named in a page is a brochure the next migration will miss. Name its slug ` +
+        `in src/content/{bg,el,en}/ and link it with brochureUrl():\n  ${offenders.join('\n  ')}`,
     ).toEqual([])
   })
 
@@ -225,5 +227,21 @@ describe('no page names a brochure itself', () => {
     }
 
     expect(offenders, offenders.join('\n  ')).toEqual([])
+  })
+
+  it('hands the helper a locale at every call site', () => {
+    // The API's bg fallback makes a dropped locale argument invisible at runtime — the
+    // page works, in the wrong language, forever. So the argument count is checked in
+    // source: every brochureUrl( call must carry three arguments.
+    const offenders = []
+    for (const { file, code } of sources) {
+      for (const match of code.matchAll(/brochureUrl\(([^)]*)\)/g)) {
+        const args = match[1].split(',').length
+        if (args < 3) offenders.push(`${file.replace(process.cwd(), '')} -> brochureUrl(${match[1].trim()})`)
+      }
+    }
+
+    expect(offenders, `A brochureUrl call without a locale serves Bulgarian to everyone:\n  ${offenders.join('\n  ')}`)
+      .toEqual([])
   })
 })

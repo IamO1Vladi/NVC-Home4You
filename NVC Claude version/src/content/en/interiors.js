@@ -21,7 +21,7 @@ export default {
         'Transparent pricing and a clearly defined scope',
         'Contract structure, coordination, and finish options',
       ],
-      brochureFile: 'modular-builds.pdf',
+      brochureSlug: 'modular-builds',
       brochurePage: 4,
       brochureLabel: 'Open brochure (p. 4)',
     },

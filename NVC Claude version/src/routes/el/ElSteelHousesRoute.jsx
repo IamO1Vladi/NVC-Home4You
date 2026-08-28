@@ -25,7 +25,7 @@ export default function ElSteelHousesRoute() {
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 
-      <SteelHousesPage content={content} />
+      <SteelHousesPage locale="el" content={content} />
     </>
   )
 }

@@ -50,6 +50,10 @@ const TEXT = {
         name: 'Проекти',
         blurb: 'Реализирани проекти с клиенти, снимки и препоръки.',
       },
+      documents: {
+        name: 'Брошури',
+        blurb: 'PDF каталозите на сайта. Замяната е веднага — адресът не се променя.',
+      },
     },
     stats: {
       pending: (n) => `${n} ${n === 1 ? 'чака' : 'чакат'} одобрение`,
@@ -107,6 +111,10 @@ const TEXT = {
       cases: {
         name: 'Cases',
         blurb: 'Completed customer projects, with photos and testimonials.',
+      },
+      documents: {
+        name: 'Brochures',
+        blurb: 'The PDF catalogues the site serves. Replacing is instant — the address never changes.',
       },
     },
     stats: {
@@ -251,6 +259,13 @@ export default function AdminHomePage() {
           open={t.open}
           stat={`${t.stats.cases(cases.length)} · ${caseDrafts > 0 ? t.stats.drafts(caseDrafts) : t.stats.published}`}
         />
+        <HomeTile
+          to="/admin/documents"
+          icon="documents"
+          name={t.cards.documents.name}
+          blurb={t.cards.documents.blurb}
+          open={t.open}
+        />
       </div>
 
       {/* The three things colleagues have asked about most. Cheaper to answer here, once,
@@ -312,6 +327,13 @@ const TILE_ICON = {
     <>
       <rect x="2.8" y="7.4" width="18.4" height="12.6" rx="2.4" />
       <path d="M8.6 7.4V5.6a2 2 0 0 1 2-2h2.8a2 2 0 0 1 2 2v1.8M2.8 12.4h18.4" />
+    </>
+  ),
+  // The same open booklet as the nav, so the tile and the sidebar say one thing.
+  documents: (
+    <>
+      <path d="M12 6.2c-1.5-1.3-3.6-2-6.2-2-1 0-1.9.1-2.6.3v14.2c.7-.2 1.6-.3 2.6-.3 2.6 0 4.7.7 6.2 2 1.5-1.3 3.6-2 6.2-2 1 0 1.9.1 2.6.3V4.5c-.7-.2-1.6-.3-2.6-.3-2.6 0-4.7.7-6.2 2z" />
+      <path d="M12 6.2v14.2" />
     </>
   ),
 }

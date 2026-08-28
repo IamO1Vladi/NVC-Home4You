@@ -25,7 +25,7 @@ export default function EnSteelHousesRoute() {
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 
-      <SteelHousesPage content={content} />
+      <SteelHousesPage locale="en" content={content} />
     </>
   )
 }

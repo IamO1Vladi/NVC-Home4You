@@ -9,7 +9,7 @@ function publicAsset(file) {
   return `${import.meta.env.BASE_URL}modular-builds/${encoded}`
 }
 
-export default function ModularBuildsPage({ content }) {
+export default function ModularBuildsPage({ locale, content }) {
   const products = Array.isArray(content?.products) ? content.products : []
   const fallback = publicAsset('card.svg')
 
@@ -45,7 +45,7 @@ export default function ModularBuildsPage({ content }) {
               key={product.key}
               id={product.key}
               className="mb-card"
-              href={brochureUrl(product.brochureFile, product.brochurePage || 1)}
+              href={brochureUrl(product.brochureSlug, product.brochurePage || 1, locale)}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={product.aria}

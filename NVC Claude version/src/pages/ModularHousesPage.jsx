@@ -57,7 +57,7 @@ export default function ModularHousesPage({ locale, content }) {
                   <li>{content.quick.floor}</li>
                   <li>{content.quick.assembly}</li>
                 </ul>
-                <a className="mh-aside-link" href={brochureUrl(content.quick.brochureFile, content.quick.brochurePage)} target="_blank" rel="noopener noreferrer">
+                <a className="mh-aside-link" href={brochureUrl(content.quick.brochureSlug, content.quick.brochurePage, locale)} target="_blank" rel="noopener noreferrer">
                   {content.quick.viewPdf}
                 </a>
               </div>
@@ -70,7 +70,7 @@ export default function ModularHousesPage({ locale, content }) {
       <section>
         <div className="container mh-card-grid">
           {models.map(m => (
-            <a key={m.key} className="mh-card" href={brochureUrl(content.models[m.key].brochureFile, content.models[m.key].brochurePage)} target="_blank" rel="noopener noreferrer" aria-label={content.models[m.key].aria}>
+            <a key={m.key} className="mh-card" href={brochureUrl(content.models[m.key].brochureSlug, content.models[m.key].brochurePage, locale)} target="_blank" rel="noopener noreferrer" aria-label={content.models[m.key].aria}>
               <img
                 className="mh-card-media"
                 src={cdnImage(m.image, { width: 1024 })}

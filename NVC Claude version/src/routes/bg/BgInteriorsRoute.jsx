@@ -24,7 +24,7 @@ export default function BgInteriorsRoute() {
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 
-      <InteriorsPage content={content} />
+      <InteriorsPage locale="bg" content={content} />
     </>
   )
 }

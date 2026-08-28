@@ -14,7 +14,7 @@ export default {
   title: 'Steel-Structure Houses',
   lead:
     'Light, strong and flexible. We build your home on a galvanized steel frame—tailored layout, optimized for cost and timelines.',
-  brochureFile: 'modular-builds.pdf',
+  brochureSlug: 'modular-builds',
   brochurePage: 3,
   brochureLabel: 'View brochure (page 3)',
   specs: [

@@ -17,12 +17,18 @@ Requires `pymupdf` and `pillow`.
 
 ## Shipping the catalogue as a public download
 
-The catalogue is also served from `public/modular-builds/` as the "Бокс" brochure
-on the modular houses page. Do not put the Canva export there directly — it is
-82.5MB, because Canva encodes photographs as lossless PNG (76MB of the file).
+The catalogue is also the "Бокс" brochure on the modular houses page — served from
+Azure Blob behind `/api/brochures/box-house.pdf` since stage 4 of #16, so shipping it
+is an UPLOAD in the admin panel (Брошури -> „Разгъваеми „Бокс" къща" -> Замени), not a
+file in this repository. `public/modular-builds/` holds no PDFs any more; writing one
+there ships bytes nothing serves.
+
+Do not upload the Canva export directly — it is 82.5MB, because Canva encodes
+photographs as lossless PNG (76MB of the file), and the panel refuses files over 32MB
+for exactly this reason. Compress to a local path first:
 
 ```bash
-python compress_brochure.py "<source.pdf>" "../../public/modular-builds/Разгъваеми “Бокс” Къща.pdf"
+python compress_brochure.py "<source.pdf>" "<anywhere-local>/box-house-compressed.pdf"
 ```
 
 That re-encodes the photography and leaves the drawings alone: 82.5MB -> 16.5MB

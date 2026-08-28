@@ -44,7 +44,7 @@ export default function BgModularBuildsRoute() {
         defaultCurrency={content.currency}
       />
 
-      <ModularBuildsPage content={content} />
+      <ModularBuildsPage locale="bg" content={content} />
     </>
   )
 }
