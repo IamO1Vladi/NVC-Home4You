@@ -125,6 +125,13 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddHostedService<Services.LeadMailPoller>();
     builder.Services.AddScoped<Services.LeadDraftContextBuilder>();
     builder.Services.AddScoped<Services.LeadDraftService>();
+
+    // The public brochures (#16). The store owns its own client over the images container
+    // (brochures/ prefix); the service is the SQL half. In this block because the service
+    // needs AppDbContext.
+    builder.Services.AddSingleton<Services.PublicDocumentStore>();
+    builder.Services.AddScoped<Services.PublicDocumentService>();
+    builder.Services.AddScoped<Services.PublicDocumentImportService>();
 }
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
@@ -377,6 +384,62 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString) && !string.IsNullOrWhiteSpa
 }
 
 var app = builder.Build();
+
+// The one blob configuration that must never happen: lead files sharing a container with
+// the public images. Both names are free text, and the split between "reachable by anyone"
+// and "AdminOnly" is enforced by which store reads which container — nothing in Azure
+// distinguishes them. A brochure route reading the images container (#16) makes this the
+// difference between a catalogue and a customer's invoice being one guessed URL from
+// public, so a misconfiguration refuses to boot rather than serving quietly.
+{
+    var envCheck = app.Services.GetRequiredService<Services.EnvConfig>();
+    if (envCheck.BlobConfigured &&
+        string.Equals(envCheck.LeadFilesContainer, envCheck.BlobImagesContainer, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            $"BLOB_LEAD_FILES_CONTAINER and BLOB_IMAGES_CONTAINER are both '{envCheck.BlobImagesContainer}'. " +
+            "Lead files carry personal data and must never share the container the public site reads.");
+    }
+}
+
+// `dotnet run -- import-brochures [--dry-run] [--dir <path>]`. Stage 3 of #16: the six
+// brochure PDFs out of the SPA's public folder, into Blob and SQL. Re-runnable — a slug
+// already holding a Bulgarian row is skipped, never overwritten, because after the cutover
+// the panel owns those rows. Run BEFORE the stage-4 publish that points the pages at the
+// slugs, or the pages will reference addresses with nothing behind them.
+if (args.Length > 0 && args[0] == "import-brochures")
+{
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.PublicDocumentImportService>();
+
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL_CONNECTION_STRING is not configured, so there is no database to import into.");
+        return 1;
+    }
+
+    var store = scope.ServiceProvider.GetRequiredService<Services.PublicDocumentStore>();
+    if (!store.IsConfigured)
+    {
+        Console.Error.WriteLine("BLOB_CONNECTION_STRING is not configured, so there is nowhere to put the files.");
+        return 1;
+    }
+
+    var brochureDryRun = args.Contains("--dry-run");
+    var dirFlag = Array.IndexOf(args, "--dir");
+    var brochureDir = dirFlag >= 0 && dirFlag + 1 < args.Length
+        ? args[dirFlag + 1]
+        : Path.Combine("..", "NVC Claude version", "public", "modular-builds");
+
+    var brochureResult = await importer.ImportAsync(brochureDir, brochureDryRun, CancellationToken.None);
+
+    Console.WriteLine(brochureDryRun ? "DRY RUN — nothing was written." : "Import complete.");
+    Console.WriteLine($"  imported : {brochureResult.Imported}");
+    Console.WriteLine($"  skipped  : {brochureResult.Skipped} (already in SQL — the panel owns those)");
+    foreach (var problem in brochureResult.Problems) Console.WriteLine($"  ! {problem}");
+
+    return brochureResult.Problems.Count > 0 ? 1 : 0;
+}
 
 // --- Maintenance CLI ------------------------------------------------------------------
 // `dotnet run -- import-reviews` / `-- compare-reviews`. Kept off HTTP on purpose: the app

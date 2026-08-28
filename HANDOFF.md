@@ -1,11 +1,11 @@
-# Where things stand — 2026-08-21
+# Where things stand — 2026-08-28
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **738 .NET, 389 frontend.**
+Tests: **766 .NET, 411 frontend.**
 
 ---
 
@@ -15,8 +15,8 @@ Tests: **738 .NET, 389 frontend.**
 |---|---|
 | **Live** | `62365ab`, tagged **`deploy-2026-08-21`** — order tracking, the four purchase documents, the write-path fixes, the brochure cleanup and the whole leads batch. Verified from outside after the publish: the served HTML names `index-BraZ7Ctl.js` and that bundle answers `200 text/javascript`, React boots, 15 routes answer 200, and all six brochures resolve as application/pdf in all three languages with their #page anchors intact. |
 | **`production` branch** | `62365ab` = live. |
-| **`master`** | `62365ab` = `production`. Both pushed. |
-| **Migrations** | **None pending.** Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| **`master`** | **Three commits ahead of `production`, none published**: `53e5a30` (the four customer-sheet fixes + the leads name filter, 2026-08-25), the archived-lead reply fix, and brochures stages 2–3 (both 2026-08-28). The 25 Aug publish was prepped — snapshots built, tests green — but never made: no tag, `production` unmoved. |
+| **Migrations** | **ONE PENDING: `AddPublicDocuments`** (new empty table + unique (Slug, Lang); purely additive, the running build never touches it). Apply before the next publish, per DEPLOY.md §5b. Before that, the last applied were the five of 2026-08-20/21. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -26,7 +26,40 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **Three publishes: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
+1. **One combined release ships everything master holds.** The prepped-but-unmade 25 Aug
+   publish is superseded — the brochure work moved the SPA again, so its snapshots are
+   stale either way. Sequence, in order:
+
+   - `git checkout production && git merge --ff-only master && git push`
+   - `dotnet ef database update` (applies `AddPublicDocuments` — §5b order, migrate first)
+   - `dotnet run -- import-brochures --dry-run`, then without the flag: carries the six
+     PDFs into Blob + SQL as the Bulgarian editions. Re-runnable; rows already in SQL are
+     skipped, never overwritten. Run it BEFORE stage 4 ever publishes, or the pages would
+     point at addresses with nothing behind them — today nothing public links the route,
+     so a gap between publish and import only leaves the panel screen empty.
+   - Re-run the prerender (§6b — build, start with the DATA_SOURCE flags, prerender,
+     expect 52/52). The snapshots on disk reference the 25 Aug bundle; the SPA has
+     changed since, so a publish on the old snapshots is exactly what the freshness
+     guard exists to refuse.
+   - Publish from the `production` checkout, tag `deploy-2026-08-28`.
+
+   Nothing in this release changes the public site's behaviour: the brochure API is live
+   but nothing links it until stage 4, and everything else is behind sign-in.
+
+   **After it lands, signed in**: /admin/documents shows six cards, three slots each, the
+   Bulgarian slots filled by the import (Замени on them, Качи on the empty translations) —
+   and `/api/brochures/villa-office.pdf?lang=el` serves the Bulgarian PDF inline (the
+   fallback working, not a bug). Plus the four 25 Aug fixes: a saved customer sheet closes
+   with „Запазено“; „16 000" in Крайна цена settles to 16000 on blur; a long filename stays
+   inside its slot; the leads name filter narrows all five tabs. And still owed from
+   before: the Поръчки advance button + history, the four document slots, the
+   awaiting-reply badge, blank-name modal, Одит, Фабрични поръчки, the factory-sheet
+   import banner. One new behaviour to know when testing: **a customer reply to an
+   archived (Won/Lost) lead now restarts its three-day archive countdown** — the lead
+   resurfaces on the board rather than collecting replies where nobody looks; its status
+   does not change.
+
+2. **The three published releases: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
    Each was tagged at publish time, migrations applied BEFORE the publish, prerender re-run
    first — the order DEPLOY.md §5b argues for and §6b has always required.
 
@@ -44,12 +77,12 @@ was empty either way). Checking the live site settles such questions in a minute
    a small edit, **Фабрични поръчки**, and accepting the factory-sheet import banner on
    whichever browser still holds the old localStorage copy.
 
-2. **Search Console, the remainder**: request indexing for the 26 clean product URLs
+3. **Search Console, the remainder**: request indexing for the 26 clean product URLs
    (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-3. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
+4. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
    The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
    from the admin Поръчки board. There will be no carrier account and no feed.** That turns
    hand-entry from a fallback into the product, so the work that followed was about making
@@ -99,7 +132,7 @@ was empty either way). Checking the live site settles such questions in a minute
    Billing (#21) stays archived in `_archive/billing-2026-08-19/`; its six tables sit
    orphaned in production and Quickbase remains their record. The importer only works
    while the QB token lives (~Feb 2027).
-4. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
+5. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag
    in App Service. Recipient defaults to vvladimirov@nvc-home4you.eu. See DEPLOY.md.

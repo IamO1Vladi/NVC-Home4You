@@ -31,7 +31,7 @@ const TEXT = {
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', orders: 'Поръчки',
-      reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти',
+      reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти', documents: 'Брошури',
       factorySheets: 'Фабрични поръчки', audit: 'Одит',
     },
     loading: 'Зареждане…',
@@ -52,7 +52,7 @@ const TEXT = {
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', orders: 'Orders',
-      reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases',
+      reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases', documents: 'Brochures',
       factorySheets: 'Factory orders', audit: 'Audit',
     },
     loading: 'Loading…',
@@ -214,6 +214,9 @@ const SECTIONS = [
   { key: 'reviews', to: '/admin/reviews' },
   { key: 'gallery', to: '/admin/gallery' },
   { key: 'cases', to: '/admin/cases' },
+  // With the other content sections: the brochures are marketing the public site serves,
+  // not an operational record.
+  { key: 'documents', to: '/admin/documents' },
   // The order sheets sit with the other operational records, after the content
   // sections. Beside Factories would read nicely too, but the directory and the
   // documents are different kinds of thing.

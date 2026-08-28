@@ -2033,3 +2033,42 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 .adm-sheet-row:hover { border-color: var(--adm-line-firm); }
 .adm-sheet-name { font-size: 15px; }
 .adm-sheet-meta { overflow-wrap: anywhere; }
+
+/* --- Brochures (#16) ------------------------------------------------------------------ */
+/* One card per document, three language slots inside. The slots are the part with rules:
+   every layer between the card and the file name carries min-width:0, because the customer
+   sheet's document chips taught us (2026-08-25) that one auto-sized column without it takes
+   the name's max-content width and paints over the neighbour — the ellipsis below never
+   fires unless something is actually made narrow enough to need it. */
+.adm-doc-grid { grid-template-columns: 1fr; }
+.adm-doc-head h2 { font-size: 17px; margin: 0; }
+.adm-doc-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.adm-doc-slot {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  border: 1px solid var(--adm-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.adm-doc-slot.is-off { opacity: 0.6; }
+.adm-doc-lang { font-weight: 600; }
+.adm-doc-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.adm-doc-replace { justify-self: start; margin-top: 2px; }
+
+/* On a phone the three slots stack; the language label is what keeps them readable. */
+@media (max-width: 720px) {
+  .adm-doc-slots { grid-template-columns: 1fr; }
+}

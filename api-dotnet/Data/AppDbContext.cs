@@ -28,6 +28,7 @@ public class AppDbContext : DbContext
     public DbSet<SavedConfig> SavedConfigs => Set<SavedConfig>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<FactorySheet> FactorySheets => Set<FactorySheet>();
+    public DbSet<PublicDocument> PublicDocuments => Set<PublicDocument>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -428,6 +429,17 @@ public class AppDbContext : DbContext
             e.HasIndex(r => r.QuickbaseRecordId)
              .IsUnique()
              .HasFilter("[QuickbaseRecordId] IS NOT NULL");
+        });
+
+        b.Entity<PublicDocument>(e =>
+        {
+            // A brochure is a slug with up to three language editions behind it, so the
+            // unique key is the pair (owner, 2026-08-20: the owner supplies the EN and EL
+            // PDFs themselves). Unique rather than merely indexed for the same reason as
+            // SavedConfig.Code: every public read is "resolve slug + lang", and two rows
+            // answering one address would serve a coin-flip of a catalogue. The importer's
+            // idempotency also rides on this — a re-run updates rather than duplicates.
+            e.HasIndex(d => new { d.Slug, d.Lang }).IsUnique();
         });
 
     }

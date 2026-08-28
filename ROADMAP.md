@@ -87,10 +87,14 @@ commits, notes and conversations still resolve.
 - [ ] **10. Accessibility audit.** The EU Accessibility Act applies since June 2025.
 - [ ] **11. Greek translation completeness audit.**
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
-- [ ] **16. Documents section in the panel** (brochures via Blob). Changing a PDF still
-  needs a developer and a deploy; shares everything with the image pipeline already built.
-  **Scoped 2026-08-20 — see the design below.** Stage 1 is small and can start regardless;
-  the rest waits on four questions for the owner.
+- [~] **16. Documents section in the panel** (brochures via Blob) — **stages 1–3 BUILT**
+  (stage 1 shipped 2026-08-21; stages 2–3 written 2026-08-28: entity, migration, stores,
+  both controllers, the panel screen and the `import-brochures` command). What remains is
+  operational — apply the migration, run the import, publish — and then **stage 4**, the
+  one that changes the public site: point the four pages at `/api/brochures/{slug}.pdf`,
+  thread the locale into `SteelHousesPage`/`InteriorsPage`, delete the six PDFs (not the
+  folder — card.svg is the onError fallback), and move `compress_brochure.py`'s output
+  out of the deleted directory. Sequence in HANDOFF.md.
 
 ### Infrastructure
 
@@ -108,9 +112,9 @@ commits, notes and conversations still resolve.
 ## Documents section — the design (#16)
 
 Scoped 2026-08-20 by reading the gallery image pipeline end to end, mapping every PDF
-reference in the SPA, and then attacking the result. **Nothing here exists in code yet.**
-The four questions marked FOR THE OWNER decide the size of the job and are not technical
-defaults anyone should pick on their behalf.
+reference in the SPA, and then attacking the result. **Stages 1–3 are built** (see the
+open-list entry); the four questions below are all ANSWERED and their answers are baked
+into the code. Kept for the reasoning.
 
 ### What is true today
 
@@ -184,6 +188,9 @@ The panel row shows which pages a document appears on. **Replace becomes the onl
 safe, which is also the only one the owner actually needs.**
 
 ### Stages, each shipping alone
+
+Status 2026-08-28: 1 shipped (`a3b3ff5`), 2 and 3 built and committed, 4 not started, 5
+dissolved by answer 2.
 
 1. **Make all six look the same** — lift the two hard-coded hrefs into the content files, one
    shared URL helper instead of two that disagree, one path convention. No API, no database, no

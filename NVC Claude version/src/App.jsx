@@ -107,6 +107,7 @@ const AdminGalleryPage = lazy(() => import('./pages/AdminGalleryPage.jsx'))
 const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
+const AdminDocumentsPage = lazy(() => import('./pages/AdminDocumentsPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -454,6 +455,7 @@ function AppShell() {
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />
               <Route path="/admin/cases" element={<AdminCasesPage />} />
+              <Route path="/admin/documents" element={<AdminDocumentsPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/factory-sheets" element={<AdminFactorySheetsPage />} />
 

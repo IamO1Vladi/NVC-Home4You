@@ -42,6 +42,11 @@ public static class AuditedEntities
         // Published content and moderation decisions.
         nameof(Case), nameof(CaseImage), nameof(Review),
 
+        // The public brochures. Auditing is what gives replacement history for free:
+        // "which catalogue was live in July?" is answered by the log, not by keeping
+        // superseded blobs findable.
+        nameof(PublicDocument),
+
         // Status, owner and the fields sales edits. NOT the conversation — see below.
         nameof(Lead),
 
