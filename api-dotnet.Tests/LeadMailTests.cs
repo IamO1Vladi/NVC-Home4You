@@ -418,4 +418,76 @@ public class LeadMailTests
         Assert.False(LeadMailPoller.IsAutomated("not json at all"));
         Assert.False(LeadMailPoller.IsAutomated(null));
     }
+
+    // --- What filing a reply does to the lead itself ------------------------------------
+    //
+    // TouchLead is the one write the poller makes to the lead row, and ClosedAt moving
+    // forward (2026-08-28) is the fix for a real silence: a customer replying to an
+    // archived deal was recorded faithfully and seen by nobody, because the board filters
+    // on ClosedAt and nothing moved it.
+
+    [Fact]
+    public void A_reply_to_a_closed_lead_restarts_the_archive_countdown_but_not_the_deal()
+    {
+        var lead = LeadWith("ivan@example.com", LeadStatuses.Lost);
+        lead.ClosedAt = DateTimeOffset.UtcNow.AddDays(-10);
+
+        var receivedAt = DateTimeOffset.UtcNow;
+        LeadMailPoller.TouchLead(lead, receivedAt);
+
+        // The countdown restarts; the deal does not reopen. Reopening stays a person's
+        // deliberate act — the board's job here is only to make the reply visible.
+        Assert.Equal(receivedAt, lead.ClosedAt);
+        Assert.Equal(LeadStatuses.Lost, lead.Status);
+        Assert.Equal(receivedAt, lead.LastActivityAt);
+    }
+
+    [Fact]
+    public void A_reply_to_an_open_lead_does_not_invent_a_closing_date()
+    {
+        var lead = LeadWith("ivan@example.com", LeadStatuses.Quoted);
+
+        LeadMailPoller.TouchLead(lead, DateTimeOffset.UtcNow);
+
+        Assert.Null(lead.ClosedAt);
+    }
+
+    [Fact]
+    public void A_late_arriving_older_message_rewinds_neither_clock()
+    {
+        // The Lookback window can hand the poller a message whose successors it has already
+        // filed. Both clocks only ever move forward.
+        var lastActivity = DateTimeOffset.UtcNow.AddDays(-1);
+        var closedAt = DateTimeOffset.UtcNow.AddDays(-2);
+        var lead = LeadWith("ivan@example.com", LeadStatuses.Won, lastActivity);
+        lead.ClosedAt = closedAt;
+
+        LeadMailPoller.TouchLead(lead, DateTimeOffset.UtcNow.AddDays(-5));
+
+        Assert.Equal(lastActivity, lead.LastActivityAt);
+        Assert.Equal(closedAt, lead.ClosedAt);
+    }
+
+    [Fact]
+    public async Task The_replied_to_archived_lead_is_back_on_the_board_for_three_more_days()
+    {
+        // End to end through the board query: archived a week ago, replied to now — visible
+        // again on the working board, gone from the archive tab, and the ClosedAt it now
+        // carries puts it away again in three days if nobody acts.
+        using var db = NewDb();
+        var lead = LeadWith("ivan@example.com", LeadStatuses.Lost);
+        lead.ClosedAt = DateTimeOffset.UtcNow.AddDays(-10);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        LeadMailPoller.TouchLead(lead, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync();
+
+        var svc = new LeadPipelineService(db);
+        var board = await svc.ListAsync(null, null, CancellationToken.None);
+        var archived = await svc.ListAsync("archived", null, CancellationToken.None);
+
+        Assert.Equal(lead.Id, Assert.Single(board).Id);
+        Assert.Empty(archived);
+    }
 }

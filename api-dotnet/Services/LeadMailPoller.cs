@@ -240,11 +240,8 @@ public class LeadMailPoller : BackgroundService
 
             db.LeadActivities.Add(activity);
 
-            if (leads.TryGetValue(leadId, out var lead)
-                && (lead.LastActivityAt is null || message.ReceivedAt > lead.LastActivityAt))
-            {
-                lead.LastActivityAt = message.ReceivedAt;
-            }
+            if (leads.TryGetValue(leadId, out var lead))
+                TouchLead(lead, message.ReceivedAt);
 
             filed++;
         }
@@ -468,6 +465,39 @@ public class LeadMailPoller : BackgroundService
             ExternalMessageId = externalMessageId,
             OccurredAt = receivedAt,
         };
+
+    /// <summary>
+    /// What filing a customer's message does to the lead itself, beyond the thread.
+    /// </summary>
+    /// <remarks>
+    /// LastActivityAt is the board's sort key, so it moves to the newest thing that
+    /// happened — that much was always here.
+    ///
+    /// ClosedAt moving is the deliberate part (2026-08-28). The three-day archive countdown
+    /// (LeadPipelineService.ArchiveAfter) runs from ClosedAt, so a customer writing back to
+    /// a Won or Lost deal restarts it: the lead returns to the board wearing its
+    /// awaiting-reply badge, and puts itself away again three days later if nobody acts.
+    /// Before this, the reply was filed faithfully onto the archived lead and seen by
+    /// nobody — the only tab that showed it is the one tab nobody works from.
+    ///
+    /// The STATUS is not touched. LeadStatuses documents reopening as a deliberate act, and
+    /// this keeps it one: the board surfaces the conversation, a person decides whether the
+    /// deal reopens. Nor is the true closing date lost — the status-change activity in the
+    /// thread still carries it.
+    ///
+    /// Only the customer speaking gets here — our own copies and out-of-office autoreplies
+    /// are dropped before routing — so an autoreply cannot drag a dead deal back onto the
+    /// board. And only ever forward: a late-arriving message older than what the lead
+    /// already knows must not rewind either clock.
+    /// </remarks>
+    public static void TouchLead(Lead lead, DateTimeOffset receivedAt)
+    {
+        if (lead.LastActivityAt is null || receivedAt > lead.LastActivityAt)
+            lead.LastActivityAt = receivedAt;
+
+        if (lead.ClosedAt is not null && receivedAt > lead.ClosedAt)
+            lead.ClosedAt = receivedAt;
+    }
 
     /// <summary>
     /// The lead each of these conversations belongs to. One query for the whole tick.
