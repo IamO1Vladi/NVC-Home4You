@@ -13,9 +13,9 @@ Tests: **766 .NET, 412 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 
 | | |
 |---|---|
-| **Live** | `611e863`, tagged **`deploy-2026-08-28b`** — the second of two 2026-08-28 publishes (`bab9705`, tagged `deploy-2026-08-28`, brought the brochure API, the panel screen and the import that morning; `611e863` put the pages onto the slugs that afternoon). Verified from outside after each: the served bundle is now `index-raQ6cq6U.js`, the served pages carry `/api/brochures/{slug}.pdf?lang=` links, and a live link answers 200 application/pdf. |
-| **`production` branch** | `a3e55bf` — live (`611e863`) plus one handoff-only commit; docs normally stay on master (the `c78458d` pattern), this one landed on both. Harmless: `production..master` still names exactly what ships next. |
-| **`master`** | Ahead of `production` by the #10 accessibility release — publish steps in Do next #1. Before that, = `production`; both tags pushed — pushed AFTER the fact both times, because both publishes skipped the ritual. If it happens again: probe the live site, then `git push origin <live-commit>:production` and tag it. |
+| **Live** | `dd5823b`, tagged **`deploy-2026-08-29`** — the accessibility release (#10: 16 axe rules to zero, `npm run audit:a11y` now in the toolbox) plus drag-and-drop attach on the leads composer. Probe-verified: the served bundle is `index-DDsnW5xU.js` and the old hard-coded footer gray is absent from the served HTML. |
+| **`production` branch** | `dd5823b` = live. Branch and tag moved at publish time this once — by request, right after the probe. |
+| **`master`** | = `production`, plus whatever handoff note follows this publish. |
 | **Migrations** | **None pending.** `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
@@ -26,17 +26,14 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **Publish the accessibility release (#10).** Frontend-only, no migration, and the
-   snapshots are already rebuilt from the audited source (52/52, guard green):
-   `git checkout production && git merge --ff-only master && git push`, publish from the
-   production checkout, tag `deploy-2026-08-29`, and this time move the branch and tag AT
-   publish time. After it lands, the visible changes are deliberate: the footer text is
-   darker (it was 1.5:1), the cases filter chips are darker when active, the two slide
-   counters sit on solid pills, and heading levels moved on About/Logistics (h3→h2) with
-   sizes preserved. `npm run audit:a11y` against a local build is the regression check —
-   it exits 1 on any serious/critical finding and belongs in the release checklist now.
-   The HUMAN half of #10 still stands: tab order, focus visibility, and the configurator
-   and floor planner by keyboard alone — add it to the signed-in QA pass below.
+1. **`deploy-2026-08-29` is out and verified; what remains on it is human.** The
+   signed-in QA backlog (item 2) now also carries: drag a PDF onto the leads reply box
+   (veil lights, chip lands), miss the box on purpose (nothing happens — the page must
+   not navigate), drag selected TEXT into the editor (no veil, quoting still works), and
+   the a11y spot-checks a machine cannot make — tab order, focus visibility, the
+   configurator and floor planner by keyboard alone. Visible-by-design changes: darker
+   footer text, darker active filter chips on Проекти, solid pills behind the two slide
+   counters.
 
 2. **Everything through stage 4 of #16 is live and the record is clean** — two publishes
    on 2026-08-28, both probe-verified, branch and tags pushed. What remains is the
