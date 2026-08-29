@@ -51,3 +51,7 @@ api-dotnet/prerendered/
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# The accessibility sweep's scratch output (npm run audit:a11y)
+"NVC Claude version/a11y-report.json"
+a11y-report.json

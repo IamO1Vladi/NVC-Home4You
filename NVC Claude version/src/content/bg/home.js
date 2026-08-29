@@ -121,7 +121,7 @@ export default {
       ],
     },
     glideServices: {
-      ariaLabel: 'Нашите услуги',
+      ariaLabel: 'Акценти от услугите',
       subheading: 'Плъзнете или натиснете карта, за да отворите страницата',
       prevAria: 'Предишен слайд',
       nextAria: 'Следващ слайд',

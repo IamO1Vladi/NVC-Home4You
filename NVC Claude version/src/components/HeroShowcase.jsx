@@ -139,6 +139,9 @@ export default function HeroShowcase({
                     key={i}
                     role="tab"
                     aria-selected={i === idx}
+                    // Numeric, deliberately: it needs no translation and "3 / 5" is what a
+                    // dot IS. The strip itself carries the localized name.
+                    aria-label={`${i + 1} / ${list.length}`}
                     className={['hs-dot', i === idx && 'is-active'].filter(Boolean).join(' ')}
                     onClick={() => setIdx(i)}
                   />

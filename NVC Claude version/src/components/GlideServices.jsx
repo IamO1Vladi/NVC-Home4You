@@ -122,7 +122,8 @@ export default function GlideServices({ locale = 'en', content }) {
               >
                 <img
                   src={slide.img}
-                  alt={slide.title}
+                  alt=""
+                  role="presentation"
                   onError={(e) => { e.currentTarget.src = fallback }}
                   width="1600"
                   height="1000"
@@ -146,6 +147,7 @@ export default function GlideServices({ locale = 'en', content }) {
                 key={i}
                 role="tab"
                 aria-selected={i === idx}
+                aria-label={`${i + 1} / ${slides.length}`}
                 className={['gl-dot', i === idx && 'is-active'].filter(Boolean).join(' ')}
                 onClick={() => { centerIndex(i); playing.current = false }}
               />

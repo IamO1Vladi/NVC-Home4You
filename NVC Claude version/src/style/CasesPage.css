@@ -116,7 +116,9 @@
   font-size: 0.82rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.85);
+  /* The theme token, not a fixed slate: rgba(148,163,184,.85) was 2.2:1 on the white
+     card (axe, 2026-08-29). */
+  color: var(--muted);
 }
 
 .cs-stat-value {
@@ -170,7 +172,9 @@
 .cs-filter {
   border: 1px solid var(--cs-border);
   background: transparent;
-  color: inherit;
+  /* Explicit, because the inherited accent computed to 4.0:1 against the active chip's
+     own tint — close, and still a fail. The border and tint keep the accent. */
+  color: var(--text);
   border-radius: 999px;
   padding: 0.68rem 1rem;
   white-space: nowrap;
@@ -195,7 +199,10 @@
 }
 
 .cs-filter.is-active {
-  color: color-mix(in srgb, var(--cs-accent) 75%, var(--text));
+  /* 45%, not 75%: at 75% the mix computed to 4.0:1 against the chip's own tint — the
+     last contrast failure on the site (axe, 2026-08-29). Leaning toward --text keeps it
+     legible on both themes; the tint and border still carry the accent. */
+  color: color-mix(in srgb, var(--cs-accent) 45%, var(--text));
   font-weight: 700;
 }
 

@@ -122,17 +122,17 @@ export default function AboutPage({locale, content}) {
           {/* MISSION & PRINCIPLES */}
           <div className="about-body-grid mt-6">
             <div className="card p-6">
-              <h3 className="grad-text" style={{ margin: 0, marginBottom: 8 }}>
+              <h2 className="grad-text" style={{ margin: 0, marginBottom: 8, fontSize: '1.17em' }}>
                 {content.storyH}
-              </h3>
+              </h2>
               <p style={{ opacity: 0.9 }}>{content.storyP}</p>
              
             </div>
 
             <aside className="card p-6 about-principles">
-              <h4 className="grad-text" style={{ margin: 0, marginBottom: 8 }}>
+              <h3 className="grad-text" style={{ margin: 0, marginBottom: 8, fontSize: '1em' }}>
                 {content.principlesH}
-              </h4>
+              </h3>
               <ul className="about-pill-list">
                 {principles.map((p, i) => (
                   <li key={p} className="about-pill-item">
@@ -153,7 +153,7 @@ export default function AboutPage({locale, content}) {
           >
             <div className="about-timeline-head">
               <div>
-                <h3 style={{ margin: 0 }}>{content.timelineH}</h3>
+                <h2 style={{ margin: 0, fontSize: '1.17em' }}>{content.timelineH}</h2>
                 <p
                   className="mt-2"
                   style={{ opacity: 0.85, maxWidth: 520 }}

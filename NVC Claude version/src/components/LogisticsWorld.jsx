@@ -203,7 +203,7 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
         {mode === 'sea' && (
           <div className="wr-row">
             <span className="wr-label">{labels.seaDestination}</span>
-            <select className="wr-select" value={seaDest} onChange={(e) => setSeaDest(e.target.value)}>
+            <select className="wr-select" aria-label={labels.seaDestination} value={seaDest} onChange={(e) => setSeaDest(e.target.value)}>
               {SEA_PORTS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -212,7 +212,7 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
         {mode === 'air' && (
           <div className="wr-row">
             <span className="wr-label">{labels.airDestination}</span>
-            <select className="wr-select" value={airDest} onChange={(e) => setAirDest(e.target.value)}>
+            <select className="wr-select" aria-label={labels.airDestination} value={airDest} onChange={(e) => setAirDest(e.target.value)}>
               {AIR_DESTS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </div>
@@ -221,7 +221,7 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
         {mode === 'rail' && (
           <div className="wr-row">
             <span className="wr-label">{labels.railDestination}</span>
-            <select className="wr-select" value={railDest} onChange={(e) => setRailDest(e.target.value)}>
+            <select className="wr-select" aria-label={labels.railDestination} value={railDest} onChange={(e) => setRailDest(e.target.value)}>
               {RAIL_DESTS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </div>

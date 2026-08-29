@@ -117,7 +117,7 @@ export default function SteelHousesPage({ locale, content }) {
           <div className="sh-gallery-h">{content.gallery.h}</div>
 
           <div className="sh-slider" aria-roledescription="carousel" aria-label={content.gallery.h}>
-            <div className="sh-strip" ref={stripRef}>
+            <div className="sh-strip" ref={stripRef} tabIndex={0} role="group" aria-label={content.gallery.h}>
               {slides.map((src, i) => (
                 <figure className="sh-slide" key={src || i}>
                   <img

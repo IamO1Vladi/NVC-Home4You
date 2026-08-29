@@ -110,7 +110,7 @@ export default function ModularHousesPage({ locale, content }) {
       {/* ===== COMPARISON TABLE ===== */}
       <section>
         <div className="container">
-          <div className="mh-table-wrap">
+          <div className="mh-table-wrap" tabIndex={0} role="group" aria-label={content.table.caption}>
             <table className="mh-table" role="table">
               <caption className="visually-hidden">{content.table.caption}</caption>
               <thead>

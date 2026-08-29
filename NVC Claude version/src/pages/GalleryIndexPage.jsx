@@ -14,12 +14,12 @@ import {
 import { GalleryListJSONLD } from '../components/GalleryStructuredData.jsx'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 
-function Pager({ page, pageCount, onGo, labels }) {
+function Pager({ page, pageCount, onGo, labels, position }) {
   if (pageCount <= 1) return null
   const model = pageModel(page, pageCount)
 
   return (
-    <div className="gallery-pager" role="navigation" aria-label={labels.paginationAria}>
+    <div className="gallery-pager" role="navigation" aria-label={position ? `${labels.paginationAria} (${position})` : labels.paginationAria}>
       <button type="button" className="gpg-btn" onClick={() => onGo(page - 1)} disabled={page === 0} aria-label={labels.prev}>
         ‹
       </button>
@@ -197,7 +197,7 @@ export default function GalleryIndexPage({ locale, content, basePath }) {
                           aria-label={`${item.title}${item.price ? `, ${priceText}` : ''}`}
                         >
                           <img
-                            alt={item.title || ''}
+                            alt=""
                             src={cdnImage(item.coverUrl, { width: 600 })}
                             srcSet={cdnSrcSet(item.coverUrl, [300, 400, 600, 800])}
                             sizes="(max-width: 700px) 50vw, (max-width: 1000px) 33vw, 25vw"
@@ -224,7 +224,7 @@ export default function GalleryIndexPage({ locale, content, basePath }) {
 
                 {filteredItems.length > 0 && (
                   <div className="gallery-foot mt-6">
-                    <Pager page={page} pageCount={pageCount} onGo={goToPage} labels={content.pagination} />
+                    <Pager page={page} pageCount={pageCount} onGo={goToPage} labels={content.pagination} position="2" />
                   </div>
                 )}
               </>

@@ -121,7 +121,7 @@ export default {
       ],
     },
     glideServices: {
-      ariaLabel: 'Our services',
+      ariaLabel: 'Service highlights',
       subheading: 'Swipe or tap any card to open the page',
       prevAria: 'Previous slide',
       nextAria: 'Next slide',

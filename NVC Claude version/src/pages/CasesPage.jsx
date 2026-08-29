@@ -401,6 +401,7 @@ export default function CasesPage({ content }) {
                 <button
                   key={key}
                   type="button"
+                  role="tab"
                   className={['cs-filter', key === filter && 'is-active'].filter(Boolean).join(' ')}
                   onClick={() => setFilter(key)}
                   aria-selected={key === filter}

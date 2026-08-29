@@ -2039,7 +2039,7 @@ export default function FloorPlannerPage({ content }) {
     <main className="fp-page">
       <div className="fp-topbar">
         <div>
-          <div className="fp-title">{title}</div>
+          <h1 className="fp-title">{title}</h1>
           <div className="fp-sub">{subtitle}</div>
         </div>
         <div className="fp-top-actions">
@@ -2199,7 +2199,7 @@ export default function FloorPlannerPage({ content }) {
           <div className="fp-section">
             <div className="fp-h">{typeof txt('planner.model') === 'string' ? txt('planner.model') : 'Model'}</div>
             <div className="fp-select mt-2">
-              <select value={modelKey} onChange={(e) => setModelKey(e.target.value)}>
+              <select aria-label={typeof txt('planner.model') === 'string' ? txt('planner.model') : 'Model'} value={modelKey} onChange={(e) => setModelKey(e.target.value)}>
                 {MODELS.map((m) => (
                   <option key={m.key} value={m.key}>
                     {modelLabel(m)}
@@ -2251,7 +2251,7 @@ export default function FloorPlannerPage({ content }) {
             <div className="fp-h">{typeof txt('planner.roomSettings') === 'string' ? txt('planner.roomSettings') : 'Room settings'}</div>
             <label className="fp-label">{typeof txt('planner.type') === 'string' ? txt('planner.type') : 'Type'}</label>
             <div className="fp-select">
-              <select value={roomType} onChange={(e) => setRoomType(e.target.value)}>
+              <select aria-label={typeof txt('planner.type') === 'string' ? txt('planner.type') : 'Type'} value={roomType} onChange={(e) => setRoomType(e.target.value)}>
                 {ROOM_TYPES.map((rt) => (
                   <option key={rt.key} value={rt.key}>
                     {roomTypeLabel(rt.key)}
@@ -2262,7 +2262,7 @@ export default function FloorPlannerPage({ content }) {
 
             <label className="fp-label">{typeof txt('planner.floorFinish') === 'string' ? txt('planner.floorFinish') : 'Floor finish'}</label>
             <div className="fp-select">
-              <select value={finish} onChange={(e) => setFinish(e.target.value)}>
+              <select aria-label={typeof txt('planner.floorFinish') === 'string' ? txt('planner.floorFinish') : 'Floor finish'} value={finish} onChange={(e) => setFinish(e.target.value)}>
                 {FINISHES.map((f) => (
                   <option key={f.key} value={f.key}>
                     {finishLabel(f.key)}
@@ -2406,6 +2406,7 @@ export default function FloorPlannerPage({ content }) {
                       <label className="fp-label">{typeof txt('planner.type') === 'string' ? txt('planner.type') : 'Type'}</label>
                       <div className="fp-select">
                         <select
+                          aria-label={typeof txt('planner.type') === 'string' ? txt('planner.type') : 'Type'}
                           value={selectedRoom.type}
                           onChange={(e) => {
                             const nextType = e.target.value
@@ -2652,7 +2653,7 @@ export default function FloorPlannerPage({ content }) {
               <Grid width={model.widthM} height={model.depthM} step={gridM} />
 
               {/* Rooms (fill only) */}
-              <g aria-label="rooms">
+              <g role="group" aria-label="rooms">
                 {plan.rooms.map((r) => (
                   <rect
                     key={r.id}
@@ -2700,7 +2701,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Walls */}
-              <g aria-label="walls">
+              <g role="group" aria-label="walls">
                 {wallSegments.map((seg) => {
                   const isOuter = seg.kind === 'outer'
                   const isUser = seg.repKind === 'interior'
@@ -2730,7 +2731,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Room labels */}
-              <g aria-label="labels">
+              <g role="group" aria-label="labels">
                 {plan.rooms.map((r) => (
                   <text
                     key={`lbl-${r.id}`}
@@ -2747,7 +2748,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Selected dimensions */}
-              <g aria-label="selected-dimensions" pointerEvents="none">
+              <g role="group" aria-label="selected-dimensions" pointerEvents="none">
                 {selectedRoom && (
                   <MeasureTag
                     x={selectedRoom.x + 0.08}
@@ -2765,7 +2766,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Openings */}
-              <g aria-label="openings">
+              <g role="group" aria-label="openings">
                 {plan.openings.map((o) => (
                   <OpeningGlyph
                     key={o.id}

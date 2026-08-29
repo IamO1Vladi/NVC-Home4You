@@ -43,7 +43,7 @@ export default function DeliveryPage({ content }) {
 
   return (
     <main className="arx">
-      <header className="arx-hero" role="banner">
+      <header className="arx-hero">
         <div className="arx-hero-bg" aria-hidden="true">
           <img src={cdnImage(hero?.image?.src, { width: 1600 })} srcSet={cdnSrcSet(hero?.image?.src, [768, 1200, 1600, 2000])} sizes="100vw" alt="" loading="eager" />
         </div>
@@ -73,7 +73,7 @@ export default function DeliveryPage({ content }) {
             </div>
           </div>
 
-          <ol className="arx-arrow" onMouseEnter={pause} onMouseLeave={resume}>
+          <ol className="arx-arrow" role="tablist" onMouseEnter={pause} onMouseLeave={resume}>
             {steps.map((step, i) => {
               const shape = i === steps.length - 1 ? 'is-last' : 'is-mid'
               const solid = i <= active ? 'is-solid' : 'is-ghost'

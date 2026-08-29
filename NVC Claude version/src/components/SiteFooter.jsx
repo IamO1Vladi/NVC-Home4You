@@ -39,8 +39,11 @@ export default function SiteFooter({ locale = 'en' }) {
           justifyContent: 'space-between',
           gap: 12,
           padding: '18px 20px',
-          borderTop: '1px solid #ffffff1a',
-          color: '#cbd5e1',
+          borderTop: '1px solid var(--line, #9993)',
+          // The theme token, NOT a hard-coded gray: this footer renders on both themes,
+          // and #cbd5e1 — written for the dark one — was 1.5:1 against the light
+          // background on every page of the site (axe, 2026-08-29).
+          color: 'var(--muted)',
         }}
       >
         <div>© {year} NVC Home4You — {t.rights}</div>

@@ -148,7 +148,7 @@
   opacity:1;
 }
 
-.glb-tile h3{ margin:0; font-weight:900; font-size: clamp(16px, 2.6vw, 22px); }
+.glb-tile h2{ margin:0; font-weight:900; font-size: clamp(16px, 2.6vw, 22px); }
 .glb-tile p{ margin:0; opacity:.95; }
 
 .arx-body{ padding:18px 0 24px; }

@@ -39,6 +39,7 @@
 .fp-title{
   font-size: 20px;
   font-weight: 800;
+  margin: 0; /* it is an h1 now (page-has-heading-one), and the UA margin would move the toolbar */
 }
 
 .fp-sub{

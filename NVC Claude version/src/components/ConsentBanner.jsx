@@ -14,18 +14,21 @@ import { paths, getLocaleFromPath } from '../routes/paths.js';
  */
 const COPY = {
   en: {
+    label: 'Cookie consent',
     text: 'We use cookies for analytics and advertising. You can change your choice anytime.',
     reject: 'Reject',
     accept: 'Accept',
     learnMore: 'Privacy & Cookie Policy',
   },
   bg: {
+    label: 'Съгласие за бисквитки',
     text: 'Използваме бисквитки за анализ и реклама. Можете да промените избора си по всяко време.',
     reject: 'Отказ',
     accept: 'Приемам',
     learnMore: 'Политика за поверителност и бисквитки',
   },
   el: {
+    label: 'Συναίνεση για cookies',
     text: 'Χρησιμοποιούμε cookies για ανάλυση και διαφήμιση. Μπορείτε να αλλάξετε την επιλογή σας οποτεδήποτε.',
     reject: 'Απόρριψη',
     accept: 'Αποδοχή',
@@ -100,8 +103,11 @@ export default function ConsentBanner() {
     setOpen(false);
   };
 
+  // A named region, because this bar renders OUTSIDE the router tree and therefore
+  // outside every landmark on the page — it was the one element axe flagged on all 52
+  // routes. role=region with a name makes it a landmark of its own.
   return (
-    <div data-nosnippet style={barStyle}>
+    <div data-nosnippet role="region" aria-label={t.label} style={barStyle}>
       <span style={{maxWidth:'60ch'}}>
         {t.text}{' '}
         <a href={policyHref} style={{color:'#fff', textDecoration:'underline'}}>{t.learnMore}</a>

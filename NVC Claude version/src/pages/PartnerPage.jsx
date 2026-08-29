@@ -92,7 +92,7 @@ export default function PartnerPage({ content }) {
 
   return (
     <main className="partner-page">
-      <header className="ppr-hero" role="banner" style={{ '--heroImg': `url("${heroSrc}")` }}>
+      <header className="ppr-hero" style={{ '--heroImg': `url("${heroSrc}")` }}>
         <div className="ppr-hero-bg" aria-hidden="true">
           <img src={cdnImage(heroSrc, { width: 1600 })} srcSet={cdnSrcSet(heroSrc, [768, 1200, 1600, 2000])} sizes="100vw" alt="" loading="eager" decoding="async" />
         </div>

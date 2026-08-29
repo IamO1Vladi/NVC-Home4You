@@ -5,7 +5,7 @@ handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DE
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **766 .NET, 412 frontend.**
+Tests: **766 .NET, 412 frontend.** `npm run audit:a11y`: 0 violations on 104 page-loads.
 
 ---
 
@@ -15,7 +15,7 @@ Tests: **766 .NET, 412 frontend.**
 |---|---|
 | **Live** | `611e863`, tagged **`deploy-2026-08-28b`** — the second of two 2026-08-28 publishes (`bab9705`, tagged `deploy-2026-08-28`, brought the brochure API, the panel screen and the import that morning; `611e863` put the pages onto the slugs that afternoon). Verified from outside after each: the served bundle is now `index-raQ6cq6U.js`, the served pages carry `/api/brochures/{slug}.pdf?lang=` links, and a live link answers 200 application/pdf. |
 | **`production` branch** | `a3e55bf` — live (`611e863`) plus one handoff-only commit; docs normally stay on master (the `c78458d` pattern), this one landed on both. Harmless: `production..master` still names exactly what ships next. |
-| **`master`** | = `production`. Both pushed, both tags too — pushed AFTER the fact both times, because both publishes skipped the ritual. If it happens again: probe the live site, then `git push origin <live-commit>:production` and tag it. |
+| **`master`** | Ahead of `production` by the #10 accessibility release — publish steps in Do next #1. Before that, = `production`; both tags pushed — pushed AFTER the fact both times, because both publishes skipped the ritual. If it happens again: probe the live site, then `git push origin <live-commit>:production` and tag it. |
 | **Migrations** | **None pending.** `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
@@ -26,7 +26,19 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **Everything through stage 4 of #16 is live and the record is clean** — two publishes
+1. **Publish the accessibility release (#10).** Frontend-only, no migration, and the
+   snapshots are already rebuilt from the audited source (52/52, guard green):
+   `git checkout production && git merge --ff-only master && git push`, publish from the
+   production checkout, tag `deploy-2026-08-29`, and this time move the branch and tag AT
+   publish time. After it lands, the visible changes are deliberate: the footer text is
+   darker (it was 1.5:1), the cases filter chips are darker when active, the two slide
+   counters sit on solid pills, and heading levels moved on About/Logistics (h3→h2) with
+   sizes preserved. `npm run audit:a11y` against a local build is the regression check —
+   it exits 1 on any serious/critical finding and belongs in the release checklist now.
+   The HUMAN half of #10 still stands: tab order, focus visibility, and the configurator
+   and floor planner by keyboard alone — add it to the signed-in QA pass below.
+
+2. **Everything through stage 4 of #16 is live and the record is clean** — two publishes
    on 2026-08-28, both probe-verified, branch and tags pushed. What remains is the
    signed-in QA pass nobody has made yet:
 
@@ -47,7 +59,7 @@ was empty either way). Checking the live site settles such questions in a minute
    (Won/Lost) lead restarts its three-day archive countdown** — the lead resurfaces on
    the board; its status does not change.
 
-2. **The three published releases: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
+3. **The three published releases: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
    Each was tagged at publish time, migrations applied BEFORE the publish, prerender re-run
    first — the order DEPLOY.md §5b argues for and §6b has always required.
 
@@ -65,12 +77,12 @@ was empty either way). Checking the live site settles such questions in a minute
    a small edit, **Фабрични поръчки**, and accepting the factory-sheet import banner on
    whichever browser still holds the old localStorage copy.
 
-3. **Search Console, the remainder**: request indexing for the 26 clean product URLs
+4. **Search Console, the remainder**: request indexing for the 26 clean product URLs
    (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-4. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
+5. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
    The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
    from the admin Поръчки board. There will be no carrier account and no feed.** That turns
    hand-entry from a fallback into the product, so the work that followed was about making
@@ -120,7 +132,7 @@ was empty either way). Checking the live site settles such questions in a minute
    Billing (#21) stays archived in `_archive/billing-2026-08-19/`; its six tables sit
    orphaned in production and Quickbase remains their record. The importer only works
    while the QB token lives (~Feb 2027).
-5. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
+6. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag
    in App Service. Recipient defaults to vvladimirov@nvc-home4you.eu. See DEPLOY.md.

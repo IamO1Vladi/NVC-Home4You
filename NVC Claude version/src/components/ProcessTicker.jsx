@@ -84,7 +84,7 @@ export default function ProcessTicker({
   return (
     <section className="ptk" ref={rootRef} aria-labelledby="ptk-title" onKeyDown={onKeyDown}>
       <div className="ptk-head">
-        <h3 id="ptk-title" className="ptk-title">{title}</h3>
+        <h2 id="ptk-title" className="ptk-title">{title}</h2>
         <div className="ptk-ctrls">
           <button
             type="button"

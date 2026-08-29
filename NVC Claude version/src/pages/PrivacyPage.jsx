@@ -107,8 +107,8 @@ export default function PrivacyPage({ content }) {
 
           <footer
             style={{
-              borderTop: '1px solid #ffffff1a',
-              color: '#cbd5e1',
+              borderTop: '1px solid var(--line, #9993)',
+              color: 'var(--muted)',
               textAlign: 'center',
               padding: '18px 0',
               marginTop: 24,

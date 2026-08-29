@@ -82,7 +82,7 @@
 .sh-count{
   position:absolute; right:10px; bottom:10px;
   font-weight:700; font-size:.9rem; padding:4px 8px; border-radius:999px;
-  background: color-mix(in srgb, #00000055, #ffffff11); color: #fff;
+  background: #000000c0; color: #fff;
 }
 
 /* ACCESSIBILITY: hide-only helper if project doesn’t have it */

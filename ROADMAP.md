@@ -84,7 +84,6 @@ commits, notes and conversations still resolve.
 - [ ] **9. Per-breakpoint `srcset`** *(the open half of the performance pass)*. Images are
   WebP, capped at 2560px, served from our origin with a year of immutable caching — but a
   phone still downloads the desktop-sized file.
-- [ ] **10. Accessibility audit.** The EU Accessibility Act applies since June 2025.
 - [ ] **11. Greek translation completeness audit.**
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
 
@@ -501,6 +500,16 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
    pick at import time.
 
 ## DONE — newest first
+
+- [x] **10. Accessibility audit — the mechanical half** (2026-08-29). axe-core over all 52
+  routes at two viewports (`npm run audit:a11y`, exit 1 on serious/critical, meant for the
+  release checklist): 16 rule failures went to ZERO. The big ones: the footer's hard-coded
+  dark-theme gray at 1.5:1 on the light theme every page defaults to; 17 unnamed carousel
+  dot buttons on the home page; the consent banner outside every landmark on all 52 routes;
+  page heroes declaring role="banner" against the site header; unlabeled selects in the
+  floor planner and logistics widgets; keyboard-unreachable scrollable regions. What a
+  machine cannot prove is still owed a human pass — tab order, focus visibility, the
+  configurator and floor planner by keyboard alone — and belongs to the signed-in QA list.
 
 - [x] **16. Documents section in the panel** (2026-08-28, all stages). The six brochures
   live in Blob + SQL behind `/api/brochures/{slug}.pdf` — an address that survives every
