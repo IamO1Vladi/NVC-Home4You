@@ -190,6 +190,61 @@ describe('AdminPipelinePage', () => {
     })
   })
 
+  it('files dropped on the composer attach exactly like picked ones', async () => {
+    // The drop feeds the same picked-files state the button fills, so the chip, the
+    // remove button and the send request are all one code path — this only has to prove
+    // the file ARRIVES there.
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const composer = document.querySelector('.adm-composer')
+    const file = new File(['%PDF-1.4'], 'dropped.pdf', { type: 'application/pdf' })
+    fireEvent.drop(composer, { dataTransfer: { files: [file], types: ['Files'] } })
+
+    expect(screen.getByText('dropped.pdf')).toBeInTheDocument()
+    // The highlight is gone the moment the drop lands.
+    expect(document.querySelector('.adm-drop-veil')).not.toBeInTheDocument()
+  })
+
+  it('the drop highlight answers a file drag and ignores a text drag', async () => {
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const composer = document.querySelector('.adm-composer')
+
+    // Dragged text — selected words, a link — must not light the box up: dropping it
+    // into the editor is how quoting works, and a veil would swallow that drop.
+    fireEvent.dragEnter(composer, { dataTransfer: { files: [], types: ['text/plain'] } })
+    expect(document.querySelector('.adm-drop-veil')).not.toBeInTheDocument()
+
+    fireEvent.dragEnter(composer, { dataTransfer: { files: [], types: ['Files'] } })
+    expect(document.querySelector('.adm-drop-veil')).toBeInTheDocument()
+
+    // Crossing INTO a child fires enter+leave pairs; the veil must survive the churn...
+    fireEvent.dragEnter(composer.querySelector('.adm-composer-actions'), { dataTransfer: { types: ['Files'] } })
+    fireEvent.dragLeave(composer.querySelector('.adm-composer-actions'), { dataTransfer: { types: ['Files'] } })
+    expect(document.querySelector('.adm-drop-veil')).toBeInTheDocument()
+
+    // ...and leaving the composer itself takes it down.
+    fireEvent.dragLeave(composer, { dataTransfer: { types: ['Files'] } })
+    expect(document.querySelector('.adm-drop-veil')).not.toBeInTheDocument()
+  })
+
+  it('a drop that misses the composer does not navigate the page away', async () => {
+    // The browser's default for a dropped file is to OPEN it — replacing the panel and
+    // taking a half-typed reply with it. The page swallows stray drops while mounted.
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    const stray = new Event('drop', { bubbles: true, cancelable: true })
+    stray.dataTransfer = { files: [new File(['x'], 'x.pdf')], types: ['Files'] }
+    window.dispatchEvent(stray)
+
+    expect(stray.defaultPrevented).toBe(true)
+    // And nothing attached — the miss is inert, not a secret second drop zone.
+    expect(screen.queryByText('x.pdf')).not.toBeInTheDocument()
+  })
+
   it('a picked file can be taken off again before it is sent', async () => {
     const user = userEvent.setup()
     render(<AdminPipelinePage />)

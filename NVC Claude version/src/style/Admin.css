@@ -1459,7 +1459,17 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   font-size: 12px;
 }
 
-.adm-composer { display: grid; gap: 8px; }
+.adm-composer { display: grid; gap: 8px; position: relative; }
+/* The drop highlight. pointer-events: none, or the veil itself would fire dragleave the
+   moment it appears under the cursor and the highlight would strobe. */
+.adm-drop-veil {
+  position: absolute; inset: -6px; z-index: 2; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--adm-accent); border-radius: 12px;
+  background: color-mix(in srgb, var(--adm-accent) 10%, var(--adm-card));
+  color: var(--adm-accent-ink); font-weight: 700;
+}
+.adm-composer.is-dragover > :not(.adm-drop-veil) { opacity: 0.45; }
 .adm-composer textarea {
   width: 100%;
   border: 1px solid var(--adm-line-firm);

@@ -96,6 +96,7 @@ const TEXT = {
     // not on screen — and mailing the file instead, which is the size limit the hint exists
     // to steer them around.
     attachHint: 'Файловете тръгват с отговора. По-големите ги запишете в разговора.',
+    dropHint: 'Пуснете файловете тук',
     removeFile: 'Премахни',
     attaching: 'Качване…',
     archivedEmpty: 'Няма архивирани лийдове.', note: 'Бележка', call: 'Обаждане', meeting: 'Среща',
@@ -189,6 +190,7 @@ const TEXT = {
     logNeedsWords: 'Write what happened — a call or a meeting is logged with words.',
     attach: 'Attach a file',
     attachHint: 'Files go out with the reply. Keep bigger ones by logging them to the conversation.',
+    dropHint: 'Drop the files here',
     removeFile: 'Remove',
     attaching: 'Uploading…',
     archivedEmpty: 'Nothing archived yet.', note: 'Note', call: 'Call', meeting: 'Meeting',
@@ -560,6 +562,11 @@ export default function AdminPipelinePage() {
   // removed before it becomes part of the record — and so the reply and its attachments
   // succeed or fail as one thing.
   const [files, setFiles] = React.useState([])
+  // Whether a file drag is currently over the composer. Depth-counted, not boolean-set:
+  // dragging across the composer's children fires a leave at every child boundary, and a
+  // plain boolean would flicker the highlight off in the middle of the box.
+  const [dragOver, setDragOver] = React.useState(false)
+  const dragDepth = React.useRef(0)
   const [busy, setBusy] = React.useState('')      // '' | 'send' | 'draft' | 'save' | 'report'
   const [error, setError] = React.useState('')
 
@@ -580,6 +587,22 @@ export default function AdminPipelinePage() {
 
   const threadEnd = React.useRef(null)
   const filePicker = React.useRef(null)
+
+  // A drop that misses the composer would otherwise NAVIGATE — the browser opens the
+  // file, and the reply somebody spent ten minutes typing is gone with the page. While
+  // this screen is mounted, a stray drop anywhere on it is inert instead.
+  React.useEffect(() => {
+    const swallow = (e) => { e.preventDefault() }
+    window.addEventListener('dragover', swallow)
+    window.addEventListener('drop', swallow)
+    return () => {
+      window.removeEventListener('dragover', swallow)
+      window.removeEventListener('drop', swallow)
+    }
+  }, [])
+
+  // Files only — a dragged text selection or a link must not light the box up.
+  const dragHasFiles = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files')
 
   // What the list actually shows: the tab's rows, narrowed by the filters. The selection
   // is deliberately left alone when filtering hides it — the thread on the right keeps
@@ -1591,7 +1614,36 @@ export default function AdminPipelinePage() {
 
               {error ? <div className="adm-alert">{error}</div> : null}
 
-              <div className="adm-composer">
+              {/* The whole composer is the drop target, not just the attach button:
+                  someone dragging an offer PDF out of their mail client aims at the big
+                  box they are writing in. Dropped files join the same picked list the
+                  button fills, so everything downstream — chips, remove, send — is one
+                  path. */}
+              <div
+                className={['adm-composer', dragOver && 'is-dragover'].filter(Boolean).join(' ')}
+                onDragEnter={(e) => {
+                  if (!dragHasFiles(e) || busy !== '') return
+                  e.preventDefault()
+                  dragDepth.current += 1
+                  setDragOver(true)
+                }}
+                onDragOver={(e) => { if (dragHasFiles(e) && busy === '') e.preventDefault() }}
+                onDragLeave={() => {
+                  if (dragDepth.current > 0) dragDepth.current -= 1
+                  if (dragDepth.current === 0) setDragOver(false)
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  dragDepth.current = 0
+                  setDragOver(false)
+                  if (busy !== '') return
+                  const dropped = Array.from(e.dataTransfer?.files ?? [])
+                  if (dropped.length) setFiles((prev) => [...prev, ...dropped])
+                }}
+              >
+                {dragOver ? (
+                  <div className="adm-drop-veil" aria-hidden="true">{t.dropHint}</div>
+                ) : null}
                 {/* Rich text (owner, 2026-08-17): hyperlinks in a quote are the concrete
                     ask, and the signature below the caret is the other half. The editor
                     emits sanitized HTML through the same helper the thread renders with,
