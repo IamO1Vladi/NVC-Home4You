@@ -27,13 +27,10 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **The 2026-09-02 pair (reply Cc + owner filter on Активни) adds to the signed-in QA
-   backlog:** send a reply with a Cc and see the „Копие до“ line on the sent bubble; typo
-   an address ('@' as a dot) and confirm the send is refused naming the token; file a note
-   with a Cc typed and confirm the Cc box clears with it; have someone reply-all from an
-   address that is not the lead's and look for the „от <адрес>“ marker on the inbound
-   bubble; on Активни, pick an owner and confirm the board narrows and the empty state
-   names the person; flip Активни ↔ За връзка and confirm the choice survives the switch.
+1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
+   live panel (2026-09-03) and everything works.** Nothing owed here. The one behaviour
+   that only shows itself in anger: the „от <адрес>“ marker appears when a third party
+   replies-all into a lead's thread — the first real occurrence is worth a glance.
 
 2. **`deploy-2026-08-29` is out and verified; what remains on it is human.** The
    signed-in QA backlog (item 3) now also carries: drag a PDF onto the leads reply box
