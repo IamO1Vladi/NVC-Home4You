@@ -317,13 +317,15 @@ public class LeadMailTests
     {
         var placed = new LeadMailPoller.Placement(7, ByConversation: true);
         var activity = LeadMailPoller.InboundActivity(
-            placed, "AAQkAGI2", "msg-1", "Re: Вашето запитване", "Да, петък е добре.", DateTimeOffset.UtcNow);
+            placed, "AAQkAGI2", "msg-1", "Re: Вашето запитване", "Да, петък е добре.",
+            "ivan@example.com", DateTimeOffset.UtcNow);
 
         Assert.Equal(7, activity.LeadId);
         Assert.Equal("AAQkAGI2", activity.ConversationId);
         Assert.Equal("msg-1", activity.ExternalMessageId);
         Assert.Equal(LeadActivityTypes.EmailIn, activity.Type);
         Assert.Null(activity.ActorUpn);          // null actor == the customer
+        Assert.Equal("ivan@example.com", activity.FromAddress);
     }
 
     [Fact]
@@ -335,13 +337,36 @@ public class LeadMailTests
         // is filed on Ivan's thread as though she were him.
         var guessed = new LeadMailPoller.Placement(7, ByConversation: false);
         var activity = LeadMailPoller.InboundActivity(
-            guessed, "AAQkAGI2", "msg-1", "Re: Вашето запитване", "Да, петък е добре.", DateTimeOffset.UtcNow);
+            guessed, "AAQkAGI2", "msg-1", "Re: Вашето запитване", "Да, петък е добре.",
+            "ivan@example.com", DateTimeOffset.UtcNow);
 
         Assert.Equal(7, activity.LeadId);
         Assert.Null(activity.ConversationId);
         // Everything else is filed exactly as before — the message itself is not in doubt.
         Assert.Equal("msg-1", activity.ExternalMessageId);
         Assert.Equal("Да, петък е добре.", activity.Body);
+        // The sender IS recorded on a guess — it is the very thing the guess ran on.
+        Assert.Equal("ivan@example.com", activity.FromAddress);
+    }
+
+    [Fact]
+    public void The_sender_is_stored_tidied_and_never_oversized()
+    {
+        // The sender chose this string. Whitespace is nothing, and anything past the
+        // column's 320 is cut rather than allowed to fail the tick's whole batch.
+        var placed = new LeadMailPoller.Placement(7, ByConversation: true);
+
+        var blank = LeadMailPoller.InboundActivity(
+            placed, "c", "m1", null, "text", "   ", DateTimeOffset.UtcNow);
+        Assert.Null(blank.FromAddress);
+
+        var padded = LeadMailPoller.InboundActivity(
+            placed, "c", "m2", null, "text", "  ivan@example.com  ", DateTimeOffset.UtcNow);
+        Assert.Equal("ivan@example.com", padded.FromAddress);
+
+        var oversized = LeadMailPoller.InboundActivity(
+            placed, "c", "m3", null, "text", new string('a', 400) + "@example.com", DateTimeOffset.UtcNow);
+        Assert.Equal(320, oversized.FromAddress!.Length);
     }
 
     // --- Two leads in one conversation, and the outage that used to be ------------------

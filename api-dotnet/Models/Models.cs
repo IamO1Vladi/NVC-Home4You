@@ -283,6 +283,15 @@ public class LeadActivityDto
     public string ActorUpn { get; set; } = "";
     public bool FromCustomer { get; set; }
 
+    // Who else was copied on an outgoing reply, as sent. Empty on everything that is not
+    // an email_out — which is nearly everything.
+    public string Cc { get; set; } = "";
+
+    // The address an inbound message actually arrived from. Empty except on email_in,
+    // and worth showing because it can differ from the lead's own address — see
+    // LeadActivity.FromAddress.
+    public string FromAddress { get; set; } = "";
+
     public string OccurredAt { get; set; } = "";
     public List<LeadAttachmentDto> Attachments { get; set; } = new();
 }

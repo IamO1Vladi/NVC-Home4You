@@ -501,6 +501,19 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **The two leads-panel requests of 2026-09-02** (built and reviewed same day). A
+  **Cc box on the reply composer** — comma/semicolon list, judged strictly on the server
+  BEFORE the send (every token must parse; a refusal names the bad one, because an
+  '@' typoed into a dot must not become a colleague silently never copied); sent via
+  `ccRecipients` on both Graph paths; stored on the `email_out` activity
+  (`LeadActivity.CcRecipients`, migration `AddActivityRecipients`) and shown on the
+  bubble. The same migration adds `FromAddress` to `email_in`: the poller now records
+  who actually wrote each inbound mail, and the thread marks a sender who is not the
+  lead — an architect's reply-all no longer wears the customer's name. And the **due
+  tab's owner filter now also serves Активни** — one `owner=` narrowing shared across
+  both working views (server-side, same thousand-row-cap reasoning), with its own
+  empty-state sentence so an empty board never reads as an empty pipeline.
+
 - [x] **10. Accessibility audit — the mechanical half** (2026-08-29). axe-core over all 52
   routes at two viewports (`npm run audit:a11y`, exit 1 on serious/critical, meant for the
   release checklist): 16 rule failures went to ZERO. The big ones: the footer's hard-coded

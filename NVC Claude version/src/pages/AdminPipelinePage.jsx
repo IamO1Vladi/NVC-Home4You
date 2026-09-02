@@ -31,6 +31,7 @@ const TEXT = {
     // Names the person, because the whole point is that this is NOT a statement about
     // everyone — see the empty-state block for what it replaced.
     ownerEmpty: (owner) => `Няма просрочени лийдове за ${owner}. Останалите не са проверени.`,
+    activeOwnerEmpty: (owner) => `Няма активни лийдове за ${owner}. Останалите не са проверени.`,
     dueSubtitle: 'Лийдове с дата за следващ контакт днес или по-рано.',
     nextContact: 'Следващ контакт',
     nextContactHint: 'Кога сте обещали да се обадите. Появява се в справката, ако датата мине.',
@@ -85,7 +86,9 @@ const TEXT = {
     nextStep: 'Следваща стъпка', save: 'Запази', saving: 'Запазване…',
     thread: 'Разговор', noThread: 'Още няма съобщения.',
     them: 'Клиент', us: 'Ние',
+    ccShort: 'Копие до', from: 'от',
     reply: 'Отговор', replyPlaceholder: 'Напишете отговора си…',
+    cc: 'Копие до (имейл, разделени със запетая)',
     send: 'Изпрати', sending: 'Изпращане…',
     logAs: 'Запиши като',
     logHint: 'Записва текста и файловете в разговора, без да ги изпраща на клиента.',
@@ -131,6 +134,7 @@ const TEXT = {
     empty: 'No leads in this view.',
     dueEmpty: 'Nothing overdue. Everything is on schedule.',
     ownerEmpty: (owner) => `Nothing overdue for ${owner}. Nobody else was checked.`,
+    activeOwnerEmpty: (owner) => `Nothing active for ${owner}. Nobody else was checked.`,
     dueSubtitle: 'Leads whose next contact was due today or earlier.',
     nextContact: 'Next contact',
     nextContactHint: 'When you promised to get back to them. Shows up in the report once the date passes.',
@@ -183,7 +187,9 @@ const TEXT = {
     nextStep: 'Next step', save: 'Save', saving: 'Saving…',
     thread: 'Conversation', noThread: 'No messages yet.',
     them: 'Customer', us: 'Us',
+    ccShort: 'Cc', from: 'from',
     reply: 'Reply', replyPlaceholder: 'Write your reply…',
+    cc: 'Cc (email addresses, comma separated)',
     send: 'Send', sending: 'Sending…',
     logAs: 'Log as',
     logHint: 'Saves the text and files to the conversation without emailing the customer.',
@@ -401,7 +407,7 @@ function formatWhen(iso, lang) {
 // A status move is written into the thread by the server, so it shows up here as an
 // entry too. Rendered as a thin divider rather than a bubble — it is punctuation in the
 // conversation, not part of it.
-function Entry({ activity, t, lang }) {
+function Entry({ activity, t, lang, leadEmail }) {
   if (activity.type === 'status') {
     return (
       <li className="adm-thread-meta">
@@ -424,9 +430,25 @@ function Entry({ activity, t, lang }) {
           {LOG_TYPES.includes(activity.type)
             ? <span className="adm-muted"> · {t[activity.type]}</span>
             : null}
+          {/* Who actually wrote it, when that is not the customer. The thread files
+              every in-conversation reply as "the customer" — right up until an architect
+              or a spouse replies-all, at which point their words would wear the
+              customer's name. Compared the way sameUser compares everything: capitals
+              are not identity in an address. Silent when the sender IS the lead, because
+              a marker on every inbound row is one nobody reads — and NOT muted like the
+              kind suffix beside it, because this is the one head entry that changes what
+              the words below it mean. */}
+          {!mine && activity.fromAddress && !sameUser(activity.fromAddress, leadEmail)
+            ? <span> · {t.from} {activity.fromAddress}</span>
+            : null}
           <time dateTime={activity.occurredAt}>{formatWhen(activity.occurredAt, lang)}</time>
         </div>
         {activity.subject ? <div className="adm-bubble-subject">{activity.subject}</div> : null}
+        {/* Who else got our reply. Only outbound rows ever carry one — a copy is part of
+            what WE sent — and the record shows it where a mail client would. */}
+        {mine && activity.cc
+          ? <div className="adm-small adm-muted adm-bubble-cc">{t.ccShort}: {activity.cc}</div>
+          : null}
         {/* Two rules, split by who wrote it. The CUSTOMER's side renders as text, never
             markup — inbound HTML is flattened before it is stored, and rendering whatever
             arrives would execute whatever a customer chose to send us. OUR side is the
@@ -470,12 +492,14 @@ function Entry({ activity, t, lang }) {
 // The conversation itself, rendered the same way in the pane and in the full-screen
 // reader. One component rather than two, because the version people reach for when a
 // thread is long is exactly the one that must not be a simplified copy.
-function Thread({ activities, t, lang, endRef }) {
+function Thread({ activities, t, lang, leadEmail, endRef }) {
   return (
     <ol className="adm-thread">
       {activities.length === 0
         ? <li className="adm-empty"><p>{t.noThread}</p></li>
-        : activities.map((a) => <Entry key={a.id} activity={a} t={t} lang={lang} />)}
+        : activities.map((a) => (
+          <Entry key={a.id} activity={a} t={t} lang={lang} leadEmail={leadEmail} />
+        ))}
       {endRef ? <li ref={endRef} aria-hidden="true" /> : null}
     </ol>
   )
@@ -528,13 +552,15 @@ export default function AdminPipelinePage() {
   // of the five queries behind them learning a new parameter.
   const [nameFilter, setNameFilter] = React.useState('')
   const [nameMode, setNameMode] = React.useState('contains')
-  // Narrowing the DUE view to one person's promises. Unlike the two above this one asks the
-  // server, because the two filters are not equivalent: the due query takes the thousand
-  // most overdue leads and stops, so narrowing in the browser would search one owner's
-  // promises only among the rows that survived that cap — and the person most likely to
-  // reach for this filter is the one whose team is furthest behind. Sent as owner= beside
-  // due=true, which the list endpoint has always taken.
-  const [dueOwner, setDueOwner] = React.useState('')
+  // Narrowing За връзка or Активни to one person's leads. Unlike the filters above this
+  // one asks the server, because the two kinds are not equivalent: both queries take a
+  // thousand rows and stop, so narrowing in the browser would search one owner's leads
+  // only among the rows that survived that cap — and the person most likely to reach for
+  // this filter is the one whose team is furthest behind. Sent as owner=, which the list
+  // endpoint has always taken beside due=true and status= alike. ONE filter across both
+  // tabs rather than one each, so "whose world am I looking at" survives the tab switch
+  // instead of quietly resetting to everyone's.
+  const [ownerFilter, setOwnerFilter] = React.useState('')
   const [selectedId, setSelectedId] = React.useState(null)
   const [lead, setLead] = React.useState(null)
   const [state, setState] = React.useState('loading')
@@ -554,6 +580,11 @@ export default function AdminPipelinePage() {
   // The last signature this page prefilled, so "the box holds only the signature" is
   // answerable — that state disables Send, and it is what the box returns to after one.
   const prefill = React.useRef('')
+  // Who else the reply is copied to, exactly as typed — commas or semicolons, spacing
+  // and all. Never parsed here: the server splits it and refuses the whole send if a
+  // single address is bad, the same division of labour as the report dialog's To box,
+  // and a second copy of that rule in the panel is the one that drifts.
+  const [cc, setCc] = React.useState('')
   // What the log button files. Deliberately NOT reset between leads: someone working
   // through a call list files call after call, and making them pick "Обаждане" again on
   // every customer is the kind of friction that ends with everything logged as a note.
@@ -622,13 +653,13 @@ export default function AdminPipelinePage() {
   // an empty board rather than as a board filtered down to nothing. Testing board.length
   // would therefore report the whole team as up to date, which is the one sentence this
   // screen must never say wrongly.
-  const narrowedToOwner = tab === 'due' && dueOwner !== ''
+  const narrowedToOwner = (tab === 'due' || tab === 'open') && ownerFilter !== ''
   const filtering = narrowedHere || narrowedToOwner
 
   // Every narrowing this page offers, undone together. Leaving one on while the button
   // claims to have cleared them is the same fault in a smaller place.
   const clearFilters = () => {
-    setStatusFilter(''); setModifiedFilter(''); setDueOwner(''); setNameFilter('')
+    setStatusFilter(''); setModifiedFilter(''); setOwnerFilter(''); setNameFilter('')
   }
 
   // What the model box is, for the category currently chosen: a picker over the catalogue,
@@ -655,13 +686,15 @@ export default function AdminPipelinePage() {
     // that answers it — which would quietly widen the list back out under someone.
     const query = [
       TABS.find((x) => x.key === which)?.query ?? '',
-      which === 'due' && dueOwner ? `owner=${encodeURIComponent(dueOwner)}` : '',
+      (which === 'due' || which === 'open') && ownerFilter
+        ? `owner=${encodeURIComponent(ownerFilter)}`
+        : '',
     ].filter(Boolean).join('&')
 
     const rows = await adminGet(`/api/admin/pipeline${query ? `?${query}` : ''}`)
     setBoard(rows ?? [])
     return rows ?? []
-  }, [dueOwner])
+  }, [ownerFilter])
 
   const loadLead = React.useCallback(async (id) => {
     if (!id) { setLead(null); return }
@@ -748,6 +781,11 @@ export default function AdminPipelinePage() {
   // keeping it open across a selection change would show lead A's header over lead B's
   // fields — with a Save button under them.
   React.useEffect(() => { setSheetOpen(false) }, [selectedId])
+
+  // The Cc belongs to the reply being written, and that reply belongs to the lead on
+  // screen. Unlike the log kind, which deliberately survives the switch, a copy typed
+  // for one customer's architect must not ride silently into the next conversation.
+  React.useEffect(() => { setCc('') }, [selectedId])
 
   // What the screen is showing RIGHT NOW, for the one caller that runs after a delay. A save
   // handed to the background retries lands up to half a minute later, by which time the
@@ -847,6 +885,10 @@ export default function AdminPipelinePage() {
     // the one that carries files being the one nobody exercises until it matters.
     const form = new FormData()
     form.append('body', body)
+    // Only when there is one: "no CC" is the absence of the field, not an empty string
+    // the server would have to interpret. What travels is the raw typing — validating
+    // it is the controller's job, front-loaded before anything is sent.
+    if (cc.trim()) form.append('cc', cc.trim())
     for (const file of files) form.append('files', file, file.name)
 
     await adminSendForm(`/api/admin/pipeline/${selectedId}/reply`, form)
@@ -854,6 +896,7 @@ export default function AdminPipelinePage() {
     // next message. Resetting optimistically loses what someone typed if the send fails,
     // and retyping a reply is the least forgivable data loss in a tool like this.
     setReply(prefill.current)
+    setCc('')
     setFiles([])
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.sendError)
@@ -935,6 +978,10 @@ export default function AdminPipelinePage() {
     }
 
     setReply(prefill.current)
+    // The Cc goes with the reply it was typed for, and filing the text as an internal
+    // note is deciding NOT to send that reply — a copy left behind here would ride the
+    // next real send and mail a third party a message they were never meant to be on.
+    setCc('')
     setFiles([])
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
@@ -1018,7 +1065,7 @@ export default function AdminPipelinePage() {
       // on. Without this a manager reads one salesperson's twelve overdue rows, presses
       // Send report to forward exactly those, and mails the team's three hundred — the
       // first hint being a confirmation whose number matches nothing on screen.
-      owner: dueOwner || null,
+      owner: ownerFilter || null,
     })
     setReporting(false)
     // The dialog closes either way; what happened is said on the page. "Nothing was due"
@@ -1065,17 +1112,17 @@ export default function AdminPipelinePage() {
             {t.sendReport}
           </button>
         ) : null}
-        {/* Whose promises. On this tab only, because the other views already answer the
-            ownership question their own way — "Mine" is a tab, and the board is read by
+        {/* Whose promises, and whose conversations. On За връзка and Активни only:
+            "Mine" already answers the question for yourself, and the archive is read by
             everyone as everyone's. A blank value is everyone rather than "nobody", since
-            that is what the server reads an absent owner= as; an unassigned overdue lead
-            is therefore always in view, which is the right way round for the one thing
+            that is what the server reads an absent owner= as; an unassigned lead is
+            therefore always in view, which is the right way round for the one thing
             nobody has picked up. The list is the assignment dropdown's, unchanged: a
             second idea of who can own a lead is a second list to keep in step. */}
-        {tab === 'due' ? (
+        {tab === 'due' || tab === 'open' ? (
           <label className="adm-filter">
             <span className="adm-small adm-muted">{t.filterOwner}</span>
-            <select value={dueOwner} onChange={(e) => setDueOwner(e.target.value)}>
+            <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
               <option value="">{t.filterOwnerAll}</option>
               {users.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
@@ -1240,7 +1287,7 @@ export default function AdminPipelinePage() {
                     this one — the owner is not why there is nothing to look at. */}
                 {narrowedToOwner && board.length === 0 ? (
                   <>
-                    <p>{t.ownerEmpty(dueOwner)}</p>
+                    <p>{tab === 'due' ? t.ownerEmpty(ownerFilter) : t.activeOwnerEmpty(ownerFilter)}</p>
                     <button type="button" className="adm-linkbtn" onClick={clearFilters}>
                       {t.clearFilters}
                     </button>
@@ -1402,7 +1449,7 @@ export default function AdminPipelinePage() {
                 </p>
               ) : null}
 
-              <Thread activities={lead.activities} t={t} lang={lang} endRef={threadEnd} />
+              <Thread activities={lead.activities} t={t} lang={lang} leadEmail={lead.email} endRef={threadEnd} />
 
               {/* The lead sheet: everything about this customer on one screen, editable.
                   What happens next comes FIRST — it is the field people open this to
@@ -1606,7 +1653,7 @@ export default function AdminPipelinePage() {
 
                     <section>
                       <h3 className="adm-sheet-head">{t.thread}</h3>
-                      <Thread activities={lead.activities} t={t} lang={lang} />
+                      <Thread activities={lead.activities} t={t} lang={lang} leadEmail={lead.email} />
                     </section>
                   </div>
                 ) : null}
@@ -1644,6 +1691,20 @@ export default function AdminPipelinePage() {
                 {dragOver ? (
                   <div className="adm-drop-veil" aria-hidden="true">{t.dropHint}</div>
                 ) : null}
+                {/* The Cc line, above the editor the way a mail client lays out its
+                    header. Free text on purpose, like the report dialog's To box: the
+                    server is the only judge of what an address is, and one bad address
+                    refuses the whole send before anything goes out. */}
+                <label className="adm-composer-cc">
+                  <span className="adm-small adm-muted">{t.cc}</span>
+                  <input
+                    type="text"
+                    inputMode="email"
+                    value={cc}
+                    onChange={(e) => setCc(e.target.value)}
+                  />
+                </label>
+
                 {/* Rich text (owner, 2026-08-17): hyperlinks in a quote are the concrete
                     ask, and the signature below the caret is the other half. The editor
                     emits sanitized HTML through the same helper the thread renders with,

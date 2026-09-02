@@ -298,6 +298,9 @@ public class LeadPipelineService
         // across JSX is the kind of thing that ends up inconsistent between views.
         FromCustomer = a.ActorUpn is null,
 
+        Cc = a.CcRecipients ?? "",
+        FromAddress = a.FromAddress ?? "",
+
         OccurredAt = Iso(a.OccurredAt),
         Attachments = a.Attachments.Select(f => new LeadAttachmentDto
         {

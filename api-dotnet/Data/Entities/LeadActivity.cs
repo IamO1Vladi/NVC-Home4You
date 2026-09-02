@@ -57,6 +57,22 @@ public class LeadActivity
     // poll cycles racing each other cannot both insert the same message.
     [MaxLength(400)] public string? ExternalMessageId { get; set; }
 
+    // Who else was copied on an outgoing reply: the validated addresses, joined with ", ".
+    // Only ever set on email_out rows, and NULL there means nobody was copied — the common
+    // case. It exists because a copy the thread does not show is a participant the next
+    // salesperson to read it does not know about, and 500 characters is a dozen addresses,
+    // which is already more meeting than sales call.
+    [MaxLength(500)] public string? CcRecipients { get; set; }
+
+    // The address an inbound message actually arrived from. Only ever set on email_in rows.
+    //
+    // ActorUpn above already encodes WHO in our terms — NULL means the customer — but not
+    // WHICH MAILBOX, and the poller's address fallback means those can differ: a customer
+    // answering from a second address is filed onto their lead while Lead.Email still says
+    // the first one. Without this column, that difference is invisible in the one place
+    // someone would go to notice it.
+    [MaxLength(320)] public string? FromAddress { get; set; }
+
     // When it actually happened, which is not when it was typed in: a call logged the next
     // morning belongs at the time of the call, or the thread tells the wrong story.
     public DateTimeOffset OccurredAt { get; set; } = DateTimeOffset.UtcNow;

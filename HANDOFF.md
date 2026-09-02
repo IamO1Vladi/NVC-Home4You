@@ -5,7 +5,7 @@ handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DE
 owns release mechanics, **including §6b, the prerender step, which silently ships stale
 pages when skipped**.
 
-Tests: **766 .NET, 412 frontend.** `npm run audit:a11y`: 0 violations on 104 page-loads.
+Tests: **777 .NET, 425 frontend.** `npm run audit:a11y`: 0 violations on 104 page-loads.
 
 ---
 
@@ -26,8 +26,16 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-1. **`deploy-2026-08-29` is out and verified; what remains on it is human.** The
-   signed-in QA backlog (item 2) now also carries: drag a PDF onto the leads reply box
+1. **The 2026-09-02 pair (reply Cc + owner filter on Активни) adds to the signed-in QA
+   backlog:** send a reply with a Cc and see the „Копие до“ line on the sent bubble; typo
+   an address ('@' as a dot) and confirm the send is refused naming the token; file a note
+   with a Cc typed and confirm the Cc box clears with it; have someone reply-all from an
+   address that is not the lead's and look for the „от <адрес>“ marker on the inbound
+   bubble; on Активни, pick an owner and confirm the board narrows and the empty state
+   names the person; flip Активни ↔ За връзка and confirm the choice survives the switch.
+
+2. **`deploy-2026-08-29` is out and verified; what remains on it is human.** The
+   signed-in QA backlog (item 3) now also carries: drag a PDF onto the leads reply box
    (veil lights, chip lands), miss the box on purpose (nothing happens — the page must
    not navigate), drag selected TEXT into the editor (no veil, quoting still works), and
    the a11y spot-checks a machine cannot make — tab order, focus visibility, the
@@ -35,7 +43,7 @@ was empty either way). Checking the live site settles such questions in a minute
    footer text, darker active filter chips on Проекти, solid pills behind the two slide
    counters.
 
-2. **Everything through stage 4 of #16 is live and the record is clean** — two publishes
+3. **Everything through stage 4 of #16 is live and the record is clean** — two publishes
    on 2026-08-28, both probe-verified, branch and tags pushed. What remains is the
    signed-in QA pass nobody has made yet:
 
@@ -56,7 +64,7 @@ was empty either way). Checking the live site settles such questions in a minute
    (Won/Lost) lead restarts its three-day archive countdown** — the lead resurfaces on
    the board; its status does not change.
 
-3. **The three published releases: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
+4. **The three published releases: `deploy-2026-08-20`, `-20b`, and `deploy-2026-08-21` (`62365ab`).**
    Each was tagged at publish time, migrations applied BEFORE the publish, prerender re-run
    first — the order DEPLOY.md §5b argues for and §6b has always required.
 
@@ -74,12 +82,12 @@ was empty either way). Checking the live site settles such questions in a minute
    a small edit, **Фабрични поръчки**, and accepting the factory-sheet import banner on
    whichever browser still holds the old localStorage copy.
 
-4. **Search Console, the remainder**: request indexing for the 26 clean product URLs
+5. **Search Console, the remainder**: request indexing for the 26 clean product URLs
    (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
    fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
    survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
    Nothing is left here but the indexing requests themselves.
-5. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
+6. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
    The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
    from the admin Поръчки board. There will be no carrier account and no feed.** That turns
    hand-entry from a fallback into the product, so the work that followed was about making
@@ -129,7 +137,7 @@ was empty either way). Checking the live site settles such questions in a minute
    Billing (#21) stays archived in `_archive/billing-2026-08-19/`; its six tables sit
    orphaned in production and Quickbase remains their record. The importer only works
    while the QB token lives (~Feb 2027).
-6. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
+7. **Audit archiving stays OFF until wanted.** Nothing is ever deleted while
    `AUDIT_ARCHIVE_ENABLED` is unset. When ready: `dotnet run -- archive-audit-log
    --dry-run` first (writes the CSV to disk, sends and deletes nothing), then set the flag
    in App Service. Recipient defaults to vvladimirov@nvc-home4you.eu. See DEPLOY.md.

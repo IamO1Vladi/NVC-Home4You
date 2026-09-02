@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -431,15 +432,24 @@ public class AdminPipelineController : ControllerBase
         int id,
         [FromForm] string? subject,
         [FromForm] string? body,
+        [FromForm] string? cc,
         [FromForm] List<IFormFile>? files,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(body))
             return BadRequest(new { errors = new[] { "The reply cannot be empty." } });
 
+        // The CC box arrives raw, comma- or semicolon-separated, and is judged here in
+        // full before a single attachment byte is read — the same front-loading as the
+        // files below, and for the same reason: a bad address Graph rejects mid-send
+        // costs the reply someone typed.
+        var ccRecipients = SplitCc(cc);
+        var errors = ValidateCc(ccRecipients);
+        if (errors.Count > 0) return BadRequest(new { errors });
+
         var picked = files ?? new List<IFormFile>();
 
-        var errors = ValidateAttachments(picked);
+        errors = ValidateAttachments(picked);
         if (errors.Count > 0) return BadRequest(new { errors });
 
         var attachments = new List<LeadMailService.OutgoingFile>();
@@ -455,7 +465,7 @@ public class AdminPipelineController : ControllerBase
             attachments.Add(new LeadMailService.OutgoingFile(fileName, contentType, stream.ToArray()));
         }
 
-        var result = await _mail.SendReplyAsync(id, subject, body, CurrentUpn, attachments, ct);
+        var result = await _mail.SendReplyAsync(id, subject, body, CurrentUpn, attachments, ccRecipients, ct);
 
         return result.Outcome switch
         {
@@ -471,6 +481,50 @@ public class AdminPipelineController : ControllerBase
 
             _ => StatusCode(502, new { errors = new[] { result.Error } }),
         };
+    }
+
+    /// <summary>
+    /// The CC box, split but NOT judged — every non-empty token survives, so that
+    /// ValidateCc below gets to refuse the bad ones by name. ParseRecipients is not used
+    /// here on purpose: its '@' filter would swallow exactly the token this box mistypes
+    /// most — an address whose '@' became a dot — and the reply would go out with that
+    /// person quietly missing, which is the very failure the strict rule exists to stop.
+    /// </summary>
+    private static List<string> SplitCc(string? raw) =>
+        (raw ?? "")
+            .Split(new[] { ',', ';' }, System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
+            // Case-insensitively, unlike ParseRecipients: capitals are not identity in an
+            // address, and Arch@ и arch@ copied twice is the same person emailed twice.
+            .Distinct(System.StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>
+    /// Everything wrong with the CC list on a reply, checked BEFORE anything is sent.
+    ///
+    /// STRICT where ParseRecipients is lax, and deliberately so: the due-report's "to" box
+    /// mails a colleague who watches the result arrive, while a CC here is stored against
+    /// the thread and sent alongside the customer's copy — a mistyped one is a bounce the
+    /// customer may see and a record that names someone who was never told. So every token
+    /// meets IsValidAddress, and the refusal names the token, because "one of your
+    /// addresses is wrong" out of five is not a sentence anyone can act on.
+    /// </summary>
+    private static List<string> ValidateCc(IReadOnlyList<string> recipients)
+    {
+        var errors = new List<string>();
+
+        foreach (var address in recipients)
+        {
+            if (!EmailService.IsValidAddress(address))
+                errors.Add($"'{address}' does not look like an email address.");
+        }
+
+        // The joined list is what LeadActivity.CcRecipients stores, so its ceiling is the
+        // column's — refused here as a sentence rather than surfacing as a 500 after the
+        // mail has already gone out, which is the one order of events with no way back.
+        if (string.Join(", ", recipients).Length > 500)
+            errors.Add("That is too many CC addresses for one reply.");
+
+        return errors;
     }
 
     /// <summary>

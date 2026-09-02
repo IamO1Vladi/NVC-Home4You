@@ -1407,10 +1407,16 @@ label.btn { cursor: pointer; }
   border-color: var(--adm-accent);
 }
 
-.adm-bubble-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+/* Sender-sized content lives in the head now — the from-marker can carry a full
+   320-character address from an outside mailbox — so it wraps rather than pushing the
+   timestamp out of the bubble, and breaks inside an address for the same reason the
+   body below earned overflow-wrap. */
+.adm-bubble-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 3px; overflow-wrap: anywhere; }
 .adm-bubble-who { font-weight: 600; }
 .adm-bubble-head time { margin-left: auto; color: var(--adm-muted); }
 .adm-bubble-subject { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+/* A copy list is addresses, and a single address offers no spaces to break at. */
+.adm-bubble-cc { overflow-wrap: anywhere; margin-bottom: 3px; }
 
 /* pre-wrap so the paragraph breaks a customer typed survive, without letting a
    pasted configurator summary blow the column out sideways. */
@@ -1477,6 +1483,20 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   padding: 10px 12px;
   font: inherit;
   resize: vertical;
+}
+/* The Cc line above the reply box, laid out the way a mail client lays out a header:
+   the label names the field, the box takes the rest of the line. */
+.adm-composer-cc { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.adm-composer-cc input {
+  flex: 1 1 220px;
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  padding: 0 10px;
+  font: inherit;
+  background: var(--adm-card);
+  color: inherit;
 }
 .adm-composer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 
@@ -1754,6 +1774,7 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
    leaves the page zoomed after the keyboard closes. Applies at every width because the
    zoom is triggered by the computed size, not the breakpoint. */
 .adm-composer textarea,
+.adm-composer-cc input,
 .adm-sheet input,
 .adm-sheet select,
 .adm-sheet textarea,

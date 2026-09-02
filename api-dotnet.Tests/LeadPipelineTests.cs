@@ -482,6 +482,46 @@ public class LeadPipelineTests
     }
 
     [Fact]
+    public async Task The_thread_shows_who_was_copied_and_which_mailbox_wrote_in()
+    {
+        // Both columns travel to the panel as plain strings, empty rather than null —
+        // same convention as every other optional field on this DTO. The CC belongs to
+        // outbound mail, the sender to inbound, and each is empty on the other side.
+        using var db = NewDb();
+        var lead = NewLead("Ivan", LeadStatuses.Contacted);
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+        db.LeadActivities.AddRange(
+            new LeadActivity
+            {
+                LeadId = lead.Id, Type = LeadActivityTypes.EmailIn, Body = "Hi",
+                FromAddress = "ivan.second@example.com", OccurredAt = DateTimeOffset.UtcNow.AddDays(-2),
+            },
+            new LeadActivity
+            {
+                LeadId = lead.Id, Type = LeadActivityTypes.EmailOut, Body = "Hello", ActorUpn = "s@x.eu",
+                CcRecipients = "maria@nvc.eu, office@partner.bg", OccurredAt = DateTimeOffset.UtcNow.AddDays(-1),
+            },
+            new LeadActivity
+            {
+                LeadId = lead.Id, Type = LeadActivityTypes.Note, Body = "Called back", ActorUpn = "s@x.eu",
+                OccurredAt = DateTimeOffset.UtcNow,
+            });
+        await db.SaveChangesAsync();
+
+        var detail = await new LeadPipelineService(db).GetAsync(lead.Id, CancellationToken.None);
+
+        Assert.Equal("ivan.second@example.com", detail!.Activities[0].FromAddress);
+        Assert.Equal("", detail.Activities[0].Cc);
+
+        Assert.Equal("maria@nvc.eu, office@partner.bg", detail.Activities[1].Cc);
+        Assert.Equal("", detail.Activities[1].FromAddress);
+
+        Assert.Equal("", detail.Activities[2].Cc);
+        Assert.Equal("", detail.Activities[2].FromAddress);
+    }
+
+    [Fact]
     public async Task Attachments_are_served_through_an_authenticated_route_not_a_blob_url()
     {
         // /api/img is unauthenticated. A customer's survey or contract must not be

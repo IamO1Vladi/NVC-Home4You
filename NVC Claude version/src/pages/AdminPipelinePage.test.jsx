@@ -300,6 +300,140 @@ describe('AdminPipelinePage', () => {
     expect(replyBox().textContent).toContain('sales@x.eu')
   })
 
+  // --- The Cc line ---------------------------------------------------------------------
+  //
+  // One new field on the reply and nothing else: the string travels exactly as typed, and
+  // the server is the only place an address is split or judged — the same division of
+  // labour as the report dialog's To box. The thread then shows what was stored: the Cc
+  // on our bubbles, and on inbound ones the sender when it is NOT the customer, which is
+  // how a third party's reply-all stops masquerading as the customer.
+
+  const ccBox = () => screen.getByRole('textbox', { name: /Копие до|Cc \(/ })
+
+  it('sends the typed Cc with the reply, exactly as typed', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.type(ccBox(), 'arch@studio.bg; partner@x.eu')
+    typeReply('<p>Копие и до архитекта.</p>')
+    await user.click(screen.getByRole('button', { name: /Изпрати|Send/ }))
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/reply') && c.method === 'POST')
+      // Semicolon and all: splitting is the server's job, and it does it the same way
+      // whichever separator was typed.
+      expect(sent.body.get('cc')).toBe('arch@studio.bg; partner@x.eu')
+    })
+  })
+
+  it('a reply with no Cc carries no cc field at all', async () => {
+    // Absent rather than empty — "no CC" is the absence of the field, not an empty
+    // string the server would have to interpret.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    typeReply('<p>Без копие.</p>')
+    await user.click(screen.getByRole('button', { name: /Изпрати|Send/ }))
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/reply') && c.method === 'POST')
+      expect(sent).toBeTruthy()
+      expect(sent.body.has('cc')).toBe(false)
+    })
+  })
+
+  it('the Cc clears with the reply, and only once the send is confirmed', async () => {
+    // The same rule as the box under it: never reset optimistically. A failed send
+    // keeps everything typed, a confirmed one leaves the composer clean for the next.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.type(ccBox(), 'arch@studio.bg')
+    typeReply('<p>Пращам и на архитекта.</p>')
+    await user.click(screen.getByRole('button', { name: /Изпрати|Send/ }))
+
+    await waitFor(() => expect(replyBox().textContent).toContain('Поздрави'))
+    expect(ccBox()).toHaveValue('')
+  })
+
+  it('a filled Cc alone does not make an empty reply sendable', async () => {
+    // A CC is a copy of the reply — with nothing composed there is nothing to copy, and
+    // the composed gate that already refuses a bare signature refuses this too.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    await waitFor(() => expect(replyBox().textContent).toContain('Sales'))
+
+    await user.type(ccBox(), 'arch@studio.bg')
+    expect(screen.getByRole('button', { name: /Изпрати|Send/ })).toBeDisabled()
+  })
+
+  it('filing the text as a note clears the Cc along with it', async () => {
+    // Logging is deciding NOT to send the reply, and the copy belongs to the reply — a
+    // Cc left behind would ride the next real send to someone it was never typed for.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    await waitFor(() => expect(replyBox().textContent).toContain('Sales'))
+
+    await user.type(ccBox(), 'arch@studio.bg')
+    typeReply('<p>Вътрешна бележка.</p>')
+    await user.click(screen.getByRole('button', { name: /Бележка|Note/ }))
+
+    await waitFor(() => expect(ccBox()).toHaveValue(''))
+    expect(calls.some((c) => c.url.includes('/reply'))).toBe(false)
+  })
+
+  it('an outbound bubble says who was copied', async () => {
+    detail = {
+      ...DETAIL,
+      activities: [
+        { id: 40, type: 'email_out', subject: 'Re: Question', body: 'Пращам копие.', actorUpn: 's@x.eu', fromCustomer: false, occurredAt: '2026-07-02T10:00:00Z', attachments: [], cc: 'arch@studio.bg, partner@x.eu' },
+      ],
+    }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByText('Пращам копие.')).toBeInTheDocument())
+
+    const bubble = screen.getByText('Пращам копие.').closest('.adm-bubble')
+    expect(within(bubble).getByText(/(Копие до|Cc): arch@studio\.bg, partner@x\.eu/))
+      .toBeInTheDocument()
+  })
+
+  it('flags an inbound mail whose sender is not the customer', async () => {
+    // The thread files every in-conversation reply as "the customer". This marker is how
+    // an architect's reply-all stops wearing Ivan's name.
+    detail = {
+      ...DETAIL,
+      activities: [
+        { id: 41, type: 'email_in', subject: '', body: 'Отговарям вместо Иван.', actorUpn: '', fromCustomer: true, occurredAt: '2026-07-03T09:00:00Z', attachments: [], fromAddress: 'architect@studio.bg' },
+      ],
+    }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByText('Отговарям вместо Иван.')).toBeInTheDocument())
+
+    const bubble = screen.getByText('Отговарям вместо Иван.').closest('.adm-bubble')
+    expect(within(bubble).getByText(/(от|from) architect@studio\.bg/)).toBeInTheDocument()
+  })
+
+  it('says nothing when the sender is the customer, capitals aside', async () => {
+    // An address does not change identity with its capitals — the same judgement
+    // sameUser already makes — and a marker on every inbound row is one nobody reads.
+    detail = {
+      ...DETAIL,
+      activities: [
+        { id: 42, type: 'email_in', subject: '', body: 'Аз съм, Иван.', actorUpn: '', fromCustomer: true, occurredAt: '2026-07-03T09:00:00Z', attachments: [], fromAddress: 'Ivan@Example.com' },
+      ],
+    }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByText('Аз съм, Иван.')).toBeInTheDocument())
+
+    const bubble = screen.getByText('Аз съм, Иван.').closest('.adm-bubble')
+    expect(within(bubble).queryByText(/Ivan@Example\.com/)).not.toBeInTheDocument()
+  })
+
   it('puts a draft in the box for editing instead of sending it', async () => {
     // The whole safety model: a draft is a suggestion until a person presses Send.
     const user = userEvent.setup()
@@ -362,7 +496,10 @@ describe('AdminPipelinePage', () => {
 
   // --- Assigning a lead to a user -----------------------------------------------------
 
-  const ownerBox = () => screen.getByRole('combobox', { name: /Отговорник|Owner/ })
+  // Scoped to the conversation pane on purpose: the toolbar's owner FILTER answers a
+  // different question under the same word, and it sits on the same screen now.
+  const ownerBox = () =>
+    within(document.querySelector('.adm-deal-head')).getByRole('combobox', { name: /Отговорник|Owner/ })
 
   it('assigns the lead to a picked user', async () => {
     const user = userEvent.setup()
@@ -1198,14 +1335,14 @@ describe('AdminPipelinePage', () => {
     expect(suggestions(dialog)).toEqual([])
   })
 
-  // --- The due tab's owner filter ------------------------------------------------------
+  // --- The owner filter (За връзка and Активни) ----------------------------------------
 
   const toolbar = () => document.querySelector('.adm-pipeline-toolbar')
   // Scoped to the toolbar on purpose: the assignment dropdown in the lead header answers a
   // different question under the same word.
-  const dueOwnerBox = () =>
+  const filterOwnerBox = () =>
     within(toolbar()).getByRole('combobox', { name: /Отговорник|Owner/ })
-  const queryDueOwnerBox = () =>
+  const queryFilterOwnerBox = () =>
     within(toolbar()).queryByRole('combobox', { name: /Отговорник|Owner/ })
 
   const boardCalls = () =>
@@ -1219,7 +1356,7 @@ describe('AdminPipelinePage', () => {
     render(<AdminPipelinePage />, '/admin/pipeline?view=due')
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
 
     await waitFor(() => expect(calls.some((c) =>
       c.url.includes('due=true') && c.url.includes('owner=maria%40x.eu'))).toBe(true))
@@ -1229,7 +1366,7 @@ describe('AdminPipelinePage', () => {
     render(<AdminPipelinePage />, '/admin/pipeline?view=due')
     await waitFor(() => expect(calls.some((c) => c.url.includes('due=true'))).toBe(true))
 
-    expect(dueOwnerBox()).toHaveValue('')
+    expect(filterOwnerBox()).toHaveValue('')
     expect(boardCalls().every((c) => !c.url.includes('owner='))).toBe(true)
   })
 
@@ -1238,25 +1375,62 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => expect(calls.some((c) => c.url.includes('due=true'))).toBe(true))
 
     await waitFor(() =>
-      expect([...dueOwnerBox().querySelectorAll('option')].map((o) => o.value))
+      expect([...filterOwnerBox().querySelectorAll('option')].map((o) => o.value))
         .toEqual(['', 'maria@x.eu', 'vladi@x.eu']))
     // A second idea of who can own a lead would be a second list to keep in step.
     expect(calls.filter((c) => c.url.includes('/api/admin/pipeline/users'))).toHaveLength(1)
   })
 
-  it('the filter belongs to the due tab and appears on no other', async () => {
+  it('the filter belongs to За връзка and Активни, and appears on no other tab', async () => {
     const user = userEvent.setup()
     render(<AdminPipelinePage />)
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    // The other views answer the ownership question their own way — "Mine" is a tab.
-    expect(queryDueOwnerBox()).not.toBeInTheDocument()
+    // The default board IS Активни — whose conversations is a question both working
+    // views get asked. "Mine" keeps answering it its own way, and the archive is read
+    // by everyone as everyone's.
+    expect(queryFilterOwnerBox()).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /За връзка|^Due$/ }))
-    await waitFor(() => expect(queryDueOwnerBox()).toBeInTheDocument())
+    await waitFor(() => expect(queryFilterOwnerBox()).toBeInTheDocument())
 
-    await user.click(screen.getByRole('button', { name: /Активни|^Active$/ }))
-    await waitFor(() => expect(queryDueOwnerBox()).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /Мои|^Mine$/ }))
+    await waitFor(() => expect(queryFilterOwnerBox()).not.toBeInTheDocument())
+  })
+
+  it('narrows the active list to one owner at the server, and the choice survives the tab switch', async () => {
+    // The same thousand-row cap as the due view, so the same reasoning: ask the server.
+    // And ONE filter across the two tabs rather than one each, so "whose world am I
+    // looking at" holds while someone flips between promises and conversations.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
+    await waitFor(() => expect(calls.some((c) =>
+      c.url.includes('status=open') && c.url.includes('owner=maria%40x.eu'))).toBe(true))
+
+    await user.click(screen.getByRole('button', { name: /За връзка|^Due$/ }))
+    await waitFor(() => expect(calls.some((c) =>
+      c.url.includes('due=true') && c.url.includes('owner=maria%40x.eu'))).toBe(true))
+    expect(filterOwnerBox()).toHaveValue('maria@x.eu')
+  })
+
+  it('an owner with nothing active is told so in this tab’s words, not the due tab’s', async () => {
+    // The same server-narrowing trap as the due view — an empty board must not read as
+    // an empty pipeline — but the sentence has to say what was searched: активни, not
+    // просрочени.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    boardRows = []
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
+
+    const empty = await screen.findByText(
+      /Няма активни лийдове за maria@x\.eu|Nothing active for maria@x\.eu/,
+      { selector: '.adm-empty p' })
+    expect(empty).toBeInTheDocument()
   })
 
   it('the filter is still on the request when the board reloads under it', async () => {
@@ -1266,7 +1440,7 @@ describe('AdminPipelinePage', () => {
     render(<AdminPipelinePage />, '/admin/pipeline?view=due')
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
     await waitFor(() => expect(calls.some((c) => c.url.includes('owner=maria%40x.eu'))).toBe(true))
 
     // A status move is the shortest write that reloads the board behind it.
@@ -1291,7 +1465,7 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
     boardRows = []
-    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
 
     const empty = await screen.findByText(/maria@x\.eu/, { selector: '.adm-empty p' })
     expect(empty).toBeInTheDocument()
@@ -1306,13 +1480,13 @@ describe('AdminPipelinePage', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
     boardRows = []
-    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
     await screen.findByRole('button', { name: /Изчисти филтрите|Clear filters/ })
 
     boardRows = BOARD
     await user.click(screen.getByRole('button', { name: /Изчисти филтрите|Clear filters/ }))
 
-    await waitFor(() => expect(dueOwnerBox()).toHaveValue(''))
+    await waitFor(() => expect(filterOwnerBox()).toHaveValue(''))
     await waitFor(() => {
       const board = boardCalls()
       expect(board[board.length - 1].url).not.toContain('owner=')
@@ -1595,7 +1769,7 @@ describe('AdminPipelinePage', () => {
     render(<AdminPipelinePage />, '/admin/pipeline?view=due')
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
 
-    await user.selectOptions(dueOwnerBox(), 'maria@x.eu')
+    await user.selectOptions(filterOwnerBox(), 'maria@x.eu')
     await user.click(screen.getByRole('button', { name: /Изпрати справка|Send report/ }))
 
     const dialog = await screen.findByRole('dialog')

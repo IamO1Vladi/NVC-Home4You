@@ -209,7 +209,8 @@ public class LeadMailPoller : BackgroundService
         {
             var leadId = where.LeadId;
             var activity = InboundActivity(
-                where, message.ConversationId, message.Id, message.Subject, message.Body, message.ReceivedAt);
+                where, message.ConversationId, message.Id, message.Subject, message.Body,
+                message.FromAddress, message.ReceivedAt);
 
             // The plot survey, the bank confirmation, the photo of where it is going —
             // customers send these constantly, and until now they stayed in the mailbox
@@ -454,7 +455,7 @@ public class LeadMailPoller : BackgroundService
     /// </remarks>
     public static LeadActivity InboundActivity(
         Placement where, string? conversationId, string externalMessageId,
-        string? subject, string? body, DateTimeOffset receivedAt) => new()
+        string? subject, string? body, string? fromAddress, DateTimeOffset receivedAt) => new()
         {
             LeadId = where.LeadId,
             Type = LeadActivityTypes.EmailIn,
@@ -463,8 +464,23 @@ public class LeadMailPoller : BackgroundService
             ActorUpn = null,                    // null means the customer
             ConversationId = where.ByConversation ? conversationId : null,
             ExternalMessageId = externalMessageId,
+            // Recorded whichever rule placed the message, because it answers a question
+            // the routing does not: WHICH mailbox wrote this. A conversation-placed reply
+            // from the customer's second address matches Lead.Email on nothing, and this
+            // column is the only place that difference shows.
+            FromAddress = TruncatedSender(fromAddress),
             OccurredAt = receivedAt,
         };
+
+    // Trimmed, null for whitespace, and cut to the column's 320 rather than refused —
+    // the sender chose this string, and an overlong one reaching SQL would fail the
+    // tick's whole SaveChanges, costing every other message in the batch.
+    private static string? TruncatedSender(string? address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return null;
+        var trimmed = address!.Trim();
+        return trimmed.Length <= 320 ? trimmed : trimmed[..320];
+    }
 
     /// <summary>
     /// What filing a customer's message does to the lead itself, beyond the thread.

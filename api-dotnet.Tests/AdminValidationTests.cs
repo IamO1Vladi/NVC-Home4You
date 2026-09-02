@@ -28,6 +28,16 @@ public class AdminValidationTests
             .GetMethod("ValidateAttachments", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, new object[] { files })!;
 
+    private static List<string> ValidateCc(params string[] recipients) =>
+        (List<string>)typeof(AdminPipelineController)
+            .GetMethod("ValidateCc", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, new object[] { recipients })!;
+
+    private static List<string> SplitCc(string? raw) =>
+        (List<string>)typeof(AdminPipelineController)
+            .GetMethod("SplitCc", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, new object?[] { raw })!;
+
     // storedEmail defaults to "nothing there yet", which is the plain case: every rule but
     // one reads only what arrived. The exception has its own tests below.
     private static List<string> ValidateContact(
@@ -220,6 +230,74 @@ public class AdminValidationTests
     {
         // The common case: most replies are words.
         Assert.Empty(ValidateAttachments());
+    }
+
+    // --- Who else gets a copy of a reply ------------------------------------------------
+    //
+    // Front-loaded for the same reason as the files: a CC that Graph rejects mid-send
+    // costs the reply someone typed. And STRICT where the due-report's "to" box is lax,
+    // because a CC is stored against the thread and rides with the customer's copy —
+    // nobody is watching for its bounce.
+
+    [Fact]
+    public void An_empty_cc_box_is_the_common_case_and_says_nothing()
+    {
+        Assert.Empty(ValidateCc());
+        // What the split hands the rule for a blank or whitespace box.
+        Assert.Empty(ValidateCc(SplitCc("   ").ToArray()));
+    }
+
+    [Fact]
+    public void A_typed_list_of_real_addresses_passes_through_both_stages()
+    {
+        // The two-stage contract end to end: the split reads what the admin typed, the
+        // strict rule then judges every token it produced.
+        var tokens = SplitCc("maria@nvc.eu; office@partner.bg , ivan@example.com");
+
+        Assert.Empty(ValidateCc(tokens.ToArray()));
+    }
+
+    [Fact]
+    public void A_token_that_lost_its_at_sign_is_refused_not_dropped()
+    {
+        // The token ParseRecipients would have swallowed: an '@' typoed as a dot. The
+        // split keeps every non-empty token precisely so the refusal can name this one —
+        // a CC silently unsent is a colleague who never saw the thread, and nobody who
+        // knows it.
+        var tokens = SplitCc("maria@nvc.eu; office.partner.bg");
+
+        Assert.Equal(2, tokens.Count);
+        Assert.Contains(ValidateCc(tokens.ToArray()), e => e.Contains("office.partner.bg"));
+        Assert.DoesNotContain(ValidateCc(tokens.ToArray()), e => e.Contains("maria@nvc.eu"));
+    }
+
+    [Fact]
+    public void A_bad_cc_token_is_refused_by_name()
+    {
+        // "One of your addresses is wrong" out of five is not a sentence anyone can act
+        // on; the token itself is. The display-name case matters most — it is what a
+        // paste out of Outlook looks like.
+        var errors = ValidateCc("maria@nvc.eu", "Ivan <ivan@example.com>");
+
+        Assert.Contains(errors, e => e.Contains("Ivan <ivan@example.com>"));
+        Assert.DoesNotContain(errors, e => e.Contains("maria@nvc.eu"));
+    }
+
+    [Fact]
+    public void A_cc_list_too_long_for_its_column_is_refused_before_the_send()
+    {
+        // The joined list is what LeadActivity.CcRecipients stores, so its 500-character
+        // ceiling has to be met here — after the send it would be a 500 with the mail
+        // already gone, which is the one order of events with no way back.
+        var many = Enumerable.Range(0, 20)
+            .Select(i => $"colleague-with-a-long-name-{i:00}@partner-company.example.com")
+            .ToArray();
+
+        Assert.Contains(ValidateCc(many), e => e.Contains("too many", StringComparison.OrdinalIgnoreCase));
+
+        // And a dozen ordinary addresses — the realistic ceiling — still fit.
+        var plenty = Enumerable.Range(0, 12).Select(i => $"person{i:00}@example.com").ToArray();
+        Assert.Empty(ValidateCc(plenty));
     }
 
     // --- Correcting who a lead is -------------------------------------------------------

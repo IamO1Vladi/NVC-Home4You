@@ -69,7 +69,8 @@ public class LeadMailService
     /// </summary>
     public async Task<SendResult> SendReplyAsync(
         int leadId, string? subject, string body, string? actorUpn,
-        IReadOnlyList<OutgoingFile>? attachments = null, CancellationToken ct = default)
+        IReadOnlyList<OutgoingFile>? attachments = null, IReadOnlyList<string>? cc = null,
+        CancellationToken ct = default)
     {
         if (!IsConfigured)
             return new SendResult(SendOutcome.NotConfigured, null, "Email is not configured.");
@@ -78,6 +79,9 @@ public class LeadMailService
         if (lead is null)
             return new SendResult(SendOutcome.LeadNotFound, null, "No such lead.");
 
+        // Deliberately before the CC list is even looked at: a CC is a copy of the reply
+        // to the customer, never a substitute recipient. A reply that went only to the
+        // copied colleague would show the thread answered while the customer heard nothing.
         if (string.IsNullOrWhiteSpace(lead.Email))
             return new SendResult(SendOutcome.NoAddress, null,
                 "This lead has no email address — reply by phone, and log the call.");
@@ -107,7 +111,7 @@ public class LeadMailService
             try
             {
                 (messageId, conversationId) = await CreateDraftAsync(
-                    token, lead.Email!, resolvedSubject, body, ct);
+                    token, lead.Email!, resolvedSubject, body, cc, ct);
 
                 // Onto the draft rather than into its creation payload: attaching
                 // separately is what keeps one oversized file from failing the whole
@@ -127,7 +131,7 @@ public class LeadMailService
                     "will not thread back automatically until Mail.ReadWrite is granted.",
                     _env.GraphSender);
 
-                await SendDirectAsync(token, lead.Email!, resolvedSubject, body, attachments, ct);
+                await SendDirectAsync(token, lead.Email!, resolvedSubject, body, cc, attachments, ct);
                 messageId = null;
                 conversationId = null;
             }
@@ -142,6 +146,10 @@ public class LeadMailService
                 ActorUpn = actorUpn,
                 ConversationId = conversationId,
                 ExternalMessageId = messageId,
+                // Recorded from the same list both send paths were handed, so the thread
+                // shows exactly who was copied — the send-first ordering above only keeps
+                // the record honest if what is written is what went out.
+                CcRecipients = cc is { Count: > 0 } ? string.Join(", ", cc) : null,
                 OccurredAt = now,
             };
             // Stored only now, and only if the send worked. A file recorded against a
@@ -247,24 +255,26 @@ public class LeadMailService
     /// cannot be allowed to fail.
     /// </summary>
     private async Task SendDirectAsync(
-        string token, string toAddress, string subject, string body,
+        string token, string toAddress, string subject, string body, IReadOnlyList<string>? cc,
         IReadOnlyList<OutgoingFile>? attachments, CancellationToken ct)
     {
-        var payload = new
+        // A dictionary rather than an anonymous type, for the same reason as FileAttachment
+        // below: ccRecipients must be genuinely absent when nobody is copied, and an
+        // anonymous type can only ever null a property out.
+        var message = new Dictionary<string, object?>
         {
-            message = new
-            {
-                subject,
-                body = new { contentType = "HTML", content = body },
-                toRecipients = new[] { new { emailAddress = new { address = toAddress } } },
+            ["subject"] = subject,
+            ["body"] = new { contentType = "HTML", content = body },
+            ["toRecipients"] = Recipients(new[] { toAddress }),
 
-                // Inline in the payload here, because this path has no message to attach
-                // to afterwards — that is exactly the permission it is missing. The size
-                // ceiling enforced by the caller is what keeps this request legal.
-                attachments = attachments?.Select(FileAttachment).ToArray(),
-            },
-            saveToSentItems = true,
+            // Inline in the payload here, because this path has no message to attach
+            // to afterwards — that is exactly the permission it is missing. The size
+            // ceiling enforced by the caller is what keeps this request legal.
+            ["attachments"] = attachments?.Select(FileAttachment).ToArray(),
         };
+        if (cc is { Count: > 0 }) message["ccRecipients"] = Recipients(cc);
+
+        var payload = new { message, saveToSentItems = true };
 
         var http = _httpFactory.CreateClient();
         using var request = new HttpRequestMessage(
@@ -287,14 +297,18 @@ public class LeadMailService
     /// Creates the message in the mailbox without sending it, and returns Graph's ids.
     /// </summary>
     private async Task<(string MessageId, string? ConversationId)> CreateDraftAsync(
-        string token, string toAddress, string subject, string body, CancellationToken ct)
+        string token, string toAddress, string subject, string body,
+        IReadOnlyList<string>? cc, CancellationToken ct)
     {
-        var payload = new
+        // Same shape as SendDirectAsync's message, and a dictionary for the same reason:
+        // absent and null are different things to send Graph.
+        var payload = new Dictionary<string, object?>
         {
-            subject,
-            body = new { contentType = "HTML", content = body },
-            toRecipients = new[] { new { emailAddress = new { address = toAddress } } },
+            ["subject"] = subject,
+            ["body"] = new { contentType = "HTML", content = body },
+            ["toRecipients"] = Recipients(new[] { toAddress }),
         };
+        if (cc is { Count: > 0 }) payload["ccRecipients"] = Recipients(cc);
 
         var http = _httpFactory.CreateClient();
         using var request = new HttpRequestMessage(
@@ -319,6 +333,13 @@ public class LeadMailService
 
         return (id!, conversationId);
     }
+
+    /// <summary>
+    /// Addresses in the shape Graph expects wherever recipients appear — the same for
+    /// toRecipients and ccRecipients.
+    /// </summary>
+    private static object[] Recipients(IEnumerable<string> addresses) =>
+        addresses.Select(a => (object)new { emailAddress = new { address = a } }).ToArray();
 
     /// <summary>
     /// One file, in the shape Graph expects wherever an attachment may appear.
