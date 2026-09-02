@@ -1,4 +1,4 @@
-# Where things stand — 2026-08-28
+# Where things stand — 2026-09-03
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
@@ -13,10 +13,11 @@ Tests: **777 .NET, 425 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 
 | | |
 |---|---|
-| **Live** | `dd5823b`, tagged **`deploy-2026-08-29`** — the accessibility release (#10: 16 axe rules to zero, `npm run audit:a11y` now in the toolbox) plus drag-and-drop attach on the leads composer. Probe-verified: the served bundle is `index-DDsnW5xU.js` and the old hard-coded footer gray is absent from the served HTML. |
-| **`production` branch** | `dd5823b` = live. Branch and tag moved at publish time this once — by request, right after the probe. |
-| **`master`** | = `production`, plus whatever handoff note follows this publish. |
-| **Migrations** | **None pending.** `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| **Live** | `a225a44`, tagged **`deploy-2026-09-02`** — the leads-panel pair: Cc on the reply (sent, stored, shown), sender attribution on inbound mail, and the owner filter shared by За връзка and Активни. Probe-verified 2026-09-03: `/admin` and bypassed routes serve `index-TZSnV4ia.js`. The public homepage still serves the 08-29 **prerendered snapshot** referencing `index-DDsnW5xU.js` — deliberate (§6b skipped for an admin-only release), harmless (the old bundle file is retained and answers 200), and self-healing on the next prerender run. |
+| **`production` branch** | `a225a44` = live. |
+| **`master`** | = `production`, plus this note. |
+| **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
+| **Migrations** | **None pending.** `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has

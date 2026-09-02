@@ -501,7 +501,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
-- [x] **The two leads-panel requests of 2026-09-02** (built and reviewed same day). A
+- [x] **The two leads-panel requests of 2026-09-02** (built, reviewed and deployed same
+  day — `deploy-2026-09-02`, verified live 2026-09-03). A
   **Cc box on the reply composer** — comma/semicolon list, judged strictly on the server
   BEFORE the send (every token must parse; a refusal names the bad one, because an
   '@' typoed into a dot must not become a colleague silently never copied); sent via
