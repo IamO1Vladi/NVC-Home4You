@@ -28,6 +28,29 @@ commits, notes and conversations still resolve.
 - [ ] **5. Financing / total-cost calculator.** Monthly payment estimate; clear "included
   vs quote-on-review" breakdown. Cheaper now: the prices page already computes finished
   totals per model.
+- [ ] **28. Kitchen appliance placement in the configurator.** Scoped 2026-09-07 with the
+  owner; the design is settled, the pricing questions are not. Buyers place appliances
+  onto their chosen floor plan the way they already place windows and sockets — same
+  render, same coordinate system, one constraint added: appliances go into named SLOTS
+  along the kitchen run (4–6 per plan, hand-placed percent coordinates on the new plan
+  renders), not onto arbitrary points. A slot is taken or it isn't; no dragging physics.
+
+  The appliances, semantics CONFIRMED by the owner 2026-09-07:
+  - **Sink** — always present, must be placed.
+  - **Stove + oven** — one combined unit OR separate hob and oven; a real choice with a
+    price delta and two placements instead of one.
+  - **Washing machine (пералня)** — placeable in the kitchen OR the bathroom.
+  - **Dishwasher (съдомиялна)** — optional add-on, kitchen only, slot adjacent to the
+    sink (that is plumbing, not preference).
+
+  Output rides the existing machinery: positions serialize into the config summary the
+  way windows and sockets already do, so the sales email names each appliance's slot and
+  carries the marked render.
+
+  **Blocked on the owner for**: the price of the combined vs separate oven/hob, the
+  dishwasher price, and whether a bathroom washing machine carries a plumbing surcharge.
+  The slot coordinates per plan are development work against the 2026-09-05 renders and
+  need nothing from anyone.
 - [~] **21. Billing & procurement on Azure SQL** — **BUILT, SHIPPED, THEN PULLED BACK OUT
   (2026-08-19).** The team decided migrating billing off Quickbase is too much change to
   absorb right now. It is not a failed design: it worked, the Quickbase data imported
@@ -81,9 +104,6 @@ commits, notes and conversations still resolve.
 ### Platform & polish
 
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
-- [ ] **9. Per-breakpoint `srcset`** *(the open half of the performance pass)*. Images are
-  WebP, capped at 2560px, served from our origin with a year of immutable caching — but a
-  phone still downloads the desktop-sized file.
 - [ ] **11. Greek translation completeness audit.**
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
 
@@ -500,6 +520,17 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
    pick at import time.
 
 ## DONE — newest first
+
+- [x] **9. Per-breakpoint `srcset`** (2026-09-07, ships with the next publish). The twist:
+  the frontend was already finished — every heavy image carried srcSet and sizes written
+  for a Cloudinary mode that was never enabled, so production srcsets collapsed to the
+  plain src. Now `/api/img/{key}?w=` answers first-party: widths snap to a thirteen-rung
+  ladder (safe to expose — nobody can mint arbitrary cache entries), variants resize once
+  through the same SkiaSharp/WebP pipeline imports use, cached beside the original.
+  Measured: a 30KB gallery card serves 3.9KB at the width a phone renders it. Never
+  upscales, never resizes a GIF, degrades to the original rather than 404. Both ladders
+  (C# and img.js) pin the same cases in both test suites, because their drifting apart is
+  the failure nothing at runtime reports.
 
 - [x] **The two leads-panel requests of 2026-09-02** (built, reviewed and deployed same
   day — `deploy-2026-09-02`, verified live 2026-09-03). A
