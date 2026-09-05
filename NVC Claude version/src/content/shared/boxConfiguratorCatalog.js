@@ -256,8 +256,8 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
     C2: t('Living room, kitchen and workspace + 2 bedrooms', 'Хол, кухня и работен кът + 2 спални'),
     C3: t('Living room and kitchen + 3 bedrooms', 'Хол и кухня + 3 спални'),
     C4: t('Living room and kitchen + 4 bedrooms', 'Хол и кухня + 4 спални'),
-    C5: t('4 bedrooms', '4 спални'),
-    C6: t('5 bedrooms', '5 спални'),
+    C5: t('5 bedrooms', '5 спални'),
+    C6: t('6 bedrooms', '6 спални'),
   }
 
   const planWallFactor = {
@@ -268,10 +268,15 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
 
   // Interior doors each layout needs: one per bedroom, plus one for a separate
   // workspace. The bathroom is not counted -- it takes a БД door of its own.
+  //
+  // C5 and C6 said 4 and 5 here (and in planMeta above) while their renders showed 5 and
+  // 6 bedrooms; the owner settled it 2026-09-05: the renders are right. The wall factors
+  // below needed no change -- they already stepped in lockstep with the B-series ladder,
+  // priced for the real room counts all along.
   const planDoorCount = {
     A1: 1, A2: 1, A3: 2, A4: 3, A5: 4, A6: 4,
     B1: 1, B2: 2, B3: 3, B4: 4, B5: 5, B6: 6,
-    C1: 1, C2: 3, C3: 3, C4: 4, C5: 4, C6: 5,
+    C1: 1, C2: 3, C3: 3, C4: 4, C5: 5, C6: 6,
   }
 
   const planOptions = Object.keys(planMeta).map((key) => ({
