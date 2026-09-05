@@ -1069,7 +1069,25 @@ export default function BoxHouseConfiguratorPage({ content }) {
   const selectedBathroomDoor = resolveSelected(catalog.bathroomDoorOptions, config.bathroomDoor)
   const selectedVanity = resolveSelected(catalog.vanityOptions, config.vanity)
   const selectedKitchenSink = resolveSelected(catalog.kitchenSinkOptions, config.kitchenSink)
-  const selectedTerrace = resolveSelected(catalog.terraceOptions, config.terrace)
+  // Only the terraces this model can carry. The two long-side decks are per-model facts
+  // (a 37 has no 9m side to put one on), and the catalog has always said so — the bug was
+  // that both render sites mapped the unfiltered list, so a 37 buyer could price a deck
+  // that does not exist for their house.
+  const availableTerraceOptions = React.useMemo(
+    () => catalog.terraceOptions.filter((item) => !item.models || item.models.includes(config.model)),
+    [catalog.terraceOptions, config.model]
+  )
+  const selectedTerrace = resolveSelected(availableTerraceOptions, config.terrace)
+
+  // Switching from a 58 with a long-side deck to a 37 leaves 'long-58' in the config.
+  // resolveSelected already falls back for display and price, but the STORED value must
+  // follow — a summary sent to sales should never name a deck the chosen model cannot have.
+  React.useEffect(() => {
+    if (config.terrace && !availableTerraceOptions.some((item) => item.key === config.terrace)) {
+      setField('terrace', availableTerraceOptions[0]?.key || 'standard')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.model])
   // These four are optional upgrades -- an empty selection means "not taken",
   // so they must not fall back to the first option the way the others do.
   const selectedWindowColour = windowColourOptions.find((item) => item.key === config.windowColour) || null
@@ -2085,7 +2103,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <div className="bhc-group">
                 <div className="bhc-section-title">{labels.terrace}</div>
                 <div className="bhc-option-list">
-                  {catalog.terraceOptions.map((item) => (
+                  {availableTerraceOptions.map((item) => (
                     <ChoiceCard
                       key={item.key}
                       active={config.terrace === item.key}
@@ -3523,7 +3541,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             badge={terracePrice ? `+${euro(terracePrice, locale)}` : labels.includedShort}
           >
             <div className="bhc-option-list">
-              {catalog.terraceOptions.map((item) => (
+              {availableTerraceOptions.map((item) => (
                 <ChoiceCard
                   key={item.key}
                   active={config.terrace === item.key}
