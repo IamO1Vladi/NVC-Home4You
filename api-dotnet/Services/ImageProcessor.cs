@@ -96,6 +96,46 @@ public sealed class ImageProcessor
         }
     }
 
+    /// <summary>
+    /// A width-bounded WebP variant for the srcset ladder (ROADMAP #9). Null when the
+    /// original is already no wider than the target — serving it unchanged beats an
+    /// upscale-shaped copy — and null when the bytes will not decode, where the caller
+    /// serves the original too. Unlike <see cref="TryProcess"/> there is no is-it-smaller
+    /// check: the input here is the stored 2560-capped original, so a narrower re-encode
+    /// is worth keeping by construction.
+    /// </summary>
+    public ProcessedImage? TryResizeToWidth(byte[] input, int maxWidth)
+    {
+        if (input is null || input.Length == 0 || maxWidth <= 0) return null;
+
+        try
+        {
+            using var original = SKBitmap.Decode(input);
+            if (original is null || original.Width <= maxWidth || original.Height <= 0)
+                return null;
+
+            var scale = (double)maxWidth / original.Width;
+            var height = Math.Max(1, (int)Math.Round(original.Height * scale));
+
+            var info = new SKImageInfo(maxWidth, height, original.ColorType, original.AlphaType);
+            using var resized = new SKBitmap(info);
+            if (!original.ScalePixels(resized, new SKSamplingOptions(SKCubicResampler.Mitchell)))
+                return null;
+
+            using var image = SKImage.FromBitmap(resized);
+            using var encoded = image.Encode(SKEncodedImageFormat.Webp, Quality);
+            if (encoded is null) return null;
+
+            return new ProcessedImage(
+                encoded.ToArray(), "image/webp", ".webp", resized.Width, resized.Height, input.Length);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Width-variant resize failed; the original will be served.");
+            return null;
+        }
+    }
+
     // Returns null when the image is already within bounds, so the caller can tell "no resize
     // happened" from "resized".
     private static SKBitmap? Downscale(SKBitmap original)

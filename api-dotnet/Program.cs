@@ -286,7 +286,8 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
 builder.Services.AddScoped<Services.ImageStore>(sp => new Services.ImageStore(
     sp.GetRequiredService<Services.ImageCache>(),
     sp.GetRequiredService<Services.QuickbaseImageSource>(),
-    sp.GetService<Services.BlobImageSource>()));
+    sp.GetService<Services.BlobImageSource>(),
+    sp.GetRequiredService<Services.ImageProcessor>()));
 
 builder.Services.AddScoped<Services.GalleryService>();
 

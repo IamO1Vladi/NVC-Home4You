@@ -27,20 +27,63 @@ public sealed class ImageStore
     private readonly ImageCache _cache;
     private readonly IImageSource? _blob;
     private readonly IImageSource _quickbase;
+    private readonly ImageProcessor? _processor;
 
     // Takes the interface rather than the concrete sources so the chain can be exercised
-    // without a storage account or an HTTP client standing behind it.
-    public ImageStore(ImageCache cache, IImageSource quickbase, IImageSource? blob = null)
+    // without a storage account or an HTTP client standing behind it. The processor is
+    // optional the same way blob is: without one, ?w= quietly serves originals — degraded,
+    // never broken.
+    public ImageStore(ImageCache cache, IImageSource quickbase, IImageSource? blob = null,
+        ImageProcessor? processor = null)
     {
         _cache = cache;
         _quickbase = quickbase;
         _blob = blob;
+        _processor = processor;
     }
 
-    public async Task<ServedImage?> TryGetAsync(string key, CancellationToken ct)
+    public Task<ServedImage?> TryGetAsync(string key, CancellationToken ct) =>
+        TryGetAsync(key, null, ct);
+
+    /// <summary>
+    /// The srcset read path (ROADMAP #9): the image no wider than <paramref name="width"/>,
+    /// resized once and cached beside the original. The width is snapped to
+    /// <see cref="ImageWidths.Ladder"/> FIRST, so the cache can only ever hold ladder
+    /// variants no matter what the query string says.
+    /// </summary>
+    public async Task<ServedImage?> TryGetAsync(string key, int? width, CancellationToken ct)
     {
         if (!ImageKey.IsValid(key)) return null;
 
+        var snapped = ImageWidths.Snap(width);
+
+        // A GIF can be animated, and SKBitmap.Decode reads one frame — a "resized" copy
+        // would be a still. The only honest variant of a GIF is the GIF.
+        if (snapped is null || _processor is null ||
+            key.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+            return await OriginalAsync(key, ct);
+
+        // ':' cannot appear in a valid key (ImageKey refuses it), which is what makes this
+        // prefix collision-proof against every original the same cache holds.
+        var variantKey = $"w{snapped}:{key}";
+        if (_cache.TryGet(variantKey, out var variantBytes, out var variantType))
+            return new ServedImage(variantBytes, variantType, ImageOrigin.Memory);
+
+        var original = await OriginalAsync(key, ct);
+        if (original is null) return null;
+
+        // Null means "already narrow enough" or "would not decode" — either way the
+        // original IS the answer, and it is not re-cached under the variant key because
+        // the original's own cache entry already holds those bytes once.
+        var resized = _processor.TryResizeToWidth(original.Bytes, snapped.Value);
+        if (resized is null) return original;
+
+        _cache.Set(variantKey, resized.Bytes, resized.ContentType);
+        return new ServedImage(resized.Bytes, resized.ContentType, original.Origin);
+    }
+
+    private async Task<ServedImage?> OriginalAsync(string key, CancellationToken ct)
+    {
         if (_cache.TryGet(key, out var cachedBytes, out var cachedType))
             return new ServedImage(cachedBytes, cachedType, ImageOrigin.Memory);
 

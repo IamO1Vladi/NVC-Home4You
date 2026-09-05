@@ -28,12 +28,17 @@ public class ImagesController : ControllerBase
         _images = images;
     }
 
+    // ?w= asks for a width-bounded variant (ROADMAP #9) — the srcset the site's markup
+    // has carried all along, finally answered first-party. The value is snapped to
+    // ImageWidths.Ladder inside the store, so a hand-typed width cannot mint cache
+    // entries; and the immutable year below stays correct for variants because the KEY
+    // carries the content version — new bytes mean a new key, for every width of it.
     [HttpGet("{*key}")]
-    public async Task<IActionResult> Get(string key, CancellationToken ct)
+    public async Task<IActionResult> Get(string key, [FromQuery] int? w, CancellationToken ct)
     {
         if (!ImageKey.IsValid(key)) return NotFound();
 
-        var image = await _images.TryGetAsync(key, ct);
+        var image = await _images.TryGetAsync(key, w, ct);
         if (image is null) return NotFound();
 
         Response.Headers[HeaderNames.CacheControl] =
