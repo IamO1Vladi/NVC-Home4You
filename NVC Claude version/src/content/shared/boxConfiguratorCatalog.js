@@ -279,9 +279,14 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
     label: key,
     subtitle: planMeta[key],
     image: `plan-${key}.webp`,
-    // Blank-wall version of the same plan, used as the canvas when the buyer
-    // clicks to place their own windows (so existing windows don't confuse them).
-    noWindowImage: `plan-${key}-nowindows.webp`,
+    // Blank-wall version of the same plan, used as the canvas when the buyer clicks to
+    // place their own windows (so existing windows don't confuse them). A-SERIES ONLY
+    // since 2026-09-05: the B and C plans got new furnished renders and the owner chose
+    // to use them for the window stage too — every stage falls back to `image` when this
+    // is absent, which is exactly what absent means here. If windows-drawn-on-the-render
+    // proves confusing in practice, the fix is a windowless export of the same renders,
+    // not a revert to the old artwork.
+    noWindowImage: key.startsWith('A') ? `plan-${key}-nowindows.webp` : undefined,
     wallFactor: planWallFactor[key] || 1,
     doorCount: planDoorCount[key] || 0,
   }))

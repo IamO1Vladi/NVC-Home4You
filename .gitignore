@@ -55,3 +55,6 @@ Thumbs.db
 # The accessibility sweep's scratch output (npm run audit:a11y)
 "NVC Claude version/a11y-report.json"
 a11y-report.json
+
+# Raw source renders handed over for conversion (the webp in public/box-config is what ships)
+incoming-plans/
