@@ -105,6 +105,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.CustomerAdminService>();
     builder.Services.AddScoped<Services.FactoryAdminService>();
     builder.Services.AddScoped<Services.FactorySheetAdminService>();
+    builder.Services.AddScoped<Services.PaymentsSheetImportService>();
 
     // Order tracking (#27): the staff board, the report, and the public /order/{code} view.
     builder.Services.AddScoped<Services.OrderTrackingService>();
@@ -586,6 +587,66 @@ if (args.Length > 0 && args[0] == "import-saved-configs")
     // A skipped row is not a failed run — it is usually a code already live in SQL — but a
     // run that imported nothing at all deserves a non-zero exit.
     return cfgResult.Fetched == 0 && cfgResult.Problems.Count > 0 ? 1 : 0;
+}
+
+// `dotnet run -- import-payments-sheet --file <rows.json> [--dry-run]`. Carries the owner's
+// "Factory Invoices and Payments" spreadsheet (pre-converted to JSON) into Customers,
+// Factories and Purchases, through the same services the panel saves through. Matched on
+// the customer's name — a name already present is skipped whole, so re-running cannot stack
+// a second copy of anyone's purchase. See PaymentsSheetImportService for the decisions.
+if (args.Length > 0 && args[0] == "import-payments-sheet")
+{
+    // The report prints Cyrillic customer names; the default Windows console codepage
+    // renders those as question marks.
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+    using var scope = app.Services.CreateScope();
+    var importer = scope.ServiceProvider.GetService<Services.PaymentsSheetImportService>();
+    if (importer is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING), so there is nothing to import into.");
+        return 1;
+    }
+
+    var sheetFileFlag = Array.IndexOf(args, "--file");
+    if (sheetFileFlag < 0 || sheetFileFlag + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("Usage: import-payments-sheet --file <rows.json> [--dry-run]");
+        return 1;
+    }
+
+    var sheetPath = args[sheetFileFlag + 1];
+    var sheetDryRun = args.Contains("--dry-run");
+    // Actor null on purpose — the standing rule from CurrentActor: the audit log records
+    // importers as "the system did it" rather than a fake username. The source is already
+    // named in every purchase's notes via sourceNote.
+    var sheetResult = await importer.ImportAsync(
+        sheetPath,
+        sheetDryRun,
+        actor: null,
+        sourceNote: $"Импорт от „{Path.GetFileName(sheetPath)}“ ({DateTime.UtcNow:yyyy-MM-dd})",
+        CancellationToken.None);
+
+    Console.WriteLine(sheetDryRun ? "DRY RUN — nothing was written." : "Import complete.");
+    Console.WriteLine($"  rows in file : {sheetResult.Rows}");
+
+    void PrintList(string title, List<string> items)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"{title} ({items.Count}):");
+        foreach (var item in items) Console.WriteLine($"  {item}");
+    }
+
+    PrintList("Factories already present", sheetResult.FactoriesExisting);
+    PrintList(sheetDryRun ? "Factories to create" : "Factories created", sheetResult.FactoriesCreated);
+    PrintList("Customers already present (skipped)", sheetResult.CustomersSkipped);
+    PrintList(sheetDryRun ? "Customers to create" : "Customers created", sheetResult.CustomersCreated);
+    if (sheetResult.SimilarNames.Count > 0)
+        PrintList("Similar names worth a look (imported anyway)", sheetResult.SimilarNames);
+    if (sheetResult.Problems.Count > 0)
+        PrintList("Problems", sheetResult.Problems);
+
+    return sheetResult.Problems.Count > 0 ? 1 : 0;
 }
 
 // Runs the audit archive by hand: emails everything older than the retention window and
