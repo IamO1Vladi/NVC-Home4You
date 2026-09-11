@@ -66,7 +66,8 @@ commits, notes and conversations still resolve.
   it did lives on as the **Поръчки** board. **What is still in the production database:** the six billing
   tables and their imported rows — `DropBillingTables` exists and is deliberately
   unapplied. **The clock that matters:** the importer only works while the Quickbase token
-  lives (~Feb 2027); after that, restoring means re-entering by hand.
+  lives (~Feb 2027); after that, restoring means re-entering by hand. Re-affirmed archived
+  by the owner 2026-09-11 — the clock stands, so the restore-or-let-go decision has a date.
 
 - [~] **27. Order tracking** — **BUILT 2026-08-20.** `Purchase` is now the one record of
   what a customer bought: `Sale` was merged into it (quantity + the four sale-expense
@@ -88,9 +89,12 @@ commits, notes and conversations still resolve.
   own "as of" date so a stale one reads as stale. **To automate: get API credentials from
   the carrier, then one poller fills those four columns — nothing else changes.**
 
-  Still to settle, and it is the operational risk the original sketch already named:
-  **who moves the status, and as part of what routine.** A stale public page is worse than
-  none.
+  Half settled 2026-09-11: **tbonin@nvc-home4you.eu owns status moves** (owner's call).
+  The routine is the remaining half — proposed: a weekly digest to him through the
+  existing Graph mail plumbing, sent only when there is at least one active order and
+  flagging any that has sat in one status 14+ days, so the email carries the work rather
+  than a bare reminder. Undecided whether to build it or rely on habit. A stale public
+  page is worse than none.
 
 ### Content & trust (the compounding bets)
 
@@ -145,7 +149,9 @@ commits, notes and conversations still resolve.
   secret and its expiry entirely.
 - [ ] **19. Secret expiry ~2027-02-04**: Entra client secret, Graph credentials, Quickbase
   token. Each fails silently and partially — see the table in HANDOFF.md. Calendar
-  reminder territory, not code.
+  reminder territory, not code. A recurring .ics (every 6 months from 2027-01-21, two
+  weeks ahead of the expiry) was generated and handed to the owner 2026-09-11 — this is
+  done the moment it sits in the calendar.
 
 ---
 
