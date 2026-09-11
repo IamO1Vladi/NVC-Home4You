@@ -106,6 +106,35 @@ commits, notes and conversations still resolve.
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
 - [ ] **11. Greek translation completeness audit.**
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
+- [ ] **29. Raise the reply-attachment limit (3 MB → 20 MB) via Graph upload sessions.**
+  Asked for by the owner 2026-09-10; parked for the roadmap the same day. Target settled
+  at 20 MB (owner, same day): it matches the 20 MB stored-file cap, and a 20 MB
+  attachment is a ~27 MB MIME message — comfortable against Exchange Online's default
+  35 MB send limit where 25 MB was a squeeze, and the ~21 MB multipart request clears
+  App Service's default ~28.6 MB request cap with real headroom. The pipeline
+  reply (`POST /api/admin/pipeline/{id}/reply`) caps attachments at
+  `LeadFileStore.MaxEmailBytes = 3 MB` total, because that is Graph's ceiling for adding
+  an attachment to a message in ONE request — not a number anyone chose for the business.
+  Scoped 2026-09-10; the send path is already draft-based, which is exactly the shape the
+  fix extends:
+  - `LeadMailService.AttachToDraftAsync`: for files over ~3 MB, switch to
+    `POST .../messages/{id}/attachments/createUploadSession`, then PUT the bytes in
+    chunks (Content-Range, raw bytes not base64, no auth header — the uploadUrl is
+    pre-authorised). Small files keep the existing single-request path.
+  - `SendDirectAsync` (the Mail.Send-only fallback that inlines attachments into
+    `sendMail`) CANNOT carry large files — with attachments over the single-request
+    limit and no Mail.ReadWrite grant, fail with a named error rather than letting
+    Graph 413 mid-send.
+  - Bump `MaxEmailBytes` to 20 MB; the controller's `[RequestSizeLimit]` and
+    `ValidateAttachments` follow it automatically, as does the panel's error copy.
+  - Verify hosting limits pass a ~21 MB multipart request end to end (Kestrel's
+    per-endpoint limit comes from the attribute; App Service/IIS default
+    `maxAllowedContentLength` is ~28.6 MB — one 20 MB file fits with headroom; the
+    TOTAL cap stays 20 MB so two large files cannot stack past it).
+  One fact to keep in view, from the mail world rather than our code: receiving servers
+  cap what THEY accept, and abv.bg-class mailboxes may bounce ~27 MB messages regardless
+  of what we send. The panel already has the safety valve for oversized files: the note
+  path stores up to 20 MB against the thread ("send a link" instead of attaching).
 
 ### Infrastructure
 
