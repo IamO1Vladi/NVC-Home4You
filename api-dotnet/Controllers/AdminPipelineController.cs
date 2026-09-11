@@ -470,6 +470,13 @@ public class AdminPipelineController : ControllerBase
         return result.Outcome switch
         {
             LeadMailService.SendOutcome.Sent => Ok(new { ok = true, activityId = result.ActivityId }),
+
+            // 200, because the email IS with the customer — but the warning must reach the
+            // person, or they will do the reasonable thing and send it again. The panel
+            // renders its own translation of this state; the flag is what matters.
+            LeadMailService.SendOutcome.SentNotRecorded =>
+                Ok(new { ok = true, activityId = (int?)null, sentNotRecorded = true, warning = result.Error }),
+
             LeadMailService.SendOutcome.LeadNotFound => NotFound(),
 
             // A lead with no address is the operator's problem to solve, not a server

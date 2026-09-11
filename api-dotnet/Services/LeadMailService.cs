@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -51,7 +51,12 @@ public class LeadMailService
     /// </summary>
     public record OutgoingFile(string FileName, string ContentType, byte[] Content);
 
-    public enum SendOutcome { Sent, NotConfigured, LeadNotFound, NoAddress, Failed }
+    // SentNotRecorded is the outcome discovered the hard way (2026-09-11, lead #334): the
+    // customer received the email — several times — because every failure AFTER the send
+    // was reported as "not sent" and the person did the reasonable thing and pressed Send
+    // again. The two states must never share a message: one invites a retry, the other
+    // forbids it.
+    public enum SendOutcome { Sent, SentNotRecorded, NotConfigured, LeadNotFound, NoAddress, Failed }
 
     public record SendResult(SendOutcome Outcome, int? ActivityId, string? Error)
     {
@@ -136,73 +141,93 @@ public class LeadMailService
                 conversationId = null;
             }
 
-            var now = DateTimeOffset.UtcNow;
-            var activity = new LeadActivity
+            // Everything from here on is bookkeeping about an email THE CUSTOMER ALREADY
+            // HAS. Its own catch, because a failure here must never wear the "not sent"
+            // message — that message is an instruction to try again, and trying again
+            // sends the customer a duplicate. This is not hypothetical: see SendOutcome.
+            try
             {
-                LeadId = leadId,
-                Type = LeadActivityTypes.EmailOut,
-                Subject = resolvedSubject,
-                Body = body,
-                ActorUpn = actorUpn,
-                ConversationId = conversationId,
-                ExternalMessageId = messageId,
-                // Recorded from the same list both send paths were handed, so the thread
-                // shows exactly who was copied — the send-first ordering above only keeps
-                // the record honest if what is written is what went out.
-                CcRecipients = cc is { Count: > 0 } ? string.Join(", ", cc) : null,
-                OccurredAt = now,
-            };
-            // Stored only now, and only if the send worked. A file recorded against a
-            // reply that never left would show sales an attachment the customer does not
-            // have — the same lie the send-first ordering above exists to avoid.
-            //
-            // A storage failure here is logged and swallowed: the customer has the file,
-            // and losing the whole thread entry over a copy of it would be the worse
-            // trade by a distance.
-            if (attachments is { Count: > 0 })
-            {
-                foreach (var file in attachments)
+                var now = DateTimeOffset.UtcNow;
+                var activity = new LeadActivity
                 {
-                    try
+                    LeadId = leadId,
+                    Type = LeadActivityTypes.EmailOut,
+                    Subject = resolvedSubject,
+                    Body = body,
+                    ActorUpn = actorUpn,
+                    ConversationId = conversationId,
+                    ExternalMessageId = messageId,
+                    // Recorded from the same list both send paths were handed, so the thread
+                    // shows exactly who was copied — the send-first ordering above only keeps
+                    // the record honest if what is written is what went out.
+                    CcRecipients = cc is { Count: > 0 } ? string.Join(", ", cc) : null,
+                    OccurredAt = now,
+                };
+                // Stored only now, and only if the send worked. A file recorded against a
+                // reply that never left would show sales an attachment the customer does not
+                // have — the same lie the send-first ordering above exists to avoid.
+                //
+                // A storage failure here is logged and swallowed: the customer has the file,
+                // and losing the whole thread entry over a copy of it would be the worse
+                // trade by a distance.
+                if (attachments is { Count: > 0 })
+                {
+                    foreach (var file in attachments)
                     {
-                        var key = LeadFileStore.MintKey(leadId, file.FileName);
-                        using var stream = new System.IO.MemoryStream(file.Content);
-                        await _files.UploadAsync(key, stream, file.ContentType, ct);
-
-                        activity.Attachments.Add(new LeadAttachment
+                        try
                         {
-                            FileName = file.FileName,
-                            BlobKey = key,
-                            ContentType = file.ContentType,
-                            SizeBytes = file.Content.LongLength,
-                            UploadedByUpn = actorUpn,
-                        });
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        _log.LogError(ex,
-                            "Reply to lead {LeadId} was sent with {FileName}, but the copy could " +
-                            "not be stored — the thread will not show it", leadId, file.FileName);
+                            var key = LeadFileStore.MintKey(leadId, file.FileName);
+                            using var stream = new System.IO.MemoryStream(file.Content);
+                            await _files.UploadAsync(key, stream, file.ContentType, ct);
+
+                            activity.Attachments.Add(new LeadAttachment
+                            {
+                                FileName = file.FileName,
+                                BlobKey = key,
+                                ContentType = file.ContentType,
+                                SizeBytes = file.Content.LongLength,
+                                UploadedByUpn = actorUpn,
+                            });
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            _log.LogError(ex,
+                                "Reply to lead {LeadId} was sent with {FileName}, but the copy could " +
+                                "not be stored — the thread will not show it", leadId, file.FileName);
+                        }
                     }
                 }
+
+                _db.LeadActivities.Add(activity);
+
+                var tracked = await _db.Leads.FirstAsync(l => l.Id == leadId, ct);
+                if (tracked.LastActivityAt is null || now > tracked.LastActivityAt) tracked.LastActivityAt = now;
+                tracked.UpdatedAt = now;
+
+                // A reply is a move like any other, so it schedules the next one. Here rather
+                // than only in LeadService.AddActivityAsync because this path writes its own
+                // activity — the send has to happen first, so it cannot go through that method —
+                // and a rule that held for a logged call but not for the email somebody actually
+                // sent would be the one people noticed.
+                tracked.NextContactAt = LeadService.FollowUpAfterOurMove(tracked.NextContactAt, now);
+
+                await _db.SaveChangesAsync(ct);
+
+                return new SendResult(SendOutcome.Sent, activity.Id, null);
             }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Logged loudly: the customer has a reply that the thread does not show,
+                // and this log line is the only place that says so — and the only place
+                // holding the actual reason recording failed.
+                _log.LogError(ex,
+                    "Reply to lead {LeadId} WAS SENT but could not be recorded in the thread",
+                    leadId);
 
-            _db.LeadActivities.Add(activity);
-
-            var tracked = await _db.Leads.FirstAsync(l => l.Id == leadId, ct);
-            if (tracked.LastActivityAt is null || now > tracked.LastActivityAt) tracked.LastActivityAt = now;
-            tracked.UpdatedAt = now;
-
-            // A reply is a move like any other, so it schedules the next one. Here rather
-            // than only in LeadService.AddActivityAsync because this path writes its own
-            // activity — the send has to happen first, so it cannot go through that method —
-            // and a rule that held for a logged call but not for the email somebody actually
-            // sent would be the one people noticed.
-            tracked.NextContactAt = LeadService.FollowUpAfterOurMove(tracked.NextContactAt, now);
-
-            await _db.SaveChangesAsync(ct);
-
-            return new SendResult(SendOutcome.Sent, activity.Id, null);
+                return new SendResult(SendOutcome.SentNotRecorded, null,
+                    "The email WAS sent — do not send it again. It could not be written " +
+                    "into the thread; log it as a note instead.");
+            }
         }
         catch (OperationCanceledException)
         {
@@ -210,15 +235,20 @@ public class LeadMailService
         }
         catch (Exception ex)
         {
-            // Logged loudly: if the send succeeded and the write failed, the customer has
-            // a reply that the thread does not show, and only this log says so.
-            _log.LogError(ex, "Reply to lead {LeadId} failed", leadId);
+            _log.LogError(ex, "Reply to lead {LeadId} failed before the send completed", leadId);
 
             // A permission failure will not fix itself on a retry, and "try again" sends
-            // someone clicking a button that cannot work. Name the cause instead.
-            var message = ex is GraphException graph && graph.IsPermissionProblem
-                ? "The mailbox refused the send. Check that Mail.Send is granted and the access policy covers this mailbox."
-                : "The reply was not sent. Try again.";
+            // someone clicking a button that cannot work. Name the cause instead. Other
+            // Graph refusals carry their status code — "Graph answered 429" is something
+            // support can act on, "try again" is not.
+            var message = ex switch
+            {
+                GraphException g when g.IsPermissionProblem =>
+                    "The mailbox refused the send. Check that Mail.Send is granted and the access policy covers this mailbox.",
+                GraphException g =>
+                    $"The reply was not sent (the mail service answered {(int)g.Status}). Try again.",
+                _ => "The reply was not sent. Try again.",
+            };
 
             return new SendResult(SendOutcome.Failed, null, message);
         }

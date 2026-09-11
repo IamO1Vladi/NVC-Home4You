@@ -107,6 +107,8 @@ const TEXT = {
     draftHint: 'Черновата е предложение — прочетете и редактирайте, преди да изпратите.',
     quiet: 'без активност', days: 'дни', today: 'днес', yesterday: 'вчера',
     sendError: 'Отговорът не беше изпратен.',
+    sentNotRecorded:
+      'Имейлът Е изпратен — НЕ го изпращайте повторно. Не успя обаче да се запише в нишката; запишете го като бележка.',
     draftError: 'Не успях да напиша чернова.',
     draftOff: 'AI черновите не са включени.',
     saveError: 'Промяната не беше запазена.',
@@ -204,6 +206,8 @@ const TEXT = {
     draftHint: 'A draft is a suggestion — read it and edit before sending.',
     quiet: 'quiet for', days: 'days', today: 'today', yesterday: 'yesterday',
     sendError: 'The reply was not sent.',
+    sentNotRecorded:
+      'The email WAS sent — do NOT send it again. It could not be written into the thread; log it as a note.',
     draftError: 'Could not write a draft.',
     draftOff: 'AI drafting is not switched on.',
     saveError: 'That change was not saved.',
@@ -891,7 +895,7 @@ export default function AdminPipelinePage() {
     if (cc.trim()) form.append('cc', cc.trim())
     for (const file of files) form.append('files', file, file.name)
 
-    await adminSendForm(`/api/admin/pipeline/${selectedId}/reply`, form)
+    const answer = await adminSendForm(`/api/admin/pipeline/${selectedId}/reply`, form)
     // Reset only after the server confirms — back to the bare signature, ready for the
     // next message. Resetting optimistically loses what someone typed if the send fails,
     // and retyping a reply is the least forgivable data loss in a tool like this.
@@ -899,6 +903,11 @@ export default function AdminPipelinePage() {
     setCc('')
     setFiles([])
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
+    // The one success that still needs a loud sentence: the email IS with the customer,
+    // but the thread could not record it. Shown AFTER the reload so nothing clears it —
+    // without this warning, "not in the thread" reads as "not sent" and the customer
+    // gets the same quotation twice.
+    if (answer?.sentNotRecorded) setError(t.sentNotRecorded)
   }, t.sendError)
 
   const draft = () => run('draft', async () => {
