@@ -556,6 +556,21 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **30. Inbound email attachments actually arrive** (2026-09-14, ships with the next
+  publish). The machinery had shipped weeks earlier and filed ZERO files across 171
+  inbound messages, because every gate lied at once: isInline is stamped on genuine
+  Apple Mail PDFs and on the photo a customer pastes from a phone, Graph's hasAttachments
+  is false when everything is inline, and every skip was silent. Now the attachment
+  listing is fetched for every filed message unconditionally (one small request, the
+  price IsAutomatedAsync already pays), inline means "skip only images under 100 KB" —
+  signature furniture — the listing follows @odata.nextLink, the 20 MB cap is held
+  against the download's raw Content-Length rather than Graph's MIME-inflated size
+  (which had quietly been a ~15 MB ceiling), .tif/.tiff joined the shared allow-list for
+  Mac pastes, at most 20 files per message, and every explicable skip logs its
+  reason. The whole verdict lives in the pure DecideInboundFile, pinned by 16 tests.
+  Older messages are not re-fetched — forwarding an old mail to the shared mailbox
+  re-files it, attachments and all.
+
 - [x] **9. Per-breakpoint `srcset`** (2026-09-07, ships with the next publish). The twist:
   the frontend was already finished — every heavy image carried srcSet and sizes written
   for a Cloudinary mode that was never enabled, so production srcsets collapsed to the

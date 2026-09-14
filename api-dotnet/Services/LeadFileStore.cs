@@ -69,6 +69,12 @@ public sealed class LeadFileStore
         [".png"] = "image/png",
         [".webp"] = "image/webp",
         [".heic"] = "image/heic",
+
+        // Apple Mail on macOS converts pasted images to TIFF ("PastedGraphic-1.tiff"),
+        // and refusing those was dropping real customer images off inbound mail. On the
+        // upload side the pair costs nothing: it is an image format like the rest.
+        [".tif"] = "image/tiff",
+        [".tiff"] = "image/tiff",
         [".doc"] = "application/msword",
         [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         [".xls"] = "application/vnd.ms-excel",
