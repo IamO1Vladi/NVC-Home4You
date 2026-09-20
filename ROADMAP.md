@@ -28,29 +28,112 @@ commits, notes and conversations still resolve.
 - [ ] **5. Financing / total-cost calculator.** Monthly payment estimate; clear "included
   vs quote-on-review" breakdown. Cheaper now: the prices page already computes finished
   totals per model.
-- [ ] **28. Kitchen appliance placement in the configurator.** Scoped 2026-09-07 with the
-  owner; the design is settled, the pricing questions are not. Buyers place appliances
-  onto their chosen floor plan the way they already place windows and sockets — same
-  render, same coordinate system, one constraint added: appliances go into named SLOTS
-  along the kitchen run (4–6 per plan, hand-placed percent coordinates on the new plan
-  renders), not onto arbitrary points. A slot is taken or it isn't; no dragging physics.
+- [~] **28. Kitchen appliance placement in the configurator — BUILT 2026-09-20, not yet
+  deployed.** What shipped into the working tree: slot-keyed placement (`appliances:
+  [{id, kind, slot}]` — coordinates derive from the plan's slot table at render time, so
+  a plan switch remaps instead of going stale), the pure rules module
+  `src/lib/appliancePlanner.js` (sink seeding, one-per-slot, dishwasher-beside-sink,
+  45/60 as one family; 17 tests), hand-placed and image-verified slot coordinates for
+  all 18 renders in `boxConfiguratorApplianceSlots.js` (4 shape-pinning tests × 18
+  plans), the stage/palette UI on the interior step (desktop, mobile accordion,
+  full-screen editor), the bathroom-washer toggle, the summary/PDF/offer-text lines with
+  the owner's not-supplied disclaimer, the hob-on-oven stacked column (answer 9), and
+  the removal of the whole kitchen-extras section (answer 7). 479 SPA tests
+  green, verified live in the dev preview. Remaining before DONE: the owner eyeballs the
+  slot overlay sheet (sent 2026-09-20) and any nudges land, then a normal deploy;
+  measure a maxed-out config's offerText against the 4000-char lead Message cap while
+  QAing. Scoped 2026-09-07 with the
+  owner; re-scoped 2026-09-19 against the revised appliance list and a four-way read of
+  the actual code. Buyers place appliances onto their chosen floor plan the way they
+  already place windows and sockets — same render, same percent-of-image coordinates, one
+  constraint added: appliances go into named SLOTS (hand-placed percent coordinates per
+  plan), not onto arbitrary points. A slot is taken or it isn't; no dragging physics.
 
-  The appliances, semantics CONFIRMED by the owner 2026-09-07:
-  - **Sink** — always present, must be placed.
-  - **Stove + oven** — one combined unit OR separate hob and oven; a real choice with a
-    price delta and two placements instead of one.
-  - **Washing machine (пералня)** — placeable in the kitchen OR the bathroom.
-  - **Dishwasher (съдомиялна)** — optional add-on, kitchen only, slot adjacent to the
-    sink (that is plumbing, not preference).
+  The placeables, REVISED 2026-09-19 — seven, replacing the earlier four:
+  - **Вградена фурна (built-in oven)** and **плот (hob)** — always separate. The old
+    "combined unit OR separate" choice is DEAD — confirmed by the owner 2026-09-19.
+  - **Аспиратор (hood)** — not separately placed: it automatically sits above wherever
+    the hob goes (owner, 2026-09-19); one placement covers both, the summary says so.
+  - **Хладилник (fridge)** — new to the scope.
+  - **Мивка (sink)** — always present, must be placed (unchanged).
+  - **Съдомиялна (dishwasher)** — kitchen only, slot adjacent to the sink (plumbing, not
+    preference). TWO sizes exist — 45 cm slim and 60 cm standard — two marker kinds,
+    potentially two prices.
+  - **Пералня (washing machine)** — kitchen OR bathroom. The bathroom is an OPTION, not
+    a placement (owner, 2026-09-19): these bathrooms have exactly one possible spot for
+    the machine, so the UI offers a toggle and no bathroom dot ever appears on a plan —
+    which also deleted the bathroom coordinate work this entry briefly scoped in.
 
-  Output rides the existing machinery: positions serialize into the config summary the
-  way windows and sockets already do, so the sales email names each appliance's slot and
-  carries the marked render.
+  Footprint dimensions are NOT owed by the owner: standard BG/EU built-in module sizes
+  (60 cm modules, 45 cm slim dishwasher) go in as data constants.
 
-  **Blocked on the owner for**: the price of the combined vs separate oven/hob, the
-  dishwasher price, and whether a bathroom washing machine carries a plumbing surcharge.
-  The slot coordinates per plan are development work against the 2026-09-05 renders and
-  need nothing from anyone.
+  What the 2026-09-19 code read established, so nobody re-learns it:
+  - "Reuse the windows/sockets machinery" is half true. That machinery is free-coordinate
+    click placement (`BoxHouseConfiguratorPage.jsx:439-511`) with no named anchors and no
+    occupancy; nothing slot-shaped exists in `planOptions`
+    (`boxConfiguratorCatalog.js:282-297`). Slots are NEW per-plan data plus
+    snap-and-occupancy logic wearing the old marker rendering.
+  - Markers survive a plan/model switch unchanged today (only `insideDoorCount` follows
+    the plan). Fine for free-floating windows; wrong for slot-anchored appliances — they
+    must reset or remap on plan change, or stale coordinates serialize silently into
+    saved configs and the sales email.
+  - The sales email does NOT carry the marked render and never has — it is summary text
+    plus the `#cfg=` link (`EmailService.cs:469-501`); the marked plan exists only in the
+    client-side print PDF. The earlier text here claimed otherwise. Appliance slot names
+    ride `summaryLines`; putting the picture in the email is unscoped new work.
+  - Appliance option rows are hand-authored in `boxConfiguratorCatalog.js` — safe by
+    construction, the catalogue pipeline regenerates ONLY `boxConfiguratorOptions.js`.
+    Config gains a flat `appliances: []` with a default in `buildDefaultConfig`;
+    `mergeIntoDefaults` then resumes every old saved/shared config with zero migration
+    and ZERO server changes (the config blob is opaque on every hop).
+  - `kitchenExtras` already sells „Ниша за пералня" and „Шкаф за съдомиялна" as unpriced
+    checkboxes (`boxConfiguratorCatalog.js:471-475`) — the same appliances twice once #28
+    lands. Fold-in vs coexistence is the owner's call, and `kitchenExtras` is the one
+    deep-merged key, so an old resumed config can carry both representations at once.
+  - If appliances become their own wizard step: all three locale files hard-code complete
+    6-entry `steps` arrays (`t.steps` at `:962` is all-or-nothing — miss one and the step
+    vanishes from the stepper in that language), and localStorage autosave stores
+    `stepIndex`, so inserting a step mid-list resumes every in-flight session one step
+    off. Join the sockets step, or budget for both fixes.
+  - The offer's lead Message field truncates at 4000 chars (`SqlLeadService.cs:37`) and
+    holds BOTH the summary text and the `#cfg=` URL, which grows per marker — measure a
+    maxed-out config before shipping or the share link gets cut mid-URL, silently.
+  - Renders: all eighteen furnished renders are ready for slot placement; kitchen runs
+    read clearly. The A-series blank-canvas ambiguity dissolves by convention: the
+    appliance stage uses the furnished `selectedPlan.image` on every model (the sockets
+    convention), and slot coordinates are authored against those same furnished renders,
+    so nothing ever transfers between artworks. One layout has NO kitchen at all — A6 is
+    four bedrooms around a hallway (found by actually reading the render 2026-09-19) —
+    so an empty kitchen run is a real state, and the feature degrades there to just the
+    bathroom washing-machine toggle.
+
+  **ANSWERED BY THE OWNER — 2026-09-19, all eight; nothing blocks:**
+  1. **No charge for preparing the kitchen** for the units — but the screen and the
+     summary must SAY the appliances themselves are not supplied: buyers plan placement
+     so the kitchen is built to fit, and buy their own units.
+  2. **Nothing here is priced at all.** NVC does not sell the фурна, плот, аспиратор,
+     хладилник, пералня or съдомиялна. The one exception — мивка — is already sold and
+     priced in its existing kitchen step (`KITCHEN_SINKS`); placement adds no second
+     price. The whole feature follows the sockets pattern: zero price rows, zero
+     quotation lines, pure planning.
+  3. **Sink is mandatory; everything else is optional** — oven and hob only if the buyer
+     wants them. Implementation: the sink starts pre-placed in its default slot and can
+     move but not be removed — "always present" with no new validation machinery.
+  4. **Hood rides the hob** — automatic, above wherever the hob goes. No hood slot.
+  5. **Bathroom washing machine: no surcharge**, included — and it needs no coordinates:
+     one possible spot, so it is a toggle, not a marker (see the пералня bullet above).
+  6. **The combined stove is dead** — always separate вградена фурна + плот.
+  7. **The kitchen-extras section is gone ENTIRELY** (superseded 2026-09-20): first the
+     two appliance checkboxes („Ниша за пералня", „Шкаф за съдомиялна") fell to the
+     placements, then the owner retired the whole section, furnace cabinet included.
+     Old saved configs still carry a `kitchenExtras` object in their JSON; nothing reads
+     it, so it rides along inert.
+  9. **The hob and the oven can share one slot** (owner, 2026-09-20) — the classic
+     column: oven in the base cabinet, hob on the worktop above, hood on top. The
+     gesture IS the request: with the hob selected, the placed oven's dot becomes a
+     tap-target (and vice versa); the pair renders as one OV+HB dot and the summary
+     reads „позиция N · върху фурната".
+  8. **Model 37 IS in scope** — eighteen plans get slot coordinates, not twelve.
 - [~] **21. Billing & procurement on Azure SQL** — **BUILT, SHIPPED, THEN PULLED BACK OUT
   (2026-08-19).** The team decided migrating billing off Quickbase is too much change to
   absorb right now. It is not a failed design: it worked, the Quickbase data imported

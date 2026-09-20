@@ -1726,6 +1726,192 @@
   background: #ef4444;
 }
 
+/* Appliance layer (#28): filled slots are solid amber dots carrying the
+   appliance's marker code; empty slots are dashed outlines the buyer taps to
+   place, dimmed when the selected appliance cannot go there. */
+.bhc-appliance-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+  background: #b45309;
+  border: 2px solid #fff;
+  box-shadow: 0 6px 16px rgba(0,0,0,.22);
+  z-index: 2;
+}
+
+.bhc-appliance-dot.is-removable,
+.bhc-appliance-dot.is-fixed {
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.bhc-appliance-dot.is-removable:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+  background: #ef4444;
+}
+
+/* The sink: tapping selects it for a move, so no red removal affordance. */
+.bhc-appliance-dot.is-fixed:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+}
+
+/* The hob+oven column: one dot, both marker codes. */
+.bhc-appliance-dot.is-stacked {
+  background: linear-gradient(90deg, #b45309, #7c2d12);
+  font-size: 10px;
+}
+
+/* A placed partner the selected appliance may stack onto — a target, not a
+   removal, so it advertises itself with the empty-slot dashes. */
+.bhc-appliance-dot.is-stack-target {
+  cursor: copy;
+  outline: 2px dashed #fbbf24;
+  outline-offset: 2px;
+}
+
+.bhc-appliance-dot.is-stack-target:hover {
+  transform: translate(-50%, -50%) scale(1.18);
+  background: #92400e;
+}
+
+.bhc-appliance-slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #92400e;
+  background: rgba(255, 255, 255, .85);
+  border: 2px dashed #b45309;
+  cursor: pointer;
+  z-index: 1;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.bhc-appliance-slot:hover {
+  transform: translate(-50%, -50%) scale(1.12);
+  background: #fef3c7;
+}
+
+.bhc-appliance-slot.is-dim {
+  opacity: .35;
+  cursor: default;
+  border-color: #9ca3af;
+  color: #6b7280;
+}
+
+.bhc-appliance-slot.is-dim:hover {
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, .85);
+}
+
+.bhc-appliance-kind-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.bhc-appliance-kind {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--bhc-border);
+  border-radius: 14px;
+  background: var(--bhc-soft);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bhc-appliance-kind.is-active {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, .25);
+}
+
+.bhc-appliance-kind-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  flex: none;
+}
+
+.bhc-appliance-kind:not(.is-placed) .bhc-appliance-kind-badge {
+  background: #9ca3af;
+}
+
+.bhc-appliance-kind-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bhc-appliance-kind-text strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.bhc-appliance-kind-text em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--bhc-muted);
+}
+
+.bhc-appliance-kind-state {
+  font-size: 11px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.bhc-appliance-num {
+  background: #b45309;
+}
+
+.bhc-appliance-where {
+  font-size: 12px;
+  color: var(--bhc-muted);
+  white-space: nowrap;
+}
+
+.bhc-appliance-required {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #92400e;
+}
+
+.bhc-appliance-disclaimer {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-left: 3px solid #b45309;
+  border-radius: 8px;
+  background: rgba(180, 83, 9, .08);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--bhc-muted);
+}
+
 .bhc-window-list {
   display: grid;
   gap: 8px;

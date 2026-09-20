@@ -100,7 +100,7 @@ export default {
       model: 'Base prices come from the catalogue. Choose standard or the balcony version with the full sloped roof over the terrace.',
       layout: 'The catalogue already includes ready-made room layouts for each size family.',
       exterior: 'Frame material, exterior door and side colour stay as free choices. French / panoramic windows and the heating package are the paid options with fixed prices.',
-      interior: 'Bathroom, kitchen, wall colour, floor finish and appliance-ready kitchen extras are gathered here. When heating is enabled, Carbon Crystal becomes the only floor option.',
+      interior: 'Bathroom, kitchen, wall colour, floor finish and the appliance layout are gathered here. When heating is enabled, Carbon Crystal becomes the only floor option.',
       sockets: 'This is the production-ready bridge between a catalogue configurator and a future full planner. The markers can later be converted into exact electrical drawings.',
       summary: 'This stage collects the known price, the selected visuals and all quotation notes in one place.',
     },

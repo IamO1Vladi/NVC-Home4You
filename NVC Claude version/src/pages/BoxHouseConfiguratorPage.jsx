@@ -7,6 +7,7 @@ import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { trackEvent } from '../lib/analytics.js'
 import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
 import { buildShareUrl, readSharedConfigFromHash, readShortCodeFromSearch, createShortLink, resolveShortLink, emailMyConfig, isLikelyEmail } from '../lib/configShare.js'
+import { SLOT_BATH, runSlotKey, eligibleSlots, reconcileAppliances } from '../lib/appliancePlanner.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -510,6 +511,71 @@ function WindowPlanStage({ image, markers = [], onAdd, onRemove, interactive = f
   )
 }
 
+// The appliance stage differs from the socket/window stages in one structural
+// way: clicks land on predefined SLOTS, never on free coordinates. Empty slots
+// render as dashed outlines (dimmed when the selected appliance cannot go
+// there — a dishwasher away from the sink, a fridge in the bathroom), filled
+// slots as solid dots carrying the appliance's marker code. A slot may hold
+// the hob AND the oven at once — one column, drawn as one dot with a joined
+// badge. Clicking a filled dot hands a KIND back (the page decides: remove, or
+// select-to-move for the mandatory sink) — unless the slot is in `stackable`,
+// in which case the dot is a placement target for the selected appliance and
+// clicking it stacks (the "hob on top of the oven" gesture).
+function AppliancePlanStage({ image, slots = [], markers = [], eligible = null, stackable = null, onPlace, onMarkerClick, interactive = false, className = '', emptyText = '' }) {
+  return (
+    <div className={['bhc-socket-stage bhc-appliance-stage', interactive && 'is-interactive', className].filter(Boolean).join(' ')}>
+      <div className="bhc-plan-canvas">
+        {image ? <img src={cdnImage(image, { width: 1000 })} srcSet={cdnSrcSet(image, [500, 750, 1000, 1400])} sizes="(max-width: 900px) 90vw, 600px" alt="" decoding="async" /> : null}
+        {slots.map((slot) => {
+          const group = markers.filter((marker) => marker.slot === slot.key)
+          if (group.length) {
+            // Tap removes the most recently placed occupant — for a stacked
+            // pair, the one that was put on top.
+            const top = group[group.length - 1]
+            const isStackTarget = interactive && stackable?.has(slot.key)
+            const handleClick = !interactive ? undefined
+              : isStackTarget && onPlace ? (e) => { e.stopPropagation(); onPlace(slot.key) }
+              : onMarkerClick ? (e) => { e.stopPropagation(); onMarkerClick(top.kind) }
+              : undefined
+            return (
+              <span
+                key={slot.key}
+                className={[
+                  'bhc-appliance-dot',
+                  group.length > 1 && 'is-stacked',
+                  isStackTarget && 'is-stack-target',
+                  interactive && !isStackTarget && (top.removable ? 'is-removable' : 'is-fixed'),
+                ].filter(Boolean).join(' ')}
+                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+                onClick={handleClick}
+                title={group.map((marker) => marker.label).join(' + ')}
+              >
+                {group.map((marker) => marker.badge).join('+')}
+              </span>
+            )
+          }
+          if (!interactive) return null
+          const ok = !eligible || eligible.has(slot.key)
+          return (
+            <button
+              key={slot.key}
+              type="button"
+              className={['bhc-appliance-slot', !ok && 'is-dim'].filter(Boolean).join(' ')}
+              style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+              onClick={ok && onPlace ? () => onPlace(slot.key) : undefined}
+              disabled={!ok}
+              title={slot.label}
+            >
+              {slot.short}
+            </button>
+          )
+        })}
+      </div>
+      {!image && emptyText ? <div className="bhc-small-note">{emptyText}</div> : null}
+    </div>
+  )
+}
+
 function resolveSelected(options, key) {
   return options.find((item) => item.key === key) || options[0] || null
 }
@@ -563,7 +629,24 @@ export default function BoxHouseConfiguratorPage({ content }) {
     floorFamily: t.labels?.floorFamily || (isBg ? 'Фамилия подова настилка' : 'Floor finish family'),
     bathroom: t.labels?.bathroom || (isBg ? 'Баня' : 'Bathroom'),
     kitchen: t.labels?.kitchen || (isBg ? 'Кухня' : 'Kitchen'),
-    kitchenExtras: t.labels?.kitchenExtras || (isBg ? 'Кухненски добавки' : 'Kitchen extras'),
+    appliances: t.labels?.appliances || (isBg ? 'Кухненски уреди' : 'Kitchen appliances'),
+    appliancesHint: t.labels?.appliancesHint || (isBg
+      ? 'Изберете уред и докоснете свободна позиция върху плана, за да го поставите. Докоснете поставен уред, за да го премахнете. Мивката е задължителна — докоснете я и изберете нова позиция, за да я преместите. Плотът може да стъпи върху поставената фурна (и обратно) — докоснете нейната точка, за да са в една колона.'
+      : 'Pick an appliance, then tap a free position on the plan to place it. Tap a placed appliance to remove it. The sink is required — tap it and pick another position to move it. The hob can sit on top of the placed oven (and vice versa) — tap its dot to stack them in one column.'),
+    applianceDisclaimer: t.labels?.applianceDisclaimer || (isBg
+      ? 'Уредите не се доставят и не се таксуват от нас — разположението им ни казва как да изработим кухнята по мярка, а подготовката (ел. изводи и ВиК) е включена в цената. Мивката се избира като модел и цена в „Кухненска мивка“.'
+      : 'The appliances themselves are not supplied or charged by us — their placement tells us how to build the kitchen to fit, and the preparation (electrical and plumbing) is included. The sink model and price are chosen under “Kitchen sink”.'),
+    appliancePosition: t.labels?.appliancePosition || (isBg ? 'позиция' : 'position'),
+    applianceBath: t.labels?.applianceBath || (isBg ? 'в банята' : 'in the bathroom'),
+    hoodOverHob: t.labels?.hoodOverHob || (isBg ? 'аспиратор отгоре' : 'hood above'),
+    applianceScheme: t.labels?.applianceScheme || (isBg ? 'Схема на уредите' : 'Appliance layout'),
+    noAppliances: t.labels?.noAppliances || (isBg ? 'Няма поставени уреди.' : 'No appliances placed yet.'),
+    noKitchenPlan: t.labels?.noKitchenPlan || (isBg ? 'Това разпределение няма обособена кухня — тук се планира само пералнята в банята.' : 'This layout has no kitchen run — only the bathroom washing machine is planned here.'),
+    applianceNotesLabel: t.labels?.applianceNotesLabel || (isBg ? 'Бележки за уредите' : 'Appliance notes'),
+    applianceNotesPlaceholder: t.labels?.applianceNotesPlaceholder || (isBg ? 'Пример: хладилникът до прозореца, пералнята в банята' : 'Example: fridge by the window, washing machine in the bathroom'),
+    applianceRequired: t.labels?.applianceRequired || (isBg ? 'задължителна' : 'required'),
+    washerInBath: t.labels?.washerInBath || (isBg ? 'Пералнята в банята — там мястото е само едно' : 'Washing machine in the bathroom — there is only one possible spot there'),
+    stackedOnOven: t.labels?.stackedOnOven || (isBg ? 'върху фурната' : 'above the oven'),
     kitchenBench: t.labels?.kitchenBench || (isBg ? 'Цвят на кухненския плот' : 'Kitchen bench colour'),
     windowOpenings: t.labels?.windowOpenings || (isBg ? 'Прозоречни отвори' : 'Window openings'),
     windowSize: t.labels?.windowSize || (isBg ? 'Размер на прозорците' : 'Window size'),
@@ -690,6 +773,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     removeLastSocket: t.actions?.removeLastSocket || (isBg ? 'Премахни последния контакт' : 'Remove last socket'),
     clearWindows: t.actions?.clearWindows || (isBg ? 'Изчисти прозорците' : 'Clear windows'),
     removeLastWindow: t.actions?.removeLastWindow || (isBg ? 'Премахни последния прозорец' : 'Remove last window'),
+    clearAppliances: t.actions?.clearAppliances || (isBg ? 'Изчисти уредите' : 'Clear appliances'),
   }), [isBg, t.actions])
 
   const hints = React.useMemo(() => ({
@@ -750,15 +834,23 @@ export default function BoxHouseConfiguratorPage({ content }) {
     kitchenBench: catalog.kitchenBenchOptions[0]?.key || '',
     kitchenSink: catalog.kitchenSinkOptions[0]?.key || 'ks-1',
     kitchenPetColour: '',
-    kitchenExtras: {
-      furnace: false,
-      washingMachine: false,
-      dishwasherCabinet: false,
-    },
     insideDoorStyle: catalog.insideDoorStyleOptions[0]?.key || 'vr-01',
     insideDoorCount: catalog.planOptions.find((p) => p.key === initialPlan)?.doorCount || 0,
     sockets: [],
     socketNotes: '',
+    // #28: slot-keyed appliance placements ({ id, kind, slot } — coordinates
+    // derive from the plan's slot table at render time). The mandatory sink is
+    // seeded by the same reconcile that guards every later change, so "always
+    // present, must be placed" holds from the first render with no separate
+    // validation path. Deterministic ids keep the resume-banner's
+    // default-config comparison honest.
+    appliances: reconcileAppliances({
+      appliances: [],
+      types: catalog.applianceOptions,
+      planSlots: catalog.planOptions.find((p) => p.key === initialPlan)?.applianceSlots,
+    }),
+    nextApplianceKind: 'hob',
+    applianceNotes: '',
   })
 
   // A shared link (#cfg=...) carries an exact configuration; read it once at
@@ -778,13 +870,14 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   // Overlay an incoming (shared/saved) config onto a fresh default so any keys
   // missing from an older/partial payload fall back to sensible values.
+  // Old saved configs may still carry keys nothing reads any more (the
+  // retired kitchenExtras object among them) — they overlay harmlessly.
   const mergeIntoDefaults = (incoming) => {
     const base = buildDefaultConfig()
     if (!incoming) return base
     return {
       ...base,
       ...incoming,
-      kitchenExtras: { ...base.kitchenExtras, ...(incoming.kitchenExtras || {}) },
     }
   }
 
@@ -885,9 +978,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
     setConfig((prev) => ({
       ...prev,
       ...resumeCandidate.config,
-      // Backfill nested/added keys from defaults so an older saved shape can't
-      // leave a sub-object partially undefined.
-      kitchenExtras: { ...prev.kitchenExtras, ...(resumeCandidate.config.kitchenExtras || {}) },
     }))
     setStepIndex(Number.isInteger(resumeCandidate.stepIndex) ? resumeCandidate.stepIndex : 0)
     setResumeCandidate(null)
@@ -1136,14 +1226,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
     ? [entranceDoor.label, entranceDoor.summaryLabel].filter(Boolean).join(' · ')
     : '-'
 
-  const selectedKitchenExtras = React.useMemo(
-    () => Object.entries(config.kitchenExtras)
-      .filter(([, value]) => value)
-      .map(([key]) => catalog.kitchenExtraOptions.find((item) => item.key === key)?.label)
-      .filter(Boolean),
-    [catalog.kitchenExtraOptions, config.kitchenExtras]
-  )
-
   const selectedInteriorPanels = config.interiorPanelMode === 'white'
     ? {
         label: labels.defaultWhitePanels,
@@ -1270,6 +1352,178 @@ export default function BoxHouseConfiguratorPage({ content }) {
     [config.windows, labels.windowMarker]
   )
 
+  // ---- Kitchen appliances (#28) -----------------------------------------
+  const applianceByKind = React.useMemo(
+    () => Object.fromEntries(catalog.applianceOptions.map((item) => [item.key, item])),
+    [catalog.applianceOptions]
+  )
+  const planApplianceSlots = selectedPlan?.applianceSlots || null
+  const planHasKitchenRun = (planApplianceSlots?.run || []).length > 0
+
+  // Every change and every plan switch flows through the same reconcile, so a
+  // shared link from another layout, a shorter kitchen run, or a sink move
+  // that strands the dishwasher all resolve to a legal placement list. The
+  // planner returns the input reference when nothing changed, which is what
+  // keeps this effect from looping.
+  React.useEffect(() => {
+    setConfig((prev) => {
+      const current = prev.appliances || []
+      const next = reconcileAppliances({
+        appliances: current,
+        types: catalog.applianceOptions,
+        planSlots: planApplianceSlots,
+      })
+      return next === current ? prev : { ...prev, appliances: next }
+    })
+  }, [config.plan, config.appliances, catalog.applianceOptions, planApplianceSlots])
+
+  // Only the kitchen run renders as dots. The bathroom has exactly one
+  // possible washing-machine spot, so "in the bathroom" is a toggle below the
+  // palette, never a coordinate on the plan (owner, 2026-09-19).
+  const applianceStageSlots = React.useMemo(() => {
+    if (!planApplianceSlots) return []
+    return (planApplianceSlots.run || []).map((point, index) => ({
+      key: runSlotKey(index),
+      x: point.x,
+      y: point.y,
+      label: `${labels.appliancePosition} ${index + 1}`,
+      short: String(index + 1),
+    }))
+  }, [planApplianceSlots, labels.appliancePosition])
+
+  const applianceMarkers = React.useMemo(
+    () => (config.appliances || []).map((item) => {
+      const type = applianceByKind[item.kind]
+      return {
+        slot: item.slot,
+        kind: item.kind,
+        badge: type?.marker || '?',
+        removable: !type?.required,
+        label: `${type?.label || item.kind}${type?.hood ? ` — ${labels.hoodOverHob}` : ''}`,
+      }
+    }),
+    [config.appliances, applianceByKind, labels.hoodOverHob]
+  )
+
+  // Legend/summary rows, in worktop order with the bathroom last, each naming
+  // the position the way the factory will read it back. A hob sharing the
+  // oven's slot says so — "позиция 2 · върху фурната" is the one column.
+  const applianceListItems = React.useMemo(() => {
+    const slotOrder = (slot) => (slot === SLOT_BATH ? 1000 : Number(String(slot).slice(1)))
+    const list = config.appliances || []
+    return [...list]
+      .sort((a, b) => slotOrder(a.slot) - slotOrder(b.slot))
+      .map((item) => {
+        const type = applianceByKind[item.kind]
+        const stacked = type?.hood && list.some((other) =>
+          other.kind !== item.kind && other.slot === item.slot
+          && (applianceByKind[other.kind]?.family || other.kind) === type?.stacksWith)
+        const where = item.slot === SLOT_BATH
+          ? labels.applianceBath
+          : `${labels.appliancePosition} ${Number(String(item.slot).slice(1))}${stacked ? ` · ${labels.stackedOnOven}` : ''}`
+        return {
+          kind: item.kind,
+          slot: item.slot,
+          badge: type?.marker || '',
+          label: `${type?.label || item.kind}${type?.hood ? ` (${labels.hoodOverHob})` : ''}`,
+          where,
+          removable: !type?.required,
+        }
+      })
+  }, [config.appliances, applianceByKind, labels.applianceBath, labels.appliancePosition, labels.hoodOverHob, labels.stackedOnOven])
+
+  const applianceSummaryText = applianceListItems.length
+    ? applianceListItems.map((item) => `${item.label} — ${item.where}`).join('; ')
+    : '-'
+
+  const eligibleApplianceSlotSet = React.useMemo(
+    () => new Set(eligibleSlots({
+      kind: config.nextApplianceKind,
+      types: catalog.applianceOptions,
+      appliances: config.appliances || [],
+      planSlots: planApplianceSlots,
+    })),
+    [config.nextApplianceKind, catalog.applianceOptions, config.appliances, planApplianceSlots]
+  )
+
+  // Occupied slots the SELECTED appliance may still land on: the slot held by
+  // its stack partner alone. The stage renders these markers as tap-targets,
+  // so "place the hob on top of the oven" is the same gesture as placing it
+  // anywhere else.
+  const stackTargetSlotSet = React.useMemo(() => {
+    const type = applianceByKind[config.nextApplianceKind]
+    const partner = type?.stacksWith
+    if (!partner) return new Set()
+    const list = config.appliances || []
+    const out = new Set()
+    for (const item of list) {
+      if ((applianceByKind[item.kind]?.family || item.kind) !== partner) continue
+      if (item.slot === SLOT_BATH) continue
+      if (list.filter((other) => other.slot === item.slot).length === 1) out.add(item.slot)
+    }
+    return out
+  }, [config.nextApplianceKind, config.appliances, applianceByKind])
+
+  // Shared between the desktop group, the mobile section and the full-screen
+  // editor, the way windowListRows is on the exterior step.
+  const applianceRows = applianceListItems.length ? (
+    <div className="bhc-window-list bhc-appliance-list">
+      {applianceListItems.map((item) => (
+        <div key={item.kind} className="bhc-window-row">
+          <span className="bhc-window-num bhc-appliance-num">{item.badge}</span>
+          <span className="bhc-window-label">{item.label}</span>
+          <span className="bhc-appliance-where">{item.where}</span>
+          {item.removable ? (
+            <button type="button" className="bhc-window-remove-btn" onClick={() => handleApplianceMarkerClick(item.kind)} aria-label={isBg ? 'Премахни уред' : 'Remove appliance'}>✕</button>
+          ) : (
+            <span className="bhc-appliance-required">{labels.applianceRequired}</span>
+          )}
+        </div>
+      ))}
+    </div>
+  ) : <div className="bhc-small-note">{labels.noAppliances}</div>
+
+  // The palette: what the next tap on the plan places. Mirrors the window
+  // opening-type picker, with the placed state readable on each chip.
+  const applianceKindPicker = (
+    <div className="bhc-appliance-kind-grid">
+      {catalog.applianceOptions.map((item) => {
+        const placed = applianceListItems.find((p) => p.kind === item.key)
+        return (
+          <button
+            key={item.key}
+            type="button"
+            className={['bhc-appliance-kind', config.nextApplianceKind === item.key && 'is-active', placed && 'is-placed'].filter(Boolean).join(' ')}
+            onClick={() => setField('nextApplianceKind', item.key)}
+          >
+            <span className="bhc-appliance-kind-badge">{item.marker}</span>
+            <span className="bhc-appliance-kind-text">
+              <strong>{item.label}</strong>
+              <em>{[item.size, item.required ? labels.applianceRequired : ''].filter(Boolean).join(' · ')}</em>
+              <span className="bhc-appliance-kind-state">{placed ? `✓ ${placed.where}` : '—'}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const washerAtBath = (config.appliances || []).some((item) => item.kind === 'washer' && item.slot === SLOT_BATH)
+
+  // The bathroom placement is a toggle, not a dot: there is only one possible
+  // spot for the machine in these bathrooms, so nothing needs pointing at.
+  const washerBathToggle = (
+    <div className="bhc-toggle-row">
+      <button
+        type="button"
+        className={['bhc-toggle', washerAtBath && 'is-active'].filter(Boolean).join(' ')}
+        onClick={toggleWasherBath}
+      >
+        {labels.washerInBath}
+      </button>
+    </div>
+  )
+
   const summaryLines = React.useMemo(() => {
     const lines = [
       t.title || (isBg ? 'Конфигурация на Бокс къща' : 'Box house configuration'),
@@ -1289,7 +1543,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
       `${labels.kitchen}: ${selectedKitchen?.label || '-'}`,
       `${labels.insideDoorStyle}: ${selectedInsideDoorStyle?.label || '-'}`,
       `${labels.insideDoorCount}: ${config.insideDoorCount || 0}`,
-      `${labels.kitchenExtras}: ${selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'}`,
+      ...(planApplianceSlots ? [
+        `${labels.appliances}: ${applianceSummaryText}`,
+        labels.applianceDisclaimer,
+        config.applianceNotes ? `${labels.applianceNotesLabel}: ${config.applianceNotes}` : '',
+      ] : []),
       `${labels.internalWalls}: ${interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}`,
       `${labels.insideDoorPrice}: ${insideDoorPrice ? euro(insideDoorPrice, locale) : '-'}`,
       `${labels.heating}: ${config.heating ? `${yesText} (${euro(heatingPrice, locale)})` : noText}`,
@@ -1302,6 +1560,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
     ]
     return lines.filter(Boolean).join('\n')
   }, [
+    planApplianceSlots,
+    applianceSummaryText,
+    config.applianceNotes,
     config.heating,
     config.insideDoorCount,
     config.socketNotes,
@@ -1330,7 +1591,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
     selectedInteriorPanels,
     selectedKitchen,
     selectedKitchenBench,
-    selectedKitchenExtras,
     selectedModel,
     selectedPlan,
     selectedWindowColour,
@@ -1437,17 +1697,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
     previewTimerRef.current = window.setTimeout(() => {
       scrollToPreview(previewKey)
     }, 90)
-  }
-
-  function toggleKitchenExtra(key) {
-    markConfiguratorStarted()
-    setConfig((prev) => ({
-      ...prev,
-      kitchenExtras: {
-        ...prev.kitchenExtras,
-        [key]: !prev.kitchenExtras[key],
-      },
-    }))
   }
 
   function resetAll() {
@@ -1573,6 +1822,61 @@ export default function BoxHouseConfiguratorPage({ content }) {
     }))
   }
 
+  // Placing an appliance moves it if its family is already on the plan (the
+  // two dishwasher sizes count as one family, so a 60 replaces a 45). The
+  // target slot's occupant is evicted — UNLESS it is the stack partner, which
+  // is how the hob lands on top of the oven in one column. The stage only
+  // offers eligible slots, and the reconcile effect re-judges the result — a
+  // sink move that strands the dishwasher takes it off the run.
+  function placeApplianceAt(slotKey) {
+    markConfiguratorStarted()
+    setConfig((prev) => {
+      const kind = prev.nextApplianceKind
+      const type = applianceByKind[kind]
+      if (!type) return prev
+      const rest = (prev.appliances || []).filter((item) => {
+        const itemFamily = applianceByKind[item.kind]?.family || item.kind
+        if (itemFamily === type.family) return false
+        if (item.slot === slotKey && itemFamily !== (type.stacksWith || null)) return false
+        return true
+      })
+      return { ...prev, appliances: [...rest, { id: `app-${kind}`, kind, slot: slotKey }] }
+    })
+  }
+
+  // A tap on a placed marker removes it — except the sink, which is mandatory:
+  // tapping it selects it in the palette so the next slot tap moves it.
+  function handleApplianceMarkerClick(kind) {
+    const type = applianceByKind[kind]
+    if (type?.required) {
+      setConfig((prev) => ({ ...prev, nextApplianceKind: kind }))
+      return
+    }
+    setConfig((prev) => ({
+      ...prev,
+      appliances: (prev.appliances || []).filter((item) => item.kind !== kind),
+    }))
+  }
+
+  function clearAppliances() {
+    setConfig((prev) => ({
+      ...prev,
+      appliances: (prev.appliances || []).filter((item) => applianceByKind[item.kind]?.required),
+    }))
+  }
+
+  function toggleWasherBath() {
+    markConfiguratorStarted()
+    setConfig((prev) => {
+      const others = (prev.appliances || []).filter((item) => item.kind !== 'washer')
+      const atBath = (prev.appliances || []).some((item) => item.kind === 'washer' && item.slot === SLOT_BATH)
+      return {
+        ...prev,
+        appliances: atBath ? others : [...others, { id: 'app-washer', kind: 'washer', slot: SLOT_BATH }],
+      }
+    })
+  }
+
   function exportPdf() {
     setStatus(labels.pdfPreparing)
 
@@ -1632,7 +1936,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
         [labels.kitchenBench, coded(selectedKitchenBench)],
         [labels.kitchenSink, selectedKitchenSink?.label],
         ...(selectedKitchenPetColour ? [[labels.kitchenPetColour, selectedKitchenPetColour.code]] : []),
-        [labels.kitchenExtras, selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : dash],
+        ...(planApplianceSlots ? [[labels.appliances, applianceSummaryText]] : []),
       ]],
     ]
 
@@ -1660,11 +1964,31 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
     const markerDots = (items, kind) => items
       .map((marker, index) => {
-        const badge = kind === 'window' ? (glazingByKey[marker.kind]?.marker || index + 1) : index + 1
+        const badge = kind === 'window'
+          ? (glazingByKey[marker.kind]?.marker || index + 1)
+          : kind === 'appliance'
+            ? (marker.badge || index + 1)
+            : index + 1
         const upgraded = kind === 'window' && marker.kind && marker.kind !== 'standard'
-        return `<span class="dot${upgraded ? ' up' : ''}" style="left:${marker.x}%;top:${marker.y}%">${escapeHtml(String(badge))}</span>`
+        const extra = upgraded ? ' up' : kind === 'appliance' ? ' ap' : ''
+        return `<span class="dot${extra}" style="left:${marker.x}%;top:${marker.y}%">${escapeHtml(String(badge))}</span>`
       })
       .join('')
+
+    // Appliance markers print from their slot's coordinates — the config only
+    // stores slot keys, so the PDF reads the same table the stage renders.
+    // A stacked hob+oven prints as one dot with a joined badge, like on screen.
+    const appliancePdfMarkers = applianceStageSlots
+      .map((slot) => {
+        const group = (config.appliances || []).filter((item) => item.slot === slot.key)
+        if (!group.length) return null
+        return {
+          x: slot.x,
+          y: slot.y,
+          badge: group.map((item) => applianceByKind[item.kind]?.marker || '').join('+'),
+        }
+      })
+      .filter(Boolean)
 
     const legend = (items) => items.length
       ? `<ol class="legend">${items.join('')}</ol>`
@@ -1676,6 +2000,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
     }))
 
     const socketLegend = legend(socketMarkerItems.map((item, index) => `<li><b>${index + 1}</b> ${escapeHtml(item.description || labels.socketMarker)} <span>${escapeHtml(item.coords)}</span></li>`))
+
+    const applianceLegend = legend(applianceListItems.map((item) => `<li><b>${escapeHtml(item.badge)}</b> ${escapeHtml(item.label)} <span>${escapeHtml(item.where)}</span></li>`))
 
     const planBlock = (title, image, dots, legendHtml, emptyText, note, noteLabel) => `
       <section class="block plan-block">
@@ -1813,6 +2139,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
       border: 0.4mm solid #fff;
     }
     .dot.up { background: #2563eb; }
+    .dot.ap { background: #b45309; }
 
     .legend { margin: 2.5mm 0 0; padding: 0; list-style: none; columns: 2; column-gap: 6mm; font-size: 8pt; }
     .legend li { break-inside: avoid; padding: 0.6mm 0; color: #374151; }
@@ -1877,11 +2204,12 @@ export default function BoxHouseConfiguratorPage({ content }) {
     <div class="plans">
       ${planBlock(labels.windowScheme, asset(selectedPlan?.image || ''), markerDots(config.windows || [], 'window'), windowLegend, labels.noWindows, config.windowNotes, labels.windowNotesLabel)}
       ${planBlock(labels.electricalScheme, asset(selectedPlan?.image || ''), markerDots(config.sockets, 'socket'), socketLegend, labels.noSockets, config.socketNotes, labels.socketNotesLabel)}
+      ${applianceStageSlots.length ? planBlock(labels.applianceScheme, asset(selectedPlan?.image || ''), markerDots(appliancePdfMarkers, 'appliance'), applianceLegend, labels.noAppliances, config.applianceNotes, labels.applianceNotesLabel) : ''}
     </div>
 
     <footer>
       ${escapeHtml(`${pdfText.generatedLabel}: ${new Date().toLocaleString(isBg ? 'bg-BG' : 'en-GB')}`)}<br />
-      ${escapeHtml(pdfText.note)}
+      ${escapeHtml(pdfText.note)}${planApplianceSlots ? `<br />${escapeHtml(labels.applianceDisclaimer)}` : ''}
     </footer>
   </div>
   <script>
@@ -2704,16 +3032,33 @@ export default function BoxHouseConfiguratorPage({ content }) {
               />
             </div>
 
-            <div className="bhc-group">
-              <div className="bhc-section-title">{labels.kitchenExtras}</div>
-              <div className="bhc-pill-grid">
-                {catalog.kitchenExtraOptions.map((item) => (
-                  <button key={item.key} type="button" className={['bhc-pill', config.kitchenExtras[item.key] && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleKitchenExtra(item.key)}>
-                    {item.label}
-                  </button>
-                ))}
+            {planApplianceSlots ? (
+              <div className="bhc-group">
+                <div className="bhc-section-title">{labels.appliances}</div>
+                <div className="bhc-appliance-disclaimer">{labels.applianceDisclaimer}</div>
+                <div className="bhc-hint">{planHasKitchenRun ? labels.appliancesHint : labels.noKitchenPlan}</div>
+                {planHasKitchenRun ? applianceKindPicker : null}
+                {washerBathToggle}
+                {planHasKitchenRun ? (
+                  <AppliancePlanStage
+                    image={asset(selectedPlan?.image || '')}
+                    slots={applianceStageSlots}
+                    markers={applianceMarkers}
+                    eligible={eligibleApplianceSlotSet}
+                    stackable={stackTargetSlotSet}
+                    onPlace={placeApplianceAt}
+                    onMarkerClick={handleApplianceMarkerClick}
+                    interactive
+                    emptyText={labels.noAppliances}
+                  />
+                ) : null}
+                {applianceRows}
+                <div className="bhc-action-row bhc-action-row--stack">
+                  <button className="btn ghost" type="button" onClick={clearAppliances}>{actions.clearAppliances}</button>
+                </div>
+                <textarea value={config.applianceNotes} onChange={(e) => setField('applianceNotes', e.target.value)} placeholder={labels.applianceNotesPlaceholder} rows={3} />
               </div>
-            </div>
+            ) : null}
 
             <div className="bhc-group">
               <div className="bhc-section-title">{labels.insideDoors}</div>
@@ -2863,6 +3208,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.bathroomDoor} value={selectedBathroomDoor?.code || '-'} />
               <SummaryRow label={labels.vanity} value={selectedVanity?.label || '-'} />
               <SummaryRow label={labels.kitchenSink} value={selectedKitchenSink?.label || '-'} />
+              {planApplianceSlots ? <SummaryRow label={labels.appliances} value={applianceListItems.map((item) => item.badge).join(' · ') || '-'} /> : null}
               <SummaryRow label={labels.insideDoorStyle} value={selectedInsideDoorStyle?.label || '-'} />
               <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
               <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText} strong />
@@ -2998,7 +3344,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.kitchen} value={selectedKitchen?.label || '-'} />
               <SummaryRow label={labels.insideDoorStyle} value={selectedInsideDoorStyle?.label || '-'} />
               <SummaryRow label={labels.insideDoorCount} value={String(config.insideDoorCount || 0)} />
-              <SummaryRow label={labels.kitchenExtras} value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'} />
+              {planApplianceSlots ? <SummaryRow label={labels.appliances} value={applianceListItems.map((item) => item.badge).join(' · ') || '-'} /> : null}
               <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText} />
               <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
               <SummaryRow label={labels.heating} value={config.heating ? `${yesText} (${euro(heatingPrice, locale)})` : noText} />
@@ -3044,6 +3390,25 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 </div>
               ) : null}
             </div>
+
+            {applianceStageSlots.length ? (
+              <div className="bhc-side-panel bhc-side-panel--span-2">
+                <div className="bhc-section-title">{labels.applianceScheme}</div>
+                <AppliancePlanStage image={asset(selectedPlan?.image || '')} slots={applianceStageSlots} markers={applianceMarkers} className="bhc-socket-stage--summary" emptyText={labels.noAppliances} />
+                <div className="bhc-chip-cloud">
+                  {applianceListItems.length ? applianceListItems.map((item) => (
+                    <span key={item.kind} className="bhc-mini-chip">{item.badge} {item.label} • {item.where}</span>
+                  )) : <div className="bhc-small-note">{labels.noAppliances}</div>}
+                </div>
+                <div className="bhc-small-note">{labels.applianceDisclaimer}</div>
+                {config.applianceNotes ? (
+                  <div className="bhc-note-box">
+                    <div className="bhc-note-title">{labels.applianceNotesLabel}</div>
+                    <div>{config.applianceNotes}</div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="bhc-side-panel bhc-summary-choice-panel">
               <div className="bhc-section-title">{labels.bathroom}</div>
@@ -3103,9 +3468,6 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 </div>
               </div>
               <div className="bhc-chip-cloud">
-                {selectedKitchenExtras.length ? selectedKitchenExtras.map((label) => (
-                  <span key={label} className="bhc-mini-chip">{label}</span>
-                )) : <span className="bhc-mini-chip">{labels.kitchenExtras}: -</span>}
                 <span className="bhc-mini-chip">{labels.heating}: {config.heating ? euro(heatingPrice, locale) : noText}</span>
                 <span className="bhc-mini-chip">{labels.windowSize}: {windowSizeDimension} mm{windowSizeExtra ? ` (+${euro(windowSizeExtra, locale)} ${labels.forAllWindows})` : ''}</span>
                 <span className="bhc-mini-chip">{labels.windowOpenings}: {(config.windows || []).length}{panoramicWindowCount ? ` (${panoramicWindowCount}P)` : ''}{windowExtrasPrice ? ` — ${euro(windowExtrasPrice, locale)}` : ''}</span>
@@ -3963,21 +4325,35 @@ export default function BoxHouseConfiguratorPage({ content }) {
           />
         </MobileSection>
 
-        <MobileSection
-          id="extras"
-          openId={openSection}
-          onToggle={toggleSection}
-          title={labels.kitchenExtras}
-          value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'}
-        >
-          <div className="bhc-pill-grid">
-            {catalog.kitchenExtraOptions.map((item) => (
-              <button key={item.key} type="button" className={['bhc-pill', config.kitchenExtras[item.key] && 'is-active'].filter(Boolean).join(' ')} onClick={() => toggleKitchenExtra(item.key)}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </MobileSection>
+        {planApplianceSlots ? (
+          <MobileSection
+            id="appliances"
+            openId={openSection}
+            onToggle={toggleSection}
+            title={labels.appliances}
+            value={applianceListItems.map((item) => item.badge).join(' · ') || '-'}
+          >
+            <div className="bhc-appliance-disclaimer">{labels.applianceDisclaimer}</div>
+            <div className="bhc-hint">{planHasKitchenRun ? labels.appliancesHint : labels.noKitchenPlan}</div>
+            {planHasKitchenRun ? applianceKindPicker : null}
+            {washerBathToggle}
+            {planHasKitchenRun ? (
+              <>
+                {/* The plan is unusable at accordion width, so placing happens
+                    full-screen; this stays as a read-only picture of the result. */}
+                <button type="button" className="btn bhc-plan-open-btn" onClick={() => setPlanEditor('appliances')}>
+                  {labels.openPlanEditor}
+                </button>
+                <AppliancePlanStage image={asset(selectedPlan?.image || '')} slots={applianceStageSlots} markers={applianceMarkers} emptyText={labels.noAppliances} />
+              </>
+            ) : null}
+            {applianceRows}
+            <div className="bhc-action-row bhc-action-row--stack">
+              <button className="btn ghost" type="button" onClick={clearAppliances}>{actions.clearAppliances}</button>
+            </div>
+            <textarea value={config.applianceNotes} onChange={(e) => setField('applianceNotes', e.target.value)} placeholder={labels.applianceNotesPlaceholder} rows={3} />
+          </MobileSection>
+        ) : null}
 
         <MobileSection
           id="doors"
@@ -4014,6 +4390,33 @@ export default function BoxHouseConfiguratorPage({ content }) {
           </div>
           <div className="bhc-inline-price">{labels.insideDoorPrice}: {insideDoorPrice ? euro(insideDoorPrice, locale) : labels.included}</div>
         </MobileSection>
+
+        <PlanEditorModal
+          open={planEditor === 'appliances'}
+          title={labels.appliances}
+          hint={labels.appliancesHint}
+          doneLabel={labels.planEditorDone}
+          onClose={() => setPlanEditor('')}
+        >
+          {applianceKindPicker}
+          {washerBathToggle}
+          <AppliancePlanStage
+            image={asset(selectedPlan?.image || '')}
+            slots={applianceStageSlots}
+            markers={applianceMarkers}
+            eligible={eligibleApplianceSlotSet}
+            stackable={stackTargetSlotSet}
+            onPlace={placeApplianceAt}
+            onMarkerClick={handleApplianceMarkerClick}
+            interactive
+            className="bhc-plan-stage--modal"
+            emptyText={labels.noAppliances}
+          />
+          {applianceRows}
+          <div className="bhc-action-row bhc-action-row--stack">
+            <button className="btn ghost" type="button" onClick={clearAppliances}>{actions.clearAppliances}</button>
+          </div>
+        </PlanEditorModal>
       </div>
     )
   }
@@ -4161,7 +4564,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <SummaryRow label={labels.kitchen} value={selectedKitchen?.label || '-'} />
             <SummaryRow label={labels.kitchenSink} value={selectedKitchenSink?.label || '-'} />
             {selectedKitchenPetColour ? <SummaryRow label={labels.kitchenPetColour} value={`${selectedKitchenPetColour.code} · ${labels.onRequest}`} /> : null}
-            <SummaryRow label={labels.kitchenExtras} value={selectedKitchenExtras.length ? selectedKitchenExtras.join(', ') : '-'} />
+            {planApplianceSlots ? <SummaryRow label={labels.appliances} value={applianceListItems.map((item) => item.badge).join(' · ') || '-'} /> : null}
             <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
           </div>
         </MobileSection>
@@ -4201,6 +4604,24 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <div className="bhc-note-title">{labels.socketNotesLabel}</div>
               <div>{config.socketNotes}</div>
             </div>
+          ) : null}
+          {applianceStageSlots.length ? (
+            <>
+              <div className="bhc-section-title bhc-scheme-divider">{labels.applianceScheme}</div>
+              <AppliancePlanStage image={asset(selectedPlan?.image || '')} slots={applianceStageSlots} markers={applianceMarkers} className="bhc-socket-stage--summary" emptyText={labels.noAppliances} />
+              <div className="bhc-chip-cloud">
+                {applianceListItems.length ? applianceListItems.map((item) => (
+                  <span key={item.kind} className="bhc-mini-chip">{item.badge} {item.label} • {item.where}</span>
+                )) : <div className="bhc-small-note">{labels.noAppliances}</div>}
+              </div>
+              <div className="bhc-small-note">{labels.applianceDisclaimer}</div>
+              {config.applianceNotes ? (
+                <div className="bhc-note-box">
+                  <div className="bhc-note-title">{labels.applianceNotesLabel}</div>
+                  <div>{config.applianceNotes}</div>
+                </div>
+              ) : null}
+            </>
           ) : null}
         </MobileSection>
 

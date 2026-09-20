@@ -8,6 +8,7 @@ import {
   KITCHEN_PET_COLOUR_OPTIONS,
   DECKING_OPTIONS,
 } from './boxConfiguratorOptions'
+import { APPLIANCE_SLOTS } from './boxConfiguratorApplianceSlots'
 
 // Everything here follows the NVC-HOME4YOU 2026 catalogue. Options the
 // catalogue marks as a surcharge without printing a figure carry
@@ -124,6 +125,27 @@ const KITCHEN_SINKS = [
   { key: 'ks-2', code: 'KS-2', en: 'Single bowl, stainless steel', bg: 'Единична мивка, неръждаема стомана', price: 0 },
   { key: 'ks-3', code: 'KS-3', en: 'Double bowl, black', bg: 'Двойна мивка, черна', price: 100 },
   { key: 'ks-4', code: 'KS-4', en: 'Single bowl, black', bg: 'Единична мивка, черна', price: 50 },
+]
+
+// The placeable kitchen appliances (#28, owner 2026-09-19). NVC does not sell
+// or charge for any of these — buyers plan WHERE each unit goes so the kitchen
+// is built to fit, and preparing for them (electrics, plumbing) is included.
+// The one appliance NVC does sell, the sink, is priced in its own step
+// (KITCHEN_SINKS above); its marker here is position only, which is why no row
+// carries a price. Footprints are the standard EU built-in modules — 60 cm,
+// with the 45 cm slim dishwasher as the second size — so no dimensions were
+// owed by the owner. The hood is deliberately NOT its own row: it sits above
+// wherever the hob goes, so one hob placement covers both. The hob and the
+// oven may also SHARE one slot (`stacksWith`) — the classic column of oven in
+// the base cabinet with the hob on the worktop above it (owner, 2026-09-20).
+const APPLIANCE_TYPES = [
+  { key: 'sink', en: 'Sink', bg: 'Мивка', marker: 'SI', required: true },
+  { key: 'hob', en: 'Built-in hob', bg: 'Вградени котлони (плот)', marker: 'HB', size: '60 cm', hood: true, stacksWith: 'oven' },
+  { key: 'oven', en: 'Built-in oven', bg: 'Вградена фурна', marker: 'OV', size: '60 cm', stacksWith: 'hob' },
+  { key: 'fridge', en: 'Fridge', bg: 'Хладилник', marker: 'FR', size: '60 cm' },
+  { key: 'dishwasher-60', en: 'Dishwasher · 60 cm', bg: 'Съдомиялна · 60 см', marker: 'DW', size: '60 cm', family: 'dishwasher', sinkAdjacent: true },
+  { key: 'dishwasher-45', en: 'Slim dishwasher · 45 cm', bg: 'Съдомиялна · 45 см', marker: 'DW', size: '45 cm', family: 'dishwasher', sinkAdjacent: true },
+  { key: 'washer', en: 'Washing machine', bg: 'Пералня', marker: 'WM', size: '60 cm', allowBath: true },
 ]
 
 // Terrace sizes. The standard short-side deck is in the base price; the
@@ -294,6 +316,11 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
     noWindowImage: key.startsWith('A') ? `plan-${key}-nowindows.webp` : undefined,
     wallFactor: planWallFactor[key] || 1,
     doorCount: planDoorCount[key] || 0,
+    // Appliance slot coordinates are hand-placed against the furnished render
+    // (`image`), the artwork the appliance stage always shows — so the
+    // A-series' separate no-windows canvas never enters this feature. A plan
+    // with no entry simply doesn't offer the appliance step.
+    applianceSlots: APPLIANCE_SLOTS[key] || null,
   }))
 
   // Nine fully equipped variants, all included -- confirmed by the client.
@@ -468,11 +495,23 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
   const interiorPanelColorOptions = INTERIOR_PANEL_OPTIONS.map((item) =>
     codedOption(item, locale, { onRequest: true }))
 
-  const kitchenExtraOptions = [
-    { key: 'furnace', label: t('Furnace cabinet', 'Шкаф за бойлер / котле') },
-    { key: 'washingMachine', label: t('Washing machine slot', 'Ниша за пералня') },
-    { key: 'dishwasherCabinet', label: t('Dishwasher cabinet', 'Шкаф за съдомиялна') },
-  ]
+  // The kitchen-extras checkbox section is GONE (owner, 2026-09-20): the
+  // washing machine and dishwasher became placeable appliances the day before,
+  // and the owner then retired the section wholesale, furnace cabinet
+  // included. Old saved configs still carry a `kitchenExtras` object in their
+  // JSON; nothing reads it any more, so it rides along inert.
+  const applianceOptions = APPLIANCE_TYPES.map((item) => ({
+    key: item.key,
+    label: pick(item),
+    marker: item.marker,
+    size: item.size || '',
+    required: Boolean(item.required),
+    family: item.family || item.key,
+    sinkAdjacent: Boolean(item.sinkAdjacent),
+    allowBath: Boolean(item.allowBath),
+    hood: Boolean(item.hood),
+    stacksWith: item.stacksWith || '',
+  }))
 
   const pricing = {
     heatingPerM2: 38,
@@ -502,7 +541,7 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
     kitchenSinkOptions,
     kitchenPetColourOptions,
     kitchenBenchOptions,
-    kitchenExtraOptions,
+    applianceOptions,
     windowTypeOptions,
     windowBasicColourOptions,
     windowDecorOptions,
