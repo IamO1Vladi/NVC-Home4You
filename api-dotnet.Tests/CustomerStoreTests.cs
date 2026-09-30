@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Data;
@@ -239,6 +240,106 @@ public class CustomerStoreTests
         Assert.Equal(existingId, purchase.Id);
         Assert.Equal(52000m, purchase.FinalPrice);
         Assert.Equal(42000m, purchase.LeftToPay);
+    }
+
+    [Fact]
+    public async Task The_second_payment_is_stored_dated_and_counted_against_the_price()
+    {
+        // #31 end to end: the balance arrives on an existing sale, the deposit keeps its own
+        // number, and left to pay reaches zero without anybody retyping the капаро.
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Prefab, FinalPrice = 50000m, DepositPaid = 15000m },
+        }), null, default);
+
+        var id = created.Purchases[0].Id;
+        Assert.Null(created.Purchases[0].SecondPayment);
+        Assert.Equal(35000m, created.Purchases[0].LeftToPay);
+
+        var updated = await svc.UpdateAsync(created.Id, NewInput(purchases: new List<PurchaseInput>
+        {
+            new()
+            {
+                Id = id, CategoryKey = HouseCategories.Prefab, FinalPrice = 50000m,
+                DepositPaid = 15000m, SecondPayment = 35000m, SecondPaymentAt = "2026-09-30",
+            },
+        }), null, default);
+
+        var purchase = Assert.Single(updated!.Purchases);
+        Assert.Equal(15000m, purchase.DepositPaid);
+        Assert.Equal(35000m, purchase.SecondPayment);
+        Assert.Equal("2026-09-30", purchase.SecondPaymentAt);
+        Assert.Equal(0m, purchase.LeftToPay);
+
+        var row = Assert.Single(await svc.ListAsync(null, default));
+        Assert.Equal(0m, row.TotalLeftToPay);
+        Assert.True(row.PaidInFull);
+    }
+
+    [Fact]
+    public async Task Clearing_the_second_payment_boxes_clears_the_columns()
+    {
+        // A typo in the balance has to be correctable. The sheet sends both boxes on every
+        // save, so an emptied box arrives as an explicit null and means "none".
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { FinalPrice = 50000m, SecondPayment = 35000m, SecondPaymentAt = "2026-09-30" },
+        }), null, default);
+
+        var updated = await svc.UpdateAsync(created.Id, NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { Id = created.Purchases[0].Id, FinalPrice = 50000m, SecondPayment = null, SecondPaymentAt = null },
+        }), null, default);
+
+        var purchase = Assert.Single(updated!.Purchases);
+        Assert.Null(purchase.SecondPayment);
+        Assert.Null(purchase.SecondPaymentAt);
+        Assert.Equal(50000m, purchase.LeftToPay);
+    }
+
+    [Fact]
+    public async Task A_save_that_never_mentions_the_second_payment_leaves_it_where_it_is()
+    {
+        // The panel tab loaded before #31 shipped: its purchase rows carry no secondPayment
+        // key at all. Read through the SAME binder the controller uses, because the whole
+        // mechanism is "a setter runs only for a key that is in the body" — a C# object
+        // initializer cannot prove that, only real JSON can.
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        var created = await svc.CreateAsync(NewInput(purchases: new List<PurchaseInput>
+        {
+            new() { FinalPrice = 50000m, DepositPaid = 15000m, SecondPayment = 35000m, SecondPaymentAt = "2026-09-30" },
+        }), null, default);
+        var id = created.Purchases[0].Id;
+
+        var web = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        var oldTab = JsonSerializer.Deserialize<CustomerInput>(
+            $$"""{"name":"Иван Петров","type":"person","phone":"0888 111 222","purchases":[{"id":{{id}},"finalPrice":50000,"depositPaid":15000}]}""",
+            web)!;
+        Assert.False(oldTab.Purchases![0].SecondPaymentSent);
+
+        var kept = Assert.Single((await svc.UpdateAsync(created.Id, oldTab, null, default))!.Purchases);
+        Assert.Equal(35000m, kept.SecondPayment);
+        Assert.Equal("2026-09-30", kept.SecondPaymentAt);
+        Assert.Equal(0m, kept.LeftToPay);
+
+        // And the current sheet, which sends both keys, still clears them with a null.
+        var newTab = JsonSerializer.Deserialize<CustomerInput>(
+            $$"""{"name":"Иван Петров","type":"person","purchases":[{"id":{{id}},"finalPrice":50000,"depositPaid":15000,"secondPayment":null,"secondPaymentAt":null}]}""",
+            web)!;
+        Assert.True(newTab.Purchases![0].SecondPaymentSent);
+
+        var cleared = Assert.Single((await svc.UpdateAsync(created.Id, newTab, null, default))!.Purchases);
+        Assert.Null(cleared.SecondPayment);
+        Assert.Null(cleared.SecondPaymentAt);
     }
 
     [Fact]
@@ -503,6 +604,67 @@ public class CustomerStoreTests
         Assert.Equal(20000m, row.TotalDeposit);
         Assert.Equal(50000m, row.TotalLeftToPay);
         Assert.Equal("EUR", row.Currency);
+        Assert.False(row.PaidInFull);
+    }
+
+    [Fact]
+    public async Task A_customer_is_paid_in_full_only_when_every_purchase_is()
+    {
+        // The total can say zero while a purchase with no agreed price sits beside a settled
+        // one — Sum skips the unpriced row. "Settled" is asked of each purchase instead.
+        using var db = NewDb();
+        var svc = new CustomerAdminService(db);
+
+        await svc.CreateAsync(NewInput(name: "Settled beside unpriced", purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Prefab, FinalPrice = 50000m, DepositPaid = 15000m, SecondPayment = 35000m, Currency = "EUR" },
+            new() { CategoryKey = HouseCategories.Prefab, Currency = "EUR" },
+        }), null, default);
+
+        // A wagon is paid in one go and the panel gives a money-less one no payment boxes at
+        // all, so it is not a payment question — counting it would leave this customer
+        // unbadged forever with nothing on screen to fix it.
+        await svc.CreateAsync(NewInput(name: "Settled house and a wagon", purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Prefab, FinalPrice = 50000m, DepositPaid = 15000m, SecondPayment = 35000m, Currency = "EUR" },
+            new() { CategoryKey = HouseCategories.Wagon, Currency = "EUR" },
+        }), null, default);
+
+        // A wagon alone has no priced purchase to vouch for anything.
+        await svc.CreateAsync(NewInput(name: "Wagon only", purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Wagon, Currency = "EUR" },
+        }), null, default);
+
+        // But a wagon that DOES carry money is judged like anything else.
+        await svc.CreateAsync(NewInput(name: "Settled house and an owing wagon", purchases: new List<PurchaseInput>
+        {
+            new() { CategoryKey = HouseCategories.Prefab, FinalPrice = 50000m, DepositPaid = 50000m, Currency = "EUR" },
+            new() { CategoryKey = HouseCategories.Wagon, FinalPrice = 9000m, DepositPaid = 500m, Currency = "EUR" },
+        }), null, default);
+
+        // Two currencies, no total at all — and still a straight answer to "settled?".
+        await svc.CreateAsync(NewInput(name: "Settled in two currencies", purchases: new List<PurchaseInput>
+        {
+            new() { FinalPrice = 20000m, DepositPaid = 20000m, Currency = "EUR" },
+            new() { FinalPrice = 5000m, DepositPaid = 1000m, SecondPayment = 4000m, Currency = "BGN" },
+        }), null, default);
+
+        await svc.CreateAsync(NewInput(name: "Nothing bought"), null, default);
+
+        var rows = (await svc.ListAsync(null, default)).ToDictionary(r => r.Name);
+
+        Assert.Equal(0m, rows["Settled beside unpriced"].TotalLeftToPay);
+        Assert.False(rows["Settled beside unpriced"].PaidInFull);
+
+        Assert.True(rows["Settled house and a wagon"].PaidInFull);
+        Assert.False(rows["Wagon only"].PaidInFull);
+        Assert.False(rows["Settled house and an owing wagon"].PaidInFull);
+
+        Assert.Null(rows["Settled in two currencies"].TotalLeftToPay);
+        Assert.True(rows["Settled in two currencies"].PaidInFull);
+
+        Assert.False(rows["Nothing bought"].PaidInFull);
     }
 
     [Fact]

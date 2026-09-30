@@ -305,6 +305,7 @@ public class AppDbContext : DbContext
             e.HasIndex(p => p.FactoryId).HasFilter("[FactoryId] IS NOT NULL");
 
             e.Property(p => p.DepositPaid).HasPrecision(18, 2);
+            e.Property(p => p.SecondPayment).HasPrecision(18, 2);
             e.Property(p => p.FinalPrice).HasPrecision(18, 2);
 
             // Absorbed from the archived Sale table (2026-08-19).

@@ -30,6 +30,7 @@ const TEXT = {
     emptyHint: 'Поръчките се създават като продажби при клиента.',
     customer: 'Клиент', model: 'Модел', factory: 'Фабрика',
     deposit: 'Капаро', finalPrice: 'Крайна цена', leftToPay: 'Остава',
+    secondPayment: 'Второ плащане', paidInFull: 'Платено изцяло',
     qty: 'бр.',
     status: 'Статус',
     expectedAtHarbor: 'Очаквано на пристанище', expectedReady: 'Очаквана готовност',
@@ -74,6 +75,7 @@ const TEXT = {
     emptyHint: 'Orders are created as purchases on a customer.',
     customer: 'Customer', model: 'Model', factory: 'Factory',
     deposit: 'Deposit', finalPrice: 'Final price', leftToPay: 'Left to pay',
+    secondPayment: 'Second payment', paidInFull: 'Paid in full',
     qty: 'pcs',
     status: 'Status',
     expectedAtHarbor: 'Expected at harbour', expectedReady: 'Expected ready',
@@ -537,12 +539,23 @@ export default function AdminOrdersPage() {
                     {row.model || '—'}
                     {row.quantity > 1 ? ` × ${row.quantity} ${t.qty}` : ''}
                     {' · '}{t.deposit}: {money(row.depositPaid, row.currency)}
+                    {/* Only once there is one: most rows are still waiting on it, and a
+                        "—" on every line of the report says nothing the left-to-pay
+                        figure does not already say. */}
+                    {row.secondPayment !== null && row.secondPayment !== undefined
+                      ? <>{' · '}{t.secondPayment}: {money(row.secondPayment, row.currency)}</>
+                      : null}
                     {' · '}{t.finalPrice}: {money(row.finalPrice, row.currency)}
                     {' · '}{t.leftToPay}: <strong>{money(row.leftToPay, row.currency)}</strong>
                     {row.factoryName ? <> · {t.factory}: {row.factoryName}</> : null}
                   </span>
                   <span className="adm-small">
                     <span className="adm-badge adm-stage-open">{label(row.status)}</span>
+                    {/* Money, beside the status rather than instead of it: delivered and
+                        paid are different facts, and either can come first. */}
+                    {row.paidInFull
+                      ? <> <span className="adm-badge adm-badge-approved">{t.paidInFull}</span></>
+                      : null}
                     {/* The same warn colour the inquiries queue uses for "nobody has picked
                         this up", because it means the same thing here. */}
                     {stalled !== null

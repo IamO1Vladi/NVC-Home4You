@@ -458,13 +458,25 @@ public class CustomerAdminTests
     [Fact]
     public void Left_to_pay_is_the_price_less_what_has_come_in()
     {
-        Assert.Equal(35000m, CustomerAdminService.LeftToPay(50000m, 15000m));
+        Assert.Equal(35000m, CustomerAdminService.LeftToPay(50000m, 15000m, null));
+    }
+
+    [Fact]
+    public void Left_to_pay_takes_the_second_payment_off_as_well()
+    {
+        // #31. The balance used to have nowhere to go, so a customer who had paid in full
+        // still read as owing everything past the капаро.
+        Assert.Equal(15000m, CustomerAdminService.LeftToPay(50000m, 15000m, 20000m));
+        Assert.Equal(0m, CustomerAdminService.LeftToPay(50000m, 15000m, 35000m));
+
+        // A balance recorded with no deposit on file still counts.
+        Assert.Equal(30000m, CustomerAdminService.LeftToPay(50000m, null, 20000m));
     }
 
     [Fact]
     public void Nothing_paid_means_all_of_it_is_outstanding()
     {
-        Assert.Equal(50000m, CustomerAdminService.LeftToPay(50000m, null));
+        Assert.Equal(50000m, CustomerAdminService.LeftToPay(50000m, null, null));
     }
 
     [Fact]
@@ -472,8 +484,30 @@ public class CustomerAdminTests
     {
         // "Nothing outstanding" and "we have not settled on a number" are different facts,
         // and only one of them is good news.
-        Assert.Null(CustomerAdminService.LeftToPay(null, 15000m));
-        Assert.Null(CustomerAdminService.LeftToPay(null, null));
+        Assert.Null(CustomerAdminService.LeftToPay(null, 15000m, null));
+        Assert.Null(CustomerAdminService.LeftToPay(null, 15000m, 35000m));
+        Assert.Null(CustomerAdminService.LeftToPay(null, null, null));
+    }
+
+    [Fact]
+    public void Paid_in_full_means_a_price_and_exactly_nothing_left_of_it()
+    {
+        Assert.True(CustomerAdminService.PaidInFull(
+            new Purchase { FinalPrice = 50000m, DepositPaid = 15000m, SecondPayment = 35000m }));
+
+        // Part of the balance is not all of it.
+        Assert.False(CustomerAdminService.PaidInFull(
+            new Purchase { FinalPrice = 50000m, DepositPaid = 15000m, SecondPayment = 20000m }));
+
+        // No agreed price is never "settled", however much has come in.
+        Assert.False(CustomerAdminService.PaidInFull(
+            new Purchase { DepositPaid = 15000m, SecondPayment = 35000m }));
+        Assert.False(CustomerAdminService.PaidInFull(new Purchase { FinalPrice = 0m }));
+
+        // Overpaid is a mistake to look at, not a customer to tick off. Validation refuses
+        // it on the way in; a row written some other way must not wear the badge.
+        Assert.False(CustomerAdminService.PaidInFull(
+            new Purchase { FinalPrice = 50000m, DepositPaid = 15000m, SecondPayment = 40000m }));
     }
 
     [Fact]
@@ -486,14 +520,80 @@ public class CustomerAdminTests
     }
 
     [Fact]
+    public void Two_payments_that_add_up_past_the_price_are_refused()
+    {
+        // Each fits under the price on its own; together they do not.
+        var input = Customer("person");
+        input.Purchases = new List<PurchaseInput>
+        {
+            new() { DepositPaid = 15000m, SecondPayment = 40000m, FinalPrice = 50000m },
+        };
+
+        Assert.Contains(CustomerAdminService.Validate(input), e => e.Contains("add up to more than"));
+    }
+
+    [Fact]
+    public void Two_payments_that_add_up_to_exactly_the_price_are_fine()
+    {
+        // The whole point of the box: this is a customer who has paid.
+        var input = Customer("person");
+        input.Purchases = new List<PurchaseInput>
+        {
+            new() { DepositPaid = 15000m, SecondPayment = 35000m, FinalPrice = 50000m, SecondPaymentAt = "2026-09-30" },
+        };
+
+        Assert.Empty(CustomerAdminService.Validate(input));
+    }
+
+    [Fact]
+    public void A_second_payment_before_the_price_is_agreed_is_storable()
+    {
+        // Same as the deposit: money that came in is recorded when it comes in, not held
+        // back until somebody settles the number.
+        var input = Customer("person");
+        input.Purchases = new List<PurchaseInput> { new() { DepositPaid = 15000m, SecondPayment = 20000m } };
+
+        Assert.Empty(CustomerAdminService.Validate(input));
+    }
+
+    [Fact]
     public void Negative_money_is_refused()
     {
         var input = Customer("person");
-        input.Purchases = new List<PurchaseInput> { new() { DepositPaid = -1m, FinalPrice = -2m } };
+        input.Purchases = new List<PurchaseInput>
+        {
+            new() { DepositPaid = -1m, SecondPayment = -3m, FinalPrice = -2m },
+        };
 
         var errors = CustomerAdminService.Validate(input);
         Assert.Contains(errors, e => e.Contains("deposit cannot be negative"));
+        Assert.Contains(errors, e => e.Contains("second payment cannot be negative"));
         Assert.Contains(errors, e => e.Contains("price cannot be negative"));
+    }
+
+    [Fact]
+    public void A_negative_second_payment_does_not_hide_a_deposit_past_the_price()
+    {
+        // -20 000 would otherwise net a 60 000 deposit back under a 50 000 price and the
+        // over-price refusal would never fire.
+        var input = Customer("person");
+        input.Purchases = new List<PurchaseInput>
+        {
+            new() { DepositPaid = 60000m, SecondPayment = -20000m, FinalPrice = 50000m },
+        };
+
+        var errors = CustomerAdminService.Validate(input);
+        Assert.Contains(errors, e => e.Contains("second payment cannot be negative"));
+        Assert.Contains(errors, e => e.Contains("larger than"));
+    }
+
+    [Fact]
+    public void An_unreadable_second_payment_date_is_refused_by_name()
+    {
+        var input = Customer("person");
+        input.Purchases = new List<PurchaseInput> { new() { SecondPaymentAt = "not a date" } };
+
+        Assert.Contains(CustomerAdminService.Validate(input), e => e.Contains("second payment's date"));
     }
 
     // --- Dates -------------------------------------------------------------------------

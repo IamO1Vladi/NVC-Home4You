@@ -275,6 +275,203 @@ describe('AdminCustomersPage', () => {
     })
   })
 
+  // --- The second payment (#31) --------------------------------------------------------
+
+  it('takes the second payment off what is left, and says so when nothing is', async () => {
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+    const readout = dialog.querySelector('output')
+
+    fireEvent.change(within(dialog).getByLabelText('Второ плащане'), { target: { value: '10000' } })
+    await waitFor(() => expect(readout).toHaveTextContent(/20[\s ]?000 EUR/))
+    // Part of the balance is not all of it.
+    expect(within(readout).queryByText('Платено изцяло')).not.toBeInTheDocument()
+
+    fireEvent.change(within(dialog).getByLabelText('Второ плащане'), { target: { value: '30000' } })
+    await waitFor(() => expect(within(readout).getByText('Платено изцяло')).toBeInTheDocument())
+    expect(readout).toHaveTextContent(/^0 EUR/)
+  })
+
+  it('keeps the deposit as it was when the balance comes in', async () => {
+    // The whole reason for a second box: before it, "paid in full" meant typing the full
+    // price into the deposit and losing what the deposit had been.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    fireEvent.change(within(dialog).getByLabelText('Второ плащане'), { target: { value: '30 000' } })
+    fireEvent.change(within(dialog).getByLabelText('Дата на второто плащане'), { target: { value: '2026-09-30' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].depositPaid).toBe(20000)
+      // Typed the way it is said, read the way it was meant — the same box rules as the
+      // deposit and the price.
+      expect(saved.purchases[0].secondPayment).toBe(30000)
+      expect(saved.purchases[0].secondPaymentAt).toBe('2026-09-30')
+    })
+  })
+
+  it('reads a stored second payment back into its boxes', async () => {
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], secondPayment: 30000, secondPaymentAt: '2026-09-28', leftToPay: 0, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).getByLabelText('Второ плащане')).toHaveValue('30000')
+    expect(within(dialog).getByLabelText('Дата на второто плащане')).toHaveValue('2026-09-28')
+    expect(within(dialog.querySelector('output')).getByText('Платено изцяло')).toBeInTheDocument()
+  })
+
+  it('sends an emptied second payment as none, so a mistyped balance can be taken back', async () => {
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], secondPayment: 30000, secondPaymentAt: '2026-09-28', leftToPay: 0, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    fireEvent.change(within(dialog).getByLabelText('Второ плащане'), { target: { value: '' } })
+    fireEvent.change(within(dialog).getByLabelText('Дата на второто плащане'), { target: { value: '' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      // Present and null, not absent: the server writes the row whole.
+      expect(saved.purchases[0]).toHaveProperty('secondPayment', null)
+      expect(saved.purchases[0]).toHaveProperty('secondPaymentAt', null)
+    })
+  })
+
+  it('a balance paid to the stotinka reads as settled, never as "-0"', async () => {
+    // 30000.3 − 10000.1 − 20000.2 is −3.6e-12 in floating point: printed, "-0 EUR";
+    // compared, not zero. The arithmetic is done in cents so the customer who paid exactly
+    // is settled. (The figures matter: plenty of decimal triples happen to come out exact,
+    // and a fixture that does proves nothing about the cents.)
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], finalPrice: 30000.3, depositPaid: 10000.1, secondPayment: 20000.2, leftToPay: 0, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+    const readout = dialog.querySelector('output')
+
+    expect(readout).not.toHaveTextContent('-0')
+    expect(within(readout).getByText('Платено изцяло')).toBeInTheDocument()
+  })
+
+  it('does not call an overpaid purchase settled', async () => {
+    // The server refuses it on save; until then the negative figure is the thing to see,
+    // and a green badge beside it would be the one thing on the card that looks fine.
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+    const readout = dialog.querySelector('output')
+
+    fireEvent.change(within(dialog).getByLabelText('Второ плащане'), { target: { value: '35000' } })
+
+    await waitFor(() => expect(readout).toHaveTextContent(/-5[\s ]?000 EUR/))
+    expect(within(readout).queryByText('Платено изцяло')).not.toBeInTheDocument()
+  })
+
+  it('never hides a wagon whose only money on file is the second payment', async () => {
+    // Same rule as the deposit: hiding a filled-in field is how data goes missing without
+    // anyone touching it.
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], categoryKey: 'wagon', houseId: null, houseTitle: null,
+        customModel: 'Фургон 6м', depositPaid: null, finalPrice: null, secondPayment: 9000, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).getByLabelText('Второ плащане')).toHaveValue('9000')
+  })
+
+  it('keeps that wagon\'s payment block while its only figure is being retyped', async () => {
+    // Clearing the box to type 9500 empties it for a moment. Judged on the parsed figure,
+    // that moment hid the whole block — the new number could not be typed, and the next
+    // save sent the payment as none. Judged on the box, the block stays.
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], categoryKey: 'wagon', houseId: null, houseTitle: null,
+        customModel: 'Фургон 6м', depositPaid: null, finalPrice: null, secondPayment: 9000, files: [],
+      }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    const box = within(dialog).getByLabelText('Второ плащане')
+    fireEvent.change(box, { target: { value: '' } })
+    expect(within(dialog).getByLabelText('Второ плащане')).toBeInTheDocument()
+
+    // And text the parser cannot read yet ("9000 л", halfway to "9000 лв") keeps it too.
+    fireEvent.change(within(dialog).getByLabelText('Второ плащане'), { target: { value: '9000 л' } })
+    expect(within(dialog).getByLabelText('Второ плащане')).toHaveValue('9000 л')
+  })
+
+  it('says what a recorded payment with no agreed price is waiting for', async () => {
+    // Every customer the payments-sheet import created has a deposit and no price. The
+    // readout rightly says "—"; the line under it says why, so a balance typed in is not
+    // mistaken for a box that did nothing.
+    detail = {
+      ...DETAIL,
+      purchases: [{ ...DETAIL.purchases[0], finalPrice: null, depositPaid: 5000, leftToPay: null, files: [] }],
+    }
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    expect(within(dialog).getByText('Въведете крайна цена, за да се изчисли остатъкът.')).toBeInTheDocument()
+
+    fireEvent.change(within(dialog).getByLabelText('Крайна цена'), { target: { value: '10000' } })
+    await waitFor(() => expect(within(dialog).queryByText(/Въведете крайна цена/)).not.toBeInTheDocument())
+  })
+
+  it('marks a customer on the list who has paid in full', async () => {
+    // The second row totals zero owed and is NOT settled (a house with no agreed price
+    // beside a paid one, say) — the case that tells "the server's flag" apart from "a
+    // zero total", which is the shortcut this list must never take.
+    const list = [
+      { ...LIST[0], totalLeftToPay: 0, paidInFull: true },
+      { ...LIST[1], totalFinalPrice: 42000, totalLeftToPay: 0, paidInFull: false },
+    ]
+    vi.mocked(fetch).mockImplementation((url, options = {}) => {
+      calls.push({ url: String(url), method: options.method || 'GET', body: options.body })
+      const u = String(url)
+      if (u.includes('/api/admin/customers/categories')) return json(CATEGORIES)
+      if (u.includes('/api/admin/customers')) return json(list)
+      if (u.includes('/api/admin/me')) return json({ name: 'Sales' })
+      return json({})
+    })
+    render(<AdminCustomersPage />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Стройко ООД' })).toBeInTheDocument())
+    const settled = screen.getByRole('button', { name: 'Стройко ООД' }).closest('li')
+    expect(within(settled).getByText('Платено изцяло')).toBeInTheDocument()
+    // A zero total owed says nothing on its own — the badge is the server's answer.
+    const other = screen.getByRole('button', { name: 'Иван Петров' }).closest('li')
+    expect(within(other).queryByText('Платено изцяло')).not.toBeInTheDocument()
+  })
+
   // --- How many ------------------------------------------------------------------------
 
   it('saves the number of units somebody typed', async () => {

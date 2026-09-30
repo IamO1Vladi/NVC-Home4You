@@ -1884,6 +1884,7 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 .adm-purchase-head .adm-linkbtn { margin-top: 0; }
 .adm-purchase-money { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--adm-line-firm); }
 .adm-purchase-money h5 { margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--adm-muted); }
+.adm-payment-hint { margin: 8px 0 0; }
 .adm-purchase .adm-sheet-notes { margin-top: 12px; }
 
 /* Left to pay. An <output>, styled to sit at the same height as the inputs beside it but
@@ -1897,6 +1898,9 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   border-radius: 8px;
   font-weight: 700;
 }
+/* "Платено изцяло" beside the 0 it explains. Pushed to the far end so the figure keeps its
+   place whether or not the badge is there. */
+.adm-readout-badge { margin-left: auto; }
 
 /* How many of the same thing. Narrow on purpose: a box sized for a price invites a price,
    and this one never holds more than two digits. */

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Data;
@@ -21,6 +22,35 @@ public sealed class PurchaseInput
     public int? Quantity { get; set; }
     public decimal? DepositPaid { get; set; }
     public decimal? FinalPrice { get; set; }
+
+    // The second payment and its date (#31) — the two fields in this class where ABSENT and
+    // NULL mean different things. Null clears: the sheet sends both on every save, so an
+    // emptied box arrives as null and a mistyped balance can be taken back off. Absent
+    // leaves the column alone, because the one caller that sends neither is a panel tab
+    // loaded before these existed — and written whole, its next save of a phone number would
+    // quietly null a balance somebody recorded since, with a 200 and nothing on screen.
+    //
+    // The setters are what tell the two apart: System.Text.Json calls a setter only for a
+    // key that is in the body (explicit null included), so "Sent" is true exactly when the
+    // caller said something about the field. Apply writes a column only when it was.
+    private decimal? _secondPayment;
+    private string? _secondPaymentAt;
+
+    public decimal? SecondPayment
+    {
+        get => _secondPayment;
+        set { _secondPayment = value; SecondPaymentSent = true; }
+    }
+
+    // "YYYY-MM-DD" from <input type="date">, parsed like PurchasedAt.
+    public string? SecondPaymentAt
+    {
+        get => _secondPaymentAt;
+        set { _secondPaymentAt = value; SecondPaymentAtSent = true; }
+    }
+
+    [JsonIgnore] public bool SecondPaymentSent { get; private set; }
+    [JsonIgnore] public bool SecondPaymentAtSent { get; private set; }
 
     // NOTHING about order tracking is here, and the omission is the whole point (#27). The
     // status, the two expected dates and the carrier fields are written by
@@ -116,6 +146,11 @@ public sealed record CustomerSummaryDto(
     decimal? TotalFinalPrice,
     decimal? TotalDeposit,
     decimal? TotalLeftToPay,
+
+    // Nothing left on any purchase that is a payment question — see
+    // CustomerAdminService.PaidInFull(purchases). Answered even for a mixed-currency
+    // customer, because zero owed is zero in any currency.
+    bool PaidInFull,
     string? Currency,
     string CreatedAt);
 
@@ -147,6 +182,8 @@ public sealed record PurchaseDto(
     string? CustomModel,
     int Quantity,
     decimal? DepositPaid,
+    decimal? SecondPayment,
+    string? SecondPaymentAt,
     decimal? FinalPrice,
 
     // Total / quantity, computed. Two stored price columns is the drift this schema
@@ -509,18 +546,28 @@ public sealed class CustomerAdminService
         if (purchase.Quantity is <= 0) yield return "A quantity cannot be less than one.";
 
         if (purchase.DepositPaid is < 0) yield return "A deposit cannot be negative.";
+        if (purchase.SecondPayment is < 0) yield return "A second payment cannot be negative.";
         if (purchase.FinalPrice is < 0) yield return "A price cannot be negative.";
 
         // A warning would be ignored; this is arithmetic that produces a negative "left to
-        // pay" and a customer conversation about a refund nobody meant to promise.
-        if (purchase.DepositPaid is > 0 && purchase.FinalPrice is > 0
-            && purchase.DepositPaid > purchase.FinalPrice)
+        // pay" and a customer conversation about a refund nobody meant to promise. Held
+        // against BOTH payments together — a deposit and a balance that each fit under the
+        // price can still add up past it. Negatives are left to the two refusals above.
+        var paid = Math.Max(purchase.DepositPaid ?? 0m, 0m) + Math.Max(purchase.SecondPayment ?? 0m, 0m);
+        if (purchase.FinalPrice is > 0 && paid > purchase.FinalPrice)
         {
-            yield return "The deposit is larger than the final price.";
+            yield return purchase.SecondPayment is > 0
+                ? "The deposit and the second payment add up to more than the final price."
+                : "The deposit is larger than the final price.";
         }
 
         if (!TryParsePurchaseDate(purchase.PurchasedAt, out _))
             yield return "That is not a date we can read.";
+
+        // Named, unlike the one above: the card carries two date boxes now, and "that is not
+        // a date" over both of them points at neither.
+        if (!TryParsePurchaseDate(purchase.SecondPaymentAt, out _))
+            yield return "The second payment's date is not a date we can read.";
     }
 
     /// <summary>Whether a house exists, for the "is this model real?" check.</summary>
@@ -585,13 +632,6 @@ public sealed class CustomerAdminService
     }
 
     /// <summary>
-    /// What is still owed: the agreed price less whatever has come in.
-    ///
-    /// Null when there is no agreed price, because "nothing outstanding" and "we have not
-    /// settled on a number" are different answers and only one of them is good news. A null
-    /// deposit counts as zero here — nothing paid means all of it is outstanding.
-    /// </summary>
-    /// <summary>
     /// What one unit went for. Null when there is no agreed price — the same reasoning as
     /// LeftToPay: "not settled yet" is not zero.
     ///
@@ -609,8 +649,60 @@ public sealed class CustomerAdminService
         (p.PaymentFees ?? 0m) + (p.TransportCost ?? 0m)
         + (p.InstallationCost ?? 0m) + (p.OtherCosts ?? 0m);
 
-    public static decimal? LeftToPay(decimal? finalPrice, decimal? depositPaid) =>
-        finalPrice is null ? null : finalPrice.Value - (depositPaid ?? 0m);
+    /// <summary>
+    /// What is still owed: the agreed price less whatever has come in — the deposit and the
+    /// second payment.
+    ///
+    /// Null when there is no agreed price, because "nothing outstanding" and "we have not
+    /// settled on a number" are different answers and only one of them is good news. A null
+    /// payment counts as zero here — nothing paid means all of it is outstanding.
+    ///
+    /// Both payments are REQUIRED arguments, not a defaulted third: a caller that forgot the
+    /// second payment would compile, run, and report every settled customer as owing half.
+    /// </summary>
+    public static decimal? LeftToPay(decimal? finalPrice, decimal? depositPaid, decimal? secondPayment) =>
+        finalPrice is null ? null : finalPrice.Value - (depositPaid ?? 0m) - (secondPayment ?? 0m);
+
+    public static decimal? LeftToPay(Purchase p) =>
+        LeftToPay(p.FinalPrice, p.DepositPaid, p.SecondPayment);
+
+    /// <summary>
+    /// Settled: a price was agreed and exactly nothing of it is left.
+    ///
+    /// No price is not paid — "we never settled on a number" is the opposite of good news.
+    /// And the test is zero, not "zero or less": validation refuses payments past the price,
+    /// so a negative only comes from a row written some other way, and it is a mistake to
+    /// be looked at rather than a customer to be ticked off.
+    /// </summary>
+    public static bool PaidInFull(Purchase p) =>
+        p.FinalPrice is > 0 && LeftToPay(p) == 0m;
+
+    /// <summary>
+    /// Settled as a CUSTOMER: every purchase that is a payment question is settled, and there
+    /// is at least one.
+    ///
+    /// Asked of each purchase rather than of the total, because the total can say zero while
+    /// a second house with no agreed price sits beside a settled one — Sum skips the unpriced
+    /// row, and that customer is not settled.
+    ///
+    /// A wagon with no money on it is NOT a payment question, and is left out rather than
+    /// counted as unsettled. Wagons are paid in one go, which is why the panel hides their
+    /// payment block until something is typed into it; counting one would leave every
+    /// customer who bought a wagon beside a house without the badge forever, with no box on
+    /// screen that could change it. A wagon that does carry money is judged like anything
+    /// else. And a wagon alone is not "settled" — there is no priced purchase to say so.
+    /// </summary>
+    public static bool PaidInFull(IReadOnlyCollection<Purchase> purchases)
+    {
+        var owed = purchases
+            .Where(p => PurchaseCategories.TracksStagedPayment(p.CategoryKey) || CarriesMoney(p))
+            .ToList();
+        return owed.Count > 0 && owed.All(PaidInFull);
+    }
+
+    private static bool CarriesMoney(Purchase p) =>
+        p.FinalPrice is not null || p.DepositPaid is not null
+        || p.SecondPayment is not null || p.SecondPaymentAt is not null;
 
     /// <summary>
     /// Where a document is fetched from — by ROW ID, through the authenticated endpoint,
@@ -684,6 +776,9 @@ public sealed class CustomerAdminService
         purchase.DepositPaid = input.DepositPaid;
         purchase.FinalPrice = input.FinalPrice;
 
+        // Only when the caller mentioned it — see PurchaseInput.SecondPayment.
+        if (input.SecondPaymentSent) purchase.SecondPayment = input.SecondPayment;
+
         // Neither the four sale-expense columns nor the order-tracking ones are touched
         // here — see PurchaseInput. This method writes every field it is given, so reaching
         // a column from a form that cannot show it is how the column gets erased.
@@ -693,6 +788,11 @@ public sealed class CustomerAdminService
         if (TryParsePurchaseDate(input.PurchasedAt, out var purchasedAt))
         {
             purchase.PurchasedAt = purchasedAt;
+        }
+
+        if (input.SecondPaymentAtSent && TryParsePurchaseDate(input.SecondPaymentAt, out var secondPaymentAt))
+        {
+            purchase.SecondPaymentAt = secondPaymentAt;
         }
 
         purchase.UpdatedAt = DateTimeOffset.UtcNow;
@@ -727,9 +827,8 @@ public sealed class CustomerAdminService
             ModelLabel(purchases),
             comparable ? Sum(purchases, p => p.FinalPrice) : null,
             comparable ? Sum(purchases, p => p.DepositPaid) : null,
-            comparable
-                ? Sum(purchases, p => LeftToPay(p.FinalPrice, p.DepositPaid))
-                : null,
+            comparable ? Sum(purchases, LeftToPay) : null,
+            PaidInFull(purchases),
             single,
             customer.CreatedAt.ToString("o"));
     }
@@ -792,6 +891,8 @@ public sealed class CustomerAdminService
         purchase.CustomModel,
         purchase.Quantity,
         purchase.DepositPaid,
+        purchase.SecondPayment,
+        purchase.SecondPaymentAt?.ToString("yyyy-MM-dd"),
         purchase.FinalPrice,
         UnitPrice(purchase.FinalPrice, purchase.Quantity),
         purchase.PaymentFees,
@@ -807,7 +908,7 @@ public sealed class CustomerAdminService
         purchase.TrackingReference,
         purchase.CarrierNote,
         purchase.CarrierCheckedAt?.ToString("o"),
-        LeftToPay(purchase.FinalPrice, purchase.DepositPaid),
+        LeftToPay(purchase),
         purchase.Currency,
 
         // Date only. The panel puts it straight into <input type="date">, which cannot read

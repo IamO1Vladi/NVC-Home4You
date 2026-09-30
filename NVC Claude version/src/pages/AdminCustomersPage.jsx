@@ -60,7 +60,10 @@ const TEXT = {
 
     payment: 'Плащане',
     deposit: 'Платено капаро', finalPrice: 'Крайна цена', leftToPay: 'Остава за плащане',
-    leftToPayHint: 'Изчислява се: крайна цена минус капаро.',
+    secondPayment: 'Второ плащане', secondPaymentAt: 'Дата на второто плащане',
+    leftToPayHint: 'Изчислява се: крайна цена минус капаро и второ плащане.',
+    paidInFull: 'Платено изцяло',
+    needsFinalPrice: 'Въведете крайна цена, за да се изчисли остатъкът.',
     noPrice: '—',
     wagonHint: 'Фургоните се плащат наведнъж, затова тук няма капаро и фактури.',
 
@@ -122,7 +125,10 @@ const TEXT = {
 
     payment: 'Payment',
     deposit: 'Deposit paid', finalPrice: 'Final price', leftToPay: 'Left to pay',
-    leftToPayHint: 'Worked out as the final price less the deposit.',
+    secondPayment: 'Second payment', secondPaymentAt: 'Second payment date',
+    leftToPayHint: 'Worked out as the final price less the deposit and the second payment.',
+    paidInFull: 'Paid in full',
+    needsFinalPrice: 'Enter the final price to work out what is left.',
     noPrice: '—',
     wagonHint: 'Wagons are paid in one go, so there is no deposit or invoice here.',
 
@@ -205,8 +211,8 @@ const FALLBACK_CATEGORIES = {
 
 const emptyPurchase = () => ({
   id: 0, factoryId: 0, categoryKey: '', houseId: 0, customModel: '', modelText: '',
-  quantity: 1, depositPaid: '', finalPrice: '', currency: 'EUR', purchasedAt: '',
-  notes: '', files: [],
+  quantity: 1, depositPaid: '', secondPayment: '', secondPaymentAt: '', finalPrice: '',
+  currency: 'EUR', purchasedAt: '', notes: '', files: [],
 })
 
 const emptyCustomer = () => ({
@@ -394,6 +400,8 @@ export default function AdminCustomersPage() {
           // and renders as a 0 the box refuses to save and nobody can explain.
           quantity: p.quantity > 0 ? p.quantity : 1,
           depositPaid: p.depositPaid ?? '',
+          secondPayment: p.secondPayment ?? '',
+          secondPaymentAt: p.secondPaymentAt ?? '',
           finalPrice: p.finalPrice ?? '',
           purchasedAt: p.purchasedAt ?? '',
           notes: p.notes ?? '',
@@ -435,6 +443,10 @@ export default function AdminCustomersPage() {
           // of one on its way past.
           quantity: wholeNumberOrNull(p.quantity),
           depositPaid: parseMoney(p.depositPaid),
+          // Both sent on every save, emptied or not: the server writes the row whole, so an
+          // empty box arriving as null is how a mistyped balance gets taken back off.
+          secondPayment: parseMoney(p.secondPayment),
+          secondPaymentAt: p.secondPaymentAt || null,
           finalPrice: parseMoney(p.finalPrice),
           currency: p.currency,
           purchasedAt: p.purchasedAt || null,
@@ -606,6 +618,12 @@ export default function AdminCustomersPage() {
                     {t.leftToPay}: <strong>{moneyText(row.totalLeftToPay, row.currency)}</strong>
                   </span>
                 ) : null}
+                {/* The server's answer, not a zero total: a settled house beside a second one
+                    with no agreed price also totals zero owed, and that customer is not
+                    settled. See CustomerAdminService.PaidInFull(purchases). */}
+                {row.paidInFull ? (
+                  <span className="adm-badge adm-badge-approved">{t.paidInFull}</span>
+                ) : null}
               </div>
 
               <div className="adm-customer-actions">
@@ -763,12 +781,25 @@ function PurchaseCard({
   const models = modelsFor(houses, purchase.categoryKey, categories.withGalleryModels)
 
   const deposit = parseMoney(purchase.depositPaid)
+  const secondPayment = parseMoney(purchase.secondPayment)
   const finalPrice = parseMoney(purchase.finalPrice)
 
   // Recomputed here as the numbers are typed rather than read back from the server, so the
-  // figure on screen is always the one the two boxes above it imply. It is never stored —
-  // a stored copy is a second version of a fact that can disagree with the first.
-  const leftToPay = finalPrice === null ? null : finalPrice - (deposit ?? 0)
+  // figure on screen is always the one the boxes above it imply. It is never stored — a
+  // stored copy is a second version of a fact that can disagree with the first.
+  //
+  // In CENTS, because there are three figures now and binary floating point cannot hold
+  // most of them: 30000.3 − 10000.1 − 20000.2 is −3.6e-12, which prints as "-0 EUR" and is
+  // never equal to zero, so a customer who paid to the stotinka would never read as settled.
+  const cents = (n) => Math.round((n ?? 0) * 100)
+  const leftToPay = finalPrice === null
+    ? null
+    : (cents(finalPrice) - cents(deposit) - cents(secondPayment)) / 100
+
+  // The same rule as CustomerAdminService.PaidInFull: an agreed price and exactly nothing
+  // left of it. Overpaid is not settled — the server refuses it on save, and the negative
+  // figure in the box is the thing to notice until then.
+  const paidInFull = finalPrice !== null && finalPrice > 0 && leftToPay === 0
 
   // Wagons are paid in one go, so the payment block is noise on the category that produces
   // the most rows.
@@ -777,9 +808,22 @@ function PurchaseCard({
   // wagon — a brand-new purchase would open with its payment fields missing and a note
   // about wagons on it. And it must not hide a block that is already holding a value:
   // hiding a filled-in field is how data goes missing without anyone touching it.
-  const hasMoney = deposit !== null || finalPrice !== null || purchase.files.length > 0
+  //
+  // "Holding a value" is judged on what is in the BOX, not on what it parses to: a wagon
+  // whose only money is its second payment would otherwise lose the whole block at the
+  // first Backspace (an empty box parses to null), and the next save would send the
+  // payment as none without anybody deciding to delete it.
+  const holds = (text) => text !== '' && text !== null && text !== undefined
+  const hasMoney = holds(purchase.depositPaid) || holds(purchase.secondPayment)
+    || holds(purchase.finalPrice) || holds(purchase.secondPaymentAt) || purchase.files.length > 0
   const paidInOneGo = purchase.categoryKey && !categories.stagedPayment.includes(purchase.categoryKey)
-  const tracksPayment = !paidInOneGo || hasMoney
+  // And once the block has been on screen it stays for as long as the sheet is open.
+  // Retyping a wagon's only figure empties every box for a moment, and a block that left
+  // at that moment would take the box being typed into with it. The card is keyed by
+  // purchase, so this is judged afresh every time a customer is opened.
+  const [heldMoney, setHeldMoney] = React.useState(hasMoney)
+  React.useEffect(() => { if (hasMoney) setHeldMoney(true) }, [hasMoney])
+  const tracksPayment = !paidInOneGo || hasMoney || heldMoney
 
   // A category IS chosen and the catalogue holds nothing under it — not the same state as
   // no category chosen yet, and only the first of the two has anything to say under the box.
@@ -910,16 +954,49 @@ function PurchaseCard({
               </select>
             </label>
 
+            {/* The balance (#31), after the three boxes that were already here so nobody's
+                hands have to relearn where the капаро and the price are. An amount rather
+                than a tick: a balance paid in two goes is recorded as it comes in. */}
+            <label>
+              <span className="adm-small">{t.secondPayment}</span>
+              <input
+                type="text" inputMode="decimal"
+                value={purchase.secondPayment}
+                aria-invalid={purchase.secondPayment !== '' && parseMoney(purchase.secondPayment) === null}
+                onChange={(e) => onPatch({ secondPayment: e.target.value })}
+                onBlur={() => onPatch({ secondPayment: moneyBoxText(purchase.secondPayment) })}
+              />
+            </label>
+            <label>
+              <span className="adm-small">{t.secondPaymentAt}</span>
+              <input
+                type="date"
+                value={purchase.secondPaymentAt}
+                onChange={(e) => onPatch({ secondPaymentAt: e.target.value })}
+              />
+            </label>
+
             {/* Read-only, because it is arithmetic rather than a fact anyone can assert.
-                A box people can type into is a box that ends up disagreeing with the two
-                numbers above it. */}
+                A box people can type into is a box that ends up disagreeing with the
+                numbers beside it. */}
             <label>
               <span className="adm-small">{t.leftToPay}</span>
               <output className="adm-readout" title={t.leftToPayHint}>
                 {leftToPay === null ? t.noPrice : moneyText(leftToPay, purchase.currency)}
+                {paidInFull ? (
+                  <span className="adm-badge adm-badge-approved adm-readout-badge">{t.paidInFull}</span>
+                ) : null}
               </output>
             </label>
           </div>
+
+          {/* Money has come in but no price was ever agreed on the record — every customer
+              the payments-sheet import created looks like this, because the sheet carried
+              a down payment and no customer price. "—" is the honest readout; this says
+              what it is waiting for, so a recorded balance is not mistaken for a broken box. */}
+          {finalPrice === null && (deposit !== null || secondPayment !== null) ? (
+            <p className="adm-small adm-muted adm-payment-hint">{t.needsFinalPrice}</p>
+          ) : null}
 
           <div className="adm-invoices">
             {DOCUMENT_GROUPS.map(({ group, slots }) => (

@@ -76,6 +76,18 @@ public class Purchase
     public decimal? DepositPaid { get; set; }
     public decimal? FinalPrice { get; set; }
 
+    // The second payment — the balance after the капаро (#31). Nullable for the same reason
+    // as DepositPaid: null is "nothing has come in yet", not zero. An AMOUNT rather than a
+    // paid/not-paid tick, because a balance does not always arrive in one piece, and a tick
+    // would have to claim all of it the day the first part landed.
+    //
+    // Before this column the only way to show a customer as settled was to type the full
+    // price into DepositPaid, which answered "left to pay" by losing what the deposit was.
+    public decimal? SecondPayment { get; set; }
+
+    // When the second payment came in. A DATE at midnight UTC, the same as PurchasedAt.
+    public DateTimeOffset? SecondPaymentAt { get; set; }
+
     // --- What the sale itself cost, all nullable ---------------------------------------
     //
     // Inherited from the archived Sale table, which itemised them because "where does sale
@@ -86,8 +98,8 @@ public class Purchase
     public decimal? InstallationCost { get; set; }
     public decimal? OtherCosts { get; set; }
 
-    // NOTE: there is no LeftToPay column, on purpose. It is FinalPrice - DepositPaid and
-    // nothing else, so storing it creates a second copy of a fact that can disagree with
+    // NOTE: there is no LeftToPay column, on purpose. It is FinalPrice - DepositPaid -
+    // SecondPayment and nothing else, so storing it creates a second copy of a fact that can disagree with
     // the first one — and the copy is what people would read. It is computed in the DTO and
     // recomputed live in the panel as the numbers are typed.
 

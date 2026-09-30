@@ -106,6 +106,25 @@ public class OrderTrackingTests
         Assert.Equal(24_900m, row.FinalPrice);
         Assert.Equal(19_900m, row.LeftToPay);
         Assert.Equal("Bursa Prefab", row.FactoryName);
+        Assert.Null(row.SecondPayment);
+        Assert.False(row.PaidInFull);
+    }
+
+    [Fact]
+    public async Task The_board_counts_the_second_payment_and_says_when_an_order_is_settled()
+    {
+        // #31: the board is the owner's report, and "left to pay" on it has to agree with
+        // the customer's sheet once the balance has come in.
+        using var db = NewDb();
+        var purchase = await SeedAsync(db);
+        purchase.SecondPayment = 19_900m;
+        await db.SaveChangesAsync();
+
+        var row = (await NewService(db).ListAsync(null, Ct)).Single();
+
+        Assert.Equal(19_900m, row.SecondPayment);
+        Assert.Equal(0m, row.LeftToPay);
+        Assert.True(row.PaidInFull);
     }
 
     [Fact]
@@ -202,6 +221,8 @@ public class OrderTrackingTests
         foreach (var forbidden in new[]
                  {
                      "FinalPrice", "DepositPaid", "LeftToPay", "Currency", "PaymentFees",
+                     // #31: the balance, its date and the settled flag are money facts too.
+                     "SecondPayment", "SecondPaymentAt", "PaidInFull",
                      "CustomerName", "CustomerId", "PersonalId", "Notes", "TrackingReference",
                      // Added with the dated timeline: the history says WHEN a step happened
                      // and never WHO moved it. Which member of staff pressed save is an

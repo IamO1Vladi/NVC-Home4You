@@ -351,6 +351,31 @@ describe('AdminOrdersPage', () => {
     expect(within(row).getByText('maria')).toBeInTheDocument()
   })
 
+  it('counts the second payment in the report and badges an order that is settled', async () => {
+    // #31. The flag is the server's (PaidInFull) — the board shows it, it does not redo it.
+    board = board.map((r) => {
+      if (r.purchaseId === 8) {
+        return { ...r, depositPaid: 5000, secondPayment: 37000, finalPrice: 42000, leftToPay: 0, paidInFull: true }
+      }
+      // Zero left and NOT settled — a price of nothing, say. The one row that tells the
+      // server's flag apart from a board working "left to pay is 0" out for itself.
+      if (r.purchaseId === 7) return { ...r, secondPayment: null, finalPrice: 0, leftToPay: 0, paidInFull: false }
+      return { ...r, secondPayment: null, paidInFull: false }
+    })
+    render(<AdminOrdersPage />)
+    await waitFor(() => expect(screen.getByText('Мария Димитрова')).toBeInTheDocument())
+
+    const settled = findRow('Мария Димитрова')
+    expect(within(settled).getByText('Платено изцяло')).toBeInTheDocument()
+    expect(within(settled).getByText(/Второ плащане: €37,000/)).toBeInTheDocument()
+
+    // Not settled per the server, and no second payment yet: no badge, and no empty
+    // "Второ плащане: —" cluttering the report line.
+    const owing = findRow('Иван Петров')
+    expect(within(owing).queryByText('Платено изцяло')).not.toBeInTheDocument()
+    expect(within(owing).queryByText(/Второ плащане/)).not.toBeInTheDocument()
+  })
+
   it('shows the order’s own history when the editor opens', async () => {
     // "When did it actually leave?" is asked about one order, usually with the customer
     // already on the phone — so the history is fetched with the editor, not with the board.
