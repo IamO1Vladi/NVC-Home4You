@@ -533,6 +533,66 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **32. New A1–A3 renders, their kitchens re-mapped, and a sink that follows the
+  drawing** (built 2026-09-30, ships with #31). The owner supplied new furnished renders
+  for A1, A2 and A3 (A3 at 1254 px, like A4 — coordinates are percentages, so size is
+  free). They replace the old artwork on every stage, the window stage included: the old
+  `-nowindows` canvases showed the OLD drawing and are deleted, exactly as B and C went on
+  2026-09-05; A4–A6 keep theirs until they are redrawn. The kitchens moved in the new art
+  — each is now an L, a top run plus a leg down the bathroom wall — so the #28 slot table
+  was re-placed for all three from 1% grids of the raw renders and re-checked by an
+  independent reader per plan (A1: sink 3, hob 1; A2: sink 4 on the leg, hob 1 over an
+  oven; A3: sink 2, hob 4 on the leg).
+
+  **The bug that came with it, and predates it:** the sink was seeded once, into the
+  drawn slot of the plan the page OPENED on, and every plan switch kept its position
+  number. Model 37 opens on A1, and buyers pick the plan long before the kitchen step — so
+  on most plans the sink dot sat a module or two off the sink the render shows; the home
+  page's `?model=58` entry landed the same way on B1. Now every buyer-made plan change
+  (the plan cards, a model change, `?model=`) goes through `withPlan`, and an unmoved sink
+  — one still exactly where the old plan draws it — follows the new drawing
+  (`followDrawnSink`, swapping with whatever stands there). A sink the buyer moved stays
+  put, and shared links and resumed drafts are never touched. A shared link saved on the
+  OLD A1/A2 tables before this publish keeps its position numbers, which now point at
+  different modules; the sales email of any lead already carries the positions as text.
+
+- [x] **31. The second payment on a purchase** (built 2026-09-30, **not yet deployed —
+  needs the `AddPurchaseSecondPayment` migration applied before the publish**). Asked for
+  by the owner the same day: a few customers had paid their second half and Клиенти had
+  nowhere to put it — the only way to show a customer as settled was to type the full
+  price into Платено капаро and lose what the deposit had been. Each purchase card now
+  carries **Второ плащане** (an amount, so a balance paid in two goes is recorded as it
+  comes in) and **Дата на второто плащане**, after the three boxes that were already
+  there. Остава за плащане is the price less BOTH payments, computed in cents on the card
+  so an exact payment never reads as "-0". A purchase with an agreed price and exactly
+  nothing left wears **Платено изцяло** — on the card, beside the status on Поръчки (whose
+  report line also shows the second payment once there is one), and on the customer's list
+  row when every purchase that is a payment question is settled. Asked per purchase, not of
+  the total: a settled house beside a second, unpriced one also totals zero owed. A wagon
+  with no money on it is left out of that question rather than counted against it — wagons
+  are paid in one go and the card gives a money-less one no payment boxes, so counting it
+  would strand every house-plus-wagon customer without the badge. Two payments that add up
+  past the price are refused the way a deposit past it always was. Nothing reaches the
+  public `/order/` page — pinned in the same test that keeps the deposit off it.
+
+  **Imported customers need a Крайна цена first.** The 15 customers `import-payments-sheet`
+  created carry a deposit and no customer price (the sheet had none), so their readout is
+  "—" and cannot become Платено изцяло until a price is typed; the card now says so in a
+  line under the readout. The notes on those rows also say „Второ плащане към завода" —
+  that is the FACTORY payment, not this box.
+
+  Two columns, both nullable, both additive: `Purchase.SecondPayment` (decimal(18,2)) and
+  `Purchase.SecondPaymentAt` (a date at midnight UTC, like PurchasedAt). The live code
+  reads a table with them present without noticing, so the migration can go first. The
+  customer sheet writes a purchase whole, which would have let a panel tab loaded before
+  the publish null a balance on its next save; instead the two fields tell ABSENT from NULL
+  (`PurchaseInput.SecondPaymentSent`) and an absent one is left alone — pinned through the
+  real JSON binder. Customers settled by the old workaround (full price typed as капаро)
+  keep reading as settled; moving their balance into the new box is a hand edit, if anyone
+  wants the deposit figure back. Found by a four-lens review with a skeptic per finding:
+  six confirmed and fixed (that stale-tab wipe, two tests that passed without the code they
+  guarded, a wagon's block vanishing mid-edit, the wagon badge rule, the missing-price hint).
+
 - [x] **28. Kitchen appliance placement in the configurator** (built 2026-09-19/20,
   deployed `deploy-2026-09-20`, verified on the live site the same day). Buyers place
   seven appliances — вградена фурна, плот, хладилник, мивка, съдомиялна in 45 and 60 cm,
