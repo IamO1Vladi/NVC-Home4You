@@ -85,6 +85,15 @@ describe('catalog appliance wiring', () => {
     ])
   })
 
+  it('gives a blank window canvas only to the plans still drawn in the old artwork', () => {
+    // A1–A3 got new renders on 2026-09-30, B and C on 2026-09-05. Their old blank canvases
+    // show the OLD drawing, a different house from every other stage, and were deleted —
+    // a plan that pointed at one would 404 its window stage.
+    const canvases = Object.fromEntries(catalog.planOptions.map((plan) => [plan.key, plan.noWindowImage]))
+    expect(Object.keys(canvases).filter((key) => canvases[key]).sort()).toEqual(['A4', 'A5', 'A6'])
+    expect(canvases.A4).toBe('plan-A4-nowindows.webp')
+  })
+
   it('the kitchen-extras section is gone entirely (owner, 2026-09-20)', () => {
     expect(catalog.kitchenExtraOptions).toBeUndefined()
   })

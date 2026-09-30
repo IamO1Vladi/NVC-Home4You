@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SLOT_BATH, runSlotKey, eligibleSlots, reconcileAppliances } from './appliancePlanner.js'
+import { SLOT_BATH, runSlotKey, eligibleSlots, reconcileAppliances, followDrawnSink } from './appliancePlanner.js'
 
 // The real types from the catalog, reduced to the fields the planner reads.
 const TYPES = [
@@ -92,6 +92,54 @@ describe('reconcileAppliances', () => {
     const messy = [app('dishwasher-45', 'k9'), app('washer', SLOT_BATH), app('oven', 'k2'), app('sink', 'k5')]
     const once = reconcileAppliances({ appliances: messy, types: TYPES, planSlots: PLAN })
     expect(reconcileAppliances({ appliances: once, types: TYPES, planSlots: PLAN })).toBe(once)
+  })
+})
+
+describe('followDrawnSink', () => {
+  // The switch every buyer of model 37 makes: the page opens on A1, whose
+  // render draws the sink at position 3, and they pick a plan that draws it
+  // somewhere else — here position 2, like A3.
+  const FROM = { ...PLAN, sinkIndex: 2 }
+  const TO = { ...PLAN, sinkIndex: 1 }
+
+  it('moves a sink nobody has moved to where the new render draws it', () => {
+    const out = followDrawnSink({ appliances: [app('sink', 'k3')], types: TYPES, fromSlots: FROM, toSlots: TO })
+    expect(out).toEqual([app('sink', 'k2')])
+  })
+
+  it('leaves a sink the buyer moved exactly where they put it', () => {
+    const placed = [app('sink', 'k5')]
+    expect(followDrawnSink({ appliances: placed, types: TYPES, fromSlots: FROM, toSlots: TO })).toBe(placed)
+  })
+
+  it('swaps whatever stands on the new sink spot into the old one', () => {
+    const out = followDrawnSink({
+      appliances: [app('sink', 'k3'), app('fridge', 'k2')], types: TYPES, fromSlots: FROM, toSlots: TO,
+    })
+    expect(out).toEqual([app('sink', 'k2'), app('fridge', 'k3')])
+  })
+
+  it('moves the stacked hob and oven together — they are one column', () => {
+    const out = followDrawnSink({
+      appliances: [app('sink', 'k3'), app('oven', 'k2'), app('hob', 'k2')], types: TYPES, fromSlots: FROM, toSlots: TO,
+    })
+    expect(out).toEqual([app('sink', 'k2'), app('oven', 'k3'), app('hob', 'k3')])
+  })
+
+  it('keeps a dishwasher that was on the far side beside the sink after the swap', () => {
+    // Sink k3 → k2 with the dishwasher at k2: it swaps into k3, still adjacent.
+    const moved = followDrawnSink({
+      appliances: [app('sink', 'k3'), app('dishwasher-60', 'k2')], types: TYPES, fromSlots: FROM, toSlots: TO,
+    })
+    expect(reconcileAppliances({ appliances: moved, types: TYPES, planSlots: TO }))
+      .toEqual([app('sink', 'k2'), app('dishwasher-60', 'k3')])
+  })
+
+  it('does nothing when both plans draw the sink in the same position, or either has no kitchen', () => {
+    const placed = [app('sink', 'k2')]
+    expect(followDrawnSink({ appliances: placed, types: TYPES, fromSlots: PLAN, toSlots: PLAN })).toBe(placed)
+    expect(followDrawnSink({ appliances: placed, types: TYPES, fromSlots: NO_KITCHEN, toSlots: PLAN })).toBe(placed)
+    expect(followDrawnSink({ appliances: placed, types: TYPES, fromSlots: PLAN, toSlots: NO_KITCHEN })).toBe(placed)
   })
 })
 

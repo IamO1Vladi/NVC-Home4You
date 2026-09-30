@@ -61,6 +61,43 @@ export function eligibleSlots({ kind, types = [], appliances = [], planSlots }) 
 }
 
 /**
+ * Carry an UNMOVED sink across a plan switch, to where the new render draws it.
+ *
+ * The sink is seeded once, into the drawn slot of whichever plan the page
+ * opened on, and a plan switch keeps every appliance's position NUMBER. So a
+ * buyer who opens on A1 (sink drawn at 3) and picks A3 in the plan step —
+ * the normal order, long before the kitchen step — used to arrive at a sink
+ * dot one module off the sink the render shows. A sink still sitting exactly
+ * where the OLD plan draws it is one nobody has moved, and it follows the
+ * drawing; a sink the buyer did move stays where they put it.
+ *
+ * Whatever stands where the new render draws the sink changes places with it
+ * (the sink's old slot is free by definition — the stack pair moves as one).
+ * A dishwasher that was beside the old sink and is not beside the new one is
+ * left for reconcileAppliances, the same as any other move that strands it.
+ * Returns the input reference when nothing moves.
+ */
+export function followDrawnSink({ appliances = [], types = [], fromSlots, toSlots }) {
+  const sinkType = types.find((t) => t.required)
+  if (!sinkType) return appliances
+  const drawnKey = (slots) => {
+    const index = slots?.sinkIndex
+    const length = (slots?.run || []).length
+    return Number.isInteger(index) && index >= 0 && index < length ? runSlotKey(index) : null
+  }
+  const from = drawnKey(fromSlots)
+  const to = drawnKey(toSlots)
+  if (!from || !to || from === to) return appliances
+  const sink = appliances.find((a) => a.kind === sinkType.key)
+  if (!sink || sink.slot !== from) return appliances
+  return appliances.map((item) => {
+    if (item === sink) return { ...item, slot: to }
+    if (item.slot === to) return { ...item, slot: from }
+    return item
+  })
+}
+
+/**
  * Bring a placement list back into line with the rules and the current plan.
  * Idempotent, and returns the INPUT ARRAY REFERENCE when nothing changed, so a
  * React effect can call it on every change without looping.

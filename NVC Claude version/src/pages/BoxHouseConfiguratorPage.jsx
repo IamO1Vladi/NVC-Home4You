@@ -7,7 +7,7 @@ import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { trackEvent } from '../lib/analytics.js'
 import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
 import { buildShareUrl, readSharedConfigFromHash, readShortCodeFromSearch, createShortLink, resolveShortLink, emailMyConfig, isLikelyEmail } from '../lib/configShare.js'
-import { SLOT_BATH, runSlotKey, eligibleSlots, reconcileAppliances } from '../lib/appliancePlanner.js'
+import { SLOT_BATH, runSlotKey, eligibleSlots, reconcileAppliances, followDrawnSink } from '../lib/appliancePlanner.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -795,6 +795,25 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   const initialModel = catalog.models[0]
   const initialPlan = initialModel?.plans?.[0] || ''
+
+  // Every plan change the BUYER makes goes through here — a plan card, a model change that
+  // resets the plan, the home page's ?model= entry — so an unmoved sink follows the new
+  // render's drawing (see followDrawnSink). Shared links and resumed drafts set the whole
+  // config at once and never come through here: a sink somebody placed is left alone.
+  const withPlan = (prev, key) => {
+    if (prev.plan === key) return prev
+    const slotsOf = (planKey) => catalog.planOptions.find((p) => p.key === planKey)?.applianceSlots
+    return {
+      ...prev,
+      plan: key,
+      appliances: followDrawnSink({
+        appliances: prev.appliances || [],
+        types: catalog.applianceOptions,
+        fromSlots: slotsOf(prev.plan),
+        toSlots: slotsOf(key),
+      }),
+    }
+  }
   const initialExteriorFamily = catalog.exteriorFinishGroups[0]?.key || 'steel'
   const initialExteriorFinish = catalog.exteriorFinishGroups[0]?.options?.[0]?.key || ''
 
@@ -902,7 +921,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     // point. The work wins when both are somehow present.
     if (modelFromUrl && !sharedFromUrl) {
       const model = catalog.models.find((m) => m.key === modelFromUrl)
-      return { ...base, model: modelFromUrl, plan: model?.plans?.[0] || base.plan }
+      return withPlan({ ...base, model: modelFromUrl }, model?.plans?.[0] || base.plan)
     }
     return base
   })
@@ -1063,8 +1082,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   React.useEffect(() => {
     if (!planChoices.some((item) => item.key === config.plan)) {
-      setConfig((prev) => ({ ...prev, plan: planChoices[0]?.key || '' }))
+      setConfig((prev) => withPlan(prev, planChoices[0]?.key || ''))
     }
+    // withPlan is a plain function over the catalog, which this effect already tracks
+    // through planChoices.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.plan, planChoices])
 
   React.useEffect(() => {
@@ -1687,7 +1709,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
   function setField(field, value) {
     markConfiguratorStarted()
-    setConfig((prev) => ({ ...prev, [field]: value }))
+    setConfig((prev) => (field === 'plan' ? withPlan(prev, value) : { ...prev, [field]: value }))
   }
 
   function setFieldAndFocus(field, value, previewKey) {

@@ -20,19 +20,24 @@
 // worktop.
 
 export const APPLIANCE_SLOTS = {
-  // A1: sink drawn at position 4 — the hob is drawn at position 2.
+  // A1–A3 re-placed 2026-09-30 against the owner's new renders — each is now an L: a run
+  // along the top wall, then a leg down the bathroom wall. Each set was then re-checked by
+  // an independent reader drawing its own grid from the raw render; the blind corner square
+  // is skipped on all three, as on the B and C runs.
+  //
+  // A1: sink drawn at position 3 — the hob is drawn at position 1; position 4 is the leg.
   A1: {
-    run: [{ x: 14.6, y: 21.5 }, { x: 23, y: 21.3 }, { x: 28.6, y: 21 }, { x: 32.5, y: 20.3 }],
-    sinkIndex: 3,
-  },
-  // A2: sink drawn at position 3 — no hob is drawn on this render.
-  A2: {
-    run: [{ x: 13, y: 22 }, { x: 13.5, y: 34 }, { x: 32, y: 26.2 }, { x: 31.9, y: 33.5 }],
+    run: [{ x: 18.5, y: 14.3 }, { x: 26.6, y: 14.3 }, { x: 34, y: 14.3 }, { x: 40.3, y: 22.3 }],
     sinkIndex: 2,
   },
-  // A3: sink drawn at position 2 — the hob is drawn at position 4.
+  // A2: sink drawn at position 4, on the leg — the hob is drawn at position 1, over an oven.
+  A2: {
+    run: [{ x: 18.5, y: 13.4 }, { x: 24.6, y: 13.4 }, { x: 26.8, y: 19.6 }, { x: 27.1, y: 25.3 }, { x: 26.5, y: 30.7 }],
+    sinkIndex: 3,
+  },
+  // A3: sink drawn at position 2 — the hob is drawn at position 4, on the leg.
   A3: {
-    run: [{ x: 14.3, y: 21.3 }, { x: 20, y: 21.2 }, { x: 25.6, y: 21.3 }, { x: 31, y: 21.3 }],
+    run: [{ x: 15.5, y: 10.5 }, { x: 22.2, y: 10.4 }, { x: 28, y: 10.5 }, { x: 32.2, y: 18.5 }, { x: 32.2, y: 24 }],
     sinkIndex: 1,
   },
   // A4: sink drawn at position 4 — the hob is drawn at position 3.

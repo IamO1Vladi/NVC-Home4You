@@ -301,19 +301,24 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
     C1: 1, C2: 3, C3: 3, C4: 4, C5: 5, C6: 6,
   }
 
+  // The plans still drawn in the old artwork, and so still carrying the blank canvas
+  // made from it. A plan leaves this list the day it gets a new render.
+  const BLANK_WINDOW_CANVASES = new Set(['A4', 'A5', 'A6'])
+
   const planOptions = Object.keys(planMeta).map((key) => ({
     key,
     label: key,
     subtitle: planMeta[key],
     image: `plan-${key}.webp`,
     // Blank-wall version of the same plan, used as the canvas when the buyer clicks to
-    // place their own windows (so existing windows don't confuse them). A-SERIES ONLY
-    // since 2026-09-05: the B and C plans got new furnished renders and the owner chose
-    // to use them for the window stage too — every stage falls back to `image` when this
-    // is absent, which is exactly what absent means here. If windows-drawn-on-the-render
-    // proves confusing in practice, the fix is a windowless export of the same renders,
-    // not a revert to the old artwork.
-    noWindowImage: key.startsWith('A') ? `plan-${key}-nowindows.webp` : undefined,
+    // place their own windows (so existing windows don't confuse them). A4–A6 ONLY now:
+    // the B and C plans got new furnished renders on 2026-09-05 and A1–A3 on 2026-09-30,
+    // and each time the new render took over the window stage too — the old blank canvas
+    // shows the OLD drawing, a different house from the one on every other stage. Every
+    // stage falls back to `image` when this is absent, which is exactly what absent means
+    // here. If windows-drawn-on-the-render proves confusing in practice, the fix is a
+    // windowless export of the same renders, not a revert to the old artwork.
+    noWindowImage: BLANK_WINDOW_CANVASES.has(key) ? `plan-${key}-nowindows.webp` : undefined,
     wallFactor: planWallFactor[key] || 1,
     doorCount: planDoorCount[key] || 0,
     // Appliance slot coordinates are hand-placed against the furnished render
