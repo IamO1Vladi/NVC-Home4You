@@ -12,7 +12,8 @@ export default {
       partner: 'Συνεργάτης',
       planner: 'Σχεδιαστής',
       quote: 'Ζητήστε προσφορά',
-      boxConfigurator: 'Διαμορφωτής'
+      boxConfigurator: 'Διαμορφωτής',
+      plannerGroup: 'Σχεδιασμός',
     },
     servicesMenu: {
       columns: [
@@ -25,10 +26,10 @@ export default {
           ],
         },
         {
-          title: 'Logistics & Εργοτάξιο',
+          title: 'Εφοδιαστική & Εργοτάξιο',
           items: [
             { pathKey: 'delivery', label: 'Παράδοση έως την πόρτα' },
-            { pathKey: 'logistics', label: 'Logistics' },
+            { pathKey: 'logistics', label: 'Διεθνής εφοδιαστική' },
           ],
         },
         {
@@ -68,7 +69,7 @@ export default {
       badges: ['Παράδοση σε όλη την ΕΕ', 'Παράδοση με το κλειδί στο χέρι', 'Δική μας εφοδιαστική'],
       showcase: {
         openLabel: 'Άνοιγμα',
-        slidesLabel: 'Διαφάνειες hero',
+        slidesLabel: 'Διαφάνειες κεντρικής προβολής',
         slides: [
           { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Δομικές κατασκευές', pathKey: 'modularBuilds' },
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Δομικά σπίτια', pathKey: 'modularHouses' },
@@ -231,6 +232,7 @@ export default {
     viberChatLabel: 'Άνοιγμα συνομιλίας Viber',
     whatsAppChatLabel: 'Άνοιγμα συνομιλίας WhatsApp',
     contactLabel: 'Επικοινωνήστε μαζί μας',
+    carouselRoleDescription: 'καρουζέλ',
     lightbox: {
       closeLabel: 'Κλείσιμο',
       prevLabel: 'Προηγ.',
@@ -261,7 +263,7 @@ export default {
       title: 'Ζητήστε προσφορά',
       fields: {
         name: 'Όνομα',
-        email: 'Email',
+        email: 'Διεύθυνση email',
         phone: 'Τηλέφωνο',
         project: 'Λεπτομέρειες έργου',
       },
@@ -271,7 +273,7 @@ export default {
       title: 'Κάντε μια ερώτηση',
       fields: {
         name: 'Όνομα',
-        email: 'Email',
+        email: 'Διεύθυνση email',
         question: 'Η ερώτησή σας',
       },
       submit: 'Αποστολή',

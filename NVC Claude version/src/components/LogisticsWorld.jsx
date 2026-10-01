@@ -1,5 +1,5 @@
 import React from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import '../style/LogisticsWorld.css'
@@ -31,38 +31,65 @@ const ORIGINS = [
   { id: 'lcb', label: 'Laem Chabang (TH)', lat: 13.0980, lon: 100.9150, color: '#f59e0b', icon: iconLAEM },
 ]
 
+// Where each destination IS lives here; what it is CALLED lives in content, under
+// `destinations.{sea,air,rail}.<id>` (en/bg/el logistics.js, shared by partner.js), so the
+// Greek page can say Πειραιάς instead of Piraeus. An id with no name shows as its code.
 const SEA_PORTS = [
-  { id: 'rtm', name: 'Rotterdam, NL', lat: 51.92, lon: 4.48, type: 'EU_W' },
-  { id: 'ham', name: 'Hamburg, DE', lat: 53.55, lon: 9.99, type: 'EU_W' },
-  { id: 'ant', name: 'Antwerp, BE', lat: 51.26, lon: 4.40, type: 'EU_W' },
-  { id: 'pir', name: 'Piraeus, GR', lat: 37.94, lon: 23.63, type: 'MED' },
-  { id: 'vlc', name: 'Valencia, ES', lat: 39.45, lon: -0.32, type: 'MED' },
-  { id: 'cnd', name: 'Constanța, RO', lat: 44.17, lon: 28.64, type: 'BLACK' },
-  { id: 'var', name: 'Varna, BG', lat: 43.21, lon: 27.91, type: 'BLACK' },
-  { id: 'lax', name: 'Los Angeles, US', lat: 33.74, lon: -118.26, type: 'NA_W' },
-  { id: 'nyc', name: 'New York, US', lat: 40.67, lon: -74.05, type: 'NA_E' },
-  { id: 'sts', name: 'Santos, BR', lat: -23.96, lon: -46.33, type: 'SA' },
-  { id: 'cll', name: 'Callao, PE', lat: -12.06, lon: -77.15, type: 'SA_P' },
+  { id: 'rtm', lat: 51.92, lon: 4.48, type: 'EU_W' },
+  { id: 'ham', lat: 53.55, lon: 9.99, type: 'EU_W' },
+  { id: 'ant', lat: 51.26, lon: 4.40, type: 'EU_W' },
+  { id: 'pir', lat: 37.94, lon: 23.63, type: 'MED' },
+  { id: 'vlc', lat: 39.45, lon: -0.32, type: 'MED' },
+  { id: 'cnd', lat: 44.17, lon: 28.64, type: 'BLACK' },
+  { id: 'var', lat: 43.21, lon: 27.91, type: 'BLACK' },
+  { id: 'lax', lat: 33.74, lon: -118.26, type: 'NA_W' },
+  { id: 'nyc', lat: 40.67, lon: -74.05, type: 'NA_E' },
+  { id: 'sts', lat: -23.96, lon: -46.33, type: 'SA' },
+  { id: 'cll', lat: -12.06, lon: -77.15, type: 'SA_P' },
 ]
 
 const AIR_DESTS = [
-  { id: 'sof', name: 'Sofia (SOF), BG', lat: 42.695, lon: 23.406 },
-  { id: 'ath', name: 'Athens (ATH), GR', lat: 37.936, lon: 23.944 },
-  { id: 'fra', name: 'Frankfurt (FRA), DE', lat: 50.037, lon: 8.562 },
-  { id: 'cdg', name: 'Paris (CDG), FR', lat: 49.009, lon: 2.547 },
-  { id: 'lhr', name: 'London (LHR), UK', lat: 51.470, lon: -0.454 },
-  { id: 'jfk', name: 'New York (JFK), US', lat: 40.641, lon: -73.778 },
-  { id: 'lax', name: 'Los Angeles (LAX), US', lat: 33.941, lon: -118.408 },
-  { id: 'gru', name: 'São Paulo (GRU), BR', lat: -23.431, lon: -46.469 },
+  { id: 'sof', lat: 42.695, lon: 23.406 },
+  { id: 'ath', lat: 37.936, lon: 23.944 },
+  { id: 'fra', lat: 50.037, lon: 8.562 },
+  { id: 'cdg', lat: 49.009, lon: 2.547 },
+  { id: 'lhr', lat: 51.470, lon: -0.454 },
+  { id: 'jfk', lat: 40.641, lon: -73.778 },
+  { id: 'lax', lat: 33.941, lon: -118.408 },
+  { id: 'gru', lat: -23.431, lon: -46.469 },
 ]
 
 const RAIL_DESTS = [
-  { id: 'dsg', name: 'Duisburg, DE', lat: 51.434, lon: 6.762 },
-  { id: 'ham', name: 'Hamburg, DE', lat: 53.551, lon: 9.993 },
-  { id: 'waw', name: 'Warsaw, PL', lat: 52.229, lon: 21.012 },
-  { id: 'bud', name: 'Budapest, HU', lat: 47.497, lon: 19.040 },
-  { id: 'sof', name: 'Sofia, BG', lat: 42.697, lon: 23.322 },
+  { id: 'dsg', lat: 51.434, lon: 6.762 },
+  { id: 'ham', lat: 53.551, lon: 9.993 },
+  { id: 'waw', lat: 52.229, lon: 21.012 },
+  { id: 'bud', lat: 47.497, lon: 19.040 },
+  { id: 'sof', lat: 42.697, lon: 23.322 },
 ]
+
+// Leaflet writes its controls in English: the zoom buttons' "Zoom in"/"Zoom out", the
+// attribution link's title, a marker image's alt "Marker". Each is replaced only when the
+// content supplies it, because an option passed as undefined would overwrite Leaflet's
+// default with nothing — a locale without the keys keeps Leaflet's text exactly as it was.
+// (DeliveryEstimator.jsx carries the same small helper; the two maps share no module.)
+function MapControlText({ text }) {
+  const map = useMap()
+  const attributionTitle = text?.attributionTitle
+
+  React.useEffect(() => {
+    const control = map.attributionControl
+    const prefix = L.Control.Attribution.prototype.options.prefix
+    if (!attributionTitle || !control || typeof prefix !== 'string') return
+    // Swap only the title: the link, Leaflet's name and its flag stay as they are.
+    const safe = attributionTitle.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+    control.setPrefix(prefix.replace(/title="[^"]*"/, `title="${safe}"`))
+  }, [map, attributionTitle])
+
+  const zoomText = {}
+  if (text?.zoomIn) zoomText.zoomInTitle = text.zoomIn
+  if (text?.zoomOut) zoomText.zoomOutTitle = text.zoomOut
+  return <ZoomControl {...zoomText} />
+}
 
 function toRad(d) { return d * Math.PI / 180 }
 function toDeg(r) { return r * 180 / Math.PI }
@@ -183,6 +210,8 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
   }
 
   const colors = ORIGINS.map((o) => o.color)
+  const placeName = (kind, id) => content.destinations?.[kind]?.[id] || id.toUpperCase()
+  const markerAlt = content.mapControls?.marker ? { alt: content.mapControls.marker } : {}
 
   return (
     <div className="wr-card" style={{ '--wr-map-h': height }}>
@@ -204,7 +233,7 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
           <div className="wr-row">
             <span className="wr-label">{labels.seaDestination}</span>
             <select className="wr-select" aria-label={labels.seaDestination} value={seaDest} onChange={(e) => setSeaDest(e.target.value)}>
-              {SEA_PORTS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {SEA_PORTS.map((p) => <option key={p.id} value={p.id}>{placeName('sea', p.id)}</option>)}
             </select>
           </div>
         )}
@@ -213,7 +242,7 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
           <div className="wr-row">
             <span className="wr-label">{labels.airDestination}</span>
             <select className="wr-select" aria-label={labels.airDestination} value={airDest} onChange={(e) => setAirDest(e.target.value)}>
-              {AIR_DESTS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {AIR_DESTS.map((a) => <option key={a.id} value={a.id}>{placeName('air', a.id)}</option>)}
             </select>
           </div>
         )}
@@ -222,21 +251,22 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
           <div className="wr-row">
             <span className="wr-label">{labels.railDestination}</span>
             <select className="wr-select" aria-label={labels.railDestination} value={railDest} onChange={(e) => setRailDest(e.target.value)}>
-              {RAIL_DESTS.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {RAIL_DESTS.map((r) => <option key={r.id} value={r.id}>{placeName('rail', r.id)}</option>)}
             </select>
           </div>
         )}
       </div>
 
-      <MapContainer className="wr-map" center={[25, 15]} zoom={2} minZoom={2} worldCopyJump>
+      <MapContainer className="wr-map" center={[25, 15]} zoom={2} minZoom={2} worldCopyJump zoomControl={false}>
+        <MapControlText text={content.mapControls} />
         <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {mode === 'sea' && <Marker position={[sea.lat, sea.lon]} icon={iconDEST} />}
-        {mode === 'air' && <Marker position={[air.lat, air.lon]} icon={iconDEST} />}
-        {mode === 'rail' && <Marker position={[rail.lat, rail.lon]} icon={iconDEST} />}
+        {mode === 'sea' && <Marker position={[sea.lat, sea.lon]} icon={iconDEST} {...markerAlt} />}
+        {mode === 'air' && <Marker position={[air.lat, air.lon]} icon={iconDEST} {...markerAlt} />}
+        {mode === 'rail' && <Marker position={[rail.lat, rail.lon]} icon={iconDEST} {...markerAlt} />}
 
         {ORIGINS.map((o, i) => (
           <React.Fragment key={o.id}>
-            <Marker position={[o.lat, o.lon]} icon={o.icon} />
+            <Marker position={[o.lat, o.lon]} icon={o.icon} {...markerAlt} />
             <Polyline positions={lines[i]} pathOptions={{ color: colors[i], weight: 4, opacity: 0.92, dashArray: mode === 'air' ? '' : '8 10' }} />
           </React.Fragment>
         ))}

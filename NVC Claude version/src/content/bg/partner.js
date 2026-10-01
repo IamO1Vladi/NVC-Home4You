@@ -1,3 +1,5 @@
+import { routeMapDestinations } from './logistics.js'
+
 const url = 'https://nvc-home4you.eu/bg/stani-partnjor'
 
 export default {
@@ -142,5 +144,7 @@ export default {
     legendShanghai: 'Шанхай',
     legendHoChiMinh: 'Хо Ши Мин',
     legendLaemChabang: 'Лаем Чабанг',
+    // The same route map as the logistics page, so the same names.
+    destinations: routeMapDestinations,
   },
 }

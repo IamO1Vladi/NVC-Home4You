@@ -1,3 +1,5 @@
+import { routeMapDestinations } from './logistics.js'
+
 const url = 'https://nvc-home4you.eu/en/partner'
 
 export default {
@@ -142,5 +144,7 @@ export default {
     legendShanghai: 'Shanghai',
     legendHoChiMinh: 'Ho Chi Minh',
     legendLaemChabang: 'Laem Chabang',
+    // The same route map as the logistics page, so the same names.
+    destinations: routeMapDestinations,
   },
 }

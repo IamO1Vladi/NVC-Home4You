@@ -56,6 +56,9 @@ export default {
     caption: 'Comparison of modular house vs expandable modular house',
     feature: 'Feature',
     size: 'Size range',
+    // 78 here against the 73 m² model everywhere else is an open question for the owner;
+    // the figure is carried over unchanged until it is answered.
+    sizeExpandable: '37 m² / 58 m² / 78 m²',
     walls: 'Walls',
     facade: 'Facade options',
     floor: 'Flooring',

@@ -57,7 +57,7 @@ export default {
       { key: 'bath_demo', label: 'Καθαίρεση και αποκομιδή', weight: 2 },
       { key: 'bath_plumbing', label: 'Αλλαγές υδραυλικών', weight: 3 },
       { key: 'bath_electrical', label: 'Ηλεκτρολογικές εργασίες', weight: 2 },
-      { key: 'bath_tiles', label: 'Πλακάκια premium', weight: 2 },
+      { key: 'bath_tiles', label: 'Πλακάκια υψηλής ποιότητας', weight: 2 },
       { key: 'bath_underfloor', label: 'Ενδοδαπέδια θέρμανση', weight: 2 },
       { key: 'bath_grout', label: 'Αρμολόγηση και σιλικόνη', weight: 1 },
       { key: 'bath_accessories', label: 'Καθρέφτες και αξεσουάρ', weight: 1 },

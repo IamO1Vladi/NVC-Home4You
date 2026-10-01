@@ -4,6 +4,7 @@ import ProcessTicker from '../components/ProcessTicker.jsx'
 import '../style/SteelHouses.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { brochureUrl } from '../lib/brochure.js'
+import { getHomeContent } from '../content/home/index.js'
 
 function asset(path) {
   return `${import.meta.env.BASE_URL}${path}`
@@ -19,6 +20,8 @@ export default function SteelHousesPage({ locale, content }) {
   const [active, setActive] = useState(0)
   const stripRef = useRef(null)
   const fallback = asset('modular-builds/card.svg')
+  // The slider's kind as a screen reader announces it, shared with the home page carousel.
+  const carouselRole = getHomeContent(locale)?.common?.carouselRoleDescription || 'carousel'
 
   const toIndex = (i) => {
     const el = stripRef.current
@@ -116,7 +119,7 @@ export default function SteelHousesPage({ locale, content }) {
         <div className="container">
           <div className="sh-gallery-h">{content.gallery.h}</div>
 
-          <div className="sh-slider" aria-roledescription="carousel" aria-label={content.gallery.h}>
+          <div className="sh-slider" aria-roledescription={carouselRole} aria-label={content.gallery.h}>
             <div className="sh-strip" ref={stripRef} tabIndex={0} role="group" aria-label={content.gallery.h}>
               {slides.map((src, i) => (
                 <figure className="sh-slide" key={src || i}>

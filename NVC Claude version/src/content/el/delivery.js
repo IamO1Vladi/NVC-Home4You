@@ -74,8 +74,11 @@ export default {
     currency: 'EUR',
     strings: {
       heading: 'Εκτιμώμενη τιμή παράδοσης',
-      subheading: 'Βάση: Marikostinovo. Χρέωση: 0,8 EUR / χλμ, περιλαμβάνονται και οι δύο κατευθύνσεις.',
-      placeholder: 'Εισαγάγετε μια διεύθυνση (παράδειγμα: Σόφια, Cherni Vrah Blvd 1)',
+      subheading: 'Βάση: Μαρικοστίνοβο. Χρέωση: 0,8 EUR / χλμ, περιλαμβάνονται και οι δύο κατευθύνσεις.',
+      // A Greek address, not the Sofia one en/bg show: the example is meant to be typed, and
+      // the geocoder finds no Bulgarian street spelled in Greek letters ("Σόφια, Τσέρνι Βραχ 1"
+      // returns nothing; "Θεσσαλονίκη, Εγνατία 1" resolves). Checked against Nominatim 2026-10-01.
+      placeholder: 'Εισαγάγετε μια διεύθυνση (παράδειγμα: Θεσσαλονίκη, Εγνατία 1)',
       buttonIdle: 'Υπολογισμός',
       buttonLoading: 'Αναζήτηση…',
       addressLabel: 'Διεύθυνση:',
@@ -90,6 +93,13 @@ export default {
       genericError: 'Κάτι πήγε στραβά',
       emptyValue: '—',
       km: 'χλμ',
+      // Leaflet's own control wording, which is English unless replaced.
+      mapControls: {
+        zoomIn: 'Μεγέθυνση',
+        zoomOut: 'Σμίκρυνση',
+        attributionTitle: 'Βιβλιοθήκη JavaScript για διαδραστικούς χάρτες',
+        marker: 'Σημείο στον χάρτη',
+      },
     },
   },
 }

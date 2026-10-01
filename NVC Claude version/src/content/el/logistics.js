@@ -1,3 +1,49 @@
+// The route map is drawn on two pages, this one and the partner page; partner.js imports
+// these two so the map's place names and control wording are written once.
+//
+// Destination names for the map's selects, keyed by the ids in LogisticsWorld.jsx. Greek
+// exonyms where Greek has one; the airport codes stay as they are.
+export const routeMapDestinations = {
+  sea: {
+    rtm: 'Ρότερνταμ, Ολλανδία',
+    ham: 'Αμβούργο, Γερμανία',
+    ant: 'Αμβέρσα, Βέλγιο',
+    pir: 'Πειραιάς, Ελλάδα',
+    vlc: 'Βαλένθια, Ισπανία',
+    cnd: 'Κωνστάντζα, Ρουμανία',
+    var: 'Βάρνα, Βουλγαρία',
+    lax: 'Λος Άντζελες, ΗΠΑ',
+    nyc: 'Νέα Υόρκη, ΗΠΑ',
+    sts: 'Σάντος, Βραζιλία',
+    cll: 'Καγιάο, Περού',
+  },
+  air: {
+    sof: 'Σόφια (SOF), Βουλγαρία',
+    ath: 'Αθήνα (ATH), Ελλάδα',
+    fra: 'Φρανκφούρτη (FRA), Γερμανία',
+    cdg: 'Παρίσι (CDG), Γαλλία',
+    lhr: 'Λονδίνο (LHR), Ηνωμένο Βασίλειο',
+    jfk: 'Νέα Υόρκη (JFK), ΗΠΑ',
+    lax: 'Λος Άντζελες (LAX), ΗΠΑ',
+    gru: 'Σάο Πάολο (GRU), Βραζιλία',
+  },
+  rail: {
+    dsg: 'Ντούισμπουργκ, Γερμανία',
+    ham: 'Αμβούργο, Γερμανία',
+    waw: 'Βαρσοβία, Πολωνία',
+    bud: 'Βουδαπέστη, Ουγγαρία',
+    sof: 'Σόφια, Βουλγαρία',
+  },
+}
+
+// Leaflet's own control wording, which is English unless replaced.
+export const routeMapControls = {
+  zoomIn: 'Μεγέθυνση',
+  zoomOut: 'Σμίκρυνση',
+  attributionTitle: 'Βιβλιοθήκη JavaScript για διαδραστικούς χάρτες',
+  marker: 'Σημείο στον χάρτη',
+}
+
 export default {
   seo: {
     title: 'Διεθνής εφοδιαστική από Ασία προς Ευρώπη | NVC Home4You',
@@ -7,7 +53,7 @@ export default {
   },
   breadcrumbs: [
     { name: 'Αρχική', url: 'https://nvc-home4you.eu/el' },
-    { name: 'Logistics', url: 'https://nvc-home4you.eu/el/diethnis-efodiastiki' },
+    { name: 'Διεθνής εφοδιαστική', url: 'https://nvc-home4you.eu/el/diethnis-efodiastiki' },
   ],
   hero: {
     title: 'Διεθνής εφοδιαστική',
@@ -75,7 +121,9 @@ export default {
       legendLabel: 'Προελεύσεις',
       legendShanghai: 'Σαγκάη',
       legendHoChiMinh: 'Χο Τσι Μινχ',
-      legendLaemChabang: 'Laem Chabang',
+      legendLaemChabang: 'Λάεμ Τσαμπάνγκ',
+      destinations: routeMapDestinations,
+      mapControls: routeMapControls,
     },
   },
   tiles: [

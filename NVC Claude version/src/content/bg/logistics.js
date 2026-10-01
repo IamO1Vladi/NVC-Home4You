@@ -1,3 +1,40 @@
+// Destination names for the route map's selects, keyed by the ids in LogisticsWorld.jsx.
+// The map is drawn on this page and the partner page; partner.js imports this, so the names
+// are written once. They are the names this page has always shown, in Latin script; spelling
+// them in Bulgarian is a separate decision.
+export const routeMapDestinations = {
+  sea: {
+    rtm: 'Rotterdam, NL',
+    ham: 'Hamburg, DE',
+    ant: 'Antwerp, BE',
+    pir: 'Piraeus, GR',
+    vlc: 'Valencia, ES',
+    cnd: 'Constanța, RO',
+    var: 'Varna, BG',
+    lax: 'Los Angeles, US',
+    nyc: 'New York, US',
+    sts: 'Santos, BR',
+    cll: 'Callao, PE',
+  },
+  air: {
+    sof: 'Sofia (SOF), BG',
+    ath: 'Athens (ATH), GR',
+    fra: 'Frankfurt (FRA), DE',
+    cdg: 'Paris (CDG), FR',
+    lhr: 'London (LHR), UK',
+    jfk: 'New York (JFK), US',
+    lax: 'Los Angeles (LAX), US',
+    gru: 'São Paulo (GRU), BR',
+  },
+  rail: {
+    dsg: 'Duisburg, DE',
+    ham: 'Hamburg, DE',
+    waw: 'Warsaw, PL',
+    bud: 'Budapest, HU',
+    sof: 'Sofia, BG',
+  },
+}
+
 export default {
   seo: {
     title: 'Международна логистика от Азия до Европа | NVC Home4You',
@@ -76,6 +113,7 @@ export default {
       legendShanghai: 'Шанхай',
       legendHoChiMinh: 'Хо Ши Мин',
       legendLaemChabang: 'Лаем Чабанг',
+      destinations: routeMapDestinations,
     },
   },
   tiles: [

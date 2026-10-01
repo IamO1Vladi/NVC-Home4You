@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import './DeliveryEstimator.css'
 
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
@@ -41,6 +41,36 @@ const iconBase = L.icon({
   iconAnchor: [15, 42],
   popupAnchor: [0, -36],
 })
+
+// A failure the estimator raises itself, whose message is already written for the visitor.
+// Anything else that reaches the catch — fetch rejecting offline, a body that is not JSON —
+// carries the BROWSER's English ("Failed to fetch", "NetworkError when attempting to fetch
+// resource.") and is replaced by the page's own generic line.
+class EstimatorError extends Error {}
+
+// Leaflet writes its controls in English: the zoom buttons' "Zoom in"/"Zoom out", the
+// attribution link's title, a marker image's alt "Marker". Each is replaced only when the
+// content supplies it, because an option passed as undefined would overwrite Leaflet's
+// default with nothing — a locale without the keys keeps Leaflet's text exactly as it was.
+// (LogisticsWorld.jsx carries the same small helper; the two maps share no module.)
+function MapControlText({ text }) {
+  const map = useMap()
+  const attributionTitle = text?.attributionTitle
+
+  useEffect(() => {
+    const control = map.attributionControl
+    const prefix = L.Control.Attribution.prototype.options.prefix
+    if (!attributionTitle || !control || typeof prefix !== 'string') return
+    // Swap only the title: the link, Leaflet's name and its flag stay as they are.
+    const safe = attributionTitle.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+    control.setPrefix(prefix.replace(/title="[^"]*"/, `title="${safe}"`))
+  }, [map, attributionTitle])
+
+  const zoomText = {}
+  if (text?.zoomIn) zoomText.zoomInTitle = text.zoomIn
+  if (text?.zoomOut) zoomText.zoomOutTitle = text.zoomOut
+  return <ZoomControl {...zoomText} />
+}
 
 function round(n, p = 2) {
   return Math.round(n * 10 ** p) / 10 ** p
@@ -91,9 +121,9 @@ export default function DeliveryEstimator({ content }) {
   async function geocode(q) {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&addressdetails=1`
     const res = await fetch(url, { headers: { 'Accept-Language': acceptLanguage } })
-    if (!res.ok) throw new Error(strings.geocodeError || 'Geocoding failed')
+    if (!res.ok) throw new EstimatorError(strings.geocodeError || 'Geocoding failed')
     const data = await res.json()
-    if (!data?.length) throw new Error(strings.notFoundError || 'Address not found')
+    if (!data?.length) throw new EstimatorError(strings.notFoundError || 'Address not found')
     const { lat, lon, display_name } = data[0]
     return { lat: parseFloat(lat), lon: parseFloat(lon), label: display_name }
   }
@@ -138,7 +168,11 @@ export default function DeliveryEstimator({ content }) {
       setDest(p)
       await compute(p)
     } catch (err) {
-      setError(err.message || strings.genericError || 'Something went wrong')
+      setError(
+        err instanceof EstimatorError && err.message
+          ? err.message
+          : strings.genericError || 'Something went wrong'
+      )
     } finally {
       setLoading(false)
     }
@@ -149,6 +183,7 @@ export default function DeliveryEstimator({ content }) {
   const estimate = route ? round(billableKm * ratePerKm) : 0
   const dash = strings.emptyValue || '—'
   const kmLabel = strings.km || 'km'
+  const markerAlt = strings.mapControls?.marker ? { alt: strings.mapControls.marker } : {}
 
   return (
     <section className="est">
@@ -186,15 +221,17 @@ export default function DeliveryEstimator({ content }) {
           </div>
 
           <div className="est-map-card">
-            <MapContainer center={[base.lat, base.lon]} zoom={9} className="est-map">
+            <MapContainer center={[base.lat, base.lon]} zoom={9} className="est-map" zoomControl={false}>
+              <MapControlText text={strings.mapControls} />
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-              <Marker position={[base.lat, base.lon]} icon={iconBase} />
+              <Marker position={[base.lat, base.lon]} icon={iconBase} {...markerAlt} />
 
               {dest ? (
                 <Marker
                   position={[dest.lat, dest.lon]}
                   icon={iconDest}
+                  {...markerAlt}
                   draggable
                   eventHandlers={{
                     dragend: (e) => {

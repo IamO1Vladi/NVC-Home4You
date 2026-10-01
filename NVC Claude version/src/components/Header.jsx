@@ -40,7 +40,9 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
         }
       : null,
   ].filter(Boolean)
-  const planningLabel = content?.nav?.plannerGroup || (currentLocale === 'bg' ? 'Планиране' : 'Planning')
+  // From content alone: the old bg-or-English fallback is what put "Planning" on every
+  // Greek page, because no locale had the key. All three do now.
+  const planningLabel = content?.nav?.plannerGroup
   const isPlanningActive = planningItems.some((item) => item.to === location.pathname)
 
   // "About Us" groups the company page and the Cases page so the top nav stays uncluttered.

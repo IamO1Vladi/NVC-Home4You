@@ -7,7 +7,7 @@ export default {
   seo: {
     title: 'Έργα, εταιρείες-πελάτες και κριτικές | NVC Home4You',
     description:
-      'Δημόσιες μελέτες περιπτώσεων, εταιρείες-πελάτες και κριτικές πελατών για δομικές κατασκευές, παράδοση, logistics και εσωτερικούς χώρους από την NVC Home4You.',
+      'Δημόσιες μελέτες περιπτώσεων, εταιρείες-πελάτες και κριτικές πελατών για δομικές κατασκευές, παράδοση, εφοδιαστική και εσωτερικούς χώρους από την NVC Home4You.',
     url: 'https://nvc-home4you.eu/el/erga-kai-kritikes',
   },
   breadcrumbs: [
@@ -47,7 +47,7 @@ export default {
       steelHouses: 'Μεταλλικά σπίτια',
       interiors: 'Εσωτερικοί χώροι',
       delivery: 'Παράδοση',
-      logistics: 'Logistics',
+      logistics: 'Εφοδιαστική',
       other: 'Άλλο',
     },
     labels: {
@@ -81,7 +81,7 @@ export default {
     placeholders: {
       name: 'Όνομα',
       company: 'Εταιρεία',
-      email: 'Email',
+      email: 'Διεύθυνση email',
       location: 'Πόλη / χώρα',
       product: 'Τι αγοράσατε;',
       comment: 'Γράψτε μια σύντομη κριτική για την παράδοση, την ποιότητα του προϊόντος ή την επικοινωνία',

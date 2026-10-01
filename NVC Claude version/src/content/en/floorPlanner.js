@@ -57,6 +57,7 @@ export default {
     clear: 'Clear',
     undo: 'Undo',
     redo: 'Redo',
+    redoShortcut: 'Ctrl/⌘+Y or Ctrl/⌘+Shift+Z',
     showPanel: 'Show panel',
     hidePanel: 'Hide panel',
     downloadLayout: 'Download layout',
@@ -110,6 +111,16 @@ export default {
       tile: 'Tile',
       pvc: 'PVC',
       concrete: 'Concrete',
+    },
+    // Names a screen reader gives the drawing's layers — the wording the page has always
+    // used, moved here so other languages can have their own.
+    aria: {
+      rooms: 'rooms',
+      walls: 'walls',
+      labels: 'labels',
+      dimensions: 'selected-dimensions',
+      openings: 'openings',
+      resizeHandles: 'room-resize-handles',
     },
   },
 }

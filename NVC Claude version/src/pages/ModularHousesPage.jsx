@@ -124,7 +124,7 @@ export default function ModularHousesPage({ locale, content }) {
                 <tr>
                   <th scope="row">{content.table.size}</th>
                   <td>40–100 m²</td>
-                  <td>37м2 / 58м2 / 78м2</td>
+                  <td>{content.table.sizeExpandable}</td>
                 </tr>
                 <tr>
                   <th scope="row">{content.table.walls}</th>

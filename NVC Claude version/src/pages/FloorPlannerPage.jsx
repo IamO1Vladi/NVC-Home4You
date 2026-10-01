@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import '../style/FloorPlanner.css'
+import bgPlannerContent from '../content/bg/floorPlanner.js'
+import elPlannerContent from '../content/el/floorPlanner.js'
+import enPlannerContent from '../content/en/floorPlanner.js'
 
 /**
  * FloorPlanner — v4 (2D only)
@@ -50,6 +53,41 @@ const ROOM_TYPES = [
   { key: 'office', label: 'Office' },
   { key: 'storage', label: 'Storage' },
 ]
+
+// A room's DEFAULT name is not stored. A new room keeps `label: null`, and every view
+// resolves the name from the room's type in the page's own language. Plans live in one
+// localStorage key shared by /bg, /en and /el, and travel in downloaded layout files, so a
+// default stored as text — as it used to be — put "Bedroom" or "Спалня" on the Greek page.
+// For the same reason a label that is merely some locale's default name for its type is
+// read back as "no name"; anything else is a name the visitor typed, and is kept as typed.
+const DEFAULT_ROOM_NAMES = Object.fromEntries(
+  ROOM_TYPES.map(({ key, label }) => [
+    key,
+    new Set(
+      [label, ...[bgPlannerContent, enPlannerContent, elPlannerContent].map((c) => c?.planner?.roomTypes?.[key])]
+        .filter((name) => typeof name === 'string')
+    ),
+  ])
+)
+
+function isDefaultRoomName(type, label) {
+  if (label == null) return true
+  const name = String(label).trim()
+  return !name || Boolean(DEFAULT_ROOM_NAMES[type]?.has(name))
+}
+
+// For plans read back from storage or a layout file: default-named rooms lose the stored
+// text, so their names follow the page's language. Not applied while the visitor types —
+// clearing the name field must leave it empty, not snap back to the default.
+function withResolvedRoomNames(plan) {
+  if (!plan || typeof plan !== 'object' || !Array.isArray(plan.rooms)) return plan
+  return {
+    ...plan,
+    rooms: plan.rooms.map((r) =>
+      r && r.label != null && isDefaultRoomName(r.type, r.label) ? { ...r, label: null } : r
+    ),
+  }
+}
 
 const DEFAULT_DOOR_W_M = 0.9
 const DEFAULT_WINDOW_W_M = 0.96
@@ -859,7 +897,10 @@ export default function FloorPlannerPage({ content }) {
         localStorage.getItem('floorplanner.v2')
       if (!raw) return {}
       const parsed = JSON.parse(raw)
-      return parsed && typeof parsed === 'object' ? parsed : {}
+      if (!parsed || typeof parsed !== 'object') return {}
+      return Object.fromEntries(
+        Object.entries(parsed).map(([key, savedPlan]) => [key, withResolvedRoomNames(savedPlan)])
+      )
     } catch {
       return {}
     }
@@ -972,6 +1013,12 @@ export default function FloorPlannerPage({ content }) {
     const tr = txt(`planner.roomTypes.${k}`)
     if (typeof tr === 'string') return tr
     return ROOM_TYPES.find((x) => x.key === k)?.label || k
+  }
+  // Content first, else the English this page has always used (bg has none of the
+  // redoShortcut / aria.* keys yet, and keeps that English).
+  const textOr = (path, fallback) => {
+    const value = txt(path)
+    return typeof value === 'string' ? value : fallback
   }
 
   const unitCm = typeof txt('planner.unitCm') === 'string' ? txt('planner.unitCm') : 'cm'
@@ -1782,7 +1829,8 @@ export default function FloorPlannerPage({ content }) {
       const room = {
         id: uid(),
         type: roomType,
-        label: roomTypeLabel(roomType),
+        // No stored name: it follows the type, in whichever language the plan is opened.
+        label: null,
         x,
         y,
         w,
@@ -1881,7 +1929,7 @@ export default function FloorPlannerPage({ content }) {
 
       const targetModel = MODELS.find((m) => m.key === targetModelKey) || model
       const prevTargetPlan = normalizePlan(targetModel, byModel[targetModelKey] || makeDefaultPlan(targetModel))
-      const importedPlan = normalizePlan(targetModel, nextPlan)
+      const importedPlan = normalizePlan(targetModel, withResolvedRoomNames(nextPlan))
 
       const h = ensureHistory(targetModelKey)
       h.undo.push(clonePlan(prevTargetPlan))
@@ -2046,7 +2094,7 @@ export default function FloorPlannerPage({ content }) {
           <button className="btn ghost" onClick={undo} disabled={!canUndo} title="Ctrl/⌘+Z">
             {typeof txt('planner.undo') === 'string' ? txt('planner.undo') : 'Undo'}
           </button>
-          <button className="btn ghost" onClick={redo} disabled={!canRedo} title="Ctrl/⌘+Y or Ctrl/⌘+Shift+Z">
+          <button className="btn ghost" onClick={redo} disabled={!canRedo} title={textOr('planner.redoShortcut', 'Ctrl/⌘+Y or Ctrl/⌘+Shift+Z')}>
             {typeof txt('planner.redo') === 'string' ? txt('planner.redo') : 'Redo'}
           </button>
           <button className="btn ghost" onClick={() => setPanelOpen((v) => !v)}>
@@ -2389,7 +2437,8 @@ export default function FloorPlannerPage({ content }) {
                       <label className="fp-label">{typeof txt('planner.name') === 'string' ? txt('planner.name') : 'Name'}</label>
                       <input
                         className="fp-input"
-                        value={selectedRoom.label ?? ''}
+                        // A room with no stored name shows its type's name, as the field always did.
+                        value={selectedRoom.label ?? roomTypeLabel(selectedRoom.type)}
                         placeholder={roomTypeLabel(selectedRoom.type)}
                         onChange={(e) => {
                           const label = e.target.value
@@ -2414,13 +2463,12 @@ export default function FloorPlannerPage({ content }) {
                               ...p,
                               rooms: p.rooms.map((r) => {
                                 if (r.id !== selectedRoom.id) return r
-                                const oldDefault = roomTypeLabel(r.type)
-                                const nextDefault = roomTypeLabel(nextType)
-                                const keepCustom = (r.label || '').trim() && r.label !== oldDefault
+                                // A typed name survives the type change; a default one (in any
+                                // language) gives way to the new type's name.
                                 return {
                                   ...r,
                                   type: nextType,
-                                  label: keepCustom ? r.label : nextDefault,
+                                  label: isDefaultRoomName(r.type, r.label) ? null : r.label,
                                 }
                               }),
                             }))
@@ -2653,7 +2701,7 @@ export default function FloorPlannerPage({ content }) {
               <Grid width={model.widthM} height={model.depthM} step={gridM} />
 
               {/* Rooms (fill only) */}
-              <g role="group" aria-label="rooms">
+              <g role="group" aria-label={textOr('planner.aria.rooms', 'rooms')}>
                 {plan.rooms.map((r) => (
                   <rect
                     key={r.id}
@@ -2701,7 +2749,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Walls */}
-              <g role="group" aria-label="walls">
+              <g role="group" aria-label={textOr('planner.aria.walls', 'walls')}>
                 {wallSegments.map((seg) => {
                   const isOuter = seg.kind === 'outer'
                   const isUser = seg.repKind === 'interior'
@@ -2731,7 +2779,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Room labels */}
-              <g role="group" aria-label="labels">
+              <g role="group" aria-label={textOr('planner.aria.labels', 'labels')}>
                 {plan.rooms.map((r) => (
                   <text
                     key={`lbl-${r.id}`}
@@ -2748,7 +2796,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Selected dimensions */}
-              <g role="group" aria-label="selected-dimensions" pointerEvents="none">
+              <g role="group" aria-label={textOr('planner.aria.dimensions', 'selected-dimensions')} pointerEvents="none">
                 {selectedRoom && (
                   <MeasureTag
                     x={selectedRoom.x + 0.08}
@@ -2766,7 +2814,7 @@ export default function FloorPlannerPage({ content }) {
               </g>
 
               {/* Openings */}
-              <g role="group" aria-label="openings">
+              <g role="group" aria-label={textOr('planner.aria.openings', 'openings')}>
                 {plan.openings.map((o) => (
                   <OpeningGlyph
                     key={o.id}
@@ -2820,7 +2868,7 @@ export default function FloorPlannerPage({ content }) {
 
               {/* Room resize handles (selected room) */}
               {tool === 'select' && selectedRoom && !selectedRoom.locked && (
-                <g aria-label="room-resize-handles">
+                <g aria-label={textOr('planner.aria.resizeHandles', 'room-resize-handles')}>
                   {(() => {
                     const r = selectedRoom
                     const hs = 0.14

@@ -2,10 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import './GlideServices.css'
 import { paths } from '../routes/paths.js'
+import { getHomeContent } from '../content/home/index.js'
 
 export default function GlideServices({ locale = 'en', content }) {
   const asset = (p) => `${import.meta.env.BASE_URL}${p}`
   const fallback = asset('modular-builds/card.svg')
+  // Announced by screen readers as the widget's kind, so it is a word in the page's language;
+  // a locale without the key keeps the English it always had.
+  const roleDescription = getHomeContent(locale)?.common?.carouselRoleDescription || 'carousel'
 
   const slides = useMemo(() => (
     (content?.slides || []).map((slide) => ({
@@ -102,7 +106,7 @@ export default function GlideServices({ locale = 'en', content }) {
   if (!content) return null
 
   return (
-    <section className="gl" aria-roledescription="carousel" aria-label={content.ariaLabel}>
+    <section className="gl" aria-roledescription={roleDescription} aria-label={content.ariaLabel}>
       <div className="container">
         <div className="gl-head">
           <p className="gl-sub">{content.subheading}</p>

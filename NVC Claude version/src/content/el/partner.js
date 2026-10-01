@@ -1,3 +1,5 @@
+import { routeMapControls, routeMapDestinations } from './logistics.js'
+
 // The Greek slug, not the English one. This said '/el/partner' — a URL the router does not
 // register and the server answers with a 404 — so the page's own canonical, og:url and
 // hreflang="el" all pointed at a dead page. Every other locale transliterates its slug
@@ -146,6 +148,9 @@ export default {
     legendLabel: 'Υπόμνημα',
     legendShanghai: 'Σαγκάη',
     legendHoChiMinh: 'Χο Τσι Μινχ',
-    legendLaemChabang: 'Laem Chabang',
+    legendLaemChabang: 'Λάεμ Τσαμπάνγκ',
+    // The same route map as the logistics page, so the same names and control wording.
+    destinations: routeMapDestinations,
+    mapControls: routeMapControls,
   },
 }

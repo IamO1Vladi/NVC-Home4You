@@ -57,6 +57,7 @@ export default {
     clear: 'Καθαρισμός',
     undo: 'Αναίρεση',
     redo: 'Επανάληψη',
+    redoShortcut: 'Ctrl/⌘+Y ή Ctrl/⌘+Shift+Z',
     showPanel: 'Εμφάνιση πάνελ',
     hidePanel: 'Απόκρυψη πάνελ',
     downloadLayout: 'Λήψη διάταξης',
@@ -105,11 +106,20 @@ export default {
     },
     finishes: {
       wood: 'Ξύλο',
-      laminate: 'Laminate',
+      laminate: 'Πλαστικοποιημένο παρκέ',
       spc: 'SPC',
       tile: 'Πλακάκι',
       pvc: 'PVC',
       concrete: 'Μπετόν',
+    },
+    // Names a screen reader gives the drawing's layers.
+    aria: {
+      rooms: 'Δωμάτια',
+      walls: 'Τοίχοι',
+      labels: 'Ονόματα δωματίων',
+      dimensions: 'Διαστάσεις επιλεγμένου στοιχείου',
+      openings: 'Πόρτες και παράθυρα',
+      resizeHandles: 'Λαβές αλλαγής μεγέθους δωματίου',
     },
   },
 }

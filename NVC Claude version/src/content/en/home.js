@@ -12,7 +12,9 @@ export default {
       partner: 'Partner',
       planner: 'Planner',
       quote: 'Get a Quote',
-      boxConfigurator: "Configurator"
+      boxConfigurator: "Configurator",
+      // The desktop dropdown that holds the planner and the configurator.
+      plannerGroup: 'Planning',
     },
     servicesMenu: {
       columns: [
@@ -231,6 +233,9 @@ export default {
     viberChatLabel: 'Open Viber chat',
     whatsAppChatLabel: 'Open WhatsApp chat',
     contactLabel: 'Chat with us',
+    // What a screen reader announces as the KIND of widget on every image carousel
+    // (aria-roledescription). bg has no key yet and keeps this English word as its fallback.
+    carouselRoleDescription: 'carousel',
     lightbox: {
       closeLabel: 'Close',
       prevLabel: 'Prev',

@@ -12,7 +12,8 @@ export default {
       partner: 'Партньор',
       planner: 'Планер',
       quote: 'Заяви оферта',
-      boxConfigurator: "Конфигуратор"
+      boxConfigurator: "Конфигуратор",
+      plannerGroup: 'Планиране',
     },
     servicesMenu: {
       columns: [
