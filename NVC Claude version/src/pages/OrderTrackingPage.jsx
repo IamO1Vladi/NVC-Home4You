@@ -1,5 +1,5 @@
 import React from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useI18n } from '../i18n/I18nContext.jsx'
 import SEO from '../components/SEO.jsx'
 import '../style/OrderTracking.css'
@@ -172,6 +172,18 @@ const langKeyOf = (lang) => {
   return 'en'
 }
 
+// A language this page can speak, or null. Unlike langKeyOf it does not default to
+// English, so "?lang=fr" falls through to the next choice instead of deciding it.
+const spokenLang = (value) => {
+  const l = String(value || '').trim().toLowerCase().split(/[-_]/)[0]
+  return ['bg', 'el', 'en'].includes(l) ? l : null
+}
+
+// The model in the page's language where the catalogue has it. A custom build is free
+// text in whatever language staff typed, so it has only `model`.
+const modelIn = (order, key) =>
+  (key === 'bg' && order.modelBg) || (key === 'el' && order.modelEl) || order.model
+
 // Dates arrive as plain days ("2026-09-15") or as round-trip instants; both render as a day,
 // because an hour on an estimate implies a precision nobody has.
 //
@@ -197,10 +209,22 @@ const daysSince = (value) => {
 
 export default function OrderTrackingPage() {
   const { reference } = useParams()
-  const { lang } = useI18n()
+  const [searchParams] = useSearchParams()
+  const { lang, setLang } = useI18n()
   const key = langKeyOf(lang)
   const t = TEXT[key]
   const locale = LOCALES[key]
+
+  // WHICH LANGUAGE. The URL has no locale prefix, so the site's own guess (the last language
+  // used on this device, else the browser's) is all a bare link gets — and a Greek customer
+  // on an English phone read their whole order in English. So, in order: a ?lang on the
+  // link, then the language the customer wrote to us in (sent with the order), then the
+  // guess. Each is applied ONCE, as the site language, so the header and footer follow it;
+  // after that the header's own switch still works, rather than being overruled.
+  const urlLang = spokenLang(searchParams.get('lang'))
+  React.useEffect(() => {
+    if (urlLang) setLang(urlLang)
+  }, [urlLang, setLang])
 
   const [state, setState] = React.useState('loading')
   const [order, setOrder] = React.useState(null)
@@ -210,12 +234,18 @@ export default function OrderTrackingPage() {
     let alive = true
     fetch(`/api/order/${encodeURIComponent(reference)}`, { headers: { Accept: 'application/json' } })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-      .then((data) => { if (alive) { setOrder(data); setState('ready') } })
+      .then((data) => {
+        if (!alive) return
+        const orderLang = spokenLang(data?.locale)
+        if (orderLang && !urlLang) setLang(orderLang)
+        setOrder(data)
+        setState('ready')
+      })
       // Unknown, revoked and broken all land here together — the server does not
       // distinguish them, and neither should the page.
       .catch(() => { if (alive) setState('notfound') })
     return () => { alive = false }
-  }, [reference])
+  }, [reference, urlLang, setLang])
 
   const label = (statusKey) => t.statuses[statusKey] ?? statusKey
 
@@ -259,7 +289,7 @@ export default function OrderTrackingPage() {
   if (state === 'loading') {
     return (
       <main className="order-track">
-        <SEO title={t.title} noindex />
+        <SEO title={t.title} locale={key} noindex />
         <div className="ot-wrap">
           {/* A skeleton rather than the word "loading": the shape that appears is the shape
               that fills in, so the page does not jump when the answer arrives. */}
@@ -278,7 +308,7 @@ export default function OrderTrackingPage() {
   if (state === 'notfound') {
     return (
       <main className="order-track">
-        <SEO title={t.title} noindex />
+        <SEO title={t.title} locale={key} noindex />
         <div className="ot-wrap">
           <div className="ot-panel ot-notfound">
             <h1>{t.notFoundTitle}</h1>
@@ -303,10 +333,11 @@ export default function OrderTrackingPage() {
 
   const carrierAge = daysSince(order.carrierCheckedAt)
   const carrierIsStale = carrierAge !== null && carrierAge > CARRIER_NOTE_STALE_DAYS
+  const model = modelIn(order, key)
 
   return (
     <main className="order-track">
-      <SEO title={t.title} noindex />
+      <SEO title={t.title} locale={key} noindex />
 
       <div className="ot-wrap">
         {/* A <section>, not a <header>: index.css styles the bare `header` type for the
@@ -316,7 +347,7 @@ export default function OrderTrackingPage() {
         <section className={`ot-hero${order.imageUrl ? ' has-photo' : ''}${cancelled ? ' is-cancelled' : ''}`}>
           {order.imageUrl ? (
             <div className="ot-hero-photo">
-              <img src={order.imageUrl} alt={order.model || ''} loading="eager" />
+              <img src={order.imageUrl} alt={model || ''} loading="eager" />
             </div>
           ) : null}
 
@@ -328,7 +359,7 @@ export default function OrderTrackingPage() {
             <h1 className="ot-headline">{now.head}</h1>
             {now.note ? <p className="ot-lede">{now.note}</p> : null}
 
-            {order.model ? <p className="ot-model">{order.model}</p> : null}
+            {model ? <p className="ot-model">{model}</p> : null}
 
             {!cancelled && timeline.length ? (
               <div className="ot-progress">

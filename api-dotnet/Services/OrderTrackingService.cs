@@ -119,7 +119,20 @@ public sealed record PublicOrderDto(
     // of the code would report the rhythm of office activity on their record and announce
     // changes that did not happen, both of which this DTO says the code is not a credential
     // for. Null when neither fact exists, which is honest: nothing observable has happened.
-    string? UpdatedAt);
+    string? UpdatedAt,
+    // The customer's language ("bg" | "en" | "el"), as they wrote to us on the enquiry they
+    // bought from (Lead.Locale), so the page can answer in it — the URL has no locale, and a
+    // Greek customer on an English phone otherwise read the whole page in English. Allowed
+    // here deliberately: it is how to SPEAK to the holder of the code, not who they are,
+    // and it is the one fact read through Customer, as a single column (see PublicAsync).
+    // Null when no lead is on file; the page then keeps its own guess.
+    string? Locale,
+    // The catalogue's own titles for the model, so the page can name it in whichever
+    // language it ends up in rather than always in English. Public catalogue data — the
+    // gallery serves the same strings. Null for a custom build, or where the catalogue has
+    // no translation; the page falls back to Model.
+    string? ModelBg,
+    string? ModelEl);
 
 /// <summary>
 /// One row of an order's history, for the STAFF board — the same event the customer's
@@ -354,8 +367,33 @@ public sealed class OrderTrackingService
             purchase.PurchasedAt?.ToString("yyyy-MM-dd"),
             steps,
             await CoverImageUrlAsync(purchase.HouseId, ct),
-            Newest(lastEventAt, purchase.CarrierCheckedAt)?.ToString("o"));
+            Newest(lastEventAt, purchase.CarrierCheckedAt)?.ToString("o"),
+            await CustomerLocaleAsync(purchase.CustomerId, ct),
+            CatalogueTitle(purchase.House?.TitleBg),
+            CatalogueTitle(purchase.House?.TitleEl));
     }
+
+    /// <summary>
+    /// The language the customer wrote to us in, or null. Read as ONE projected column, not
+    /// by loading the customer: this method runs for an anonymous holder of a code, and a
+    /// customer row in memory here is a name and an ЕГН one careless line away from the
+    /// payload. Normalised to the three languages the site speaks, so "el-GR" still counts
+    /// and anything else reads as unknown rather than as a wrong answer.
+    /// </summary>
+    private async Task<string?> CustomerLocaleAsync(int customerId, CancellationToken ct)
+    {
+        var raw = await _db.Customers
+            .AsNoTracking()
+            .Where(c => c.Id == customerId)
+            .Select(c => c.Lead == null ? null : c.Lead.Locale)
+            .FirstOrDefaultAsync(ct);
+
+        var lang = (raw ?? "").Trim().ToLowerInvariant().Split('-', '_')[0];
+        return lang is "bg" or "en" or "el" ? lang : null;
+    }
+
+    private static string? CatalogueTitle(string? title) =>
+        string.IsNullOrWhiteSpace(title) ? null : title;
 
     /// <summary>
     /// The dated steps for the customer's page, oldest first — and, alongside them, when the

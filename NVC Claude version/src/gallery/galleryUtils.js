@@ -96,6 +96,30 @@ export function slugify(value) {
   return base || 'model'
 }
 
+// The words for an item's category in the page's language, from that locale's own filter
+// labels (content/<locale>/gallery.js filters.categories). The API sends a stable key
+// ("modular"), which used to be printed as it came and shouted "MODULAR" on every product
+// page in every language. Anything that resolves to no label yields nothing rather than
+// the raw value, so a key never reaches the page again.
+export function getCategoryLabels(raw, labels) {
+  return catFromItemCategory(raw).map((id) => labels?.[id]).filter(Boolean)
+}
+
+// A gallery price in the page's own number format. toLocaleString() with no locale used
+// the BROWSER's, and the prerender runs in an English one, so /el shipped "€14,840" — which
+// a Greek reader can take for fourteen euros, the comma being their decimal point.
+const PRICE_LOCALES = { bg: 'bg-BG', el: 'el-GR', en: 'en-GB' }
+
+export function formatGalleryPrice(value, currency, locale) {
+  const tag = PRICE_LOCALES[locale] || 'en-GB'
+  // Whole euros stay whole and cents still show, exactly as toLocaleString() printed them.
+  const digits = { minimumFractionDigits: 0, maximumFractionDigits: 2 }
+  if (currency === 'EUR') {
+    return new Intl.NumberFormat(tag, { ...digits, style: 'currency', currency }).format(value)
+  }
+  return `${new Intl.NumberFormat(tag, digits).format(value)} ${currency}`
+}
+
 export function getLocalizedTitle(item, locale) {
   if (locale === 'bg' && item?.titleBg) return item.titleBg
   if (locale === 'el' && item?.titleEl) return item.titleEl

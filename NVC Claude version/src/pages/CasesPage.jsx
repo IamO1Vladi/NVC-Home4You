@@ -573,7 +573,12 @@ export default function CasesPage({ content }) {
 
                     {review.product ? (
                       <div className="cs-chip-row mt-3">
-                        <span className="cs-chip">{copy.labels.purchased}: {review.product}</span>
+                        {/* review.product is the KEY the form below saved ("modularBuilds"),
+                            so it is named with the same labels the form's select shows. An
+                            older review holding free text prints it as typed. */}
+                        <span className="cs-chip">
+                          {copy.labels.purchased}: {(PRODUCT_KEYS.includes(review.product) && copy.filters[review.product]) || review.product}
+                        </span>
                       </div>
                     ) : null}
 

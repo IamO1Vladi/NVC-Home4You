@@ -86,6 +86,19 @@ public class AutoresponderSignatureTests
     }
 
     [Fact]
+    public void The_greek_signature_names_the_towns_in_greek_script()
+    {
+        // A Latin "Marikostinovo, Petrich" inside a Greek email read as a leftover; Greek
+        // writes Bulgarian towns in its own script, as it does Σόφια.
+        var (_, el) = Render(isOffer: true, "el");
+
+        Assert.Contains("Μαρικοστίνοβο, Πέτριτς 2850, Βουλγαρία", el);
+        Assert.Contains("Τηλέφωνο:", el);
+        Assert.DoesNotContain("Marikostinovo", el);
+        Assert.DoesNotContain("Petrich", el);
+    }
+
+    [Fact]
     public void An_unknown_locale_falls_back_to_english_rather_than_breaking()
     {
         var (subject, html) = Render(isOffer: true, "fr");

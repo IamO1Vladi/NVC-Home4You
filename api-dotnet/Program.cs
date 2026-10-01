@@ -1434,6 +1434,13 @@ app.MapFallback(async context =>
     var start = html.IndexOf(seoStart, StringComparison.Ordinal);
     var end = html.IndexOf(seoEnd, StringComparison.Ordinal);
 
+    // The language the URL is addressed in, which every response below declares in
+    // <html lang>. index.html says "en" for all of them, and only the prerendered pages had
+    // their own — so a Greek product page or a Greek 404 told every client that does not
+    // run JavaScript (crawlers, link unfurlers, screen readers before hydration) that it
+    // was English. Null for a path with no locale, which keeps the shell's default.
+    var pathLocale = SpaShell.LocaleOf(path);
+
     // Unlisted pages: served as a 200 with a noindex tag, so direct links and refreshes
     // work while nothing reaches search results. Three kinds, for two different reasons:
     //
@@ -1456,11 +1463,18 @@ app.MapFallback(async context =>
         path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase))
     {
+        // The tracking page is the CUSTOMER's, so it is titled with the brand rather than
+        // "NVC internal" — that is the tab and any link preview before React runs. Only the
+        // brand, because the URL does not say which language the customer reads; the page
+        // titles itself in it once it knows.
         const string internalTags =
             "<title>NVC internal</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";
+        const string orderTags =
+            "<title>NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";
+        var unlistedTags = path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase) ? orderTags : internalTags;
         if (start >= 0 && end > start)
-            html = html[..(start + seoStart.Length)] + "\n    " + internalTags + "\n    " + html[end..];
-        await context.Response.WriteAsync(html);
+            html = html[..(start + seoStart.Length)] + "\n    " + unlistedTags + "\n    " + html[end..];
+        await context.Response.WriteAsync(SpaShell.WithLang(html, pathLocale));
         return;
     }
 
@@ -1479,7 +1493,8 @@ app.MapFallback(async context =>
 
     if (!bypassSnapshot && prerendered.TryGetValue(path, out var snapshot))
     {
-        await context.Response.WriteAsync(snapshot);
+        // A snapshot already declares its language; this only keeps a stale one honest.
+        await context.Response.WriteAsync(SpaShell.WithLang(snapshot, pathLocale));
         return;
     }
 
@@ -1522,10 +1537,8 @@ app.MapFallback(async context =>
             // or a typo. Previously served as 200 with homepage metadata, which is a soft
             // 404 for every dead product link ever shared.
             context.Response.StatusCode = StatusCodes.Status404NotFound;
-            const string goneTags =
-                "<title>Page not found | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" />";
             if (start >= 0 && end > start)
-                html = html[..(start + seoStart.Length)] + "\n    " + goneTags + "\n    " + html[end..];
+                html = html[..(start + seoStart.Length)] + "\n    " + SpaShell.NotFoundTags(pathLocale) + "\n    " + html[end..];
         }
     }
     else if (!IsKnownSpaRoute(path))
@@ -1534,14 +1547,85 @@ app.MapFallback(async context =>
         // and mark the shell noindex so crawlers that don't run JS won't index it. React still
         // renders the localized NotFound page into the same shell for users.
         context.Response.StatusCode = StatusCodes.Status404NotFound;
-        const string notFoundTags =
-            "<title>Page not found | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" />";
         if (start >= 0 && end > start)
-            html = html[..(start + seoStart.Length)] + "\n    " + notFoundTags + "\n    " + html[end..];
+            html = html[..(start + seoStart.Length)] + "\n    " + SpaShell.NotFoundTags(pathLocale) + "\n    " + html[end..];
     }
 
-    await context.Response.WriteAsync(html);
+    await context.Response.WriteAsync(SpaShell.WithLang(html, pathLocale));
 });
 
 app.Run();
 return 0;
+
+/// <summary>
+/// The parts of the SPA shell the server decides from the URL's language: the
+/// <c>&lt;html lang&gt;</c> attribute and the 404 head. Kept out of the MapFallback closure
+/// so they can be tested directly — the closure is web-host state, these are only strings.
+/// </summary>
+public static class SpaShell
+{
+    private static readonly string[] Locales = { "bg", "en", "el" };
+
+    private static readonly System.Text.RegularExpressions.Regex HtmlTag = new(
+        @"<html\b[^>]*>",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Whitespace before "lang", so xml:lang or data-lang is never mistaken for it.
+    private static readonly System.Text.RegularExpressions.Regex LangAttr = new(
+        @"\slang\s*=\s*(""[^""]*""|'[^']*'|[^\s>]+)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// The locale a path is addressed in, from its prefix: "/el" and "/el/…" are Greek.
+    /// Mirrors getLocaleFromPath in src/routes/paths.js. Null when there is none — the bare
+    /// domain, /order/…, the admin — because the URL does not say.
+    /// </summary>
+    public static string? LocaleOf(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        foreach (var locale in Locales)
+        {
+            var prefix = "/" + locale;
+            if (path.Equals(prefix, StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+                return locale;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The page with its first &lt;html&gt; tag declaring <paramref name="locale"/>: an
+    /// existing lang replaced, or one added. Unchanged when the locale is null.
+    /// </summary>
+    public static string WithLang(string html, string? locale)
+    {
+        if (locale is null || string.IsNullOrEmpty(html)) return html;
+
+        var match = HtmlTag.Match(html);
+        if (!match.Success) return html;
+
+        var tag = match.Value;
+        var declared = $" lang=\"{locale}\"";
+        var rewritten = LangAttr.IsMatch(tag)
+            ? LangAttr.Replace(tag, declared, 1)
+            : tag.Insert("<html".Length, declared);
+
+        return html[..match.Index] + rewritten + html[(match.Index + match.Length)..];
+    }
+
+    /// <summary>
+    /// The head of a 404 in the language of the path it answers, worded as NotFoundPage.jsx
+    /// words it, so the tab title before React runs and the one after agree. English when
+    /// the path has no locale.
+    /// </summary>
+    public static string NotFoundTags(string? locale)
+    {
+        var title = locale switch
+        {
+            "bg" => "Страницата не е намерена",
+            "el" => "Η σελίδα δεν βρέθηκε",
+            _ => "Page not found",
+        };
+        return $"<title>{title} | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" />";
+    }
+}

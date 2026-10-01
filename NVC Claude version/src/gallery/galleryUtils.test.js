@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { catFromItemCategory, resolveCatParam, slugify, FILTER_IDS } from './galleryUtils'
+import { catFromItemCategory, resolveCatParam, slugify, FILTER_IDS, getCategoryLabels, formatGalleryPrice } from './galleryUtils'
+import elGallery from '../content/el/gallery.js'
+import enGallery from '../content/en/gallery.js'
+import bgGallery from '../content/bg/gallery.js'
 
 // The gallery filter is the one place where bad category data fails silently: a house whose
 // category resolves to nothing simply stops appearing under every filter, with no error
@@ -140,5 +143,56 @@ describe('slugify — parity with GallerySlugs.Slugify in api-dotnet', () => {
   it('no longer produces the old hyphen-split form', () => {
     expect(slugify('Контейнерна къща')).not.toBe('контеи-нерна-къща')
     expect(slugify('Σπίτι τύπου Container')).not.toBe('σπι-τι-τυ-που-container')
+  })
+})
+
+// The category kicker and the Product JSON-LD used to print the API's key as it came, so
+// every product page — in every language — said "MODULAR" (Greek audit, #11).
+describe('category labels', () => {
+  const el = elGallery.filters.categories
+
+  it("names a key with the page locale's filter label", () => {
+    expect(getCategoryLabels('modular', el)).toEqual(['Δομικό σπίτι'])
+    expect(getCategoryLabels('wagon', el)).toEqual(['Βαγονέτο / Καμπίνα εργοταξίου'])
+    expect(getCategoryLabels('modular', enGallery.filters.categories)).toEqual(['Modular house'])
+    expect(getCategoryLabels('modular', bgGallery.filters.categories)).toEqual(['Модулна къща'])
+  })
+
+  it('names a stored label in the page language too', () => {
+    // The Quickbase read path sends the Bulgarian label rather than the key.
+    expect(getCategoryLabels('Модулна къща', el)).toEqual(['Δομικό σπίτι'])
+  })
+
+  it('has a label for every filter id in every locale', () => {
+    for (const content of [elGallery, enGallery, bgGallery]) {
+      for (const id of FILTER_IDS) expect(content.filters.categories[id]).toBeTruthy()
+    }
+  })
+
+  it('yields nothing rather than the raw value when nothing resolves', () => {
+    expect(getCategoryLabels('MODULAR-XL', el)).toEqual([])
+    expect(getCategoryLabels('modular', undefined)).toEqual([])
+    expect(getCategoryLabels(null, el)).toEqual([])
+  })
+})
+
+// toLocaleString() with no locale used the browser's format, and the prerender runs in an
+// English one: /el shipped "€14,840", which a Greek reader can take for 14.84 euros.
+describe('formatGalleryPrice', () => {
+  // Intl separates with no-break spaces; compare on plain ones.
+  const plain = (s) => s.replace(/\s/g, ' ')
+
+  it('formats a Greek price the Greek way', () => {
+    expect(plain(formatGalleryPrice(14840, 'EUR', 'el'))).toBe('14.840 €')
+  })
+
+  it('keeps English exactly as the page printed it before', () => {
+    expect(formatGalleryPrice(14840, 'EUR', 'en')).toBe('€14,840')
+    expect(formatGalleryPrice(14840.5, 'EUR', 'en')).toBe('€14,840.5')
+    expect(formatGalleryPrice(14840, 'BGN', 'en')).toBe('14,840 BGN')
+  })
+
+  it('formats Bulgarian as bg-BG, like the rest of the Bulgarian site', () => {
+    expect(plain(formatGalleryPrice(14840, 'EUR', 'bg'))).toBe('14 840 €')
   })
 })

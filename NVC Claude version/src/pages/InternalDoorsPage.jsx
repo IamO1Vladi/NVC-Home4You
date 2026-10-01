@@ -174,7 +174,10 @@ function ConfigGroup({ title, hint, options, value, onChange, ariaLabel, fallbac
   )
 }
 
-export default function InternalDoorsPage({ content }) {
+// locale: the page's language ('bg' | 'en' | 'el'), sent with the enquiry like every other
+// form on the site. Without it the server answered in its default, so a Greek visitor got
+// an English autoresponder and the lead was filed with no language at all.
+export default function InternalDoorsPage({ content, locale }) {
   const { openOffer, openQuestion } = useModalActions()
   const asset = React.useCallback((p) => `${import.meta.env.BASE_URL}${p}`, [])
   const fallback = asset('modular-builds/card.svg')
@@ -343,9 +346,10 @@ export default function InternalDoorsPage({ content }) {
     [content, typeLabel, selected, activeImg, frameSelected, handleSelected, trimSelected, lockSelected]
   )
 
+  // Only the draft is reset here. This used to reset reviewSent/reviewError too — state
+  // that went when the form became fire-and-forget (5a7fe40), leaving two calls to setters
+  // that no longer existed, so this button threw a ReferenceError and the form never opened.
   const openReview = () => {
-    setReviewSent(false)
-    setReviewError('')
     setProjectDraft(makeProjectText())
     setReviewOpen(true)
   }
@@ -362,6 +366,7 @@ export default function InternalDoorsPage({ content }) {
       phone: fd.get('phone') || '',
       project: fd.get('project') || '',
       modelId: '',
+      locale,
     }
     if (!payload.name || !payload.email) return
 
@@ -387,7 +392,7 @@ export default function InternalDoorsPage({ content }) {
         }
       },
     })
-  }, [content.review, content.forms.submit, content.common.close])
+  }, [content.review, content.forms.submit, content.common.close, locale])
 
   const [loaded, setLoaded] = React.useState(true)
   React.useEffect(() => {

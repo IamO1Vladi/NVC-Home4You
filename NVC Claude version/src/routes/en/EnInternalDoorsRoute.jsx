@@ -26,7 +26,7 @@ export default function EnInternalDoorsRoute() {
           { hrefLang: 'x-default', href: url },
         ]}
       />
-      <InternalDoorsPage content={content} />
+      <InternalDoorsPage content={content} locale="en" />
     </>
   )
 }

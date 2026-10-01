@@ -6,6 +6,27 @@ import './Testimonials.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
+// A review's `product` is the KEY the review form saved ("modularBuilds"), and the words
+// for it live beside that form, in each locale's cases content. Loaded lazily and only for
+// this locale, so the home page does not carry the cases page's copy in three languages.
+const CASES_CONTENT = import.meta.glob('../content/*/cases.js', { import: 'default' })
+
+async function loadProductLabels(locale) {
+  const load = CASES_CONTENT[`../content/${locale}/cases.js`] || CASES_CONTENT['../content/en/cases.js']
+  try {
+    return (await load?.())?.copy?.filters || {}
+  } catch {
+    // Without labels a review still shows; it just falls back to what was stored.
+    return {}
+  }
+}
+
+// An older review may hold free text rather than a key; that prints as it was typed.
+// Own keys only, so a stored "constructor" cannot print a function.
+function productLabel(labels, value) {
+  return value && Object.prototype.hasOwnProperty.call(labels, value) ? labels[value] : value
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
@@ -27,7 +48,7 @@ function Stars({ value = 0 }) {
 }
 
 export default function Testimonials({ locale = 'en', content }) {
-  const [state, setState] = useState({ loading: true, items: [], average: 0, total: 0 })
+  const [state, setState] = useState({ loading: true, items: [], average: 0, total: 0, productLabels: {} })
 
   useEffect(() => {
     let active = true
@@ -35,7 +56,10 @@ export default function Testimonials({ locale = 'en', content }) {
     async function load() {
       try {
         const take = content?.take || 3
-        const response = await fetch(`${API_BASE}/api/reviews/featured?take=${take}`)
+        const [response, productLabels] = await Promise.all([
+          fetch(`${API_BASE}/api/reviews/featured?take=${take}`),
+          loadProductLabels(locale),
+        ])
         if (!response.ok) throw new Error('Reviews API unavailable')
         const json = await response.json()
         if (!active) return
@@ -44,9 +68,10 @@ export default function Testimonials({ locale = 'en', content }) {
           items: Array.isArray(json.items) ? json.items : [],
           average: toNumber(json.averageRating, 0),
           total: toNumber(json.totalCount, 0),
+          productLabels,
         })
       } catch {
-        if (active) setState({ loading: false, items: [], average: 0, total: 0 })
+        if (active) setState({ loading: false, items: [], average: 0, total: 0, productLabels: {} })
       }
     }
 
@@ -54,7 +79,7 @@ export default function Testimonials({ locale = 'en', content }) {
     return () => {
       active = false
     }
-  }, [content])
+  }, [content, locale])
 
   const countLabel = useMemo(() => {
     const template = content?.countLabel || '{count} reviews'
@@ -102,7 +127,7 @@ export default function Testimonials({ locale = 'en', content }) {
 
               <div className="testimonials-meta cs-muted mt-3">
                 <span className="cs-chip">{content.verified || 'Verified'}</span>
-                {[review.product, review.location].filter(Boolean).join(' · ')}
+                {[productLabel(state.productLabels, review.product), review.location].filter(Boolean).join(' · ')}
               </div>
             </article>
           ))}

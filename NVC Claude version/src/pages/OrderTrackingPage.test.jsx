@@ -15,11 +15,11 @@ import OrderTrackingPage from './OrderTrackingPage.jsx'
 // Since 2026-08-20 staff move every status by hand, so the page also has to be honest about
 // AGE — when each step happened, and when a carrier note stopped being fresh.
 
-const render = (reference = 'abcd123456') =>
+const render = (reference = 'abcd123456', search = '') =>
   rtlRender(
     <HelmetProvider>
       <I18nProvider>
-        <MemoryRouter initialEntries={[`/order/${reference}`]}>
+        <MemoryRouter initialEntries={[`/order/${reference}${search}`]}>
           <Routes>
             <Route path="/order/:reference" element={<OrderTrackingPage />} />
           </Routes>
@@ -176,6 +176,72 @@ describe('OrderTrackingPage', () => {
 
     await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument())
     expect(screen.getByText('Ταξιδεύει')).toBeInTheDocument()
+  })
+
+  // WHICH LANGUAGE (Greek audit, #11). The link has no locale, so a Greek customer on an
+  // English phone used to read the whole page in English.
+  it('answers in the language the customer wrote to us in', async () => {
+    payload = { ...ORDER, locale: 'el' }
+    render()
+
+    await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument())
+    // Applied as the SITE language, so the header and footer follow it too.
+    expect(localStorage.getItem('lang')).toBe('el')
+  })
+
+  it('lets a ?lang on the link beat the language on file', async () => {
+    payload = { ...ORDER, locale: 'el' }
+    render('abcd123456', '?lang=bg')
+
+    await waitFor(() => expect(screen.getByText('На път към вас')).toBeInTheDocument())
+    expect(screen.queryByText('Στον δρόμο προς εσάς')).not.toBeInTheDocument()
+  })
+
+  it('ignores a ?lang it cannot speak rather than defaulting to English', async () => {
+    payload = { ...ORDER, locale: 'el' }
+    render('abcd123456', '?lang=fr')
+
+    await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument())
+  })
+
+  it('keeps its own guess when the order carries no language', async () => {
+    localStorage.setItem('lang', 'bg')
+    payload = { ...ORDER, locale: null }
+    render()
+
+    await waitFor(() => expect(screen.getByText('На път към вас')).toBeInTheDocument())
+  })
+
+  it('names a catalogue model in the page language, and falls back to the default title', async () => {
+    payload = {
+      ...ORDER,
+      locale: 'el',
+      imageUrl: '/api/images/house/42',
+      model: 'Expandable House – 37 m²',
+      modelBg: 'Разгъваема къща – 37 m²',
+      modelEl: 'Αναπτυσσόμενο σπίτι – 37 m²',
+    }
+    render()
+
+    await waitFor(() => expect(screen.getByText('Αναπτυσσόμενο σπίτι – 37 m²')).toBeInTheDocument())
+    expect(screen.getByAltText('Αναπτυσσόμενο σπίτι – 37 m²')).toBeInTheDocument()
+    expect(screen.queryByText('Expandable House – 37 m²')).not.toBeInTheDocument()
+  })
+
+  it('uses the default title where the catalogue has no translation', async () => {
+    payload = { ...ORDER, locale: 'el', model: 'Container House – 6000mm*3000mm', modelEl: null }
+    render()
+
+    await waitFor(() => expect(screen.getByText('Container House – 6000mm*3000mm')).toBeInTheDocument())
+  })
+
+  it('declares its Open Graph locale in the language it speaks', async () => {
+    payload = { ...ORDER, locale: 'el' }
+    render()
+
+    await waitFor(() =>
+      expect(document.head.querySelector('meta[property="og:locale"]')).toHaveAttribute('content', 'el_GR'),
+    )
   })
 
   it('never renders money, however the payload grows', async () => {

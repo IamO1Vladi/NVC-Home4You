@@ -25,7 +25,7 @@ export default function BgInternalDoorsRoute() {
           { hrefLang: 'x-default', href: enUrl },
         ]}
       />
-      <InternalDoorsPage content={content} />
+      <InternalDoorsPage content={content} locale="bg" />
     </>
   )
 }

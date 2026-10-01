@@ -1,5 +1,5 @@
 import React from 'react'
-import { htmlToText, getCoverUrl, getCurrency, getItemSlug, getLocalizedDescription, getLocalizedTitle } from '../gallery/galleryUtils.js'
+import { htmlToText, getCategoryLabels, getCoverUrl, getCurrency, getItemSlug, getLocalizedDescription, getLocalizedTitle } from '../gallery/galleryUtils.js'
 
 function JsonLD({ data }) {
   if (!data) return null
@@ -63,13 +63,16 @@ export function GalleryListJSONLD({ items = [], locale, listName, listUrl }) {
   )
 }
 
-export function GalleryProductJSONLD({ item, locale, url }) {
+// categoryLabels: the page locale's filter labels, so the category is named in the page's
+// language like everything else in this block — not the raw API key ("modular").
+export function GalleryProductJSONLD({ item, locale, url, categoryLabels }) {
   if (!item) return null
   const title = getLocalizedTitle(item, locale)
   const description = htmlToText(getLocalizedDescription(item, locale))
   const image = getCoverUrl(item)
   const currency = getCurrency(item, locale)
   const slug = getItemSlug(item, locale)
+  const category = getCategoryLabels(item.category, categoryLabels).join(', ')
   if (!title || !description || !image || !url) return null
 
   return (
@@ -86,7 +89,8 @@ export function GalleryProductJSONLD({ item, locale, url }) {
           '@type': 'Brand',
           name: 'NVC Home4You',
         },
-        category: item.category,
+        // Left out rather than sent raw when no label resolves; JSON.stringify drops undefined.
+        category: category || undefined,
         offers: typeof item.price === 'number' ? {
           '@type': 'Offer',
           price: item.price,

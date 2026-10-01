@@ -430,12 +430,15 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1
     // outright, so an inlined logo would show as nothing in the client most customers use.
     // Table markup and inline styles are deliberate — Outlook ignores most modern CSS.
     // Every detail here is already published on the public site.
+    //
+    // The place names follow the language of the email: Greek script in the Greek one, as
+    // Greek writes Bulgarian towns (Πέτριτς), rather than a Latin line inside Greek text.
     private static string BuildSignature(string loc)
     {
         var (addressLine, phoneLabel, emailLabel, siteLabel) = loc switch
         {
             "bg" => ("Марикостиново, Петрич 2850, България", "Телефон", "Имейл", "Уебсайт"),
-            "el" => ("Marikostinovo, Petrich 2850, Βουλγαρία", "Τηλέφωνο", "Email", "Ιστότοπος"),
+            "el" => ("Μαρικοστίνοβο, Πέτριτς 2850, Βουλγαρία", "Τηλέφωνο", "Email", "Ιστότοπος"),
             _ => ("Marikostinovo, Petrich 2850, Bulgaria", "Phone", "Email", "Website"),
         };
 

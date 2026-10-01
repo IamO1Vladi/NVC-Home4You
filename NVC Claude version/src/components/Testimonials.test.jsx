@@ -102,6 +102,48 @@ describe('Testimonials', () => {
     expect(container.querySelector('.testimonials')).toBeNull()
   })
 
+  // The review form saves a product KEY. It used to be printed as it came, so every
+  // review on /el read "Επαληθευμένη modularBuilds" (Greek audit, #11).
+  it('names the product in the page language rather than printing its key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({ averageRating: 5, totalCount: 1, items: [{ id: '1', name: 'Νίκος', rating: 5, product: 'modularBuilds', location: 'Θεσσαλονίκη' }] })
+    )
+
+    const { container } = renderTestimonials({ locale: 'el' })
+
+    await screen.findByText('Νίκος')
+    const meta = container.querySelector('.testimonials-meta')
+    expect(meta).toHaveTextContent('Δομικές κατασκευές · Θεσσαλονίκη')
+    expect(meta).not.toHaveTextContent('modularBuilds')
+  })
+
+  it('uses the same words in English and Bulgarian', async () => {
+    const review = { id: '1', name: 'Alice', rating: 5, product: 'modularBuilds' }
+    vi.stubGlobal('fetch', mockFetch({ averageRating: 5, totalCount: 1, items: [review] }))
+
+    const { container, unmount } = renderTestimonials({ locale: 'en' })
+    await screen.findByText('Alice')
+    expect(container.querySelector('.testimonials-meta')).toHaveTextContent('Modular builds')
+    unmount()
+
+    const bg = renderTestimonials({ locale: 'bg' })
+    await screen.findByText('Alice')
+    expect(bg.container.querySelector('.testimonials-meta')).toHaveTextContent('Модулни постройки')
+  })
+
+  it('prints an older free-text product exactly as it was typed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({ averageRating: 5, totalCount: 1, items: [{ id: '1', name: 'Alice', rating: 5, product: 'Modular house', location: 'Sofia' }] })
+    )
+
+    const { container } = renderTestimonials()
+
+    await screen.findByText('Alice')
+    expect(container.querySelector('.testimonials-meta')).toHaveTextContent('Modular house · Sofia')
+  })
+
   it('renders nothing when the response is not ok', async () => {
     vi.stubGlobal('fetch', mockFetch({ items: [] }, { ok: false }))
 

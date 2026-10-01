@@ -10,9 +10,10 @@ namespace Controllers;
 // THE ONE ANONYMOUS ENDPOINT IN THIS FEATURE, and the reasoning behind every line of it:
 //
 //   - The code in the URL is the only credential, so what it opens must be worth exactly
-//     that much. PublicOrderDto carries a status, two expected dates, the model name and
-//     the carrier's last word. No price, no deposit, no balance, no name, no address, no
-//     ЕГН — not blanked, but absent from the type. See OrderTrackingService.
+//     that much. PublicOrderDto carries a status, two expected dates, the model name, the
+//     carrier's last word and the language to answer in. No price, no deposit, no balance,
+//     no name, no address, no ЕГН — not blanked, but absent from the type. See
+//     OrderTrackingService.
 //   - A revoked or unknown code answers 404 identically, so a stranger cannot learn which
 //     codes once existed by watching the difference.
 //   - no-store, because a tracking page on a shared machine should not survive the tab.

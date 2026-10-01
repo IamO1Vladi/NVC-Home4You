@@ -237,6 +237,119 @@ public class OrderTrackingTests
         // plausibly be added by someone who thought the customer would like to know.
         var stepFields = typeof(PublicOrderStepDto).GetProperties().Select(p => p.Name).ToList();
         Assert.Equal(new[] { "Status", "At" }.OrderBy(x => x), stepFields.OrderBy(x => x));
+
+        // The whole shape, pinned, so that widening it is a decision made HERE, in the test
+        // for this feature, rather than a field that quietly arrived. A denylist only stops
+        // the leaks someone thought of; this stops the rest.
+        var allowed = new[]
+        {
+            "Reference", "Status", "Step", "Timeline", "Model", "ExpectedAtHarbor",
+            "ExpectedReadyAt", "CarrierName", "CarrierNote", "CarrierCheckedAt", "OrderedAt",
+            "History", "ImageUrl", "UpdatedAt",
+            // Added for the Greek audit (#11), deliberately. Locale is the language the
+            // customer wrote to us in — how to SPEAK to whoever holds the code, not who they
+            // are — so the page can answer in it; without it a Greek customer on an English
+            // phone read their order in English. ModelBg/ModelEl are the catalogue's own
+            // titles, public on the gallery already, so the model is named in that language.
+            "Locale", "ModelBg", "ModelEl",
+        };
+        Assert.Equal(allowed.OrderBy(x => x), fields.OrderBy(x => x));
+    }
+
+    // --- The customer's language --------------------------------------------------------
+
+    private static async Task<Purchase> SeedWithLeadLocaleAsync(AppDbContext db, string? locale)
+    {
+        var purchase = await SeedAsync(db);
+        var lead = new Lead { Name = "Γιώργος Παπαδόπουλος", Locale = locale };
+        db.Leads.Add(lead);
+        await db.SaveChangesAsync();
+
+        var customer = await db.Customers.SingleAsync(c => c.Id == purchase.CustomerId);
+        customer.LeadId = lead.Id;
+        await db.SaveChangesAsync();
+        return purchase;
+    }
+
+    [Fact]
+    public async Task The_page_is_told_the_language_the_customer_wrote_to_us_in()
+    {
+        // The URL has no locale, so without this the page can only guess from the device —
+        // and a Greek customer on an English phone read their whole order in English.
+        using var db = NewDb();
+        var purchase = await SeedWithLeadLocaleAsync(db, "el");
+        var svc = NewService(db);
+        var code = await svc.EnsureReferenceAsync(purchase.Id, Ct);
+
+        Assert.Equal("el", (await svc.PublicAsync(code, Ct))!.Locale);
+    }
+
+    [Theory]
+    [InlineData("el-GR", "el")]
+    [InlineData(" BG ", "bg")]
+    [InlineData("fr", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public async Task The_language_is_one_the_site_speaks_or_nothing(string? stored, string? expected)
+    {
+        // Unknown reads as unknown, so the page keeps its own guess rather than being handed
+        // a language it has no words for.
+        using var db = NewDb();
+        var purchase = await SeedWithLeadLocaleAsync(db, stored);
+        var svc = NewService(db);
+        var code = await svc.EnsureReferenceAsync(purchase.Id, Ct);
+
+        Assert.Equal(expected, (await svc.PublicAsync(code, Ct))!.Locale);
+    }
+
+    [Fact]
+    public async Task A_customer_with_no_lead_on_file_has_no_language_rather_than_a_guess()
+    {
+        // Plenty of business arrives by phone and never was a lead in the panel.
+        using var db = NewDb();
+        var purchase = await SeedAsync(db);
+        var svc = NewService(db);
+        var code = await svc.EnsureReferenceAsync(purchase.Id, Ct);
+
+        Assert.Null((await svc.PublicAsync(code, Ct))!.Locale);
+    }
+
+    [Fact]
+    public async Task A_catalogue_model_is_named_in_each_language_the_catalogue_has()
+    {
+        // Model stays the default title; the page picks the one for its own language, the
+        // way the gallery does, instead of naming a Greek customer's house in English.
+        using var db = NewDb();
+        var purchase = await SeedAsync(db);
+        var house = await db.Houses.SingleAsync(h => h.Id == purchase.HouseId);
+        house.Title = "Expandable House – 37 m²";
+        house.TitleBg = "Разгъваема къща – 37 m²";
+        house.TitleEl = "Αναπτυσσόμενο σπίτι – 37 m²";
+        await db.SaveChangesAsync();
+
+        var svc = NewService(db);
+        var code = await svc.EnsureReferenceAsync(purchase.Id, Ct);
+        var view = await svc.PublicAsync(code, Ct);
+
+        Assert.Equal("Expandable House – 37 m²", view!.Model);
+        Assert.Equal("Разгъваема къща – 37 m²", view.ModelBg);
+        Assert.Equal("Αναπτυσσόμενο σπίτι – 37 m²", view.ModelEl);
+    }
+
+    [Fact]
+    public async Task A_missing_translation_is_null_so_the_page_falls_back_to_the_model()
+    {
+        // A blank translation must not become a blank model name on the Greek page.
+        using var db = NewDb();
+        var purchase = await SeedAsync(db);
+        var house = await db.Houses.SingleAsync(h => h.Id == purchase.HouseId);
+        house.TitleEl = "   ";
+        await db.SaveChangesAsync();
+
+        var svc = NewService(db);
+        var code = await svc.EnsureReferenceAsync(purchase.Id, Ct);
+
+        Assert.Null((await svc.PublicAsync(code, Ct))!.ModelEl);
     }
 
     [Fact]
@@ -532,6 +645,9 @@ public class OrderTrackingTests
         var view = await svc.PublicAsync(code, Ct);
         Assert.Null(view!.ImageUrl);
         Assert.Equal("Два вагона 6м, съединени", view.Model);
+        // Free text in the language staff typed it in: there is no other title to offer.
+        Assert.Null(view.ModelBg);
+        Assert.Null(view.ModelEl);
     }
 
     [Fact]

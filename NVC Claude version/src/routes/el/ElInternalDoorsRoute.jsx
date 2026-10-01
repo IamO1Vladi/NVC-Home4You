@@ -26,7 +26,7 @@ export default function ElInternalDoorsRoute() {
           { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/internal-doors' },
         ]}
       />
-      <InternalDoorsPage content={content} />
+      <InternalDoorsPage content={content} locale="el" />
     </>
   )
 }

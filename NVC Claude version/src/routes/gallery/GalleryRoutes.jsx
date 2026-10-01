@@ -9,6 +9,14 @@ export default function GalleryRoutes({ locale, content, basePath, homeUrl, onRe
   const location = useLocation()
   const backgroundLocation = location.state?.backgroundLocation
   const effectiveLocation = backgroundLocation || location
+  // The detail page names an item's category with the same labels the index filters show.
+  const detailContent = {
+    ...content.detail,
+    altBase: content.altBase,
+    homeUrl,
+    breadcrumbs: content.breadcrumbs,
+    categories: content.filters?.categories,
+  }
 
   return (
     <>
@@ -17,14 +25,18 @@ export default function GalleryRoutes({ locale, content, basePath, homeUrl, onRe
           index
           element={(
             <>
+              {/* locale: without it SEO.jsx's 'bg' default won and overrode App's og:locale,
+                  so the Greek and English indexes both announced themselves as bg_BG. */}
               <SEO
                 title={content.seo.title}
                 description={content.seo.description}
                 url={basePath + (effectiveLocation.search || '')}
                 canonical={basePath + (effectiveLocation.search || '')}
+                locale={locale}
                 hreflangs={[
                   { hrefLang: 'bg', href: content.altBase.bg },
                   { hrefLang: 'en', href: content.altBase.en },
+                  { hrefLang: 'el', href: content.altBase.el },
                 ]}
               />
               <GalleryBreadcrumbsJSONLD
@@ -42,7 +54,7 @@ export default function GalleryRoutes({ locale, content, basePath, homeUrl, onRe
           element={(
             <GalleryItemPage
               locale={locale}
-              content={{ ...content.detail, altBase: content.altBase, homeUrl, breadcrumbs: content.breadcrumbs }}
+              content={detailContent}
               basePath={basePath}
               listPath={basePath}
               onRequestModel={onRequestModel}
@@ -58,7 +70,7 @@ export default function GalleryRoutes({ locale, content, basePath, homeUrl, onRe
             element={(
               <GalleryItemPage
                 locale={locale}
-                content={{ ...content.detail, altBase: content.altBase, homeUrl, breadcrumbs: content.breadcrumbs }}
+                content={detailContent}
                 basePath={basePath}
                 listPath={basePath + (backgroundLocation.search || '')}
                 modal

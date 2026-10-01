@@ -14,6 +14,8 @@ import {
   getCoverUrl,
   getItemImages,
   getCurrency,
+  getCategoryLabels,
+  formatGalleryPrice,
   getItemSlug,
   getMetaContentId,
   buildMetaProductPayload,
@@ -31,8 +33,9 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
   const current = displayImages[activeImage] || displayImages[0] || ''
 
   const priceText = typeof item?.price === 'number'
-    ? `${content.pricePrefix}${currency === 'EUR' ? '€' : ''}${item.price.toLocaleString()}${currency !== 'EUR' ? ` ${currency}` : ''}`
+    ? `${content.pricePrefix}${formatGalleryPrice(item.price, currency, locale)}`
     : content.priceOnRequest
+  const categoryText = getCategoryLabels(item?.category, content.categories).join(' · ')
 
   return (
     <div className="gdetail-grid">
@@ -61,7 +64,7 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
         <div className="gdetail-titleRow">
           <div>
             <h1 className="gdetail-title">{title}</h1>
-            {item.category ? <div className="gdetail-kicker">{item.category}</div> : null}
+            {categoryText ? <div className="gdetail-kicker">{categoryText}</div> : null}
           </div>
           <div className="gdetail-price">{priceText}</div>
         </div>
@@ -134,7 +137,7 @@ useEffect(() => {
     <>
       {!modal && (
         <>
-          <GalleryProductJSONLD item={item} locale={locale} url={url} />
+          <GalleryProductJSONLD item={item} locale={locale} url={url} categoryLabels={content.categories} />
           <GalleryBreadcrumbsJSONLD
             items={[
               { name: content.breadcrumbs.home, url: content.homeUrl },
