@@ -66,12 +66,27 @@ commits, notes and conversations still resolve.
   own "as of" date so a stale one reads as stale. **To automate: get API credentials from
   the carrier, then one poller fills those four columns — nothing else changes.**
 
-  Half settled 2026-09-11: **tbonin@nvc-home4you.eu owns status moves** (owner's call).
-  The routine is the remaining half — proposed: a weekly digest to him through the
-  existing Graph mail plumbing, sent only when there is at least one active order and
-  flagging any that has sat in one status 14+ days, so the email carries the work rather
-  than a bare reminder. Undecided whether to build it or rely on habit. A stale public
-  page is worse than none.
+  Settled 2026-09-11: **tbonin@nvc-home4you.eu owns status moves** (owner's call). The
+  routine around it — the **weekly order digest** — was decided and built 2026-10-01
+  (**not yet deployed, and OFF until `ORDER_DIGEST_ENABLED=true`**): every Monday 08:00
+  Sofia, to tbonin@ with the owner on the To line too (`ORDER_DIGEST_TO`; the internal
+  mail path has no Cc), every active order with the ones „Без движение" on top, and
+  nothing at all in a week with no active order. "Stuck" is the board's own rule — no move
+  and no carrier note in more than 14 days, in fabricating→ready — kept as a C# twin in
+  `OrderStaleness` that a test pins to the JSX. The email carries names, models, steps and
+  silence, never money (an inbox has none of the panel's protection), and links the board.
+
+  It asks "has this week's gone?" rather than only firing AT eight: App Service unloads an
+  idle app and eight on a Monday follows a weekend nobody visited, so a plain timer would
+  skip most weeks. An awake app sleeps exactly until 08:00; an asleep one sends at the first
+  hourly check after it wakes. The covered Monday is recorded in `%HOME%\data\nvc\`
+  (survives restarts and deploys, shared by every instance, re-read on every check), so a
+  week is sent once; a failed send stays owed and retries in an hour. `dotnet run --
+  order-digest` previews it into an .html in the temp folder, sending nothing; `--send`
+  mails it now. Reviewed by three lenses with a skeptic per finding before it was
+  committed: seven small fixes, among them the "today/yesterday" words counting wall-
+  calendar days in Sofia rather than 24-hour periods. A stale public page is worse than
+  none — this is the routine that keeps it from going stale.
 
 ### Content & trust (the compounding bets)
 

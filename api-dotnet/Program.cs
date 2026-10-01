@@ -110,6 +110,14 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     // Order tracking (#27): the staff board, the report, and the public /order/{code} view.
     builder.Services.AddScoped<Services.OrderTrackingService>();
 
+    // ...and the Monday digest of it. The worker checks its own switch
+    // (ORDER_DIGEST_ENABLED) and returns at once when off, the AuditArchiveWorker shape; the
+    // marker is the one fact it keeps across restarts — which Monday it last covered.
+    builder.Services.AddScoped<Services.OrderDigestService>();
+    builder.Services.AddSingleton(sp => new Services.OrderDigestMarker(
+        sp.GetRequiredService<ILogger<Services.OrderDigestMarker>>()));
+    builder.Services.AddHostedService<Services.OrderDigestWorker>();
+
     builder.Services.AddScoped<Services.SqlSavedConfigService>();
     builder.Services.AddScoped<Services.SavedConfigImportService>();
 
@@ -647,6 +655,68 @@ if (args.Length > 0 && args[0] == "import-payments-sheet")
         PrintList("Problems", sheetResult.Problems);
 
     return sheetResult.Problems.Count > 0 ? 1 : 0;
+}
+
+// The weekly order digest (#27), by hand. Without --send it is a PREVIEW: it reads the
+// board, prints what Monday's email would say and writes the email to an .html file in
+// the temp folder — never in the repo, it carries customers' names — sending nothing. With
+// --send it mails it now: to check the mail path after a deploy, or to resend a week. Neither
+// touches the marker the scheduled send keeps, so a hand-sent digest never cancels Monday's.
+if (args.Length > 0 && args[0] == "order-digest")
+{
+    // Cyrillic subject on a Windows console — see import-payments-sheet.
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+    using var digestScope = app.Services.CreateScope();
+    var digestService = digestScope.ServiceProvider.GetService<Services.OrderDigestService>();
+    var digestEnv = digestScope.ServiceProvider.GetRequiredService<Services.EnvConfig>();
+
+    if (digestService is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING), so there is no order board to read.");
+        return 1;
+    }
+
+    var digestNow = DateTimeOffset.UtcNow;
+
+    if (!args.Contains("--send"))
+    {
+        var preview = await digestService.BuildAsync(digestNow, CancellationToken.None);
+        Console.WriteLine("PREVIEW — nothing was sent.");
+        Console.WriteLine($"  active orders      : {preview.ActiveCount}");
+        Console.WriteLine($"  without movement   : {preview.Stalled.Count}");
+        // Both read from THIS machine's settings; the live site reads its own from App Service.
+        Console.WriteLine($"  would send to      : {digestEnv.OrderDigestTo}  (this machine's ORDER_DIGEST_TO)");
+        Console.WriteLine($"  scheduled send     : {(digestEnv.OrderDigestEnabled ? "ON" : "OFF")} here (ORDER_DIGEST_ENABLED); production's switch is in App Service");
+
+        if (preview.ActiveCount == 0)
+        {
+            Console.WriteLine("  no active orders, so Monday's run would send nothing.");
+            return 0;
+        }
+
+        var previewPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"order-digest-preview-{DateTime.UtcNow:yyyyMMddHHmmss}.html");
+        await System.IO.File.WriteAllTextAsync(previewPath,
+            $"<!doctype html><meta charset=\"utf-8\"><title>{System.Net.WebUtility.HtmlEncode(Services.OrderDigestService.Subject(preview))}</title>" +
+            Services.OrderDigestService.Html(preview, digestNow));
+        Console.WriteLine($"  subject            : {Services.OrderDigestService.Subject(preview)}");
+        Console.WriteLine($"  preview written    : {previewPath}");
+        return 0;
+    }
+
+    var digestResult = await digestService.SendAsync(digestNow, CancellationToken.None);
+    Console.WriteLine(digestResult.Outcome switch
+    {
+        Services.OrderDigestService.DigestOutcome.Sent =>
+            $"Sent to {string.Join(", ", digestResult.Recipients)}: {digestResult.Active} active, {digestResult.Stalled} without movement.",
+        Services.OrderDigestService.DigestOutcome.NothingActive =>
+            "No active orders — nothing was sent, as Monday's run would not send either.",
+        _ => $"NOT SENT: {digestResult.Error}",
+    });
+    return digestResult.Outcome is Services.OrderDigestService.DigestOutcome.Sent
+        or Services.OrderDigestService.DigestOutcome.NothingActive ? 0 : 1;
 }
 
 // Runs the audit archive by hand: emails everything older than the retention window and

@@ -151,6 +151,28 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 | `AUDIT_ARCHIVE_ENABLED` | `true` to switch on audit-log archiving. **Absent = nothing is ever deleted**, which is the safe default. |
 | `AUDIT_ARCHIVE_TO` | Where the archive CSV is emailed. Defaults to `vvladimirov@nvc-home4you.eu`. |
 | `AUDIT_RETENTION_MONTHS` | How much history stays in the panel. Defaults to 6; anything under 1 is ignored. |
+| `ORDER_DIGEST_ENABLED` | `true` to send the weekly order digest (Mondays 08:00 Sofia). **Absent = never sent.** |
+| `ORDER_DIGEST_TO` | Optional. Who gets it; defaults to `tbonin@nvc-home4you.eu,vvladimirov@nvc-home4you.eu`. |
+
+### Switching on the weekly order digest
+
+Off until `ORDER_DIGEST_ENABLED=true`, so a deploy never starts mailing people by itself and
+a laptop running the app for a prerender never sends the office its Monday email. Preview
+first, from the main device with the production SQL string set:
+
+```powershell
+cd api-dotnet
+dotnet run -- order-digest            # prints the counts, writes order-digest-preview-*.html
+dotnet run -- order-digest --send     # optional: mails it now, to check the mail path
+```
+
+Then set the flag in App Service. **The first digest goes out within a few minutes of the
+app restarting with it** — the week it is switched on is owed. After that, every Monday:
+at 08:00 sharp if the app is awake then, otherwise at the first hourly check after the app
+wakes up (an idle app is unloaded, and nobody visits on a Sunday night). The covered Monday
+is recorded in `%HOME%\data\nvc\order-digest-last-slot.txt`, so a week goes out once
+however often the app restarts. **To resend a week, use `--send`** — it mails it now and
+leaves that record alone.
 
 ### Switching on audit archiving
 

@@ -120,6 +120,11 @@ const TEXT = {
 // starting point chosen to be argued with: raise it the first time it nags about a factory
 // that always takes three weeks, lower it the first time a customer notices a delay before
 // we do. It is one number in one place precisely so that argument is cheap to settle.
+//
+// One place PER SIDE, since the Monday order digest (#27): the server keeps a twin of this
+// number and of MOVING_STATUSES below in OrderStaleness.cs, because the digest runs with no
+// browser. OrderDigestTests reads this file and fails when the two disagree — settle the
+// argument in both, in one commit.
 const STALE_AFTER_DAYS = 14
 
 // The statuses where silence is a problem, i.e. where something out in the world is

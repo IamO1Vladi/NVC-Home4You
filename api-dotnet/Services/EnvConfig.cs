@@ -279,6 +279,26 @@ public class EnvConfig
             ? months
             : 6;
 
+    // --- Weekly order digest (#27) ---------------------------------------------------
+    // The owner's decisions (2026-09-30): Mondays 08:00 Sofia, to tbonin@ — who moves every
+    // order along — with a copy to the owner, listing every active order with the ones
+    // without movement on top. See OrderDigestService.
+
+    /// <summary>
+    /// OFF unless explicitly switched on, like the audit archive and inbound mail: a deploy
+    /// must not start mailing people by itself, and a developer machine running the app
+    /// against production for a prerender must never send the office its Monday email.
+    /// </summary>
+    public bool OrderDigestEnabled =>
+        string.Equals((_cfg["ORDER_DIGEST_ENABLED"] ?? "").Trim(), "true", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Who gets it. Both on the To line: the internal mail path has no Cc, and growing one
+    /// would mean touching the code every customer email goes through to save a header.
+    /// </summary>
+    public string OrderDigestTo =>
+        (_cfg["ORDER_DIGEST_TO"] ?? "tbonin@nvc-home4you.eu,vvladimirov@nvc-home4you.eu").Trim();
+
     // --- AI-drafted replies ---------------------------------------------------------
     // Billed separately from any Claude subscription: this is an API key from
     // console.anthropic.com, and it joins the six-monthly renewal list.

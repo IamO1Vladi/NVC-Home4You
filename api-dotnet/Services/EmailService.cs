@@ -98,7 +98,9 @@ public class EmailService
     /// would send "thanks, got it" to somebody who never asked. Best-effort like the two
     /// above, because a mail failure must never take down the page that asked for it.
     /// </summary>
-    public async Task<bool> TrySendInternalReportAsync(
+    // Virtual for the same reason as the attachment variant below: the order digest's
+    // "a failed send stays owed" rule is tested against a transport made to fail on purpose.
+    public virtual async Task<bool> TrySendInternalReportAsync(
         IReadOnlyCollection<string> toEmails, string subject, string html, CancellationToken ct = default)
     {
         if (!IsConfigured || toEmails.Count == 0) return false;

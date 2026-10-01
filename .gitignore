@@ -58,3 +58,9 @@ a11y-report.json
 
 # Raw source renders handed over for conversion (the webp in public/box-config is what ships)
 incoming-plans/
+
+# Previews the CLI writes for a human to read. Both carry customer data (names, audit history),
+# so neither may ever reach the remote — the digest writes to the temp folder anyway, this is
+# the second lock on the door.
+audit-archive-preview-*.csv
+order-digest-preview-*.html

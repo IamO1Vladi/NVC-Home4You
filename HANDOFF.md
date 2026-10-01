@@ -42,6 +42,13 @@ was empty either way). Checking the live site settles such questions in a minute
      the panel the Второ плащане boxes, the Платено изцяло badge on Клиенти and Поръчки.
    - Then record the deploy here (Live row, test counts) and move #31/#32 to deployed.
 
+0b. **The weekly order digest (#27) is built and OFF** — on `master`, decided 2026-10-01
+   (Mondays 08:00 Sofia; tbonin@ + vvladimirov@; all active orders, stuck first). After it
+   is published: `dotnet run -- order-digest` on the main device to preview it, then set
+   `ORDER_DIGEST_ENABLED=true` in App Service — DEPLOY.md, "Switching on the weekly order
+   digest". The first one arrives a few minutes after the switch restarts the app. Check
+   the preview's count first: a legacy order left at „Приета" keeps a week "active" forever.
+
 1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
    live panel (2026-09-03) and everything works.** Nothing owed here. The one behaviour
    that only shows itself in anger: the „от <адрес>“ marker appears when a third party
