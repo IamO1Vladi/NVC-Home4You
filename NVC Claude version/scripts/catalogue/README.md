@@ -15,6 +15,15 @@ python gen_catalog.py  # write src/content/shared/boxConfiguratorOptions.js
 
 Requires `pymupdf` and `pillow`.
 
+## Greek
+
+`gen_catalog.py` writes en/bg only. The Greek for the generated finishes lives in
+`src/content/shared/boxConfiguratorOptionsEl.js`, keyed by the Bulgarian name and series
+heading the catalogue prints (the same keys as the `EN` map here), so a regeneration keeps
+it. After regenerating, run `npx vitest run src/content/shared` from `NVC Claude version`:
+`boxConfiguratorCatalog.el.test.js` names every new finish or series with no Greek yet (the
+site shows its English name in Greek until then) and every Greek line whose finish is gone.
+
 ## Shipping the catalogue as a public download
 
 The catalogue is also the "Бокс" brochure on the modular houses page — served from
