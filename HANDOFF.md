@@ -14,8 +14,8 @@ Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 | | |
 |---|---|
 | **Live** | `69f9724`, tagged **`deploy-2026-09-20`** — #28: kitchen appliance placement in the configurator, plus the retirement of the kitchen-extras section. SPA-only release: no API changes, **no migrations**. The bundle rehashed to `index-B6E00noi.js` and the snapshots were regenerated with it — 52/52 routes against a local app run with the SQL data-source flags, freshness guard clean before AND at publish. Verified live the same day, not just probed: the appliance stage renders on Интериор, stacking the hob on the oven produces the OV+HB dot with „позиция 1 · върху фурната", „Кухненски добавки" is gone, the live page's bundle reference resolves 200, and the browser console is clean. **What remains human:** the owner's eyeball pass over the slot-overlay sheet (a nudged dot = one line in `boxConfiguratorApplianceSlots.js` + redeploy), one real offer submission to see the appliance lines and the not-supplied disclaimer arrive in the sales mail, and the offerText-vs-4000-char measurement noted in the #28 DONE entry. |
-| **`production` branch** | **`136183a`+ — AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below) and #29, replies with up to 20 MB of files (verified by a real send as step 4b). The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
-| **`master`** | **`production` + #11, the Greek fixes** (5 commits, 2026-10-01, ending `1f197b6`; 903 .NET, 807 frontend). Includes the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. Whether it joins the big release is the first decision under Do next 0. SPA + API, no migration. |
+| **`production` branch** | **AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below), #29, replies with up to 20 MB of files (verified by a real send as step 4b), and — owner's decision 2026-10-01 — **#11, the Greek fixes**, which carry the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
+| **`master`** | = `production`. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
 | **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
@@ -27,19 +27,11 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **THE BIG RELEASE — #31 + #32 + #27 + #29, from the MAIN device.** Pushed and waiting:
-   `production` = `master`. The `AddPurchaseSecondPayment` migration is ALREADY applied to
-   production; #27 and #29 need no migration. Tests green at the release: 866 .NET, 500
-   frontend. In order:
+0. **THE BIG RELEASE — #31 + #32 + #27 + #29 + #11, from the MAIN device.** Pushed and
+   waiting: `production` = `master`. The `AddPurchaseSecondPayment` migration is ALREADY
+   applied to production; #27, #29 and #11 need no migration. Tests green at the release:
+   903 .NET, 807 frontend. In order:
 
-   0. **Decide on the Greek batch (#11).** `master` is 5 commits ahead of `production`: the
-      Greek audit's fixes, and with them the internal-doors enquiry fix (broken live since
-      2026-08-18 — a ReferenceError, no doors enquiry goes out in any language). It needs no
-      migration and rides the same prerender. To include it, BEFORE step 1:
-      `git checkout production; git pull; git merge --ff-only origin/master; git push`.
-      Tests then: 903 .NET, 807 frontend. If it goes, add to step 4: /el/diamorfotis-box-spitiou
-      shows Greek option names and „14.840 €"-style prices; /bg/interiorni-vrati's „review &
-      send" opens the form; a /el gallery product page names its category in Greek.
    1. **Pull and build.** `git checkout production; git pull`, then
       `cd "NVC Claude version"; npm run build`.
    2. **Prerender.** Start the app with `SQL_CONNECTION_STRING` **and**
@@ -55,7 +47,10 @@ was empty either way). Checking the live site settles such questions in a minute
       (position 2); the home page's „58" entry lands on B1 with the sink at position 2.
       Panel: Клиенти shows Второ плащане + Дата на второто плащане on a purchase and
       Платено изцяло once a client is settled; Поръчки shows the badge and the second
-      payment in the report line.
+      payment in the report line. Greek (#11): /el/diamorfotis-box-spitiou shows Greek
+      option names and „14.840 €"-style prices; a /el gallery product page names its
+      category in Greek. **The doors fix:** /bg/interiorni-vrati's „review & send" opens the
+      form (it has not since 2026-08-18) — send one real enquiry to see it arrive.
    4b. **Send a real large attachment (#29)** — the one part of this release that has only
       ever met a stub of Graph. From the panel, reply on a test lead whose address is a
       mailbox you can read, with one PDF of 5–15 MB and one small file. Expect: it sends,
@@ -74,7 +69,7 @@ was empty either way). Checking the live site settles such questions in a minute
       digest arrives a few minutes after that restart; then every Monday 08:00 Sofia.
       DEPLOY.md, "Switching on the weekly order digest", has the details.
    6. **Record it.** Here: the Live row, the test counts, and this item gone. In ROADMAP:
-      #31, #32 and #29 marked deployed, #27's digest marked live.
+      #31, #32, #29 and #11 marked deployed, #27's digest marked live.
 
 1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
    live panel (2026-09-03) and everything works.** Nothing owed here. The one behaviour
