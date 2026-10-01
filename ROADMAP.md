@@ -100,10 +100,6 @@ commits, notes and conversations still resolve.
 ### Platform & polish
 
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
-- [~] **11. Greek translation completeness audit** — **AUDIT DONE 2026-10-01; the fixes are
-  the open part.** 434 strings a Greek visitor meets in English or Bulgarian, in 34 groups:
-  298 of them in the box configurator, whose catalogue only speaks en/bg. The static page
-  copy is sound. Findings, causes and fixes: the "Greek audit" section below.
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
 - [ ] **33. A failed image retries forever on the home and modular-builds pages.** Found
   2026-09-30 while prerendering without Blob: `/bg` sent 13,412 requests in 15 s (~900/s),
@@ -134,6 +130,9 @@ commits, notes and conversations still resolve.
 ---
 
 ## Greek audit — the findings (#11)
+
+**Status 2026-10-01:** groups 1 and 2 of the order of work (end of this section) are BUILT —
+see #11 under DONE. Group 3 is the owner's data and files. Kept for the reasoning.
 
 Audited 2026-10-01, read-only, four ways at once, each checked by a skeptic that threw out
 false positives, then merged and challenged for completeness: the en/el content files key by
@@ -637,6 +636,39 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
    pick at import time.
 
 ## DONE — newest first
+
+- [x] **11. Greek translation completeness audit — and its fixes** (built 2026-10-01, **not
+  yet deployed**). The audit found 434 strings a Greek visitor met in English or Bulgarian
+  (the "Greek audit" section below). The owner split the order of work in three: groups 1
+  and 2 here, group 3 the owner's own.
+  - **Group 1, code only:** reviews and gallery pages printed raw keys ("Επαληθευμένη
+    modularBuilds", "MODULAR"); prices are el-GR ("14.840 €"); og:locale per page; the
+    order-tracking page speaks the customer's language (from the lead) and names the model
+    in it; the server shell's `<html lang>` follows the path, with Greek/Bulgarian 404
+    titles; the internal-doors enquiry carries its locale; the Greek email signature's
+    towns in Greek script. **Found on the way, and the reason to ship this soon: since
+    5a7fe40 (2026-08-18) the internal-doors "review & send" button threw a ReferenceError —
+    no doors enquiry could be sent in ANY language.** Fixed, with a test that opens the form.
+  - **Group 2, the configurator:** `byLocale`/`pick` take `el`; every hand-kept row, layout
+    subtitle and spec with words has Greek; the generated finish names (77 decors, 28 series) come from
+    `boxConfiguratorOptionsEl.js`, keyed by the generator's bg names so a regeneration keeps
+    it; Cyrillic codes read in Latin for el (БД-03 → BD-03); Greek markers; 46 el label
+    keys, and the 16 inline bg/en literals became content keys in all three languages. The
+    PDF, clipboard, prefill and toasts follow. bg and en were captured before and after and
+    are byte-identical.
+  - **The rest of the copy:** "Logistics" and other English inside Greek copy, Greek exonyms
+    on the route maps, Leaflet's controls, the floor planner's room names (no longer stored
+    as text, so a plan drawn in /bg shows Greek in /el), the "Planning" menu key, the
+    estimator's raw "Failed to fetch", the modular-houses size cell, card.svg.
+  - Reviewed twice: a code review and a Greek-language review, each finding put to a
+    skeptic; eight corrections survived (1f197b6), two were refuted (Δεσποτάκι IS the
+    Greek trade name for ash; Συμπαγής is ordinary Greek for compact).
+  - **Group 3 — the owner's, not code:** Greek review text, the featured case study's Greek,
+    gallery titleEl/descriptionEl, Greek brochure PDFs (Брошури), Greek or language-free
+    versions of the catalogue images, and the share card.
+  - **Open questions for the owner:** the modular-houses cell says 37 / 58 / 78 m² — is 78
+    meant to be 73? The Greek bathroom codes B1–B9 are spelled like the 58 m² layouts B1–B6.
+    The Greek was drafted here; a native speaker should read it before or soon after release.
 
 - [x] **29. Replies carry up to 20 MB of files** (built 2026-10-01, **not yet deployed**).
   Asked for by the owner 2026-09-10; the cap was 3 MB because that is Graph's ceiling for
