@@ -14,7 +14,7 @@ Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 | | |
 |---|---|
 | **Live** | `69f9724`, tagged **`deploy-2026-09-20`** — #28: kitchen appliance placement in the configurator, plus the retirement of the kitchen-extras section. SPA-only release: no API changes, **no migrations**. The bundle rehashed to `index-B6E00noi.js` and the snapshots were regenerated with it — 52/52 routes against a local app run with the SQL data-source flags, freshness guard clean before AND at publish. Verified live the same day, not just probed: the appliance stage renders on Интериор, stacking the hob on the oven produces the OV+HB dot with „позиция 1 · върху фурната", „Кухненски добавки" is gone, the live page's bundle reference resolves 200, and the browser console is clean. **What remains human:** the owner's eyeball pass over the slot-overlay sheet (a nudged dot = one line in `boxConfiguratorApplianceSlots.js` + redeploy), one real offer submission to see the appliance lines and the not-supplied disclaimer arrive in the sales mail, and the offerText-vs-4000-char measurement noted in the #28 DONE entry. |
-| **`production` branch** | **`136183a`+ — AHEAD of live, NOT published.** Pushed 2026-09-30 carrying #31 (second payment) and #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing). The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
+| **`production` branch** | **`136183a`+ — AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) and #27's weekly order digest (ships OFF; switched on as step 5 below). The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
 | **`master`** | = `production`. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
 | **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
@@ -27,27 +27,37 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **Finish the #31 + #32 publish — on the MAIN device.** Everything up to the prerender
-   is done: `production` is pushed, the migration is applied, tests are green (812 .NET,
-   497 frontend). What is left, in order:
-   - `git checkout production && git pull`, then `npm run build` in `NVC Claude version`.
-   - Start the app with **`SQL_CONNECTION_STRING` AND `BLOB_CONNECTION_STRING`** plus the
-     three `DATA_SOURCE_*=sql` flags (recipe below), then `npm run prerender` — expect
-     **52/52**. On 2026-09-30 the secondary device ran it without the Blob string: every
-     `/api/img` answered 404 in 1 ms and the home and modular-builds pages (7) timed out,
-     because of the retry loop in ROADMAP #33. Without Blob the snapshots would also bake
-     placeholder art in even where they finish, so the Blob string is not optional.
-   - Publish from VS Code; tag `deploy-YYYY-MM-DD`; probe live: the new A1–A3 renders and
-     kitchen dots on the configurator (sink on the drawn sink after picking A2/A3), and in
-     the panel the Второ плащане boxes, the Платено изцяло badge on Клиенти and Поръчки.
-   - Then record the deploy here (Live row, test counts) and move #31/#32 to deployed.
+0. **THE BIG RELEASE — #31 + #32 + #27, from the MAIN device.** Pushed and waiting:
+   `production` = `master`. The `AddPurchaseSecondPayment` migration is ALREADY applied to
+   production. Tests green at the release: 842 .NET, 497 frontend. In order:
 
-0b. **The weekly order digest (#27) is built and OFF** — on `master`, decided 2026-10-01
-   (Mondays 08:00 Sofia; tbonin@ + vvladimirov@; all active orders, stuck first). After it
-   is published: `dotnet run -- order-digest` on the main device to preview it, then set
-   `ORDER_DIGEST_ENABLED=true` in App Service — DEPLOY.md, "Switching on the weekly order
-   digest". The first one arrives a few minutes after the switch restarts the app. Check
-   the preview's count first: a legacy order left at „Приета" keeps a week "active" forever.
+   1. **Pull and build.** `git checkout production; git pull`, then
+      `cd "NVC Claude version"; npm run build`.
+   2. **Prerender.** Start the app with `SQL_CONNECTION_STRING` **and**
+      `BLOB_CONNECTION_STRING` plus the three `DATA_SOURCE_*=sql` flags (recipe below), then
+      `npm run prerender` in a second terminal — expect **52/52**. The Blob string is not
+      optional: without it every `/api/img` image 404s locally, the home and modular-builds
+      pages never go quiet (ROADMAP #33) and the snapshots would bake placeholder art in.
+      The secondary device stopped here on 2026-09-30 for exactly that reason (45/52).
+   3. **Publish.** Stop the local app, publish from VS Code, then
+      `git tag deploy-YYYY-MM-DD; git push --tags`.
+   4. **Probe live** (Ctrl+F5). Configurator: the new A1–A3 renders, kitchen dots on the
+      worktops, and the sink dot ON the drawn sink after picking A2 (position 4) and A3
+      (position 2); the home page's „58" entry lands on B1 with the sink at position 2.
+      Panel: Клиенти shows Второ плащане + Дата на второто плащане on a purchase and
+      Платено изцяло once a client is settled; Поръчки shows the badge and the second
+      payment in the report line.
+   5. **Switch on the weekly order digest (#27)** — it ships OFF. With the SQL string set:
+      `cd api-dotnet; dotnet run -- order-digest` previews it (counts on screen, the email
+      as an .html in the temp folder, nothing sent). Check the active count: an old order
+      left at „Приета" keeps every week "active", so the email would never skip a week.
+      Optional: `dotnet run -- order-digest --send` mails it now (needs the GRAPH_* settings
+      too). Then App Service → Environment variables → `ORDER_DIGEST_ENABLED` = `true`
+      (`ORDER_DIGEST_TO` only to change the default tbonin@ + vvladimirov@). The first
+      digest arrives a few minutes after that restart; then every Monday 08:00 Sofia.
+      DEPLOY.md, "Switching on the weekly order digest", has the details.
+   6. **Record it.** Here: the Live row, the test counts, and this item gone. In ROADMAP:
+      #31 and #32 marked deployed, #27's digest marked live.
 
 1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
    live panel (2026-09-03) and everything works.** Nothing owed here. The one behaviour
