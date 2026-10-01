@@ -266,6 +266,8 @@ export default {
         phone: 'Телефон',
         project: 'Детайли за проекта',
       },
+      // Labels the line naming the gallery model an offer was requested for.
+      model: 'Модел',
       submit: 'Изпрати',
     },
     question: {

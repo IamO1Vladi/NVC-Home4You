@@ -34,7 +34,13 @@ public class SqlLeadService : ILeadStore
                 Name = Trim(dto.Name, 200) ?? "",
                 Email = Trim(dto.Email, 320),
                 Phone = Trim(dto.Phone, 64),
-                Message = Trim(dto.Project, 4000),
+                // The model a gallery enquiry is about goes in front of the customer's words,
+                // where the truncation below cannot reach it. That puts it on every staff
+                // screen that shows the message — the Enquiries list and its search, the
+                // lead thread's first message, the drafted reply's context — without a
+                // column or a migration. Only the stored copy changes: the autoresponder
+                // still echoes dto.Project, the customer's own text.
+                Message = Trim(OfferModel.WithModelLine(OfferModel.From(dto), dto.Project), 4000),
                 ModelId = Trim(dto.ModelId, 100),
                 Locale = Trim(dto.Locale, 10),
                 CreatedAt = DateTimeOffset.UtcNow,

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { m, AnimatePresence } from 'framer-motion'
+import { lockScroll } from '../lib/scrollLock.js'
 
 function getFocusable(root) {
   return root
@@ -37,8 +38,9 @@ export default function Modal({ open, onClose, title, children, closeLabel = 'Cl
     if (open) {
       const nodes = getFocusable(ref.current)
       nodes[0]?.focus()
-      document.body.style.overflow = 'hidden'
-      return () => { document.body.style.overflow = '' }
+      // Shared and counted: the gallery's product modal can still be closing under this
+      // one, and its cleanup must not unlock the page behind this form. See scrollLock.js.
+      return lockScroll()
     }
     return undefined
   }, [open])

@@ -227,6 +227,25 @@ public class LeadServiceTests
     }
 
     [Fact]
+    public async Task A_public_id_two_houses_answer_to_links_to_neither()
+    {
+        // Live, 2026-10-02: the admin-created "Space house" (SQL id 15, no Quickbase id) and
+        // an imported house with Quickbase id 15 were both served as "15". The old two-step
+        // lookup took the imported one, so every Space house lead got the wrong building.
+        using var db = NewDb();
+        db.Houses.AddRange(
+            new House { Id = 3, QuickbaseRecordId = 15, Title = "Expandable 73", CategoryKey = HouseCategories.Modular },
+            new House { Id = 15, QuickbaseRecordId = null, Title = "Space house", CategoryKey = HouseCategories.Prefab });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Модел от сайта: Космическа къща\n\nHi", ModelId = "15" });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Null(lead.HouseId);
+        Assert.StartsWith("Модел от сайта: Космическа къща", lead.Activities.Single().Body);
+    }
+
+    [Fact]
     public async Task A_configurator_enquiry_has_no_model_id_and_links_to_no_house()
     {
         // The configurator deliberately sends no modelId — its models are square metres,

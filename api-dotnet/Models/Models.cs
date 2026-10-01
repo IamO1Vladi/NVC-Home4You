@@ -4,7 +4,13 @@ using System.Text.Json;
 
 namespace Models;
 
-public record OfferDto(string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null);
+// ModelTitle and ModelPath come with a gallery "request an offer" only: the model's
+// Bulgarian title and its Bulgarian page path, because the id alone is not unique on live
+// and staff read Bulgarian. Optional and trailing so every other caller, and every older
+// page still open in a browser, keeps working. Untrusted — see OfferModel.
+public record OfferDto(
+    string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null,
+    string? ModelTitle = null, string? ModelPath = null);
 public record QuestionDto(string Name, string Email, string Question, string? Locale = null);
 
 // Outcome of writing a lead. Deliberately not an int?: a null record id used to mean both

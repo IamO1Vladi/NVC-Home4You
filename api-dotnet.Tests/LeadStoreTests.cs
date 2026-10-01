@@ -98,6 +98,82 @@ public class SqlLeadServiceTests
         Assert.True(result.Ok);
         Assert.Equal(4000, db.Offers.Single().Message!.Length);
     }
+
+    // --- The gallery model, carried in the message ------------------------------------
+    //
+    // The id alone told sales nothing and is not unique on live, so a gallery enquiry's
+    // model is written into the message itself, where every staff screen already looks.
+
+    private static OfferDto GalleryOffer(string project, string? path = "/bg/galeriq/космическа-къща") =>
+        new("Ivan", "ivan@example.com", null, project, "15", "bg", "Космическа къща", path);
+
+    private static readonly string ModelLine =
+        "Модел от сайта: Космическа къща — https://nvc-home4you.eu/bg/galeriq/космическа-къща";
+
+    [Fact]
+    public async Task A_gallery_offer_opens_its_message_with_the_model()
+    {
+        using var db = NewDb();
+
+        var result = await Store(db).CreateOfferAsync(GalleryOffer("Delivery to Varna?"), CancellationToken.None);
+
+        Assert.True(result.Ok);
+        var saved = db.Offers.Single();
+        Assert.Equal(ModelLine + "\n\nDelivery to Varna?", saved.Message);
+        // The id is still stored where it always was.
+        Assert.Equal("15", saved.ModelId);
+    }
+
+    [Fact]
+    public async Task A_gallery_offer_with_no_text_still_records_the_model()
+    {
+        using var db = NewDb();
+
+        await Store(db).CreateOfferAsync(GalleryOffer(""), CancellationToken.None);
+
+        Assert.Equal(ModelLine, db.Offers.Single().Message);
+    }
+
+    [Fact]
+    public async Task A_path_that_is_not_our_product_page_is_stored_without_a_link()
+    {
+        using var db = NewDb();
+
+        await Store(db).CreateOfferAsync(GalleryOffer("Hi", path: "https://evil.example/bg/galeriq/x"), CancellationToken.None);
+
+        var message = db.Offers.Single().Message!;
+        Assert.Equal("Модел от сайта: Космическа къща\n\nHi", message);
+        Assert.DoesNotContain("evil.example", message);
+    }
+
+    [Fact]
+    public async Task An_offer_without_a_model_title_keeps_the_customers_text_as_it_was()
+    {
+        // The configurator, the plain form, and any page still open from before: no title,
+        // so nothing is prepended — not even for a bare id, which already has its column.
+        using var db = NewDb();
+
+        await Store(db).CreateOfferAsync(
+            new OfferDto("Ivan", "ivan@example.com", null, "Two-bedroom box house", "15", "bg"), CancellationToken.None);
+
+        Assert.Equal("Two-bedroom box house", db.Offers.Single().Message);
+    }
+
+    [Fact]
+    public async Task Truncation_eats_the_end_of_the_customers_text_never_the_model_line()
+    {
+        // A configurator-sized paste close to the limit: the model line is in front, so
+        // only the tail of the customer's text is lost.
+        using var db = NewDb();
+        var nearLimit = new string('x', 3990);
+
+        var result = await Store(db).CreateOfferAsync(GalleryOffer(nearLimit), CancellationToken.None);
+
+        Assert.True(result.Ok);
+        var message = db.Offers.Single().Message!;
+        Assert.Equal(4000, message.Length);
+        Assert.StartsWith(ModelLine + "\n\nxxx", message);
+    }
 }
 
 // Fake store so dual-write can be tested without a database or Quickbase.

@@ -637,6 +637,41 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **34. A gallery enquiry names its model** (built 2026-10-02, **not yet deployed**).
+  Owner, 2026-10-02: sales could not tell which model a gallery „Поискай оферта" was about.
+  Traced end to end, a jsdom probe of the real App proving it:
+  - **The model was thrown away.** Since 739a7f8 (2026-08-12) App cleared the selected
+    model on every pathname change, to stop a stale one riding on later enquiries. But the
+    product MODAL — how nearly every visitor reaches a model — closes itself with
+    navigate(-1) right after opening the form, so nearly every gallery enquiry posted an
+    empty modelId. Only a product page opened directly (Google, a shared link) kept it.
+    Now the model belongs to the open form: cleared on send and on close, and the pathname
+    guard stands down while the form is open.
+  - **An id is not enough.** Even when it arrived, the sales email ignored it and Запитвания
+    printed a bare number — and live has two houses answering to public id 15 (the
+    admin-created Space house and an imported Quickbase house). So the enquiry now carries
+    the house's Bulgarian title and Bulgarian page path as well (`modelTitle`/`modelPath`),
+    whatever language the visitor browsed in. The server cleans the title to one line and
+    accepts the path only as one of our gallery bases plus one slug-shaped segment, rebuilt
+    on our own site URL — a stranger cannot put an off-site link into the sales email.
+  - **Where staff see it:** the sales email gets a „Модел:" row (title linked to its page,
+    „(№id)" muted) and the title at the END of the subject — the prefix is unchanged, for
+    mail rules. The stored message starts with „Модел от сайта: <title> — <page>", so
+    Запитвания (preview and search), the lead's thread and the drafted reply all show it,
+    with no migration. The autoresponder still echoes only the customer's own words.
+  - **The visitor sees it:** the offer form shows „Модел: <title>" in their language.
+  - **Linking a lead to a house:** an id that answers to two houses now links to NEITHER
+    (it used to pick the imported one, so Space house leads got the 73 m² house and its
+    price in the drafted reply); staff link it by hand from the first line.
+  - Same flow: the product modal's cleanup unlocked the page under the offer form (now a
+    counted scroll lock, `lib/scrollLock.js`), and closing the form dropped keyboard focus
+    at the top of the page (it now returns to the gallery card).
+  - Reviewed through three lenses with a skeptic per finding: five confirmed and fixed
+    (the ambiguous id above, the scroll lock restoring another overlay's 'hidden', invisible
+    astral format characters in the title, the stored link percent-encoded into
+    unreadability, the focus), one refuted. Separate tickets, not done here: the id-15
+    collision itself, and product SEO/sitemap reading the Quickbase gallery (live 404s).
+
 - [x] **11. Greek translation completeness audit — and its fixes** (built 2026-10-01, **not
   yet deployed**). The audit found 434 strings a Greek visitor met in English or Bulgarian
   (the "Greek audit" section below). The owner split the order of work in three: groups 1

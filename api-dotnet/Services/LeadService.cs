@@ -513,29 +513,33 @@ public class LeadService
     ///
     /// Null when it doesn't resolve, and nothing is invented in CustomModel: a bare number
     /// is not a model name, and the customer's own description is already in the thread.
+    ///
+    /// Null, too, when the number answers to MORE than one house. The two id spaces are not
+    /// disjoint in practice — live had an admin-created house with SQL id 15 next to an
+    /// imported one with Quickbase id 15, both served as "15". Picking either would attach
+    /// the lead, and the drafter's price, to a house the customer may not have asked about;
+    /// an empty link is honest, and since 2026-10-02 the enquiry's first line names the
+    /// house ("Модел от сайта: …") for staff to link by hand.
     /// </summary>
     private async Task<int?> ResolveHouseIdAsync(string? modelId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(modelId)) return null;
         if (!long.TryParse(modelId.Trim(), out var n)) return null;
 
-        var byQuickbase = await _db.Houses
-            .AsNoTracking()
-            .Where(h => h.QuickbaseRecordId == n)
-            .Select(h => (int?)h.Id)
-            .FirstOrDefaultAsync(ct);
-        if (byQuickbase is not null) return byQuickbase;
-
         // House.Id is an int and QuickbaseRecordId is a long, so a model id larger than an
         // int cannot be a SQL primary key. Checking rather than casting: an unchecked cast
         // wraps, and a wrapped value would match a real, unrelated house.
-        if (n < int.MinValue || n > int.MaxValue) return null;
-        var sqlId = (int)n;
+        var fitsSqlId = n >= int.MinValue && n <= int.MaxValue;
+        var sqlId = fitsSqlId ? (int)n : 0;
 
-        return await _db.Houses
+        var candidates = await _db.Houses
             .AsNoTracking()
-            .Where(h => h.QuickbaseRecordId == null && h.Id == sqlId)
-            .Select(h => (int?)h.Id)
-            .FirstOrDefaultAsync(ct);
+            .Where(h => h.QuickbaseRecordId == n
+                || (fitsSqlId && h.QuickbaseRecordId == null && h.Id == sqlId))
+            .Select(h => h.Id)
+            .Take(2)
+            .ToListAsync(ct);
+
+        return candidates.Count == 1 ? candidates[0] : null;
     }
 }

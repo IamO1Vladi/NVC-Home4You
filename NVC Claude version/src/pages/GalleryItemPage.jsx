@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import SEO from '../components/SEO.jsx'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import '../style/Gallery.css'
@@ -21,6 +21,7 @@ import {
   buildMetaProductPayload,
 } from '../gallery/galleryUtils.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { paths } from '../routes/paths.js'
 
 function ProductBody({ item, content, locale, onRequestModel, onClose }) {
   const [activeImage, setActiveImage] = useState(0)
@@ -84,7 +85,20 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
                 const payload = buildMetaProductPayload(item, locale)
                 if (payload) window.fbq('track', 'AddToCart', payload)
               }
-              onRequestModel?.({ id: item.id, title, catalogId: getMetaContentId(item) })
+              onRequestModel?.({
+                id: item.id,
+                // What the visitor reads in the offer form, in their own language.
+                title,
+                // What the lead carries for staff, who read Bulgarian whatever language the
+                // visitor browsed in. The public id alone cannot name the house (two can
+                // share one), so the enquiry also gives its Bulgarian name and the page
+                // where staff can see it. Both helpers fall back exactly as the Bulgarian
+                // gallery itself does for an item with no Bulgarian fields, so the path is
+                // always one that gallery resolves.
+                titleBg: getLocalizedTitle(item, 'bg'),
+                path: `${paths.gallery.bg}/${getItemSlug(item, 'bg')}`,
+                catalogId: getMetaContentId(item),
+              })
               onClose()
             }}
           >
@@ -107,6 +121,23 @@ export default function GalleryItemPage({ locale, content, basePath, listPath, m
   const url = item ? `${basePath}/${getItemSlug(item, locale)}` : basePath
 
   const trackedViewContentRef = useRef(new Set())
+
+  // What had focus when the product modal opened: the gallery card, as GalleryModal never
+  // moves focus itself. See closeForOffer below.
+  const openerRef = useRef(null)
+  useLayoutEffect(() => {
+    if (modal) openerRef.current = document.activeElement
+  }, [modal])
+
+  // "Request an offer" opens the offer form and then closes this modal. The form records the
+  // focused element as the place to hand focus back to, and navigate(-1) is about to unmount
+  // this modal and its button with it, so the card the visitor came from takes focus first;
+  // closing the form then lands keyboard users back on it instead of at the top of the page.
+  const closeForOffer = () => {
+    if (!modal) return
+    if (openerRef.current?.isConnected) openerRef.current.focus()
+    navigate(-1)
+  }
 
 useEffect(() => {
   if (!item || typeof window === 'undefined' || typeof window.fbq !== 'function') return
@@ -163,7 +194,7 @@ useEffect(() => {
             {!modal && <Link className="btn mt-3" to={listPath}>{content.backToGallery}</Link>}
           </div>
         )}
-        {!loading && !error && item && <ProductBody item={item} content={content} locale={locale} onRequestModel={onRequestModel} onClose={ () => (modal && navigate(-1))} />}
+        {!loading && !error && item && <ProductBody item={item} content={content} locale={locale} onRequestModel={onRequestModel} onClose={closeForOffer} />}
       </div>
     </>
   )

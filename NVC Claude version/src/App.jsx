@@ -1,4 +1,4 @@
-import React, { useState, useCallback, lazy, Suspense, useEffect } from 'react'
+import React, { useState, useCallback, lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { LazyMotion, domAnimation } from 'framer-motion'
 import Header from './components/Header.jsx'
@@ -160,12 +160,44 @@ function AppShell() {
     setQuestionOpen(true)
   }, [])
 
-  // selectedModel is only ever set (from a gallery model's "request a quote"), so without
-  // this it stuck for the whole session: a visitor who looked at one house and later
-  // enquired from the configurator or the doors page sent that stale house id as the
-  // offer's Related Houses/Wagon, and sales saw the wrong product on the lead.
-  // A model reference belongs to the enquiry it was picked for and nothing after it.
+  // The gallery's "request an offer", for all three locales' gallery routes (it used to be
+  // three identical inline copies). Besides the id, the item page hands over the title the
+  // visitor reads in the form, and the Bulgarian title and page the lead carries for staff:
+  // the public id is not unique (an admin-created house can share one with a Quickbase
+  // house), so on its own it cannot tell sales which house was asked about.
+  // Not folded into openOfferModal: that one is handed straight to onClick in a couple of
+  // dozen places, so whatever it took as a model would be a click event.
+  const requestModel = useCallback((m) => {
+    const id = String(m?.id ?? m?.modelId ?? m?.modelID ?? '')
+    const title = m?.title ?? m?.name ?? ''
+    const titleBg = m?.titleBg ?? ''
+    const path = m?.path ?? ''
+    const catalogId = m?.catalogId ? String(m.catalogId) : ''
+    setSelectedModel(id ? { id, title, titleBg, path, catalogId } : null)
+    openOfferModal()
+  }, [openOfferModal])
+
+  // The pathname guard below must know whether the offer form is open without listing
+  // offerOpen as a dependency, or it would run on every open and close instead of on
+  // navigation. Declared BEFORE that effect on purpose: effects run in order, so when the
+  // form opens in the same render as a navigation, the guard already sees it open.
+  const offerOpenRef = useRef(false)
   useEffect(() => {
+    offerOpenRef.current = offerOpen
+  }, [offerOpen])
+
+  // A model reference belongs to the enquiry it was picked for and nothing after it, so
+  // submitting the offer and closing the form both clear it. It used to be cleared on every
+  // pathname change instead (before that it was never cleared, and a visitor who looked at
+  // one house and later enquired from the configurator sent that stale house as the offer's
+  // Related Houses/Wagon). But the gallery's product MODAL closes itself with navigate(-1)
+  // right after opening the form, which is a pathname change with the form open, so that
+  // clear emptied the model out of nearly every gallery enquiry and sales could not tell
+  // which house it was about. What is left is a guard for a model with no open form to
+  // belong to, and it stands down while the form is open, so a back navigation with the
+  // form up keeps the model too.
+  useEffect(() => {
+    if (offerOpenRef.current) return
     setSelectedModel(null)
   }, [location.pathname])
 
@@ -229,6 +261,11 @@ function AppShell() {
       phone: fd.get('phone') || '',
       project: fd.get('project') || '',
       modelId: fd.get('modelId') || '',
+      // The id can belong to two houses, so the model also travels by the Bulgarian name
+      // and page staff will recognise. All three are empty for an enquiry that was not
+      // started from a gallery model.
+      modelTitle: fd.get('modelTitle') || '',
+      modelPath: fd.get('modelPath') || '',
       locale: currentLocale,
     }
     if (!payload.name || !payload.email) return
@@ -244,6 +281,9 @@ function AppShell() {
     }
 
     setOfferOpen(false)
+    // The model belongs to this enquiry and no later one. Both the payload and the
+    // analytics above have already read it, so clearing it now loses nothing.
+    setSelectedModel(null)
     submitInBackground({
       url: API_BASE + '/api/offer',
       payload,
@@ -371,48 +411,9 @@ function AppShell() {
               <Route path={paths.faq.el} element={<ElFaqRoute />} />
               <Route path={paths.about.el} element={<ElAboutRoute />} />
               <Route path="/gallery" element={<Navigate to={galleryRedirect} replace />} />
-<Route
-  path="/bg/galeriq/*"
-  element={
-    <BgGalleryRoute
-      onRequestModel={(m) => {
-        const id = String(m?.id ?? m?.modelId ?? m?.modelID ?? '')
-        const title = m?.title ?? m?.name ?? ''
-        const catalogId = m?.catalogId ? String(m.catalogId) : ''
-        if (id) setSelectedModel({ id, title, catalogId })
-        openOfferModal()
-      }}
-    />
-  }
-/>
-<Route
-  path="/en/gallery/*"
-  element={
-    <EnGalleryRoute
-      onRequestModel={(m) => {
-        const id = String(m?.id ?? m?.modelId ?? m?.modelID ?? '')
-        const title = m?.title ?? m?.name ?? ''
-        const catalogId = m?.catalogId ? String(m.catalogId) : ''
-        if (id) setSelectedModel({ id, title, catalogId })
-        openOfferModal()
-      }}
-    />
-  }
-/>
-<Route
-  path="/el/gkaleri/*"
-  element={
-    <ElGalleryRoute
-      onRequestModel={(m) => {
-        const id = String(m?.id ?? m?.modelId ?? m?.modelID ?? '')
-        const title = m?.title ?? m?.name ?? ''
-        const catalogId = m?.catalogId ? String(m.catalogId) : ''
-        if (id) setSelectedModel({ id, title, catalogId })
-        openOfferModal()
-      }}
-    />
-  }
-/>
+              <Route path="/bg/galeriq/*" element={<BgGalleryRoute onRequestModel={requestModel} />} />
+              <Route path="/en/gallery/*" element={<EnGalleryRoute onRequestModel={requestModel} />} />
+              <Route path="/el/gkaleri/*" element={<ElGalleryRoute onRequestModel={requestModel} />} />
               <Route path={paths.faq.en} element={<EnFaqRoute />} />
               <Route path={paths.faq.bg} element={<BgFaqRoute />} />
               <Route path={paths.about.en} element={<EnAboutRoute />} />
@@ -469,6 +470,13 @@ function AppShell() {
 
           <Modal open={offerOpen} onClose={() => { setOfferOpen(false); setSelectedModel(null) }} title={ui.forms.offer.title} closeLabel={ui.common.close}>
             <form className="grid" style={{ gap: 10 }} onSubmit={submitOffer}>
+              {/* The house this enquiry is about, so the visitor can see the form knows it.
+                  Only for a request made from a gallery model; a generic offer shows none. */}
+              {selectedModel?.title ? (
+                <p className="offer-model" style={{ margin: 0 }}>
+                  {ui.forms.offer.model}: <strong>{selectedModel.title}</strong>
+                </p>
+              ) : null}
               <input name="name" required placeholder={ui.forms.offer.fields.name} autoComplete="name" />
               <input name="email" type="email" required placeholder={ui.forms.offer.fields.email} autoComplete="email" />
               <input name="phone" placeholder={ui.forms.offer.fields.phone} autoComplete="tel" />
@@ -476,6 +484,9 @@ function AppShell() {
                   exit animation kept the previous modal DOM alive across a quick reopen. */}
               <textarea key={offerPrefill || 'blank'} name="project" rows={offerPrefill ? 8 : 4} required placeholder={ui.forms.offer.fields.project} defaultValue={offerPrefill} />
               <input type="hidden" name="modelId" value={selectedModel?.id || ''} />
+              {/* Bulgarian whatever the visitor's language: these are for staff. */}
+              <input type="hidden" name="modelTitle" value={selectedModel?.titleBg || ''} />
+              <input type="hidden" name="modelPath" value={selectedModel?.path || ''} />
               <button className="btn" type="submit">{ui.forms.offer.submit}</button>
             </form>
           </Modal>

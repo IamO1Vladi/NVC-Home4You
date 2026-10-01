@@ -4,6 +4,7 @@ import { m, AnimatePresence } from 'framer-motion'
 // Shared with Lightbox and with the admin editor, so what staff format is exactly what
 // renders here. See src/lib/sanitizeRichText.js.
 import { sanitizeRichText as sanitizeDescription } from '../lib/sanitizeRichText.js'
+import { lockScroll } from '../lib/scrollLock.js'
 
 export default function GalleryModal({ open, onClose, children, closeLabel }) {
   useEffect(() => {
@@ -12,10 +13,12 @@ export default function GalleryModal({ open, onClose, children, closeLabel }) {
       if (e.key === 'Escape') onClose?.()
     }
     document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
+    // Shared and counted: "request an offer" opens the offer form BEFORE this modal closes,
+    // and this cleanup used to unlock the page behind that form. See scrollLock.js.
+    const unlockScroll = lockScroll()
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      unlockScroll()
     }
   }, [open, onClose])
 

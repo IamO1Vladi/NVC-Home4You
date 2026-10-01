@@ -270,6 +270,8 @@ export default {
         phone: 'Phone',
         project: 'Project details',
       },
+      // Labels the line naming the gallery model an offer was requested for.
+      model: 'Model',
       submit: 'Submit',
     },
     question: {

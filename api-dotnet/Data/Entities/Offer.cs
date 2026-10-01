@@ -26,9 +26,16 @@ public class Offer
 
     // The free-text "project" field from the modal. Configurator enquiries paste a whole
     // configuration summary in here, so it needs real room.
+    //
+    // A gallery enquiry's message opens with a "Модел от сайта: …" line written by
+    // SqlLeadService, ahead of the customer's own words. It lives here rather than in a
+    // column of its own so every screen that already shows the message shows the model.
     [MaxLength(4000)] public string? Message { get; set; }
 
-    // Set when the enquiry came from the Box house configurator rather than a plain form.
+    // The gallery model's public id, set when the enquiry came from a gallery "request an
+    // offer". The configurator deliberately leaves it empty (see BoxHouseConfiguratorPage),
+    // as does the plain form. The id is not unique on live, so the model's title and link
+    // are carried in the first line of Message instead — see OfferModel.
     [MaxLength(100)] public string? ModelId { get; set; }
 
     // Which language the customer was browsing in. Not written to Quickbase today, but the

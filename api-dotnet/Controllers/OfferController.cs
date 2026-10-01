@@ -28,8 +28,13 @@ public class OfferController : ControllerBase
         // Best-effort emails (never block capture): acknowledge the lead + notify sales.
         // The notification is also the safety net when the write did not land, so unlike
         // before its outcome is kept rather than discarded.
+        //
+        // The model a gallery enquiry is about goes to sales only. The autoresponder echoes
+        // the customer's own text and nothing else, so it never repeats back a title or a
+        // link that a stranger typed into the form.
         var autoresponder = _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: true, dto.Project, dto.Locale, ct);
-        var notification = _email.TrySendLeadNotificationAsync(isOffer: true, dto.Name, dto.Email, dto.Phone, dto.Project, ct);
+        var notification = _email.TrySendLeadNotificationAsync(
+            isOffer: true, dto.Name, dto.Email, dto.Phone, dto.Project, ct, model: OfferModel.From(dto));
         await Task.WhenAll(autoresponder, notification);
 
         return LeadResponse.For(this, _logger, "offer", dto.Email, write, salesNotified: await notification);

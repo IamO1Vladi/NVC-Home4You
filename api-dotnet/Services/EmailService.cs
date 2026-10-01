@@ -69,14 +69,17 @@ public class EmailService
 
     // Best-effort internal "new lead" notification to the sales inbox, with Reply-To set
     // to the lead so the team can respond directly. Never throws.
-    public async Task<bool> TrySendLeadNotificationAsync(bool isOffer, string name, string leadEmail, string? phone, string details, CancellationToken ct = default)
+    //
+    // The model comes after the token, against convention, so QuestionController's
+    // positional call keeps compiling: the question form never names a model.
+    public async Task<bool> TrySendLeadNotificationAsync(bool isOffer, string name, string leadEmail, string? phone, string details, CancellationToken ct = default, OfferModel? model = null)
     {
         if (!IsConfigured) return false;
         var recipients = ParseRecipients(_env.LeadNotifyEmail);
         if (recipients.Count == 0) return false;
         try
         {
-            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details);
+            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
             var replyTo = string.IsNullOrWhiteSpace(leadEmail) ? null : leadEmail.Trim();
@@ -470,8 +473,8 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         return Regex.Replace(encoded, @"https?://[^\s<]+", m => $@"<a href=""{m.Value}"">{m.Value}</a>");
     }
 
-    // Internal team notification (English) with the lead's contact details and submission.
-    private (string subject, string html) BuildLeadNotification(bool isOffer, string name, string leadEmail, string? phone, string details)
+    // Internal team notification (Bulgarian) with the lead's contact details and submission.
+    private (string subject, string html) BuildLeadNotification(bool isOffer, string name, string leadEmail, string? phone, string details, OfferModel? model = null)
     {
         var trimmedName = (name ?? "").Trim();
         var trimmedEmail = (leadEmail ?? "").Trim();
@@ -484,11 +487,19 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         // the sales inbox, so it follows the team's language rather than the visitor's.
         var kind = isOffer ? "запитване за оферта" : "въпрос";
 
+        // The model is a SUFFIX: the "Ново запитване за оферта: <name>" prefix stays exactly
+        // as it was, because mail rules in the sales inbox may key on it. OfferModel has
+        // already flattened the title to one line, which a subject header needs.
         var subject = $"Ново {kind}: {(string.IsNullOrEmpty(trimmedName) ? trimmedEmail : trimmedName)}";
+        if (model?.Title is { } modelTitle) subject += $" — {modelTitle}";
 
         var phoneRow = string.IsNullOrEmpty(safePhone)
             ? ""
             : $@"<p style=""margin:2px 0""><strong>Телефон:</strong> {safePhone}</p>";
+
+        var modelRow = model is null
+            ? ""
+            : $@"<p style=""margin:2px 0""><strong>Модел:</strong> {ModelHtml(model)}</p>";
 
         var html =
 $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.6;max-width:600px"">
@@ -496,6 +507,7 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1
   <p style=""margin:2px 0""><strong>Име:</strong> {(string.IsNullOrEmpty(safeName) ? "—" : safeName)}</p>
   <p style=""margin:2px 0""><strong>Имейл:</strong> <a href=""mailto:{safeEmail}"">{safeEmail}</a></p>
   {phoneRow}
+  {modelRow}
   <p style=""font-size:13px;color:#555;margin-top:16px"">Детайли:</p>
   <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>
   <hr style=""border:none;border-top:1px solid #eee;margin:20px 0"" />
@@ -503,5 +515,24 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1
 </div>";
 
         return (subject, html);
+    }
+
+    // The title, linked to its page when OfferModel accepted the path, then the id in muted
+    // text. The id stays visible because it is what the Enquiries page shows, and with no
+    // title (a page still open from before the title was sent) it is all there is.
+    // Every piece is encoded: all of it was typed into an anonymous public form.
+    private static string ModelHtml(OfferModel model)
+    {
+        var safeId = System.Net.WebUtility.HtmlEncode(model.Id ?? "");
+        if (model.Title is null) return $"№{safeId}";
+
+        var safeTitle = System.Net.WebUtility.HtmlEncode(model.Title);
+        var title = model.Url is null
+            ? safeTitle
+            : $@"<a href=""{System.Net.WebUtility.HtmlEncode(model.Url)}"">{safeTitle}</a>";
+
+        return model.Id is null
+            ? title
+            : $@"{title} <span style=""color:#888"">(№{safeId})</span>";
     }
 }

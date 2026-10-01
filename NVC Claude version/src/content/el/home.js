@@ -267,6 +267,8 @@ export default {
         phone: 'Τηλέφωνο',
         project: 'Λεπτομέρειες έργου',
       },
+      // Labels the line naming the gallery model an offer was requested for.
+      model: 'Μοντέλο',
       submit: 'Υποβολή',
     },
     question: {
