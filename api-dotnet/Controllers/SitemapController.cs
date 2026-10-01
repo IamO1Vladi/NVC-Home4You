@@ -11,7 +11,7 @@ namespace Controllers;
 /// <summary>
 /// Emits a sitemap of the dynamic gallery product pages (one entry per locale, with
 /// reciprocal hreflang alternates). The static pages live in /sitemap.xml; this
-/// covers the long-tail product URLs that are generated client-side from Quickbase.
+/// covers the long-tail product URLs that are generated client-side from the gallery.
 /// </summary>
 [ApiController]
 public class SitemapController : ControllerBase
@@ -22,8 +22,12 @@ public class SitemapController : ControllerBase
     // URLs the site answers with a 404.
     private static readonly (string Locale, string Prefix)[] Locales = GallerySlugs.Locales;
 
-    private readonly GalleryService _svc;
-    public SitemapController(GalleryService svc) { _svc = svc; }
+    // IGalleryStore, not GalleryService — for the same reason as GalleryController: which
+    // store answers is decided per request by DATA_SOURCE_GALLERY. Naming the Quickbase
+    // class submitted Quickbase's catalogue while production served SQL's, so the sitemap
+    // missed SQL-only houses and kept advertising titles already corrected in SQL.
+    private readonly IGalleryStore _svc;
+    public SitemapController(IGalleryStore svc) { _svc = svc; }
 
     [HttpGet("/sitemap-gallery.xml")]
     public async Task<IActionResult> GallerySitemap(CancellationToken ct)

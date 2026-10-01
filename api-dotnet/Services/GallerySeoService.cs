@@ -24,14 +24,19 @@ namespace Services;
 /// sitemap-gallery.xml submitted all of them. A missing canonical is a guess; a wrong one
 /// is an instruction.
 ///
-/// Reads through GalleryService, which is IMemoryCache-backed (10 min), so this costs a
-/// dictionary lookup on the hot path rather than a query per crawl.
+/// Reads through IGalleryStore, NOT GalleryService — the same store /api/gallery serves,
+/// chosen per request by DATA_SOURCE_GALLERY. Naming the Quickbase class here (as this did
+/// until 2026-10-02) resolved products against Quickbase while production served SQL: a
+/// house that exists only in SQL, or a title corrected there, answered 404 + noindex to
+/// crawlers while the SPA showed humans the page. Both stores keep a 10-minute
+/// IMemoryCache, so this still costs a dictionary lookup on the hot path rather than a
+/// query per crawl.
 /// </summary>
 public sealed class GallerySeoService
 {
-    private readonly GalleryService _gallery;
+    private readonly IGalleryStore _gallery;
 
-    public GallerySeoService(GalleryService gallery) => _gallery = gallery;
+    public GallerySeoService(IGalleryStore gallery) => _gallery = gallery;
 
     /// <summary>
     /// Outcome of resolving a gallery detail path.

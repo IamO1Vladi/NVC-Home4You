@@ -15,7 +15,7 @@ Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 |---|---|
 | **Live** | `69f9724`, tagged **`deploy-2026-09-20`** — #28: kitchen appliance placement in the configurator, plus the retirement of the kitchen-extras section. SPA-only release: no API changes, **no migrations**. The bundle rehashed to `index-B6E00noi.js` and the snapshots were regenerated with it — 52/52 routes against a local app run with the SQL data-source flags, freshness guard clean before AND at publish. Verified live the same day, not just probed: the appliance stage renders on Интериор, stacking the hob on the oven produces the OV+HB dot with „позиция 1 · върху фурната", „Кухненски добавки" is gone, the live page's bundle reference resolves 200, and the browser console is clean. **What remains human:** the owner's eyeball pass over the slot-overlay sheet (a nudged dot = one line in `boxConfiguratorApplianceSlots.js` + redeploy), one real offer submission to see the appliance lines and the not-supplied disclaimer arrive in the sales mail, and the offerText-vs-4000-char measurement noted in the #28 DONE entry. |
 | **`production` branch** | **AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below), #29, replies with up to 20 MB of files (verified by a real send as step 4b), and — owner's decision 2026-10-01 — **#11, the Greek fixes**, which carry the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. Then — owner's decision 2026-10-02 — **#34, a gallery enquiry names its model** (sales could not tell which house a gallery „Поискай оферта" was about; no migration). The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
-| **`master`** | = `production`. |
+| **`master`** | **`production` + the gallery SEO store fix** (`feature/gallery-seo-store`, 2026-10-02; 992 .NET). API-only, no migration, no SPA change. **The next publish fixes a LIVE SEO bug:** the product-page `<head>` tags and `sitemap-gallery.xml` read Quickbase while the site serves SQL, so a product that exists only in SQL, or whose title was corrected there, answers crawlers **404 + noindex**. Humans see the page; Google and email link-checkers get the 404. To ship it with the big release, do this before step 1 of Do next 0: `git checkout production; git pull; git merge --ff-only origin/master; git push`. The probe for it is in step 4, and the Search Console follow-up is Do next 5. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
 | **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
@@ -55,6 +55,12 @@ was empty either way). Checking the live site settles such questions in a minute
       „Поискай оферта": the form shows „Модел: <name>". Send it: the sales email has a
       „Модел:" row with the name linked to its page and the name at the end of the
       subject, and Запитвания shows „Модел от сайта: …" as the message's first line.
+      **Gallery SEO store fix:** check the HTTP status, not the page (the SPA renders it
+      either way): `curl.exe -s -o NUL -w "%{http_code}" <url>` for
+      `/en/gallery/space-house`, `/bg/galeriq/космическа-къща-капсула` and
+      `/en/gallery/panoramic-box-house-37-m2` must answer **200**. They answered 404 on
+      2026-10-02. `/sitemap-gallery.xml` must list one `<loc>` per item per locale (45 for
+      today's 15 items; it was 42), including `space-house`, with no `panaromic`.
    4b. **Send a real large attachment (#29)** — the one part of this release that has only
       ever met a stub of Graph. From the panel, reply on a test lead whose address is a
       mailbox you can read, with one PDF of 5–15 MB and one small file. Expect: it sends,
@@ -128,11 +134,29 @@ was empty either way). Checking the live site settles such questions in a minute
    a small edit, **Фабрични поръчки**, and accepting the factory-sheet import banner on
    whichever browser still holds the old localStorage copy.
 
-5. **Search Console, the remainder**: request indexing for the 26 clean product URLs
-   (~10/day), then the 16 corrected ones from a fresh `sitemap-gallery.xml`. **The two title
-   fixes are done** — verified 2026-08-19 against the live `/api/gallery`: no `Panaromic`
-   survives, and no otherwise-Latin string in the payload contains a Cyrillic character.
-   Nothing is left here but the indexing requests themselves.
+5. **Search Console: RESUBMIT `sitemap-gallery.xml` once the gallery SEO store fix is
+   live** (Sitemaps → the gallery sitemap → resubmit). Until then the sitemap was built from
+   Quickbase, not from the SQL catalogue the site serves. So "the two title fixes are done"
+   (verified 2026-08-19) was true of `/api/gallery` and the SPA, but **never reached
+   crawlers**: the sitemap and the server's 200/404 answer still carried Quickbase's titles.
+   Diffing the live sitemap against the live `/api/gallery` on 2026-10-02 showed this:
+   - **404 until the fix, 200 after it. Request indexing:** `/en/gallery/space-house`,
+     `/bg/galeriq/космическа-къща-капсула`, `/el/gkaleri/φουτουριστική-κατοικία-κάψουλα`,
+     `/en/gallery/panoramic-box-house-37-m2`, and
+     `/en/gallery/expandable-house-{58,73}m2-with-balcony-and-a-double-roof`.
+   - **200 until the fix, 404 after it:** `/en/gallery/panaromic-box-house-37-m2` and the two
+     `…-and-а-double-roof` URLs, whose "а" is Cyrillic. They resolve only against the old
+     Quickbase titles. The legacy-slug 301 does not catch them, because it covers the
+     2026-08-17 change to the slug ALGORITHM, not retitled products. Google will drop them
+     on its own. **Owner's call:** whether to 301 these three to their corrected URLs
+     instead. That would be a small follow-up (`GalleryStoreWiringTests` pins the 404
+     today).
+
+   Then, as before, request indexing for the remaining product URLs (~10/day).
+   **Separately in flight:** another task is fixing the duplicate public id 15 (Space house
+   and the 73 m² house both serve `id: 15` from `/api/gallery`), which breaks the
+   uniqueness of the JSON-LD `sku`. Slugs, the sitemap and the product tags do not key on
+   id, so this fix does not depend on it, but the SEO is not clean until both are live.
 6. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
    The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
    from the admin Поръчки board. There will be no carrier account and no feed.** That turns
@@ -267,6 +291,16 @@ real HTTP 404 while React rendered the page underneath). `SpaFallbackRouteTests`
 now. **Probing the live URL is the only check that catches this class**, which is why it is
 worth doing after every publish that adds a route.
 
+### Anything public that reads the gallery takes `IGalleryStore`, never `GalleryService`
+
+`GalleryService` is the Quickbase implementation. Production reads the gallery from SQL via
+`DATA_SOURCE_GALLERY=sql`, and only `IGalleryStore` follows that flag. The product SEO tags
+and the sitemap named the concrete class, and that went unnoticed for weeks (found
+2026-10-02). The SPA rendered every page correctly while the server answered crawlers
+from Quickbase's catalogue. `GalleryStoreWiringTests` now refuses any constructor that
+names a concrete gallery store, except `GalleryImportService`, whose job is to read
+Quickbase.
+
 
 ### Saved configurator links
 
@@ -331,6 +365,6 @@ hyphens). Validating is not qualifying; the error message names the requirement.
 |---|---|---|
 | `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
 | Graph / email credentials | Autoresponder, replies, config emails, **audit archive mail** | Forms still submit |
-| Quickbase token | Only the #21 import tooling now | Everything live |
+| Quickbase token | Only the #21 import tooling now. That is true once the gallery SEO store fix is live; before it, product-page tags and `sitemap-gallery.xml` read Quickbase too | Everything live |
 
 Renewal steps in DEPLOY.md. A calendar reminder two weeks ahead is the actual fix.

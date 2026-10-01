@@ -1508,7 +1508,8 @@ app.MapFallback(async context =>
         // Gallery product pages. Not in the manifest and they cannot be — products are
         // database rows that staff rename through the admin panel, so build-time tags
         // would be stale the first time somebody edits a title. Resolved per request
-        // instead, off the 10-minute cache GalleryService already keeps.
+        // instead, off the 10-minute cache the IGalleryStore (Quickbase or SQL, whichever
+        // DATA_SOURCE_GALLERY picks) already keeps.
         //
         // Without this branch the default shell block survives, and that block canonicals
         // to "/" — which told Google every product page was a duplicate of the homepage
