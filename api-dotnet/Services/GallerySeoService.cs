@@ -85,9 +85,8 @@ public sealed class GallerySeoService
     /// 2. Minted from a title the product no longer has — GallerySlugs.RetiredSlugs. That one
     ///    IS a list, because an old title is data the catalogue no longer holds.
     ///
-    /// Asked only after the current-slug lookup has already missed, so a live product can
-    /// never be redirected away, and this is what stands between "we corrected it" and
-    /// "every URL ever shared or indexed for it now 404s".
+    /// This is what stands between "we corrected it" and "every URL ever shared or indexed
+    /// for it now 404s".
     /// </summary>
     public async Task<string?> TryResolveLegacyAsync(string path, CancellationToken ct)
     {
@@ -97,24 +96,38 @@ public sealed class GallerySeoService
         try { items = await _gallery.GetAsync(ct); }
         catch { return null; }
 
+        return StalePath(items, locale, slug, GallerySlugs.RetiredSlugs);
+    }
+
+    /// <summary>
+    /// The rules behind TryResolveLegacyAsync, over a given catalogue and retired-slug table
+    /// — public so they can be pinned with entries the live table does not hold yet (a Greek
+    /// retitle, say), without a store or a request.
+    /// </summary>
+    public static string? StalePath(
+        IReadOnlyList<GalleryItem> items,
+        string locale,
+        string slug,
+        IEnumerable<(string Locale, string OldSlug, string CurrentSlug)> retired)
+    {
+        // A LIVE address is never redirected, whatever else it matches. The fallback only
+        // asks after the live lookup has missed, but this must not lean on the caller: a
+        // retitled product whose old title comes back, or one product's old slug becoming
+        // another's current one, would otherwise send a visitor away from a page that
+        // exists. It is also what makes a redirect to itself — an infinite loop — impossible.
+        if (items.Any(i => string.Equals(GallerySlugs.SlugFor(i, locale), slug, StringComparison.OrdinalIgnoreCase)))
+            return null;
+
         var item = items.FirstOrDefault(
             i => string.Equals(GallerySlugs.LegacySlugFor(i, locale), slug, StringComparison.OrdinalIgnoreCase));
 
-        if (item is null && GallerySlugs.RetiredTarget(locale, slug) is { } target)
+        if (item is null && GallerySlugs.RetiredTarget(retired, locale, slug) is { } target)
         {
             item = items.FirstOrDefault(
                 i => string.Equals(GallerySlugs.SlugFor(i, locale), target, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (item is null) return null;
-
-        // Unreachable in practice — an identical slug would have matched on the current
-        // algorithm and never got here — but a product page that redirects to itself is an
-        // infinite loop, so it is not worth leaving to reasoning.
-        if (string.Equals(GallerySlugs.SlugFor(item, locale), slug, StringComparison.OrdinalIgnoreCase))
-            return null;
-
-        return GallerySlugs.PathFor(item, locale);
+        return item is null ? null : GallerySlugs.PathFor(item, locale);
     }
 
     private static readonly Dictionary<string, string> OgLocale = new()

@@ -12,14 +12,15 @@ namespace ApiDotnet.Tests;
 // 301s for products that were RETITLED (GallerySlugs.RetiredSlugs).
 //
 // Three English titles were corrected in August 2026 — 'Panaromic', and a Cyrillic "а" in
-// "and а double roof" on the 58 m² and 73 m² houses. Their old addresses were in
-// sitemap-gallery.xml until 2026-10-02, so they are in Google's index and in shares, and
-// the SPA cannot match them to anything: a visitor following one gets "Model not found".
+// "and а double roof" on the 58 m² and 73 m² houses. Their old addresses stay in
+// sitemap-gallery.xml until the store fix (e60853c) is published, so they are in Google's
+// index and in shares, and the SPA cannot match them to anything: a visitor following one
+// gets "Model not found".
 // These pin that each old address now lands on its product instead — and that the list
 // can only ever redirect to a page that exists.
 public class GalleryRetiredSlugTests
 {
-    private const char CyrillicA = 'а';
+    private const char CyrillicA = '\u0430';
 
     // Current titles verbatim from the live SQL catalogue (/api/gallery, 2026-10-02).
     private static readonly GalleryItem Panoramic = new()
@@ -138,24 +139,108 @@ public class GalleryRetiredSlugTests
     [Fact]
     public async Task A_product_that_holds_a_retired_slug_again_is_served_not_redirected()
     {
-        // Retired entries are only consulted after the live lookup misses, so a title that
-        // comes back is a page again rather than being redirected away from.
+        // A title that comes back is a page again: the live lookup resolves it, AND the
+        // resolver itself refuses to redirect it, whichever order a caller asks in.
+        const string path = "/en/gallery/panaromic-box-house-37-m2";
         var back = new GalleryItem { Id = 99, Title = "Panaromic Box House – 37 m²" };
+        var seo = Seo(Panoramic, back);
 
-        var (outcome, _) = await Seo(Panoramic, back).TryBuildAsync(
-            "/en/gallery/panaromic-box-house-37-m2", CancellationToken.None);
-
+        var (outcome, _) = await seo.TryBuildAsync(path, CancellationToken.None);
         Assert.Equal(GallerySeoService.Outcome.Resolved, outcome);
+
+        Assert.Null(await seo.TryResolveLegacyAsync(path, CancellationToken.None));
     }
 
     [Theory]
     [InlineData("/en/gallery/panoramik-box-house-37-m2")]                         // a typo nobody minted
     [InlineData("/en/gallery/expandable-house-58m2-with-balcony-and-double-roof")]
     [InlineData("/en/gallery/expandable-house-37-m2-with-balcony-and-a-double-roof")]
-    [InlineData("/bg/galeriq/panaromic-box-house-37-m2")]                         // entries are per locale
     public async Task Nothing_else_is_redirected(string path)
     {
         Assert.Null(await Catalogue().TryResolveLegacyAsync(path, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Entries_are_per_locale()
+    {
+        // With no Bulgarian title, the product's /bg/ slug falls back to the English one —
+        // exactly the case where an entry leaking across locales WOULD find a target. It
+        // must not: the English typo was never a Bulgarian address.
+        var englishOnly = new GalleryItem { Id = 16, Title = "Panoramic Box House – 37 m²" };
+        var seo = Seo(englishOnly);
+
+        Assert.Equal(
+            "/en/gallery/panoramic-box-house-37-m2",
+            await seo.TryResolveLegacyAsync("/en/gallery/panaromic-box-house-37-m2", CancellationToken.None));
+        Assert.Null(await seo.TryResolveLegacyAsync("/bg/galeriq/panaromic-box-house-37-m2", CancellationToken.None));
+    }
+
+    // --- The rules, over a table the live one does not hold yet --------------------------
+    //
+    // ROADMAP #11 Group 3 has the owner retitling seven Greek titles that carry English
+    // words. Greek is where the two slug algorithms differ, so it is where these matter.
+
+    private const string OldEl = "Πανοραμικό Box House – 37 m²";
+    private const string NewEl = "Πανοραμική κατοικία Box – 37 m²";
+
+    private static readonly GalleryItem RetitledEl = new()
+    {
+        Id = 16,
+        Title = "Panoramic Box House – 37 m²",
+        TitleEl = NewEl,
+    };
+
+    private static readonly (string, string, string)[] GreekTable =
+    {
+        ("el", GallerySlugs.Slugify(OldEl), GallerySlugs.Slugify(NewEl)),
+    };
+
+    [Fact]
+    public void A_retired_greek_address_redirects_in_both_its_forms()
+    {
+        // One row covers the old title's current-algorithm slug AND the pre-2026-08-17 form
+        // links minted before the algorithm change carry. The legacy matcher only re-slugs
+        // CURRENT titles, so after a retitle nothing else would catch the second one.
+        var expected = GallerySlugs.PathFor(RetitledEl, "el");
+        var items = new[] { RetitledEl };
+
+        Assert.NotEqual(GallerySlugs.Slugify(OldEl), GallerySlugs.LegacySlugify(OldEl));   // the case is real
+
+        Assert.Equal(expected, GallerySeoService.StalePath(items, "el", GallerySlugs.Slugify(OldEl), GreekTable));
+        Assert.Equal(expected, GallerySeoService.StalePath(items, "el", GallerySlugs.LegacySlugify(OldEl), GreekTable));
+    }
+
+    [Fact]
+    public void A_live_address_is_never_redirected_even_where_the_old_algorithm_misses_it()
+    {
+        // The old title came back on a DIFFERENT product. Its Greek slug is not what the
+        // legacy matcher produces (accents), so only the live-address guard stops the
+        // retired row from sending its visitors to the retitled product instead.
+        var cameBack = new GalleryItem { Id = 99, Title = "Panoramic Box House", TitleEl = OldEl };
+
+        Assert.Null(GallerySeoService.StalePath(
+            new[] { RetitledEl, cameBack }, "el", GallerySlugs.Slugify(OldEl), GreekTable));
+    }
+
+    [Theory]
+    // Every Greek and Bulgarian title shape live today, plus the letters that decompose.
+    [InlineData("Πανοραμικό Box House – 37 m²")]
+    [InlineData("Σπίτι τύπου Container με επένδυση – 6000 × 3000 mm")]
+    [InlineData("Σπίτι τύπου Container – 8000 × 3000 mm με δίρριχτη στέγη")]
+    [InlineData("Αναπτυσσόμενη κατοικία — 58 m²")]
+    [InlineData("Διώροφη αναπτυσσόμενη κατοικία — 74 m²")]
+    [InlineData("Φουτουριστική κατοικία-κάψουλα")]
+    [InlineData("Ϊ ΐ ΰ ϋ")]
+    [InlineData("Контейнерна къща – 8000*3000мм с двускатен покрив")]
+    [InlineData("Разгъваема къща – 37 м² с веранда и двоен покрив")]
+    [InlineData("ёЁ йЙ")]
+    [InlineData("Expandable House – 37 m²")]
+    public void The_old_algorithm_over_a_slug_equals_the_old_algorithm_over_its_title(string title)
+    {
+        // What RetiredTarget's second match rests on: the table holds the old SLUG, but a
+        // pre-August link was made from the old TITLE. Running the old algorithm over either
+        // must give the same address, or the one-row rule silently misses those links.
+        Assert.Equal(GallerySlugs.LegacySlugify(title), GallerySlugs.LegacySlugify(GallerySlugs.Slugify(title)));
     }
 
     // --- The table itself ---------------------------------------------------------------
@@ -163,7 +248,7 @@ public class GalleryRetiredSlugTests
     [Fact]
     public void The_cyrillic_entries_really_hold_the_cyrillic_letter()
     {
-        // Invisible in a diff. An editor "tidying" the а escape into a Latin a would
+        // Invisible in a diff. An editor "tidying" the \u0430 escape into a Latin a would
         // turn both entries into self-redirects that never match, silently.
         Assert.Equal(2, GallerySlugs.RetiredSlugs.Count(r => r.OldSlug.Contains(CyrillicA)));
         Assert.All(GallerySlugs.RetiredSlugs, r => Assert.DoesNotContain(CyrillicA, r.CurrentSlug));

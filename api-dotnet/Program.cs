@@ -1345,8 +1345,10 @@ var retiredPages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCa
 
 foreach (var (from, to) in retiredPages)
 {
+    // Query kept, like CanonicalHost and the gallery's stale-address 301: tracking
+    // parameters on an old shared link should survive the hop.
     var target = to;
-    app.MapGet(from, () => Results.Redirect(target, permanent: true));
+    app.MapGet(from, (HttpContext ctx) => Results.Redirect(target + ctx.Request.QueryString, permanent: true));
 }
 
 // --- Server-side SEO tag injection for SPA routes ------------------------------------
@@ -1531,7 +1533,11 @@ app.MapFallback(async context =>
             var moved = await seo.TryResolveLegacyAsync(path, context.RequestAborted);
             if (moved is not null)
             {
-                context.Response.Redirect(moved, permanent: true);
+                // The query rides along: shared and ad links carry fbclid / utm_* / gclid,
+                // which GA4 and the Meta pixel read off the landing URL — CanonicalHost keeps
+                // it for the same reason. And the return matters: without it the 404 below
+                // overwrites the 301. Both pinned by SpaFallbackRouteTests.
+                context.Response.Redirect(moved + context.Request.QueryString, permanent: true);
                 return;
             }
 

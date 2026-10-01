@@ -701,6 +701,11 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   - **Group 3 — the owner's, not code:** Greek review text, the featured case study's Greek,
     gallery titleEl/descriptionEl, Greek brochure PDFs (Брошури), Greek or language-free
     versions of the catalogue images, and the share card.
+    **A gallery titleEl change MOVES that product's /el/ address** (the URL is the title).
+    Seven are due: ids 13, 6, 8, 14, 7, 16 and 12. Do them in one batch and tell the
+    developer. The developer adds one `GallerySlugs.RetiredSlugs` row per product, so that
+    the old indexed address 301s instead of showing "Model not found", and publishes soon
+    after. HANDOFF, "Renaming a product moves its address", has the steps.
   - **Open questions for the owner:** the modular-houses cell says 37 / 58 / 78 m² — is 78
     meant to be 73? The Greek bathroom codes B1–B9 are spelled like the 58 m² layouts B1–B6.
     The Greek was drafted here; a native speaker should read it before or soon after release.

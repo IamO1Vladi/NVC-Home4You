@@ -81,4 +81,36 @@ public class SpaFallbackRouteTests
         Assert.Contains("else if (!IsKnownSpaRoute(path))", source);
         Assert.Contains("StatusCodes.Status404NotFound", source);
     }
+
+    [Fact]
+    public void A_product_url_at_a_stale_address_is_a_301_that_keeps_its_query()
+    {
+        // Which stale addresses resolve, and where to, is GalleryRetiredSlugTests'; this pins
+        // what the server does with the answer. Permanent, because Google keeps a temporarily
+        // redirected URL indexed. The query string, because shared and ad links carry
+        // fbclid / utm_* / gclid. And the return, because Redirect() only sets headers: fall
+        // through and the 404 written just below overwrites the 301.
+        //
+        // A text check, like the rest of this file — it pins the shape, and would still pass
+        // if somebody wrapped the lookup in a condition that never runs.
+        var source = ProgramSource();
+
+        var start = source.IndexOf("Outcome.ProductNotFound", StringComparison.Ordinal);
+        Assert.True(start >= 0, "the product-not-found branch has moved or been renamed");
+        var branch = source[start..];
+        branch = branch[..branch.IndexOf("StatusCodes.Status404NotFound", StringComparison.Ordinal)];
+
+        Assert.Contains("seo.TryResolveLegacyAsync(path", branch);
+        Assert.Matches(
+            @"context\.Response\.Redirect\(moved \+ context\.Request\.QueryString, permanent: true\);\s*return;",
+            branch);
+    }
+
+    [Fact]
+    public void The_retired_page_redirects_keep_their_query_too()
+    {
+        var source = ProgramSource();
+
+        Assert.Contains("Results.Redirect(target + ctx.Request.QueryString, permanent: true)", source);
+    }
 }

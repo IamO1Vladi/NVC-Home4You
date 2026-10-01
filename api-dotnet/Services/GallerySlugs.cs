@@ -148,9 +148,15 @@ public static class GallerySlugs
     /// Data, not algorithm — LegacySlugify covers the algorithm change. A corrected title
     /// leaves its old URL in Google's index, in old emails and in shares, and the SPA cannot
     /// match it to anything, so without this a visitor lands on "Model not found". These
-    /// are the August 2026 corrections ('Panaromic', and a CYRILLIC а inside two English
-    /// titles); crawlers kept getting the old URLs as live pages until 2026-10-02, because
-    /// the SEO path read Quickbase's uncorrected copy rather than SQL.
+    /// are the August 2026 corrections ('Panaromic', and a CYRILLIC letter inside two
+    /// English titles). Crawlers were still served the old URLs as live pages after that,
+    /// because until the store fix (e60853c) the SEO path read Quickbase's uncorrected copy.
+    ///
+    /// ONE ROW PER RETITLE, in the current algorithm's form. A link minted before the
+    /// 2026-08-17 algorithm change carries the old title's LegacySlugify form instead — for
+    /// any Greek title, or Bulgarian with й — and RetiredTarget matches that too, by
+    /// re-running the old algorithm over the old slug (which equals running it over the old
+    /// title; GalleryRetiredSlugTests pins that).
     ///
     /// The target is a CURRENT slug looked up in the catalogue per request, never a stored
     /// path, so an entry whose house is unpublished or retitled again answers 404 rather
@@ -158,26 +164,35 @@ public static class GallerySlugs
     /// old slug here AND pointing the older entry at the new target — the tests refuse a
     /// chain, because one hop is all the lookup follows.
     ///
-    /// Slugs are compared as they arrive, URL-decoded. "а" is the Cyrillic letter,
-    /// written as an escape because on screen it is indistinguishable from the Latin "a".
+    /// Slugs are compared as they arrive, URL-decoded. "\u0430" is the Cyrillic letter, written
+    /// as an escape because on screen it is indistinguishable from the Latin "a".
     /// </summary>
     public static readonly (string Locale, string OldSlug, string CurrentSlug)[] RetiredSlugs =
     {
         ("en", "panaromic-box-house-37-m2",
                "panoramic-box-house-37-m2"),
-        ("en", "expandable-house-58m2-with-balcony-and-а-double-roof",
+        ("en", "expandable-house-58m2-with-balcony-and-\u0430-double-roof",
                "expandable-house-58m2-with-balcony-and-a-double-roof"),
-        ("en", "expandable-house-73m2-with-balcony-and-а-double-roof",
+        ("en", "expandable-house-73m2-with-balcony-and-\u0430-double-roof",
                "expandable-house-73m2-with-balcony-and-a-double-roof"),
     };
 
-    /// <summary>The current slug a retired address moved to, or null if it is not one.</summary>
-    public static string? RetiredTarget(string locale, string slug)
+    /// <summary>
+    /// The current slug a retired address moved to, or null if it is not one. Matches an
+    /// entry's old slug as written and in its pre-2026-08-17 form — see RetiredSlugs.
+    /// </summary>
+    public static string? RetiredTarget(
+        IEnumerable<(string Locale, string OldSlug, string CurrentSlug)> table, string locale, string slug)
     {
-        foreach (var (loc, oldSlug, currentSlug) in RetiredSlugs)
+        foreach (var (loc, oldSlug, currentSlug) in table)
         {
-            if (loc == locale && string.Equals(oldSlug, slug, StringComparison.OrdinalIgnoreCase))
+            if (loc != locale) continue;
+
+            if (string.Equals(oldSlug, slug, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(LegacySlugify(oldSlug), slug, StringComparison.OrdinalIgnoreCase))
+            {
                 return currentSlug;
+            }
         }
 
         return null;
