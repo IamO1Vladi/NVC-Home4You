@@ -13,6 +13,10 @@ const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 const STEP_KEYS = ['model', 'layout', 'exterior', 'interior', 'sockets', 'summary']
 
+// The PDF footer's "generated on" date, in the reader's own convention (the order
+// tracking page uses the same map).
+const DATE_LOCALES = { bg: 'bg-BG', el: 'el-GR', en: 'en-GB' }
+
 // Which accordion section opens first when a step is shown on mobile.
 const MOBILE_DEFAULT_SECTION = {
   model: 'model',
@@ -36,9 +40,9 @@ function multilineHtml(value = '') {
   return escapeHtml(value).replace(/\n/g, '<br/>')
 }
 
-function StepRail({ steps, activeIndex, onGo }) {
+function StepRail({ steps, activeIndex, onGo, ariaLabel }) {
   return (
-    <div className="bhc-rail" role="tablist" aria-label="Configurator steps">
+    <div className="bhc-rail" role="tablist" aria-label={ariaLabel}>
       {steps.map((step, index) => {
         const active = index === activeIndex
         const complete = index < activeIndex
@@ -344,14 +348,14 @@ function MobileHeroPreview({ image, title, subtitle, chips = [], contain = false
 }
 
 // Compact progress header for the mobile wizard (replaces the wide desktop step rail).
-function MobileStepper({ steps, activeIndex, onGo, stepWord }) {
+function MobileStepper({ steps, activeIndex, onGo, stepWord, ariaLabel }) {
   return (
     <div className="bhc-mstepper">
       <div className="bhc-mstepper-top">
         <span className="bhc-mstepper-count">{stepWord} {activeIndex + 1} / {steps.length}</span>
         <span className="bhc-mstepper-name">{steps[activeIndex]?.label}</span>
       </div>
-      <div className="bhc-mstepper-track" role="tablist" aria-label="Configurator steps">
+      <div className="bhc-mstepper-track" role="tablist" aria-label={ariaLabel}>
         {steps.map((step, index) => (
           <button
             key={step.key}
@@ -758,6 +762,25 @@ export default function BoxHouseConfiguratorPage({ content }) {
     emailSent: t.labels?.emailSent || (isBg ? 'Готово! Проверете пощата си.' : locale === 'el' ? 'Έγινε! Ελέγξτε το email σας.' : 'Sent! Check your inbox.'),
     emailInvalid: t.labels?.emailInvalid || (isBg ? 'Моля, въведете валиден имейл.' : locale === 'el' ? 'Παρακαλώ εισάγετε έγκυρο email.' : 'Please enter a valid email.'),
     emailFailed: t.labels?.emailFailed || (isBg ? 'Изпращането не бе успешно. Опитайте пак.' : locale === 'el' ? 'Η αποστολή απέτυχε. Δοκιμάστε ξανά.' : 'Could not send the email. Please try again.'),
+    // These were inline bg/en literals, so Greek fell through to English. Every
+    // locale's content now supplies them, hence no fallback here: a missing key
+    // fails the content test instead of quietly shipping English to /el.
+    stepWord: t.labels?.stepWord,
+    stepsAria: t.labels?.stepsAria,
+    yes: t.labels?.yes,
+    no: t.labels?.no,
+    panoramicCount: t.labels?.panoramicCount,
+    questionIntro: t.labels?.questionIntro,
+    interiorPanelsHint: t.labels?.interiorPanelsHint,
+    floorVinyl: t.labels?.floorVinyl,
+    floorHerringbone: t.labels?.floorHerringbone,
+    heatingFloorNote: t.labels?.heatingFloorNote,
+    heatingFloorNoteShort: t.labels?.heatingFloorNoteShort,
+    offerHint: t.labels?.offerHint,
+    showIncluded: t.labels?.showIncluded,
+    removeAppliance: t.labels?.removeAppliance,
+    socketDescPlaceholder: t.labels?.socketDescPlaceholder,
+    removeSocket: t.labels?.removeSocket,
   }), [isBg, locale, t.labels])
 
   const actions = React.useMemo(() => ({
@@ -1020,7 +1043,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
   }, [])
 
 
-  const stepWord = isBg ? 'Стъпка' : locale === 'el' ? 'Βήμα' : 'Step'
+  const stepWord = labels.stepWord
 
 
   const optionPageSize = isMobileShell ? 8 : 18
@@ -1267,8 +1290,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
     ? (selectedModel?.balconyOverviewImage || selectedModel?.overviewImage || selectedModel?.heroImage || '')
     : (selectedModel?.standardOverviewImage || selectedModel?.overviewImage || selectedModel?.heroImage || '')
 
-  const yesText = isBg ? 'Да' : 'Yes'
-  const noText = isBg ? 'Не' : 'No'
+  const yesText = labels.yes
+  const noText = labels.no
 
   const internalWallsPrice = Math.round((selectedModel?.internalWallsPrice || 0) * selectedPlanWallFactor)
   const interiorPanelsPrice = config.interiorPanelMode === 'white' ? 0 : internalWallsPrice
@@ -1496,7 +1519,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <span className="bhc-window-label">{item.label}</span>
           <span className="bhc-appliance-where">{item.where}</span>
           {item.removable ? (
-            <button type="button" className="bhc-window-remove-btn" onClick={() => handleApplianceMarkerClick(item.kind)} aria-label={isBg ? 'Премахни уред' : 'Remove appliance'}>✕</button>
+            <button type="button" className="bhc-window-remove-btn" onClick={() => handleApplianceMarkerClick(item.kind)} aria-label={labels.removeAppliance}>✕</button>
           ) : (
             <span className="bhc-appliance-required">{labels.applianceRequired}</span>
           )}
@@ -1573,7 +1596,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
       `${labels.internalWalls}: ${interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}`,
       `${labels.insideDoorPrice}: ${insideDoorPrice ? euro(insideDoorPrice, locale) : '-'}`,
       `${labels.heating}: ${config.heating ? `${yesText} (${euro(heatingPrice, locale)})` : noText}`,
-      `${labels.windowOpenings}: ${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount} panoramic)` : ''}${windowExtrasPrice ? ` — ${euro(windowExtrasPrice, locale)}` : ''}`,
+      `${labels.windowOpenings}: ${(config.windows || []).length}${panoramicWindowCount ? ` (${labels.panoramicCount.replace('{n}', String(panoramicWindowCount))})` : ''}${windowExtrasPrice ? ` — ${euro(windowExtrasPrice, locale)}` : ''}`,
       config.windowNotes ? `${labels.windowNotesLabel}: ${config.windowNotes}` : '',
       `${labels.socketCount}: ${config.sockets.length}`,
       config.socketNotes ? `${labels.socketNotesLabel}: ${config.socketNotes}` : '',
@@ -1645,10 +1668,10 @@ export default function BoxHouseConfiguratorPage({ content }) {
       modelLabel: selectedModel?.label || '',
       knownTotal,
       offerText,
-      questionText: `${isBg ? 'Въпрос за следната конфигурация на Бокс къща:' : 'Question about the following box house configuration:'}\n\n${offerText}`,
+      questionText: `${labels.questionIntro}\n\n${offerText}`,
       updatedAt: Date.now(),
     }
-  }, [isBg, locale, config, knownTotal, selectedModel?.key, selectedModel?.label, summaryLines])
+  }, [isBg, locale, labels.questionIntro, config, knownTotal, selectedModel?.key, selectedModel?.label, summaryLines])
 
   React.useEffect(() => {
     writeConfiguratorPrefill(modalPrefill)
@@ -2230,7 +2253,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     </div>
 
     <footer>
-      ${escapeHtml(`${pdfText.generatedLabel}: ${new Date().toLocaleString(isBg ? 'bg-BG' : 'en-GB')}`)}<br />
+      ${escapeHtml(`${pdfText.generatedLabel}: ${new Date().toLocaleString(DATE_LOCALES[locale] || 'en-GB')}`)}<br />
       ${escapeHtml(pdfText.note)}${planApplianceSlots ? `<br />${escapeHtml(labels.applianceDisclaimer)}` : ''}
     </footer>
   </div>
@@ -2871,7 +2894,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 </>
               ) : null}
               <div className="bhc-inline-price">{labels.internalWalls}: {interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText}</div>
-              <div className="bhc-hint">{isBg ? 'Цената за вътрешните панели вече се изчислява според избраното разпределение на помещенията. При стандартното бяло изпълнение не се добавя панелен пакет.' : 'Interior panel pricing now scales with the selected room layout. Standard white panels do not add an extra panel package.'}</div>
+              <div className="bhc-hint">{labels.interiorPanelsHint}</div>
             </div>
 
             <div className="bhc-group">
@@ -2879,15 +2902,15 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <div className="bhc-toggle-row bhc-toggle-row--3">
                 {!config.heating ? (
                   <>
-                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'vinyl' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'vinyl', 'floorFinish')}>{isBg ? 'Винил' : 'Vinyl'}</button>
-                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'herringbone' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'herringbone', 'floorFinish')}>{isBg ? 'Рибена кост' : 'Herringbone'}</button>
+                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'vinyl' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'vinyl', 'floorFinish')}>{labels.floorVinyl}</button>
+                    <button type="button" className={['bhc-toggle', activeFloorFamily === 'herringbone' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setFieldAndFocus('floorFamily', 'herringbone', 'floorFinish')}>{labels.floorHerringbone}</button>
                   </>
                 ) : null}
                 {config.heating ? (
                   <button type="button" className="bhc-toggle is-active" disabled>Carbon Crystal</button>
                 ) : null}
               </div>
-              {config.heating ? <div className="bhc-small-note">{isBg ? 'При избрано долно отопление и изолация Carbon Crystal остава единствената подова опция.' : 'When bottom insulation and heating are selected, Carbon Crystal becomes the only floor family.'}</div> : null}
+              {config.heating ? <div className="bhc-small-note">{labels.heatingFloorNote}</div> : null}
               <div className="bhc-subhead">{labels.floorFinish}</div>
               <GroupedOptionGrid
                 options={activeFloorOptions}
@@ -3273,11 +3296,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
                   <input
                     className="bhc-socket-desc-input"
                     type="text"
-                    placeholder={isBg ? `Контакт ${index + 1} — за какво ще се ползва?` : `Socket ${index + 1} — what's it for?`}
+                    placeholder={labels.socketDescPlaceholder.replace('{n}', String(index + 1))}
                     value={socket.description || ''}
                     onChange={(e) => updateSocketDescription(socket.id, e.target.value)}
                   />
-                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={isBg ? 'Премахни контакт' : 'Remove socket'}>✕</button>
+                  <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={labels.removeSocket}>✕</button>
                 </div>
               ))}
             </div>
@@ -3317,7 +3340,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <p>{hints.summary}</p>
             <div className="bhc-offer-cta">
               <button className="btn bhc-offer-btn" type="button" onClick={handleOpenOffer}>{actions.offer}</button>
-              <p className="bhc-offer-hint">{isBg ? 'Изпратете конфигурацията и получете персонализирана оферта за вашата Бокс къща.' : 'Send your configuration and get a personalised quote for your Box house.'}</p>
+              <p className="bhc-offer-hint">{labels.offerHint}</p>
             </div>
             <div className="bhc-summary-actions">
               <button className="btn ghost" type="button" onClick={exportPdf}>{actions.export}</button>
@@ -3370,7 +3393,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.internalWalls} value={interiorPanelsPrice ? euro(interiorPanelsPrice, locale) : noText} />
               <SummaryRow label={labels.insideDoorPrice} value={insideDoorPrice ? euro(insideDoorPrice, locale) : '-'} />
               <SummaryRow label={labels.heating} value={config.heating ? `${yesText} (${euro(heatingPrice, locale)})` : noText} />
-              <SummaryRow label={labels.windowOpenings} value={`${(config.windows || []).length}${panoramicWindowCount ? ` (${panoramicWindowCount} panoramic)` : ''}`} />
+              <SummaryRow label={labels.windowOpenings} value={`${(config.windows || []).length}${panoramicWindowCount ? ` (${labels.panoramicCount.replace('{n}', String(panoramicWindowCount))})` : ''}`} />
               <SummaryRow label={labels.windowSize} value={windowSizeSummaryValue} />
               <SummaryRow label={labels.windowExtrasLabel} value={windowExtrasPrice ? euro(windowExtrasPrice, locale) : '-'} />
               <SummaryRow label={labels.socketCount} value={String(config.sockets.length)} />
@@ -3577,7 +3600,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <button className="btn ghost" onClick={resetAll}>{actions.reset}</button>
             </div>
           </div>
-          <MobileDisclosure title={labels.included} summary={isBg ? 'Покажи стандартното изпълнение' : 'Show standard specification'}>
+          <MobileDisclosure title={labels.included} summary={labels.showIncluded}>
             <ul className="bhc-bullets">
               {(t.included || []).map((item) => <li key={item}>{item}</li>)}
             </ul>
@@ -3604,7 +3627,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
     return (
       <div className="bhc-stage-head bhc-stage-head--mobile">
         <div className="bhc-mobile-stage-copy">
-          <div className="bhc-mobile-stage-step">{isBg ? 'Стъпка' : 'Step'} {stepIndex + 1} / {STEP_KEYS.length}</div>
+          <div className="bhc-mobile-stage-step">{stepWord} {stepIndex + 1} / {STEP_KEYS.length}</div>
           <h2>{stepMeta[stepIndex]?.label}</h2>
           <p>{hints[stepKey]}</p>
         </div>
@@ -4153,13 +4176,13 @@ export default function BoxHouseConfiguratorPage({ content }) {
           <div className="bhc-toggle-row bhc-toggle-row--3">
             {!config.heating ? (
               <>
-                <button type="button" className={['bhc-toggle', activeFloorFamily === 'vinyl' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'vinyl')}>{isBg ? 'Винил' : 'Vinyl'}</button>
-                <button type="button" className={['bhc-toggle', activeFloorFamily === 'herringbone' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'herringbone')}>{isBg ? 'Рибена кост' : 'Herringbone'}</button>
+                <button type="button" className={['bhc-toggle', activeFloorFamily === 'vinyl' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'vinyl')}>{labels.floorVinyl}</button>
+                <button type="button" className={['bhc-toggle', activeFloorFamily === 'herringbone' && 'is-active'].filter(Boolean).join(' ')} onClick={() => setField('floorFamily', 'herringbone')}>{labels.floorHerringbone}</button>
               </>
             ) : null}
             {config.heating ? <button type="button" className="bhc-toggle is-active" disabled>Carbon Crystal</button> : null}
           </div>
-          {config.heating ? <div className="bhc-small-note">{isBg ? 'При избрано отопление Carbon Crystal остава единствената подова опция.' : 'With heating selected, Carbon Crystal remains the only floor option.'}</div> : null}
+          {config.heating ? <div className="bhc-small-note">{labels.heatingFloorNoteShort}</div> : null}
           <div className="bhc-subhead">{labels.floorFinish}</div>
           <GroupedOptionGrid
             options={activeFloorOptions}
@@ -4454,11 +4477,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
             <input
               className="bhc-socket-desc-input"
               type="text"
-              placeholder={isBg ? `Контакт ${index + 1} — за какво ще се ползва?` : `Socket ${index + 1} — what's it for?`}
+              placeholder={labels.socketDescPlaceholder.replace('{n}', String(index + 1))}
               value={socket.description || ''}
               onChange={(e) => updateSocketDescription(socket.id, e.target.value)}
             />
-            <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={isBg ? 'Премахни контакт' : 'Remove socket'}>✕</button>
+            <button type="button" className="bhc-window-remove-btn" onClick={() => removeSocketMarker(socket.id)} aria-label={labels.removeSocket}>✕</button>
           </div>
         ))}
       </div>
@@ -4740,9 +4763,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
       <section>
         <div className="container">
           {isMobileShell ? (
-            <MobileStepper steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} stepWord={stepWord} />
+            <MobileStepper steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} stepWord={stepWord} ariaLabel={labels.stepsAria} />
           ) : (
-            <StepRail steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} />
+            <StepRail steps={stepMeta} activeIndex={stepIndex} onGo={setStepIndex} ariaLabel={labels.stepsAria} />
           )}
 
           <div className="bhc-stage">
