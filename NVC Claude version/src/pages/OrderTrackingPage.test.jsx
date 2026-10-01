@@ -180,11 +180,17 @@ describe('OrderTrackingPage', () => {
 
   // WHICH LANGUAGE (Greek audit, #11). The link has no locale, so a Greek customer on an
   // English phone used to read the whole page in English.
+  //
+  // Two renders, not one: the order arrives, then the page switches the whole site's language
+  // and renders again. Testing Library's default 1 s wait is too tight for that under a parallel
+  // run — the first test below failed one full-suite run in three on the default.
+  const LANGUAGE_SWITCH = { timeout: 3000 }
+
   it('answers in the language the customer wrote to us in', async () => {
     payload = { ...ORDER, locale: 'el' }
     render()
 
-    await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument(), LANGUAGE_SWITCH)
     // Applied as the SITE language, so the header and footer follow it too.
     expect(localStorage.getItem('lang')).toBe('el')
   })
@@ -193,7 +199,7 @@ describe('OrderTrackingPage', () => {
     payload = { ...ORDER, locale: 'el' }
     render('abcd123456', '?lang=bg')
 
-    await waitFor(() => expect(screen.getByText('На път към вас')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('На път към вас')).toBeInTheDocument(), LANGUAGE_SWITCH)
     expect(screen.queryByText('Στον δρόμο προς εσάς')).not.toBeInTheDocument()
   })
 
@@ -201,7 +207,7 @@ describe('OrderTrackingPage', () => {
     payload = { ...ORDER, locale: 'el' }
     render('abcd123456', '?lang=fr')
 
-    await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Στον δρόμο προς εσάς')).toBeInTheDocument(), LANGUAGE_SWITCH)
   })
 
   it('keeps its own guess when the order carries no language', async () => {
@@ -209,7 +215,7 @@ describe('OrderTrackingPage', () => {
     payload = { ...ORDER, locale: null }
     render()
 
-    await waitFor(() => expect(screen.getByText('На път към вас')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('На път към вас')).toBeInTheDocument(), LANGUAGE_SWITCH)
   })
 
   it('names a catalogue model in the page language, and falls back to the default title', async () => {
@@ -223,7 +229,7 @@ describe('OrderTrackingPage', () => {
     }
     render()
 
-    await waitFor(() => expect(screen.getByText('Αναπτυσσόμενο σπίτι – 37 m²')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Αναπτυσσόμενο σπίτι – 37 m²')).toBeInTheDocument(), LANGUAGE_SWITCH)
     expect(screen.getByAltText('Αναπτυσσόμενο σπίτι – 37 m²')).toBeInTheDocument()
     expect(screen.queryByText('Expandable House – 37 m²')).not.toBeInTheDocument()
   })
@@ -232,15 +238,16 @@ describe('OrderTrackingPage', () => {
     payload = { ...ORDER, locale: 'el', model: 'Container House – 6000mm*3000mm', modelEl: null }
     render()
 
-    await waitFor(() => expect(screen.getByText('Container House – 6000mm*3000mm')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Container House – 6000mm*3000mm')).toBeInTheDocument(), LANGUAGE_SWITCH)
   })
 
   it('declares its Open Graph locale in the language it speaks', async () => {
     payload = { ...ORDER, locale: 'el' }
     render()
 
-    await waitFor(() =>
-      expect(document.head.querySelector('meta[property="og:locale"]')).toHaveAttribute('content', 'el_GR'),
+    await waitFor(
+      () => expect(document.head.querySelector('meta[property="og:locale"]')).toHaveAttribute('content', 'el_GR'),
+      LANGUAGE_SWITCH,
     )
   })
 

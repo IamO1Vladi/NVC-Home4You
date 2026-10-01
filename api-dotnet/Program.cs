@@ -1605,8 +1605,16 @@ public static class SpaShell
         if (!match.Success) return html;
 
         var tag = match.Value;
+        var existing = LangAttr.Match(tag);
+
+        // Already right — the usual case for a prerendered snapshot — so the page is handed
+        // back as it is rather than copied whole on every request for nothing.
+        if (existing.Success
+            && existing.Groups[1].Value.Trim('"', '\'').Equals(locale, StringComparison.OrdinalIgnoreCase))
+            return html;
+
         var declared = $" lang=\"{locale}\"";
-        var rewritten = LangAttr.IsMatch(tag)
+        var rewritten = existing.Success
             ? LangAttr.Replace(tag, declared, 1)
             : tag.Insert("<html".Length, declared);
 

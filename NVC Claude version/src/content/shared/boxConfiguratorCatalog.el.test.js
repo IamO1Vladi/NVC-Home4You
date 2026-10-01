@@ -167,7 +167,7 @@ describe('the Greek catalogue', () => {
 
   it('labels the terrazzo UV panel in Greek, not with the Bulgarian word printed as its code', () => {
     const terrazzo = el.uvPanelOptions.find((o) => o.thumbImage.endsWith('/t-r.webp'))
-    expect(terrazzo).toMatchObject({ code: 'Τερατσό', label: 'Τερατσό', summaryLabel: 'Τερατσό' })
+    expect(terrazzo).toMatchObject({ code: 'Τεράτσο', label: 'Τεράτσο', summaryLabel: 'Τεράτσο' })
   })
 
   it('translates the generated finishes and their series', () => {

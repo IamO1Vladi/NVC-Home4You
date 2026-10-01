@@ -77,14 +77,15 @@ const STEEL_FRAME_COLORS = [
 // `spec` is the line under the name. Where it holds words ("class", "max",
 // "leaves") Greek gets `specEl`; bg has always shown the English spec, and
 // still does -- translating it is a Bulgarian copy decision, not part of the
-// Greek work. Specs made only of figures and units are the same everywhere.
+// Greek work. Greek also writes a decimal COMMA (U 2,0 · Kw 1,5), so every
+// spec with a decimal has a specEl too, even when it is otherwise all figures.
 const WINDOW_TYPES = [
-  { key: 'pvc-double', code: 'W-PVC-DOUBLE', en: 'PVC, double glazing', bg: 'PVC, двоен стъклопакет', el: 'PVC, διπλά τζάμια', spec: 'U 2.0 W/m²K · 1100 × 950', price: 0, colourSet: 'basic' },
-  { key: 'alu-double', code: 'W-ALU-DOUBLE', en: 'Aluminium, double glazing', bg: 'Алуминий, двоен стъклопакет', el: 'Αλουμίνιο, διπλά τζάμια', spec: 'U 1.7–2.0 W/m²K · 1100 × 950', price: 0, colourSet: 'basic' },
-  { key: 'alu-triple', code: 'W-ALU-TRIPLE', en: 'Aluminium, triple glazing', bg: 'Алуминий, троен стъклопакет', el: 'Αλουμίνιο, τριπλά τζάμια', spec: 'U 1.5–1.8 W/m²K · 1200 × 950', price: 200, colourSet: 'basic' },
-  { key: 'ws-65', code: 'WS-65', en: '65 mm · double glazing', bg: '65 мм · двоен стъклопакет', el: '65 mm · διπλά τζάμια', spec: 'Kw 1.5 · class B · ROTO · HOPPE', specEl: 'Kw 1.5 · κλάση B · ROTO · HOPPE', price: 250, colourSet: 'decor' },
-  { key: 'ws-70', code: 'WS-70', en: '70 mm · triple glazing', bg: '70 мм · троен стъклопакет', el: '70 mm · τριπλά τζάμια', spec: 'Kw 1.3 · class A · ROTO · HOPPE', specEl: 'Kw 1.3 · κλάση A · ROTO · HOPPE', price: 290, colourSet: 'decor' },
-  { key: 'ws-80', code: 'WS-80', en: 'ZEW 80MD⁺ · 80 mm passive', bg: 'ZEW 80MD⁺ · 80 мм пасивен', el: 'ZEW 80MD⁺ · 80 mm παθητικού τύπου', spec: 'Kw 1.0 · class A · MACO · HOPPE · RC2', specEl: 'Kw 1.0 · κλάση A · MACO · HOPPE · RC2', price: 350, colourSet: 'decor' },
+  { key: 'pvc-double', code: 'W-PVC-DOUBLE', en: 'PVC, double glazing', bg: 'PVC, двоен стъклопакет', el: 'PVC, διπλά τζάμια', spec: 'U 2.0 W/m²K · 1100 × 950', specEl: 'U 2,0 W/m²K · 1100 × 950', price: 0, colourSet: 'basic' },
+  { key: 'alu-double', code: 'W-ALU-DOUBLE', en: 'Aluminium, double glazing', bg: 'Алуминий, двоен стъклопакет', el: 'Αλουμίνιο, διπλά τζάμια', spec: 'U 1.7–2.0 W/m²K · 1100 × 950', specEl: 'U 1,7–2,0 W/m²K · 1100 × 950', price: 0, colourSet: 'basic' },
+  { key: 'alu-triple', code: 'W-ALU-TRIPLE', en: 'Aluminium, triple glazing', bg: 'Алуминий, троен стъклопакет', el: 'Αλουμίνιο, τριπλά τζάμια', spec: 'U 1.5–1.8 W/m²K · 1200 × 950', specEl: 'U 1,5–1,8 W/m²K · 1200 × 950', price: 200, colourSet: 'basic' },
+  { key: 'ws-65', code: 'WS-65', en: '65 mm · double glazing', bg: '65 мм · двоен стъклопакет', el: '65 mm · διπλά τζάμια', spec: 'Kw 1.5 · class B · ROTO · HOPPE', specEl: 'Kw 1,5 · κλάση B · ROTO · HOPPE', price: 250, colourSet: 'decor' },
+  { key: 'ws-70', code: 'WS-70', en: '70 mm · triple glazing', bg: '70 мм · троен стъклопакет', el: '70 mm · τριπλά τζάμια', spec: 'Kw 1.3 · class A · ROTO · HOPPE', specEl: 'Kw 1,3 · κλάση A · ROTO · HOPPE', price: 290, colourSet: 'decor' },
+  { key: 'ws-80', code: 'WS-80', en: 'ZEW 80MD⁺ · 80 mm passive', bg: 'ZEW 80MD⁺ · 80 мм пасивен', el: 'ZEW 80MD⁺ · 80 mm παθητικού τύπου', spec: 'Kw 1.0 · class A · MACO · HOPPE · RC2', specEl: 'Kw 1,0 · κλάση A · MACO · HOPPE · RC2', price: 350, colourSet: 'decor' },
 ]
 
 // The three colours the base glazings ship in (catalogue p.8).
@@ -99,9 +100,9 @@ const WINDOW_BASIC_COLOURS = [
 // name (ΠΑνοραμικό, ΣΥρόμενη, ΠΤυσσόμενη) -- one letter each would make the
 // panoramic window and the bi-folding door both Π.
 const GLAZING_UPGRADES = [
-  { key: 'gz-panorama', code: 'GZ-PANORAMA', en: 'Panoramic fixed glass', bg: 'Панорамно стъкло', el: 'Πανοραμικό σταθερό τζάμι', spec: 'max 2000 × 1000 · U 1.5–2.0 W/m²K', specEl: 'έως 2000 × 1000 · U 1.5–2.0 W/m²K', price: 300, unit: 'window', marker: 'P', markerEl: 'ΠΑ' },
+  { key: 'gz-panorama', code: 'GZ-PANORAMA', en: 'Panoramic fixed glass', bg: 'Панорамно стъкло', el: 'Πανοραμικό σταθερό τζάμι', spec: 'max 2000 × 1000 · U 1.5–2.0 W/m²K', specEl: 'έως 2000 × 1000 · U 1,5–2,0 W/m²K', price: 300, unit: 'window', marker: 'P', markerEl: 'ΠΑ' },
   { key: 'gz-sliding', code: 'GZ-SLIDING', en: 'Sliding door', bg: 'Плъзгаща врата', el: 'Συρόμενη πόρτα', spec: '2000 × 1800 · 900 mm leaves', specEl: '2000 × 1800 · φύλλα 900 mm', price: 430, unit: 'door', marker: 'S', markerEl: 'ΣΥ' },
-  { key: 'gz-bifold', code: 'GZ-BIFOLD', en: 'Bi-folding door', bg: '“Bi-folding” врата', el: 'Πτυσσόμενη πόρτα', spec: '2100 × 1900 · U 1.8–2.0 W/m²K', price: 900, unit: 'door', marker: 'B', markerEl: 'ΠΤ' },
+  { key: 'gz-bifold', code: 'GZ-BIFOLD', en: 'Bi-folding door', bg: '“Bi-folding” врата', el: 'Πτυσσόμενη πόρτα', spec: '2100 × 1900 · U 1.8–2.0 W/m²K', specEl: '2100 × 1900 · U 1,8–2,0 W/m²K', price: 900, unit: 'door', marker: 'B', markerEl: 'ΠΤ' },
 ]
 
 const BATHROOM_DOORS = [
@@ -124,7 +125,7 @@ const INTERIOR_DOORS = [
 
 const EXTERIOR_DOORS = [
   { key: 'v-01', code: 'В-01', en: 'Solid metal door', bg: 'Плътна метална врата', el: 'Συμπαγής μεταλλική πόρτα', price: 0 },
-  { key: 'v-02', code: 'В-02', en: 'Double glazed door', bg: 'Двойна остъклена врата', el: 'Πόρτα με διπλά τζάμια', price: 0 },
+  { key: 'v-02', code: 'В-02', en: 'Double glazed door', bg: 'Двойна остъклена врата', el: 'Δίφυλλη τζαμόπορτα', price: 0 },
 ]
 
 const ARMOURED_DOORS = [

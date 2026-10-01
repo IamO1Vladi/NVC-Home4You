@@ -175,7 +175,7 @@ export default {
       linkCopied: 'Ο σύνδεσμος της διαμόρφωσης αντιγράφηκε στο πρόχειρο.',
       linkShared: 'Ο σύνδεσμος κοινοποιήθηκε.',
       linkFailed: 'Δεν ήταν δυνατή η δημιουργία συνδέσμου κοινοποίησης.',
-      emailPrompt: 'Στείλε μου το με email',
+      emailPrompt: 'Στείλτε μου τη διαμόρφωση με email',
       emailPlaceholder: 'you@example.com',
       emailSending: 'Αποστολή…',
       emailSent: 'Έγινε! Ελέγξτε το email σας.',
