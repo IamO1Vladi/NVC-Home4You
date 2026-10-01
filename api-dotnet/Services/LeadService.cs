@@ -524,7 +524,9 @@ public class LeadService
     ///   retitled between the enquiry and its promotion is not linked either. Nothing else is
     ///   evidence: a guess attaches the lead, and the drafter's price, to a house the customer
     ///   may not have asked about, where an empty link costs staff one click, and the line is
-    ///   right there to tell them which.
+    ///   right there to tell them which. An enquiry from before #34 has no line, so for it
+    ///   the number and the date are all there is: if the Space house were deleted, such an
+    ///   old "15" made after it existed would link to the 73 m² house.
     ///
     /// Above the offset the number alone decides, line or no line: nothing else was ever
     /// served under it, so a line that disagrees can only be a retitle.

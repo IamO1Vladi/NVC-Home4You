@@ -30,7 +30,8 @@ public class House
     // KEEP IT after Quickbase is gone: it is also an imported house's PUBLIC id (#35,
     // HousePublicIds). Nulling it would renumber every imported house to 100000 + its SQL
     // id, which silently drops every assembly cost on the prices page (keyed by these
-    // numbers) and leaves stored enquiries pointing at nothing.
+    // numbers), and stored enquiries would resolve to the WRONG houses: LeadService would
+    // read their Quickbase numbers as the bare SQL ids panel houses had before #35.
     public long? QuickbaseRecordId { get; set; }
 
     [MaxLength(300)] public string Title { get; set; } = "";          // Title (6)

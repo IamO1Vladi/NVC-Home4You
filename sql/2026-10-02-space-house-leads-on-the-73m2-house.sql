@@ -1,8 +1,13 @@
 -- Leads linked to the 73 m² house that may really be about the Space house (#35)
 --
--- READ-ONLY. Two SELECTs, nothing else: no writes, no temp tables, no transaction.
+-- READ-ONLY. SELECTs only: no writes, no temp tables, no transaction.
 -- Run it against the production database in the Azure portal's Query editor
--- (SQL database → Query editor) or any SQL client. Two result sets come back.
+-- (SQL database → Query editor) or any SQL client. Exactly ONE result comes back, because
+-- the portal shows only the last result of a script:
+--   - a single STOP row, if the two houses below are not exactly one row each. Nothing
+--     else ran, and nothing here applies until that is understood;
+--   - otherwise the leads, one row each, with the line the Space house was matched by in
+--     the last column (SpaceHouseLine). No rows means no lead to review.
 --
 -- WHY. Until #35 the gallery served two houses as public id 15: the imported
 -- „Разгъваема Къща - 73m² с веранда и двоен покрив" (QuickbaseRecordId 15) and the
@@ -36,20 +41,22 @@ SET NOCOUNT ON;
 
 DECLARE @Prefix nvarchar(40) = N'Модел от сайта: ';
 
--- 1. The two houses. Expect exactly one row each. If either is missing, or the titles are
---    not the 73 m² house and the Space house, stop: everything below assumes these two.
-SELECT N'73 m² house (Quickbase id 15)' AS [Role],
-       h.Id AS HouseId, h.QuickbaseRecordId, h.TitleBg, h.Title, h.CreatedAt
-FROM dbo.Houses AS h
-WHERE h.QuickbaseRecordId = 15
-UNION ALL
-SELECT N'Space house (SQL id 15, made in the panel)',
-       h.Id, h.QuickbaseRecordId, h.TitleBg, h.Title, h.CreatedAt
-FROM dbo.Houses AS h
-WHERE h.Id = 15 AND h.QuickbaseRecordId IS NULL;
+-- The two houses everything below is about. If either is missing or doubled (the Space
+-- house deleted, say), the leads query would quietly return nothing, which reads exactly
+-- like "nothing to fix". So it does not run at all, and the one result says why.
+DECLARE @Big73Count int = (SELECT COUNT(*) FROM dbo.Houses WHERE QuickbaseRecordId = 15);
+DECLARE @SpaceCount int = (SELECT COUNT(*) FROM dbo.Houses WHERE Id = 15 AND QuickbaseRecordId IS NULL);
 
--- 2. Leads whose house is the 73 m² one and whose enquiry carried "15" or names the
---    Space house. Verdict 1 and 2 first.
+IF @Big73Count <> 1 OR @SpaceCount <> 1
+BEGIN
+    SELECT N'STOP: expected one house with Quickbase id 15 (the 73 m² house) and one with SQL id 15 and no Quickbase id (the Space house); found '
+           + CONVERT(nvarchar(10), @Big73Count) + N' and ' + CONVERT(nvarchar(10), @SpaceCount)
+           + N'. The leads query did not run.' AS Problem;
+END
+ELSE
+BEGIN
+-- Leads whose house is the 73 m² one and whose enquiry carried "15" or names the Space
+-- house. Verdict 1 and 2 first.
 --
 --    LEN(x + N'|') - 1 is the true length of x: LEN alone ignores trailing spaces, and the
 --    prefix ends in one.
@@ -72,6 +79,7 @@ Candidates AS (
     SELECT
         l.Id AS LeadId, l.Name, l.Status, l.OwnerUpn, l.CreatedAt AS LeadCreatedAt,
         o.Id AS OfferId, o.ModelId, o.CreatedAt AS OfferedAt, o.Message,
+        s.Line AS SpaceHouseLine,
         CASE
             -- The whole title, then the end of the line: " — <link>", a line break, or
             -- the end of the message. Otherwise a longer title starting the same way
@@ -121,6 +129,8 @@ SELECT
             THEN N'mentions 73 m² / 28 000'
         ELSE N''
     END AS Hint,
-    LEFT(REPLACE(REPLACE(c.Message, NCHAR(13), N' '), NCHAR(10), N' '), 400) AS MessageStart
+    LEFT(REPLACE(REPLACE(c.Message, NCHAR(13), N' '), NCHAR(10), N' '), 400) AS MessageStart,
+    c.SpaceHouseLine
 FROM Candidates AS c
 ORDER BY c.Verdict, c.OfferedAt;
+END

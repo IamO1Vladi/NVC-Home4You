@@ -14,8 +14,8 @@ Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 | | |
 |---|---|
 | **Live** | `69f9724`, tagged **`deploy-2026-09-20`** — #28: kitchen appliance placement in the configurator, plus the retirement of the kitchen-extras section. SPA-only release: no API changes, **no migrations**. The bundle rehashed to `index-B6E00noi.js` and the snapshots were regenerated with it — 52/52 routes against a local app run with the SQL data-source flags, freshness guard clean before AND at publish. Verified live the same day, not just probed: the appliance stage renders on Интериор, stacking the hob on the oven produces the OV+HB dot with „позиция 1 · върху фурната", „Кухненски добавки" is gone, the live page's bundle reference resolves 200, and the browser console is clean. **What remains human:** the owner's eyeball pass over the slot-overlay sheet (a nudged dot = one line in `boxConfiguratorApplianceSlots.js` + redeploy), one real offer submission to see the appliance lines and the not-supplied disclaimer arrive in the sales mail, and the offerText-vs-4000-char measurement noted in the #28 DONE entry. |
-| **`production` branch** | **AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below), #29, replies with up to 20 MB of files (verified by a real send as step 4b), and — owner's decision 2026-10-01 — **#11, the Greek fixes**, which carry the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. Then — owner's decision 2026-10-02 — **#34, a gallery enquiry names its model** (sales could not tell which house a gallery „Поискай оферта" was about; no migration). The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
-| **`master`** | **`production` + the gallery SEO store fix, + 301s for the three retitled product addresses** (2026-10-02; 1021 .NET). API-only, no migration, no SPA change. **The next publish fixes a LIVE SEO bug:** the product-page `<head>` tags and `sitemap-gallery.xml` read Quickbase while the site serves SQL, so a product that exists only in SQL, or whose title was corrected there, answers crawlers **404 + noindex**. Humans see the page; Google and email link-checkers get the 404. The three addresses from before the August title corrections, which show visitors "Model not found", now 301 to their products. To ship it with the big release, do this before step 1 of Do next 0: `git checkout production; git pull; git merge --ff-only origin/master; git push`. The probe for it is in step 4, and the Search Console follow-up is Do next 5. **Then #35, a gallery public id that cannot collide** (`fix/gallery-public-id`, 2026-10-02; 1029 .NET, 824 frontend). SPA + API, **no migration**. Live serves two houses as `id: 15`: the Space house (made in the panel, SQL id 15) and the imported 73 m² house (Quickbase id 15). Because of that, Space house enquiries became 73 m² leads, and the prices page gives the Space house the 73 m² house's €2,280 assembly. Houses made in the panel are now served as 100000 + SQL id (the Space house becomes **100015**); imported houses keep their numbers. It ships with the same fast-forward as above. Its probes and the owner's read-only lead check are Do next 0b. |
+| **`production` branch** | **AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below), #29, replies with up to 20 MB of files (verified by a real send as step 4b), and — owner's decision 2026-10-01 — **#11, the Greek fixes**, which carry the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. Then — owner's decision 2026-10-02 — **#34, a gallery enquiry names its model** (sales could not tell which house a gallery „Поискай оферта" was about; no migration). Then, also the owner's decisions of 2026-10-02, two more. **The gallery SEO store fix, with 301s for the three retitled product addresses** (API-only, no migration): the product-page `<head>` tags and `sitemap-gallery.xml` read Quickbase while the site serves SQL, so a product that exists only in SQL, or whose title was corrected there, answers crawlers **404 + noindex** (humans see the page; Google and email link-checkers get the 404), and the three addresses from before the August title corrections, which show visitors "Model not found", now 301 to their products. Its probes are in step 4 and the Search Console follow-up is Do next 5. **#35, a gallery public id that cannot collide** (SPA + API, no migration): live serves the Space house (made in the panel, SQL id 15) and the imported 73 m² house (Quickbase id 15) both as `id: 15`, so Space house enquiries became 73 m² leads and the prices page gives the Space house the 73 m² house's €2,280 assembly. Houses made in the panel are now served as 100000 + SQL id (the Space house becomes **100015**); imported houses keep their numbers. Its probes and the owner's read-only lead check are Do next 0b. The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
+| **`master`** | = `production`. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
 | **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
@@ -27,10 +27,10 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **THE BIG RELEASE — #31 + #32 + #27 + #29 + #11 + #34, from the MAIN device.** Pushed and
-   waiting: `production` = `master`. The `AddPurchaseSecondPayment` migration is ALREADY
-   applied to production; #27, #29 and #11 need no migration. Tests green at the release:
-   981 .NET, 817 frontend. In order:
+0. **THE BIG RELEASE — #31 + #32 + #27 + #29 + #11 + #34 + the gallery SEO fix + #35, from
+   the MAIN device.** Pushed and waiting: `production` = `master`. The
+   `AddPurchaseSecondPayment` migration is ALREADY applied to production; nothing else in
+   the release needs one. Tests green at the release: 1059 .NET, 824 frontend. In order:
 
    1. **Pull and build.** `git checkout production; git pull`, then
       `cd "NVC Claude version"; npm run build`.
@@ -40,6 +40,7 @@ was empty either way). Checking the live site settles such questions in a minute
       optional: without it every `/api/img` image 404s locally, the home and modular-builds
       pages never go quiet (ROADMAP #33) and the snapshots would bake placeholder art in.
       The secondary device stopped here on 2026-09-30 for exactly that reason (45/52).
+      Expect one warning naming id 15 from the catalogue check; it is #35's, see Do next 0b.
    3. **Publish.** Stop the local app, publish from VS Code, then
       `git tag deploy-YYYY-MM-DD; git push --tags`.
    4. **Probe live** (Ctrl+F5). Configurator: the new A1–A3 renders, kitchen dots on the
@@ -85,32 +86,37 @@ was empty either way). Checking the live site settles such questions in a minute
       digest arrives a few minutes after that restart; then every Monday 08:00 Sofia.
       DEPLOY.md, "Switching on the weekly order digest", has the details.
    6. **Record it.** Here: the Live row, the test counts, and this item gone. In ROADMAP:
-      #31, #32, #29, #11 and #34 marked deployed, #27's digest marked live.
+      #31, #32, #29, #11, #34 and #35 marked deployed, #27's digest marked live.
 
 0b. **#35, the gallery id fix: what its release needs, and one read-only check for the
-   owner.** Built on `fix/gallery-public-id`, which is **not merged**: merging it waits for
-   the owner's OK. No migration. ROADMAP #35 has the design.
-   - **If it ships with the big release** (fast-forward, as the `master` row says):
+   owner.** In `master` and `production` on the owner's go-ahead (2026-10-02), so it ships
+   with the big release. No migration. ROADMAP #35 has the design.
+   - **In the big release:**
      - At step 2 the prerender prints one warning naming id 15. That is expected. Live
        still serves both houses as 15, so that id is skipped rather than compared (DEPLOY
        §6b).
      - At step 4, probe `/api/gallery`: the Space house has `"id":100015`, and no id appears
        twice.
-     - At step 4, probe /bg/ceni: the Space house shows no assembly breakdown. It currently
-       shows €2,280, which is the 73 m² house's assembly.
+     - At step 4, probe /bg/ceni: the Space house's assembly reads „по запитване" and its
+       total equals its price. It currently shows €2,280 assembly, which is the 73 m²
+       house's.
      - **Owner's call:** if the Space house has an assembly cost of its own, it goes into
        `BOX_ASSEMBLY_NET_BY_ID` in `content/shared/prices.js` as `100015: <net €>`.
    - **The read-only lead check, run by the owner, not Claude (it is production SQL).**
      Open `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql`, paste it into the Azure
      portal's Query editor (or any SQL client) on the production database, and run it. It
-     is SELECTs only and returns two results:
-     - First, the two houses: one row each. If not, stop.
-     - Second, every lead linked to the 73 m² house whose enquiry carried "15" or names the
-       Space house, each with a Verdict:
+     is SELECTs only and returns ONE result, because the portal shows only a script's last
+     one:
+     - A single STOP row if there is not exactly one 73 m² house (Quickbase id 15) and one
+       Space house (SQL id 15, no Quickbase id). The leads query did not run; find out why
+       before anything else.
+     - Otherwise every lead linked to the 73 m² house whose enquiry carried "15" or names
+       the Space house, each with a Verdict (no rows means nothing to review):
        - **1 SPACE HOUSE:** the enquiry's model line names the Space house. Decisive.
        - **2 UNDECIDED:** the enquiry was made while both houses were "15" and has no model
          line. Read the message; the Hint column flags „космическа", „капсула" and 55 000.
-       - **x:** nothing to fix.
+       - **x:** nothing to fix. The last column shows the Space house line rows were matched
+         against, in case its title has changed.
 
      Fix a row in the panel (Лийдове, the lead, its model), not with an UPDATE, so Одит
      records the change. Expect very few verdict-1 rows: #34 already stopped linking a
@@ -119,15 +125,17 @@ was empty either way). Checking the live site settles such questions in a minute
      whole list should be short.
 
      **The file has never been run against a database.** It was checked only with a T-SQL
-     parser and against the column names in the EF model snapshot.
+     parser (which also confirmed it holds no write statement) and against the column
+     names in the EF model snapshot.
    - **Old enquiries keep resolving.** Promoting a stored offer understands three kinds of
      id: the new 100015-style ids, Quickbase ids, and the bare SQL id a panel-made house had
      before #35. A shared "15" is settled by the enquiry's date (made before the Space house
      existed means the 73 m² house) or by its „Модел от сайта:" line. Otherwise it links to
      neither, as it has since #34.
      - Below 100000, a model line that names a different house than the number found means
-       no link. This covers a Space house that is later deleted: an old "15" about it then
-       finds only the 73 m² house. The cost is that a house retitled between enquiry and
+       no link. That covers a Space house deleted later: an old "15" whose line names it
+       would otherwise find only the 73 m² house. An enquiry from before #34 has no line, so
+       it has no such protection. The cost is that a house retitled between enquiry and
        promotion is not linked automatically; staff link it by hand from the line.
 
 1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
@@ -202,10 +210,10 @@ was empty either way). Checking the live site settles such questions in a minute
      and moves them to the corrected URLs on its own.
 
    Then, as before, request indexing for the remaining product URLs (~10/day).
-   **Also needed: #35** (Do next 0b). It fixes the duplicate public id 15: the Space house
-   and the 73 m² house both serve `id: 15` from `/api/gallery`, which breaks the uniqueness
-   of the JSON-LD `sku`. Slugs, the sitemap and the product tags do not key on id, so this
-   fix does not depend on #35, but the SEO is not clean until both are live.
+   **#35 ships in the same release** (Do next 0b). It fixes the duplicate public id 15: the
+   Space house and the 73 m² house both serve `id: 15` from `/api/gallery`, which breaks
+   the uniqueness of the JSON-LD `sku`. Slugs, the sitemap and the product tags do not key
+   on id, so this fix does not depend on #35, but the SEO is not clean until both are live.
 6. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
    The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
    from the admin Поръчки board. There will be no carrier account and no feed.** That turns
@@ -380,8 +388,9 @@ the JSON-LD `sku` and React keys all use the public id from `HousePublicIds`:
 - An imported house uses its Quickbase id.
 - A house made in the panel uses 100000 + its SQL id.
 
-Everything inside the database (`Lead.HouseId`, `Purchase.HouseId`, the admin panel, blob
-keys) uses the SQL `House.Id`. Mixing the two attaches things to the wrong building, and
+Everything inside the database (`Lead.HouseId`, `Purchase.HouseId`, the admin panel's house
+pickers, blob keys) uses the SQL `House.Id`; only Запитвания prints an offer's stored
+`ModelId` as it arrived. Mixing the two attaches things to the wrong building, and
 nothing errors. Before #35, panel houses were served under their bare SQL id, which put two
 houses on "15" live. `LeadService.ResolveHouseIdAsync` is the only code that maps a public
 id back to a house, and it still reads the ids stored before #35.

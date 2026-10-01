@@ -341,6 +341,15 @@ public class LeadServiceTests
     }
 
     [Fact]
+    public async Task A_model_line_naming_a_longer_title_does_not_name_the_space_house()
+    {
+        // "… капсула 2" starts with the Space house's title but is not it.
+        var message = $"Модел от сайта: {SpaceTitleBg} 2 — https://nvc-home4you.eu/bg/galeriq/x\n\nHi";
+
+        Assert.Null(await HouseLinkedFor("15", message, At(2026, 10, 2)));
+    }
+
+    [Fact]
     public async Task An_old_15_from_before_the_space_house_existed_means_the_73_m2_house()
     {
         // Only one house was served as "15" then.

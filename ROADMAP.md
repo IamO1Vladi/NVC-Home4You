@@ -637,8 +637,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
-- [x] **35. A gallery public id that cannot collide** (built 2026-10-02 on
-  `fix/gallery-public-id`, **not merged, not deployed**; no migration).
+- [x] **35. A gallery public id that cannot collide** (built 2026-10-02 and merged to
+  `master` and `production` on the owner's go-ahead the same day, **not yet deployed**; no
+  migration).
   Verified against live `/api/gallery` on 2026-10-02: two published houses were both
   `id: 15`. They were the imported „Разгъваема Къща - 73m² с веранда и двоен покрив"
   (Quickbase id 15) and the „Космическа къща - капсула" made in the panel (SQL id 15).
@@ -675,8 +676,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
       names one of the two, using the title the site would have sent (`OfferModel.LineNames`).
     - Otherwise the lead links to neither, as it has since #34.
     - Below 100000 the line, when present, must name the house the number found, even a
-      single one. Without that rule, deleting the Space house would let an old "15" about
-      it land on the 73 m² house. The price is that a house retitled between enquiry and
+      single one. Without that rule, deleting the Space house would let an old "15" whose
+      line names it land on the 73 m² house. An enquiry from before #34 has no line, so it
+      has no such protection. The price is that a house retitled between enquiry and
       promotion stays unlinked for staff to link by hand. Above 100000 the number decides
       alone, since nothing else was ever served under it.
     - Considered and not done: retiring the legacy bare-SQL-id rule at a cutoff date. That
@@ -687,9 +689,11 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     compare local "15" (€28,000) with live's last "15" (€55,000) and refuse to prerender.
   - **For the owner:** `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql` is a
     read-only query that lists the 73 m² leads which were really Space house enquiries
-    (HANDOFF, Do next 0b). The Space house has no assembly entry in `prices.js`; if it
+    (HANDOFF, Do next 0b). It returns one result, because the Azure portal's Query editor
+    shows only a script's last: a STOP row when the two houses are not exactly one each,
+    otherwise the leads. The Space house has no assembly entry in `prices.js`; if it
     should have one, that is the owner's number to give.
-  - Tests: 37 .NET and 7 frontend. They pin the live catalogue's ids, the import guard,
+  - Tests: 38 .NET and 7 frontend. They pin the live catalogue's ids, the import guard,
     every way an old or new id resolves (including the retitle trade-off), the model-line
     reader and the prerender comparison.
   - Reviewed by an independent skeptic before commit. Six findings, all fixed:
@@ -700,6 +704,18 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     - A frontend test passed with the fix reverted, so it was removed.
     - `House.QuickbaseRecordId`'s comment invited nulling it.
     - The cutoff idea above was considered and declined, for the reason given.
+  - Then a second round before pushing: three read-only lenses (resolver scenarios, SQL
+    semantics, docs truth) with two refuters per finding, plus a mutation pass. All nine
+    mutations were caught by a test, and no finding was confirmed by both refuters. Acted
+    on anyway:
+    - The SQL now returns one guarded result. Before, the portal would have hidden its
+      house check.
+    - The deletion protection is scoped to enquiries with a model line, in the docs and the
+      code comment.
+    - `House.cs` now says nulling Quickbase ids would mislink enquiries, not orphan them.
+    - Запитвания does print the raw id, and the prices page shows the Space house's
+      assembly as „по запитване".
+    - One more resolver test, for a longer title that starts with the Space house's.
   - Noticed, not done: cases use the same `QuickbaseRecordId ?? Id` scheme
     (`SqlCasesPageService`). No case collides on live today, since there is one case with
     id 2, and case ids are only React keys. It will collide once a panel-made case's SQL id

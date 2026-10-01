@@ -3,8 +3,9 @@ namespace Services;
 /// <summary>
 /// The id a house goes by in public: /api/gallery's `id`, an offer's ModelId, the prices
 /// page's assembly table and anchors, the product JSON-LD sku, React keys. Everything inside
-/// the database — Lead.HouseId, Purchase.HouseId, the admin panel, blob keys — uses the SQL
-/// House.Id instead and never sees this number.
+/// the database — Lead.HouseId, Purchase.HouseId, the admin panel's house pickers, blob
+/// keys — uses the SQL House.Id instead. (Запитвания does print an offer's stored ModelId as
+/// it arrived, which is this number.)
 ///
 /// Two kinds of house share the catalogue, and their native ids overlap:
 ///
