@@ -276,6 +276,11 @@ builder.Services.AddSingleton<Services.ImageCache>();
 // string is present, and ImageStore takes it as an optional dependency, so an environment
 // without storage configured serves images exactly as it does now.
 builder.Services.AddHttpClient<Services.QuickbaseImageSource>();
+
+// Large reply attachments (#29) go up to a URL that carries its own access token in the
+// query string. This client sends to it WITHOUT the factory's request logging, which in
+// .NET 8 writes every request URL out whole — see LeadMailService.UploadClientName.
+builder.Services.AddHttpClient(Services.LeadMailService.UploadClientName).RemoveAllLoggers();
 builder.Services.AddSingleton<Services.ImageUrls>();
 
 // Converts uploads and imports to WebP. Stateless, so a singleton.

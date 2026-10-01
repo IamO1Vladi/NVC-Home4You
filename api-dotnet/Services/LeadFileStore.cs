@@ -45,18 +45,23 @@ public sealed class LeadFileStore
     // so refusing here gives a clear error instead of a send that fails later.
     public const long MaxBytes = 20L * 1024 * 1024;
 
-    // The ceiling for files that go OUT with a reply, which is a different and much lower
-    // number than what may be stored against a thread.
+    // The ceiling for files that go OUT with a reply, in total — 20 MB since #29 (owner,
+    // 2026-09-10; it was 3 MB, Graph's limit for attaching a file in ONE request, and files
+    // past that now go up through an upload session, see LeadMailService).
     //
-    // 3 MB is Graph's own limit for attaching a file to a message in a single request;
-    // past it the API requires an upload session, which is a different protocol and a
-    // meaningful amount of machinery for a case sales can solve in one sentence ("I have
-    // put it on a link"). Checked before anything is sent, because finding out at send
-    // time means a lost draft.
+    // Why 20 and not more: it matches MaxBytes, so anything that can be stored against a
+    // thread can also be sent; a 20 MB attachment is a ~27 MB MIME message, comfortable
+    // against Exchange Online's default 35 MB send limit where 25 MB was a squeeze; and the
+    // ~21 MB multipart request clears App Service's ~28.6 MB front door with room to spare.
+    // Receiving servers still cap what THEY accept — abv.bg-class mailboxes may bounce a
+    // message this size whatever we send — which is why logging a file and sending a link
+    // stays the advice for the big ones.
     //
-    // The total counts too: Graph rejects a message whose parts together exceed its size
-    // limit, so four 2 MB drawings pass every per-file check and still bounce.
-    public const long MaxEmailBytes = 3L * 1024 * 1024;
+    // The TOTAL is what is capped, not each file: Graph and Exchange judge the message, so two
+    // 15 MB drawings pass every per-file check and still could not go out together. Checked
+    // before anything is sent, because finding out at send time means a lost draft. The panel
+    // counts too (REPLY_MAX_BYTES in AdminPipelinePage.jsx), pinned to this by a test.
+    public const long MaxEmailBytes = 20L * 1024 * 1024;
 
     // Allow-list, not a block-list. A block-list of "dangerous" types is a game you lose:
     // the useful set here is small and known, so anything outside it is refused rather

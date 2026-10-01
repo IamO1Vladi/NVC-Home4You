@@ -98,7 +98,9 @@ const TEXT = {
     // is chosen, so a hint that said „+ Бележка“ sent people looking for a button that is
     // not on screen — and mailing the file instead, which is the size limit the hint exists
     // to steer them around.
-    attachHint: 'Файловете тръгват с отговора. По-големите ги запишете в разговора.',
+    attachHint: 'Файловете тръгват с отговора — до 20 MB общо. По-големите ги запишете в разговора.',
+    tooBigToSend: (total) =>
+      `Файловете са ${total} общо — с отговор могат да тръгнат до 20 MB. Махнете някой, или запишете големите в разговора и изпратете линк.`,
     dropHint: 'Пуснете файловете тук',
     removeFile: 'Премахни',
     attaching: 'Качване…',
@@ -197,7 +199,9 @@ const TEXT = {
     logHint: 'Saves the text and files to the conversation without emailing the customer.',
     logNeedsWords: 'Write what happened — a call or a meeting is logged with words.',
     attach: 'Attach a file',
-    attachHint: 'Files go out with the reply. Keep bigger ones by logging them to the conversation.',
+    attachHint: 'Files go out with the reply — up to 20 MB in total. Keep bigger ones by logging them to the conversation.',
+    tooBigToSend: (total) =>
+      `These files come to ${total} — a reply can carry up to 20 MB. Remove one, or log the big ones to the conversation and send a link.`,
     dropHint: 'Drop the files here',
     removeFile: 'Remove',
     attaching: 'Uploading…',
@@ -304,6 +308,14 @@ const STAGES = ['new', 'contacted', 'quoted', 'negotiating', 'won', 'lost']
 // actually sends something, so it is not on offer here.
 const LOG_TYPES = ['note', 'call', 'meeting']
 
+// What a reply can carry, in total (#29) — LeadFileStore.MaxEmailBytes on the server, which
+// refuses past it with a sentence of its own. Checked here as well because the server's
+// sentence cannot always arrive: above ~28.6 MB App Service's front door turns the request
+// away before the app ever reads it, and the panel would show a bare "not sent". So the
+// composer counts first and says why. A test on the server reads this number and fails when
+// the two disagree.
+const REPLY_MAX_BYTES = 20 * 1024 * 1024
+
 // The four categories the gallery filters on, and the only ones that can lead to a list of
 // models. Kept in step with galleryUtils.FILTER_IDS and HouseCategories on the server.
 //
@@ -397,6 +409,13 @@ function formatSize(bytes) {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
+// An over-limit total, rounded UP: 20.02 MB printed as "20.0 MB" beside "up to 20 MB" is a
+// refusal that reads as a bug, and nobody can tell what to take off.
+function formatSizeUp(bytes) {
+  const tenths = Math.ceil(((Number(bytes) || 0) / (1024 * 1024)) * 10)
+  return `${(tenths / 10).toFixed(1)} MB`
 }
 
 function formatWhen(iso, lang) {
@@ -597,6 +616,10 @@ export default function AdminPipelinePage() {
   // removed before it becomes part of the record — and so the reply and its attachments
   // succeed or fail as one thing.
   const [files, setFiles] = React.useState([])
+  const filesTotal = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0)
+  // Only Send is refused: logging the files to the conversation stores each one up to
+  // 20 MB on its own, which is exactly where the sentence below points people.
+  const tooBigToSend = filesTotal > REPLY_MAX_BYTES
   // Whether a file drag is currently over the composer. Depth-counted, not boolean-set:
   // dragging across the composer's children fires a leave at every child boundary, and a
   // plain boolean would flicker the highlight off in the middle of the box.
@@ -880,7 +903,7 @@ export default function AdminPipelinePage() {
   }
 
   const send = () => run('send', async () => {
-    if (!composed) return
+    if (!composed || tooBigToSend) return
     // The signature travels with the reply — that is the point of it being in the box:
     // what you see is exactly what the customer's mail client renders.
     const body = sanitizeRichText(reply)
@@ -1769,9 +1792,13 @@ export default function AdminPipelinePage() {
                   </ul>
                 ) : null}
 
+                {tooBigToSend ? (
+                  <p className="adm-alert adm-small" role="alert">{t.tooBigToSend(formatSizeUp(filesTotal))}</p>
+                ) : null}
+
                 <p className="adm-small adm-muted">{t.draftHint}</p>
                 <div className="adm-composer-actions">
-                  <button type="button" className="btn" onClick={send} disabled={!composed || busy !== ''}>
+                  <button type="button" className="btn" onClick={send} disabled={!composed || busy !== '' || tooBigToSend}>
                     {busy === 'send' ? t.sending : t.send}
                   </button>
                   <button type="button" className="btn ghost" onClick={draft} disabled={busy !== ''}>

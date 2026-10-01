@@ -245,6 +245,69 @@ describe('AdminPipelinePage', () => {
     expect(screen.queryByText('x.pdf')).not.toBeInTheDocument()
   })
 
+  // A file of a given size without allocating it: size is all the composer reads.
+  const sized = (name, megabytes) => {
+    const file = new File(['%PDF-1.4'], name, { type: 'application/pdf' })
+    Object.defineProperty(file, 'size', { value: Math.round(megabytes * 1024 * 1024) })
+    return file
+  }
+
+  it('sends up to 20 MB of files with a reply (#29)', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.upload(document.querySelector('input[type="file"]'),
+      [sized('plans.pdf', 12), sized('render.pdf', 8)])
+    typeReply('<p>Чертежите.</p>')
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Изпрати|Send/ }))
+
+    await waitFor(() => {
+      const sent = calls.find((c) => c.url.includes('/reply') && c.method === 'POST')
+      expect(sent.body.getAll('files')).toHaveLength(2)
+    })
+  })
+
+  it('says why, and refuses to send, past 20 MB — but still lets the files be logged', async () => {
+    // Above ~28.6 MB App Service turns the request away before the app reads it, so the
+    // server's own sentence never arrives; the composer has to count first.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.upload(document.querySelector('input[type="file"]'),
+      [sized('plans.pdf', 15), sized('render.pdf', 9)])
+    typeReply('<p>Чертежите.</p>')
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/24\.0 MB/)
+    expect(screen.getByRole('button', { name: /Изпрати|Send/ })).toBeDisabled()
+
+    // Taking one off brings Send back.
+    await user.click(screen.getByRole('button', { name: /render\.pdf/ }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Изпрати|Send/ })).toBeEnabled()
+
+    // And logging is never refused for the total: each file is stored on its own.
+    await user.upload(document.querySelector('input[type="file"]'), sized('render.pdf', 9))
+    await user.click(screen.getByRole('button', { name: /Бележка|Note/ }))
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/attachments') && c.method === 'POST')).toBe(true))
+    expect(calls.some((c) => c.url.includes('/reply'))).toBe(false)
+  })
+
+  it('a total just past 20 MB never reads as "20.0 MB"', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await user.upload(document.querySelector('input[type="file"]'),
+      [sized('plans.pdf', 12), sized('render.pdf', 8.02)])
+
+    expect(screen.getByRole('alert')).toHaveTextContent('20.1 MB')
+    expect(screen.getByRole('button', { name: /Изпрати|Send/ })).toBeDisabled()
+  })
+
   it('a picked file can be taken off again before it is sent', async () => {
     const user = userEvent.setup()
     render(<AdminPipelinePage />)

@@ -426,6 +426,12 @@ public class AdminPipelineController : ControllerBase
     // carries files must be ONE request. Uploading first and sending second would leave a
     // file in the thread whenever the send then failed — an attachment sales believes the
     // customer has and the customer has never seen.
+    //
+    // The request limit is twice the reply's: room for an over-limit pick to reach
+    // ValidateAttachments and be answered with a sentence rather than a bare 413. Since #29
+    // that is 41 MB, which IIS request filtering on Windows App Service (maxAllowedContentLength,
+    // ~28.6 MB, answering 404.13) undercuts — a request past THAT never reaches the app at
+    // all, which is why the panel counts before it uploads.
     [HttpPost("{id:int}/reply")]
     [RequestSizeLimit((LeadFileStore.MaxEmailBytes * 2) + (1024 * 1024))]
     public async Task<IActionResult> Reply(
@@ -567,12 +573,12 @@ public class AdminPipelineController : ControllerBase
             total += file.Length;
         }
 
-        // The total, not just each file: four 2 MB drawings pass every per-file check and
-        // still bounce off Graph's message size limit.
+        // The total, not just each file: Exchange judges the message, so two 15 MB drawings
+        // pass every per-file check and still could not go out together (see MaxEmailBytes).
         if (total > LeadFileStore.MaxEmailBytes)
         {
             errors.Add(
-                $"Files sent with a reply must total under {LeadFileStore.MaxEmailBytes / (1024 * 1024)} MB. " +
+                $"Files sent with a reply can total at most {LeadFileStore.MaxEmailBytes / (1024 * 1024)} MB. " +
                 "Attach bigger ones with a note instead, or send a link.");
         }
 

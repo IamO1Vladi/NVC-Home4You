@@ -102,36 +102,6 @@ commits, notes and conversations still resolve.
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
 - [ ] **11. Greek translation completeness audit.**
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
-- [ ] **29. Raise the reply-attachment limit (3 MB → 20 MB) via Graph upload sessions.**
-  Asked for by the owner 2026-09-10; parked for the roadmap the same day. Target settled
-  at 20 MB (owner, same day): it matches the 20 MB stored-file cap, and a 20 MB
-  attachment is a ~27 MB MIME message — comfortable against Exchange Online's default
-  35 MB send limit where 25 MB was a squeeze, and the ~21 MB multipart request clears
-  App Service's default ~28.6 MB request cap with real headroom. The pipeline
-  reply (`POST /api/admin/pipeline/{id}/reply`) caps attachments at
-  `LeadFileStore.MaxEmailBytes = 3 MB` total, because that is Graph's ceiling for adding
-  an attachment to a message in ONE request — not a number anyone chose for the business.
-  Scoped 2026-09-10; the send path is already draft-based, which is exactly the shape the
-  fix extends:
-  - `LeadMailService.AttachToDraftAsync`: for files over ~3 MB, switch to
-    `POST .../messages/{id}/attachments/createUploadSession`, then PUT the bytes in
-    chunks (Content-Range, raw bytes not base64, no auth header — the uploadUrl is
-    pre-authorised). Small files keep the existing single-request path.
-  - `SendDirectAsync` (the Mail.Send-only fallback that inlines attachments into
-    `sendMail`) CANNOT carry large files — with attachments over the single-request
-    limit and no Mail.ReadWrite grant, fail with a named error rather than letting
-    Graph 413 mid-send.
-  - Bump `MaxEmailBytes` to 20 MB; the controller's `[RequestSizeLimit]` and
-    `ValidateAttachments` follow it automatically, as does the panel's error copy.
-  - Verify hosting limits pass a ~21 MB multipart request end to end (Kestrel's
-    per-endpoint limit comes from the attribute; App Service/IIS default
-    `maxAllowedContentLength` is ~28.6 MB — one 20 MB file fits with headroom; the
-    TOTAL cap stays 20 MB so two large files cannot stack past it).
-  One fact to keep in view, from the mail world rather than our code: receiving servers
-  cap what THEY accept, and abv.bg-class mailboxes may bounce ~27 MB messages regardless
-  of what we send. The panel already has the safety valve for oversized files: the note
-  path stores up to 20 MB against the thread ("send a link" instead of attaching).
-
 - [ ] **33. A failed image retries forever on the home and modular-builds pages.** Found
   2026-09-30 while prerendering without Blob: `/bg` sent 13,412 requests in 15 s (~900/s),
   `/bg/modulni-postroiki` 9,950. The `onError={(e) => { e.currentTarget.src = fallback }}`
@@ -560,6 +530,48 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
    pick at import time.
 
 ## DONE — newest first
+
+- [x] **29. Replies carry up to 20 MB of files** (built 2026-10-01, **not yet deployed**).
+  Asked for by the owner 2026-09-10; the cap was 3 MB because that is Graph's ceiling for
+  attaching a file in ONE request. Now each file takes the route Graph documents for its
+  size (learn.microsoft.com/graph/outlook-large-attachments): under 3,000,000 bytes the
+  single POST it always used; from there an **upload session** — createUploadSession on
+  the draft, then the raw bytes PUT in order to the pre-authenticated uploadUrl in pieces of
+  3,276,800 (10 × 320 KiB, under the 4 MB per-request guidance), Content-Range on each,
+  **no Authorization header**, 200 per piece with where to continue (followed, not
+  assumed), 201 at the end, throttling waited out per Retry-After. A session refused as
+  under the service's own minimum falls back to the single POST (the docs never say whether
+  "3 MB" is 3,000,000 or 3 MiB). The total stays capped at 20 MB (`MaxEmailBytes`, = the
+  stored-file cap): ~27 MB once encoded, inside Exchange's default 35 MB send limit. The
+  panel counts the picked files first and refuses Send past 20 MB with a sentence, because
+  above ~28.6 MB IIS turns the request away before the app can say why; a test pins the
+  panel's number to the server's. Facts were researched from Microsoft's docs by two agents
+  and re-checked page by page by a third (79/82 confirmed, 3 mis-cited but right).
+
+  The sendMail fallback (Mail.Send without Mail.ReadWrite) is ONE JSON request under
+  Graph's 4 MB limit and cannot use sessions, so it refuses more than 2.8 MB of files up
+  front, by name, instead of letting Graph 413 a "try again" that can never succeed. It
+  now runs only when CREATING the draft is refused — a 403 later (attach, send) comes from
+  a mailbox that just made a draft, and blaming Mail.ReadWrite there would be wrong.
+
+  Reviewed by three lenses with a skeptic per finding, then the fixes re-checked. Found and
+  fixed: System.Text.Json's default encoder writes every '+' of base64 as a six-byte escape, making
+  attachment bodies ~1.44× the file — a 2.95 MB PDF broke the 4 MB limit on every attempt,
+  and so did the old 3 MB cap (relaxed escaping for the two payloads that carry bytes);
+  the token is fetched per Graph call so a long upload cannot outlive it; a failed upload
+  cancels its session and deletes the half-built draft, a definitively refused send deletes
+  its draft, a 5xx keeps it; the send and the thread bookkeeping run on their own clocks so
+  a browser closed on a long send can no longer leave a sent reply unrecorded (the lead
+  #334 duplicate); the uploadUrl's token is kept out of the logs (a named HttpClient with
+  .RemoveAllLoggers()). A second, focused re-check of those fixes then found the one that
+  mattered most: a 5xx or a dropped connection at /send kept the draft ("may have left")
+  but still told the person "not sent, try again" — the duplicate-send trap. Now every
+  answer after the send is asked for that is not a definite 4xx says the reply MAY have
+  gone out and to check Sent Items first (and is logged as such even if the browser left);
+  before that point a timeout is a plain "not sent". Each post-send file copy has its own
+  clock, so a slow one can no longer cost the thread entry. **Verify after the publish:**
+  send a reply with a 5–15 MB PDF to a mailbox you can read — the session path has only
+  ever met a stub of Graph.
 
 - [x] **32. New A1–A3 renders, their kitchens re-mapped, and a sink that follows the
   drawing** (built 2026-09-30, ships with #31). The owner supplied new furnished renders
