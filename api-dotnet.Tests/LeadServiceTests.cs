@@ -197,18 +197,73 @@ public class LeadServiceTests
     }
 
     [Fact]
-    public async Task An_admin_created_house_is_matched_by_its_sql_id_because_that_is_what_the_gallery_serves()
+    public async Task An_admin_created_house_is_matched_by_its_offset_public_id()
     {
-        // Houses created in the admin panel have no Quickbase id, so the gallery addresses
-        // them by SQL id — and only those.
+        // Since #35 the gallery serves a house made in the admin panel as 100000 + SQL id.
         using var db = NewDb();
         db.Houses.Add(new House { Id = 5, QuickbaseRecordId = null, Title = "Studio", CategoryKey = HouseCategories.Prefab });
-        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Hi", ModelId = "5" });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Hi", ModelId = "100005" });
         await db.SaveChangesAsync();
 
         var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
 
         Assert.Equal(5, lead.HouseId);
+    }
+
+    [Fact]
+    public async Task An_offset_id_never_names_an_imported_house()
+    {
+        // House 5 is imported, so it is only ever served as its Quickbase id.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 5, QuickbaseRecordId = 300, Title = "Imported", CategoryKey = HouseCategories.Prefab });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Hi", ModelId = "100005" });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Null(lead.HouseId);
+    }
+
+    [Fact]
+    public async Task An_offset_id_too_large_for_a_sql_key_does_not_wrap_onto_a_real_house()
+    {
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 1, QuickbaseRecordId = null, Title = "Real house", CategoryKey = HouseCategories.Prefab });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Hi", ModelId = "4295067297" });   // 100000 + 2^32 + 1
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Null(lead.HouseId);
+    }
+
+    [Fact]
+    public async Task An_enquiry_from_before_35_still_finds_an_admin_created_house_by_its_bare_sql_id()
+    {
+        // Before #35 the gallery served an admin-created house under its bare SQL id, and
+        // stored enquiries still carry that number.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 5, QuickbaseRecordId = null, Title = "Studio", CategoryKey = HouseCategories.Prefab, CreatedAt = At(2026, 9, 1) });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Hi", ModelId = "5", CreatedAt = At(2026, 9, 20) });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Equal(5, lead.HouseId);
+    }
+
+    [Fact]
+    public async Task A_bare_sql_id_from_before_the_admin_house_existed_does_not_name_it()
+    {
+        // Nothing was served under "5" when this enquiry was made.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 5, QuickbaseRecordId = null, Title = "Studio", CategoryKey = HouseCategories.Prefab, CreatedAt = At(2026, 9, 1) });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Hi", ModelId = "5", CreatedAt = At(2026, 8, 1) });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Null(lead.HouseId);
     }
 
     [Fact]
@@ -226,23 +281,157 @@ public class LeadServiceTests
         Assert.Null(lead.HouseId);
     }
 
-    [Fact]
-    public async Task A_public_id_two_houses_answer_to_links_to_neither()
+    // --- The two houses that were both "15" -----------------------------------------
+    //
+    // Live, 2026-10-02: the admin-created Space house (SQL id 15, no Quickbase id) and the
+    // imported 73 m² house (Quickbase id 15) were both served as "15" until #35. The lookup
+    // before #34 took the imported one, so Space house leads got the wrong building. The
+    // enquiries already stored keep their "15"; these pin how each one is read.
+
+    private static DateTimeOffset At(int y, int m, int d) => new(y, m, d, 12, 0, 0, TimeSpan.Zero);
+
+    private const string SpaceTitleBg = "Космическа къща - капсула";
+    private const string Big73TitleBg = "Разгъваема Къща - 73m² с веранда и двоен покрив";
+
+    private static void SeedTheTwins(AppDbContext db) => db.Houses.AddRange(
+        // Imported 2026-08-17: an imported house's CreatedAt is the import, not the house.
+        new House { Id = 7, QuickbaseRecordId = 15, Title = "Expandable house - 73m²", TitleBg = Big73TitleBg, CategoryKey = HouseCategories.Modular, CreatedAt = At(2026, 8, 17) },
+        new House { Id = 15, QuickbaseRecordId = null, Title = "Space house", TitleBg = SpaceTitleBg, CategoryKey = HouseCategories.Modular, CreatedAt = At(2026, 9, 1) });
+
+    private static async Task<int?> HouseLinkedFor(string modelId, string message, DateTimeOffset offeredAt)
     {
-        // Live, 2026-10-02: the admin-created "Space house" (SQL id 15, no Quickbase id) and
-        // an imported house with Quickbase id 15 were both served as "15". The old two-step
-        // lookup took the imported one, so every Space house lead got the wrong building.
         using var db = NewDb();
-        db.Houses.AddRange(
-            new House { Id = 3, QuickbaseRecordId = 15, Title = "Expandable 73", CategoryKey = HouseCategories.Modular },
-            new House { Id = 15, QuickbaseRecordId = null, Title = "Space house", CategoryKey = HouseCategories.Prefab });
-        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Модел от сайта: Космическа къща\n\nHi", ModelId = "15" });
+        SeedTheTwins(db);
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = message, ModelId = modelId, CreatedAt = offeredAt });
+        await db.SaveChangesAsync();
+
+        return (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!.HouseId;
+    }
+
+    [Fact]
+    public async Task An_old_shared_id_with_nothing_to_tell_the_houses_apart_links_to_neither()
+    {
+        // Made while both houses were "15", and from before #34's model line: either guess
+        // would attach the lead, and the drafter's price, to a house the customer may not
+        // have asked about.
+        Assert.Null(await HouseLinkedFor("15", "Hi, how much is it?", At(2026, 9, 15)));
+    }
+
+    [Fact]
+    public async Task An_old_shared_id_is_settled_by_a_model_line_naming_the_space_house()
+    {
+        var message = $"Модел от сайта: {SpaceTitleBg} — https://nvc-home4you.eu/bg/galeriq/космическа-къща-капсула\n\nHi";
+
+        Assert.Equal(15, await HouseLinkedFor("15", message, At(2026, 10, 2)));
+    }
+
+    [Fact]
+    public async Task An_old_shared_id_is_settled_by_a_model_line_naming_the_73_m2_house()
+    {
+        var message = $"Модел от сайта: {Big73TitleBg} — https://nvc-home4you.eu/bg/galeriq/x\n\nHi";
+
+        Assert.Equal(7, await HouseLinkedFor("15", message, At(2026, 10, 2)));
+    }
+
+    [Fact]
+    public async Task A_model_line_that_names_neither_house_settles_nothing()
+    {
+        // "Космическа къща" is the start of the Space house's title, not its title.
+        Assert.Null(await HouseLinkedFor("15", "Модел от сайта: Космическа къща\n\nHi", At(2026, 10, 2)));
+    }
+
+    [Fact]
+    public async Task An_old_15_from_before_the_space_house_existed_means_the_73_m2_house()
+    {
+        // Only one house was served as "15" then.
+        Assert.Equal(7, await HouseLinkedFor("15", "Hi", At(2026, 8, 25)));
+    }
+
+    [Fact]
+    public async Task An_imported_house_is_found_whatever_its_import_date()
+    {
+        // A Quickbase-era enquiry predates the import that created the row in SQL, and
+        // still means that house.
+        Assert.Equal(7, await HouseLinkedFor("15", "Hi", At(2026, 3, 1)));
+    }
+
+    [Fact]
+    public async Task The_space_house_is_found_by_its_new_id()
+    {
+        var message = $"Модел от сайта: {SpaceTitleBg}\n\nHi";
+
+        Assert.Equal(15, await HouseLinkedFor("100015", message, At(2026, 10, 3)));
+    }
+
+    [Fact]
+    public async Task A_model_line_that_contradicts_the_only_house_left_links_to_neither()
+    {
+        // The Space house deleted after #35: an old "15" about it now finds only the 73 m²
+        // house, and the line is all that says otherwise.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 7, QuickbaseRecordId = 15, Title = "Expandable house - 73m²", TitleBg = Big73TitleBg, CategoryKey = HouseCategories.Modular, CreatedAt = At(2026, 8, 17) });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = $"Модел от сайта: {SpaceTitleBg}\n\nHi", ModelId = "15", CreatedAt = At(2026, 10, 2) });
         await db.SaveChangesAsync();
 
         var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
 
         Assert.Null(lead.HouseId);
-        Assert.StartsWith("Модел от сайта: Космическа къща", lead.Activities.Single().Body);
+    }
+
+    [Fact]
+    public async Task A_quickbase_id_with_a_model_line_naming_its_house_links()
+    {
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 4, QuickbaseRecordId = 9, Title = "Expandable 73", TitleBg = "Разгъваема Къща – 73 м²", CategoryKey = HouseCategories.Modular });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Модел от сайта: Разгъваема Къща – 73 м² — https://nvc-home4you.eu/bg/galeriq/x\n\nHi", ModelId = "9" });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Equal(4, lead.HouseId);
+    }
+
+    [Fact]
+    public async Task A_house_retitled_since_the_enquiry_is_not_linked_by_a_number_below_the_offset()
+    {
+        // The deliberate price of trusting the line: below the offset a number may once have
+        // meant a house that is gone, so a line that names something else wins. Staff link it
+        // by hand, and the line tells them which house it was.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 4, QuickbaseRecordId = 9, Title = "Expandable 73", TitleBg = "Разгъваема Къща – 73 м² (нова)", CategoryKey = HouseCategories.Modular });
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Модел от сайта: Разгъваема Къща – 73 м²\n\nHi", ModelId = "9" });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Null(lead.HouseId);
+    }
+
+    [Fact]
+    public async Task Above_the_offset_the_number_decides_even_against_the_line()
+    {
+        // Nothing else was ever served as 100015, so a line that disagrees is a retitle.
+        using var db = NewDb();
+        SeedTheTwins(db);
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = "Модел от сайта: Космическа къща (старо име)\n\nHi", ModelId = "100015", CreatedAt = At(2026, 10, 3) });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.Equal(15, lead.HouseId);
+    }
+
+    [Fact]
+    public async Task The_promoted_thread_still_opens_with_the_model_line()
+    {
+        using var db = NewDb();
+        SeedTheTwins(db);
+        db.Offers.Add(new Offer { Id = 1, Name = "Ivan", Message = $"Модел от сайта: {SpaceTitleBg}\n\nHi", ModelId = "15", CreatedAt = At(2026, 10, 2) });
+        await db.SaveChangesAsync();
+
+        var lead = (await new LeadService(db).PromoteAsync("offer", 1, "s@x.eu")).Lead!;
+
+        Assert.StartsWith($"Модел от сайта: {SpaceTitleBg}", lead.Activities.Single().Body);
     }
 
     [Fact]

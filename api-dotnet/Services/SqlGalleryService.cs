@@ -82,13 +82,11 @@ public sealed class SqlGalleryService : IGalleryStore
 
         return new GalleryItem
         {
-            // The frontend keys models by this id and it appears in shared configurator links,
-            // so it stays the Quickbase record id for rows that have one. Changing it would
-            // break links already sitting in customers' inboxes. Houses created in the admin
-            // panel have no Quickbase id and fall back to their SQL id — safe, because the two
-            // id spaces only ever coexist during the migration and SQL ids start above nothing
-            // Quickbase issued.
-            Id = r.QuickbaseRecordId ?? r.Id,
+            // Imported houses keep their Quickbase record id, which stored enquiries and the
+            // prices page's assembly table already hold; admin-created houses are offset
+            // clear of that range. Their bare SQL id used to be served here and collided on
+            // live — see HousePublicIds.
+            Id = HousePublicIds.For(r.QuickbaseRecordId, r.Id),
             Title = r.Title,
             TitleBg = r.TitleBg,
             TitleEl = r.TitleEl,

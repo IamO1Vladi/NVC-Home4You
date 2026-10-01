@@ -78,6 +78,15 @@ public sealed class GalleryImportService
             return new ImportResult(items.Count, 0, 0, 0, 0, 0, problems);
         }
 
+        // Refused the same way, whole run: a house imported under such an id would be served
+        // as the same public id as an admin-created house, which is the collision #35 fixed.
+        var outOfRange = OutOfRange(items);
+        if (outOfRange.Count > 0)
+        {
+            problems.AddRange(outOfRange);
+            return new ImportResult(items.Count, 0, 0, 0, 0, 0, problems);
+        }
+
         var existing = await _db.Houses
             .Include(h => h.Images)
             .Where(h => h.QuickbaseRecordId != null)
@@ -257,6 +266,16 @@ public sealed class GalleryImportService
         var slash = sourceKey.LastIndexOf('/');
         return slash >= 0 && slash < sourceKey.Length - 1 ? sourceKey[(slash + 1)..] : sourceKey;
     }
+
+    /// <summary>
+    /// One problem line per Quickbase house whose record id reaches the range public ids
+    /// reserve for admin-created houses (HousePublicIds.AdminOffset and up).
+    /// </summary>
+    public static List<string> OutOfRange(IEnumerable<Models.GalleryItem> items) =>
+        items
+            .Where(i => !HousePublicIds.FitsQuickbaseRange(i.Id))
+            .Select(i => $"house {i.Id} \"{Truncate(i.Title)}\" has a Quickbase id at or above {HousePublicIds.AdminOffset}, the range public ids reserve for houses created in the admin panel")
+            .ToList();
 
     private static string Truncate(string? value, int max = 120)
     {

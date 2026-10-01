@@ -25,8 +25,12 @@ public class House
     public int Id { get; set; }
 
     // Quickbase Record ID# (3). Makes the import idempotent and lets shadow comparison line
-    // the two systems up. Null for rows created in the admin panel, and for every row once
-    // Quickbase is gone.
+    // the two systems up. Null for rows created in the admin panel.
+    //
+    // KEEP IT after Quickbase is gone: it is also an imported house's PUBLIC id (#35,
+    // HousePublicIds). Nulling it would renumber every imported house to 100000 + its SQL
+    // id, which silently drops every assembly cost on the prices page (keyed by these
+    // numbers) and leaves stored enquiries pointing at nothing.
     public long? QuickbaseRecordId { get; set; }
 
     [MaxLength(300)] public string Title { get; set; } = "";          // Title (6)

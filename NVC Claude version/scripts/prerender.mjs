@@ -29,6 +29,7 @@ import { mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs'
 import { dirname, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import puppeteer from 'puppeteer'
+import { compareCataloguePrices } from '../src/lib/catalogueCompare.js'
 import { paths } from '../src/routes/paths.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -176,8 +177,7 @@ async function dataSourcesAgree() {
     const res = await fetch(`${base}/api/gallery`, { signal: AbortSignal.timeout(20000) })
     if (!res.ok) throw new Error(`${base} -> HTTP ${res.status}`)
     const body = await res.json()
-    const items = Array.isArray(body) ? body : (body?.items ?? [])
-    return new Map(items.filter((i) => i?.id != null).map((i) => [String(i.id), Number(i.price) || 0]))
+    return Array.isArray(body) ? body : (body?.items ?? [])
   }
 
   let local
@@ -190,17 +190,21 @@ async function dataSourcesAgree() {
     return { ok: true, warning: `could not compare against the live catalogue (${err.message})` }
   }
 
-  const differences = []
-  for (const [id, price] of live) {
-    if (local.has(id) && local.get(id) !== price) {
-      differences.push(`  item ${id}: local ${local.get(id)} vs live ${price}`)
-    }
-  }
+  // Matched by id, minus any id either side serves twice — see catalogueCompare.js.
+  const { differences, ambiguous, compared, localCount } = compareCataloguePrices(local, live)
 
-  if (local.size === 0) return { ok: false, reason: 'the local catalogue came back empty' }
-  return differences.length
-    ? { ok: false, reason: `local and live catalogue prices disagree:\n${differences.join('\n')}` }
-    : { ok: true, compared: local.size }
+  if (localCount === 0) return { ok: false, reason: 'the local catalogue came back empty' }
+  if (differences.length) {
+    const lines = differences.map((d) => `  item ${d.id}: local ${d.local} vs live ${d.live}`)
+    return { ok: false, reason: `local and live catalogue prices disagree:\n${lines.join('\n')}` }
+  }
+  return {
+    ok: true,
+    compared,
+    warning: ambiguous.length
+      ? `not compared: id ${ambiguous.join(', ')} is served for more than one item. Expected from live on the release that ships #35 (it serves the Space house and the 73 m² house both as 15); anywhere else it is a bug.`
+      : undefined,
+  }
 }
 
 const routes = routeList()

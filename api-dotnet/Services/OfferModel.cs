@@ -11,10 +11,11 @@ namespace Services;
 ///
 /// A gallery "request an offer" sends three loose strings alongside the form: the model's
 /// public id, its Bulgarian title and its Bulgarian page path. The id alone was never
-/// enough. It is not unique on live — SqlGalleryService exposes QuickbaseRecordId ?? Id,
-/// so an admin-created house and an imported one can both answer to "15" — and a raw
-/// "Модел: 15" told sales nothing they could act on. The title says it in words and the
-/// link opens the exact page the customer was looking at.
+/// enough. Until #35 it was not even unique — an admin-created house and an imported one
+/// both answered to "15" on live — and a raw "Модел: 15" tells sales nothing they can act
+/// on either way. The title says it in words and the link opens the exact page the
+/// customer was looking at. It is also what LeadService falls back on for an enquiry
+/// stored while two houses still shared an id.
 ///
 /// ALL THREE ARRIVE FROM AN ANONYMOUS PUBLIC FORM and end up in the sales inbox and on every
 /// admin surface that shows the enquiry, so none of them is trusted:
@@ -153,7 +154,34 @@ public sealed record OfferModel(string? Id, string? Title, string? Url)
     /// </summary>
     public string? MessageLine => Title is null
         ? null
-        : Url is null ? $"Модел от сайта: {Title}" : $"Модел от сайта: {Title} — {Uri.UnescapeDataString(Url)}";
+        : Url is null ? LinePrefix + Title : $"{LinePrefix}{Title}{LinkSeparator}{Uri.UnescapeDataString(Url)}";
+
+    private const string LinePrefix = "Модел от сайта: ";
+    private const string LinkSeparator = " — ";
+
+    /// <summary>Whether a stored enquiry opens with a model line at all, whatever it names.</summary>
+    public static bool HasModelLine(string? message) =>
+        message is not null && message.StartsWith(LinePrefix, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Whether a stored enquiry opens with the model line for this title — the reverse of
+    /// MessageLine, for LeadService to tell apart two houses that answered to one id.
+    ///
+    /// The title goes through the same cleaning the site's title went through, so a house
+    /// title compares the way it was stored. It must also END where the line's title ends,
+    /// or "Space house" would claim an enquiry about "Space house 2".
+    /// </summary>
+    public static bool LineNames(string? message, string? title)
+    {
+        var clean = CleanText(title, MaxTitleLength);
+        if (clean is null || string.IsNullOrEmpty(message)) return false;
+
+        var named = LinePrefix + clean;
+        if (!message.StartsWith(named, StringComparison.Ordinal)) return false;
+
+        var rest = message.AsSpan(named.Length);
+        return rest.IsEmpty || rest[0] == '\n' || rest.StartsWith(LinkSeparator, StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// The customer's text with the model line in front of it, separated by a blank line.

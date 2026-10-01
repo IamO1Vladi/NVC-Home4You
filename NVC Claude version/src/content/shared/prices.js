@@ -88,6 +88,11 @@ export function startingPrice(locale = 'en') {
 // Keyed by GALLERY ID, not by title. Titles get edited in the admin panel — "Разгъваема Къща
 // – 37 м²" gaining a word would silently drop its assembly cost and quietly change a
 // published price. Ids do not move.
+//
+// The ids below are Quickbase record ids, which imported houses keep. A house created in
+// the admin panel is served as 100000 + its SQL id (#35, HousePublicIds.cs), so the Space
+// house is 100015. Until #35 it was served as 15 too, and this table gave it the 73 m²
+// house's assembly cost.
 
 /**
  * Box-house assembly, EXCLUDING VAT — same basis as ASSEMBLY_NET above.

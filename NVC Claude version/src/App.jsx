@@ -163,8 +163,8 @@ function AppShell() {
   // The gallery's "request an offer", for all three locales' gallery routes (it used to be
   // three identical inline copies). Besides the id, the item page hands over the title the
   // visitor reads in the form, and the Bulgarian title and page the lead carries for staff:
-  // the public id is not unique (an admin-created house can share one with a Quickbase
-  // house), so on its own it cannot tell sales which house was asked about.
+  // a number does not tell sales which house was asked about (and until #35 two houses
+  // could even share one).
   // Not folded into openOfferModal: that one is handed straight to onClick in a couple of
   // dozen places, so whatever it took as a model would be a click event.
   const requestModel = useCallback((m) => {

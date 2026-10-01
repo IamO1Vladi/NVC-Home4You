@@ -34,8 +34,10 @@ public class Offer
 
     // The gallery model's public id, set when the enquiry came from a gallery "request an
     // offer". The configurator deliberately leaves it empty (see BoxHouseConfiguratorPage),
-    // as does the plain form. The id is not unique on live, so the model's title and link
-    // are carried in the first line of Message instead — see OfferModel.
+    // as does the plain form. A number alone does not name a house for staff, so the model's
+    // title and link are carried in the first line of Message too — see OfferModel. Rows
+    // stored before #35 may hold a number two houses shared; HousePublicIds has the history
+    // and LeadService how such a row is read.
     [MaxLength(100)] public string? ModelId { get; set; }
 
     // Which language the customer was browsing in. Not written to Quickbase today, but the

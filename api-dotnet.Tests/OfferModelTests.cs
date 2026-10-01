@@ -250,6 +250,62 @@ public class OfferModelTests
         Assert.Null(OfferModel.WithModelLine(null, null));
     }
 
+    // --- Reading the line back (#35) ----------------------------------------------------
+    // For an enquiry stored while two houses shared an id, the line is how LeadService
+    // tells which one was asked about.
+
+    [Theory]
+    [InlineData("/bg/galeriq/космическа-къща-капсула", "Delivery to Varna?")]   // linked, with words after
+    [InlineData(null, "Delivery to Varna?")]                                   // no valid link
+    [InlineData("/bg/galeriq/космическа-къща-капсула", null)]                  // the line alone
+    public void The_line_names_the_title_it_was_written_for(string? path, string? words)
+    {
+        const string title = "Космическа къща - капсула";
+        var stored = OfferModel.WithModelLine(OfferModel.From("15", title, path), words);
+
+        Assert.True(OfferModel.LineNames(stored, title));
+    }
+
+    [Fact]
+    public void A_title_is_compared_the_way_the_site_title_was_cleaned()
+    {
+        // The house row may hold what the form's cleaning flattened: a line break, doubled
+        // spaces, an invisible format character.
+        var stored = OfferModel.WithModelLine(OfferModel.From("15", "Space house", null), "Hi");
+
+        Assert.True(OfferModel.LineNames(stored, "Space\n  house​"));
+    }
+
+    [Theory]
+    [InlineData("Космическа къща")]                 // the start of the title is not the title
+    [InlineData("Космическа къща - капсула 2")]     // nor is a longer one
+    [InlineData("Разгъваема Къща - 73m²")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void The_line_does_not_name_another_title(string? title)
+    {
+        var stored = OfferModel.WithModelLine(OfferModel.From("15", "Космическа къща - капсула", "/bg/galeriq/x"), "Hi");
+
+        Assert.False(OfferModel.LineNames(stored, title));
+    }
+
+    [Fact]
+    public void A_model_line_is_recognised_whatever_it_names()
+    {
+        Assert.True(OfferModel.HasModelLine(OfferModel.WithModelLine(OfferModel.From("15", "Anything", null), "Hi")));
+        Assert.False(OfferModel.HasModelLine("Hi\n\nМодел от сайта: Anything"));
+        Assert.False(OfferModel.HasModelLine("Box house 37m², balcony variant"));
+        Assert.False(OfferModel.HasModelLine(null));
+    }
+
+    [Fact]
+    public void Only_a_first_line_counts()
+    {
+        // A customer can type anything; only the line SqlLeadService puts first is ours.
+        Assert.False(OfferModel.LineNames("Hi\n\nМодел от сайта: Космическа къща - капсула", "Космическа къща - капсула"));
+        Assert.False(OfferModel.LineNames(null, "Космическа къща - капсула"));
+    }
+
     // --- The payload --------------------------------------------------------------------
 
     [Fact]

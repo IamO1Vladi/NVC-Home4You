@@ -75,7 +75,7 @@ public class LeadService
             Email = offer.Email,
             Phone = offer.Phone,
             Locale = offer.Locale,
-            HouseId = await ResolveHouseIdAsync(offer.ModelId, ct),
+            HouseId = await ResolveHouseIdAsync(offer, ct),
             Status = LeadStatuses.New,
             OwnerUpn = actorUpn,
             // Born at the moment the customer asked, not the moment someone got round to
@@ -501,45 +501,77 @@ public class LeadService
     /// <summary>
     /// Maps the model id an enquiry carried back to a catalogue row.
     ///
-    /// This is the inverse of what the gallery serves, and it has to be exactly the inverse
-    /// or leads attach to the wrong house. SqlGalleryService sends `QuickbaseRecordId ?? Id`
-    /// as a house's public id, so a house that has a Quickbase id is only ever addressed by
-    /// THAT, never by its SQL id. Matching on Id first — the obvious implementation — would
-    /// therefore hand back whichever imported house happens to have that SQL primary key,
-    /// which is a different building.
+    /// This is the inverse of what the gallery serves (HousePublicIds), and it has to be
+    /// exactly the inverse or leads attach to the wrong house. A house with a Quickbase id is
+    /// only ever addressed by THAT, never by its SQL id; matching on Id — the obvious
+    /// implementation — would hand back whichever imported house happens to have that SQL
+    /// primary key, which is a different building.
     ///
-    /// Hence: try QuickbaseRecordId, then fall back to Id only among rows that have no
-    /// Quickbase id, because those are precisely the ones the gallery addresses by Id.
+    /// Three kinds of number arrive:
+    ///
+    /// - Above HousePublicIds.AdminOffset: an admin-created house, by construction.
+    /// - Below it: a Quickbase id — or, from an enquiry made before #35, the bare SQL id an
+    ///   admin-created house was served under then. Both are candidates, but the second only
+    ///   if the house already existed when the enquiry was made: before that, nothing was
+    ///   served under its number, so the number meant the Quickbase house. (Not applied to
+    ///   imported houses, whose CreatedAt is the day of the import, not of the house.)
+    /// - Below the offset, the enquiry's first line ("Модел от сайта: …", since #34) has the
+    ///   last word when it is there: the house must be the one it names. That settles a
+    ///   number two houses shared — live, the admin-created Space house (SQL 15) and the
+    ///   imported 73 m² house (Quickbase 15) were both "15" — and it stops a number landing
+    ///   on the wrong house when the one it meant is gone: delete the Space house, and an old
+    ///   "15" about it would otherwise find only the 73 m² house. The price is that a house
+    ///   retitled between the enquiry and its promotion is not linked either. Nothing else is
+    ///   evidence: a guess attaches the lead, and the drafter's price, to a house the customer
+    ///   may not have asked about, where an empty link costs staff one click, and the line is
+    ///   right there to tell them which.
+    ///
+    /// Above the offset the number alone decides, line or no line: nothing else was ever
+    /// served under it, so a line that disagrees can only be a retitle.
     ///
     /// Null when it doesn't resolve, and nothing is invented in CustomModel: a bare number
     /// is not a model name, and the customer's own description is already in the thread.
-    ///
-    /// Null, too, when the number answers to MORE than one house. The two id spaces are not
-    /// disjoint in practice — live had an admin-created house with SQL id 15 next to an
-    /// imported one with Quickbase id 15, both served as "15". Picking either would attach
-    /// the lead, and the drafter's price, to a house the customer may not have asked about;
-    /// an empty link is honest, and since 2026-10-02 the enquiry's first line names the
-    /// house ("Модел от сайта: …") for staff to link by hand.
     /// </summary>
-    private async Task<int?> ResolveHouseIdAsync(string? modelId, CancellationToken ct)
+    private async Task<int?> ResolveHouseIdAsync(Offer offer, CancellationToken ct)
     {
+        var modelId = offer.ModelId;
         if (string.IsNullOrWhiteSpace(modelId)) return null;
         if (!long.TryParse(modelId.Trim(), out var n)) return null;
 
-        // House.Id is an int and QuickbaseRecordId is a long, so a model id larger than an
-        // int cannot be a SQL primary key. Checking rather than casting: an unchecked cast
-        // wraps, and a wrapped value would match a real, unrelated house.
-        var fitsSqlId = n >= int.MinValue && n <= int.MaxValue;
-        var sqlId = fitsSqlId ? (int)n : 0;
+        if (n > HousePublicIds.AdminOffset)
+        {
+            // Null for a number too large to be a SQL key: HousePublicIds checks, not casts.
+            if (HousePublicIds.AdminHouseId(n) is not { } adminId) return null;
 
+            return await _db.Houses
+                .AsNoTracking()
+                .Where(h => h.Id == adminId && h.QuickbaseRecordId == null)
+                .Select(h => (int?)h.Id)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        // Below the offset, n fits an int; a SQL id is never below 1.
+        var legacySqlId = n >= 1 ? (int)n : 0;
+        var offeredAt = offer.CreatedAt;
+
+        // At most two rows: QuickbaseRecordId is unique, and so is Id.
         var candidates = await _db.Houses
             .AsNoTracking()
             .Where(h => h.QuickbaseRecordId == n
-                || (fitsSqlId && h.QuickbaseRecordId == null && h.Id == sqlId))
-            .Select(h => h.Id)
-            .Take(2)
+                || (h.QuickbaseRecordId == null && h.Id == legacySqlId && h.CreatedAt <= offeredAt))
+            .Select(h => new { h.Id, h.Title, h.TitleBg })
             .ToListAsync(ct);
 
-        return candidates.Count == 1 ? candidates[0] : null;
+        // An enquiry from before #34 has no line, and the number is all there is.
+        if (!OfferModel.HasModelLine(offer.Message))
+            return candidates.Count == 1 ? candidates[0].Id : null;
+
+        // The title the site sent is the Bulgarian one, falling back to the default title
+        // exactly as GalleryItemPage does (getLocalizedTitle).
+        var named = candidates
+            .Where(c => OfferModel.LineNames(offer.Message, string.IsNullOrEmpty(c.TitleBg) ? c.Title : c.TitleBg))
+            .ToList();
+
+        return named.Count == 1 ? named[0].Id : null;
     }
 }

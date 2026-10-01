@@ -109,7 +109,11 @@ the old tracker (now `ROADMAP.md`).
    them reads Quickbase while production reads SQL, so snapshots would freeze prices from
    the wrong store — this actually happened with a corrected price on 2026-08-15. The
    prerender script now compares the local catalogue against the live site and refuses to
-   run on a mismatch, so forgetting the flags fails loudly instead of silently.
+   run on a mismatch, so forgetting the flags fails loudly instead of silently. Items are
+   matched by public id; an id either side serves twice is skipped with a warning rather
+   than compared. Expect that warning, naming id 15, exactly once: on the release that
+   ships #35, because live still serves the Space house and the 73 m² house both as 15.
+   Seen on any later release, it is a bug.
    then, in a second terminal:
    ```bash
    cd "NVC Claude version" && npm run prerender

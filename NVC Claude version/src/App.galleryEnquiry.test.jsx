@@ -99,7 +99,9 @@ beforeEach(() => {
   })))
   vi.stubGlobal('scrollTo', vi.fn())
   // The index keys its cards by id, so the twins trip React's duplicate-key warning on every
-  // render. That is the live collision itself, a separate ticket, and not this file's subject.
+  // render. The API stopped serving twins in #35 (an admin-created house is 100000 + its SQL
+  // id now), but they stay here on purpose: the enquiry must name its model by title and
+  // page, never by looking the id up, and two items sharing an id is how that is proven.
   const consoleError = console.error
   vi.spyOn(console, 'error').mockImplementation((...args) => {
     if (String(args[0]).includes('Encountered two children with the same key')) return

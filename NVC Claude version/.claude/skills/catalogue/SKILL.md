@@ -71,8 +71,11 @@ A gallery house has a real id; a configurator model does not. This is why
 enquiry — writing `37` there would link the lead to whichever house happens to hold record
 id 37.
 
-Related: a house's **public** id is `QuickbaseRecordId ?? Id` (`SqlGalleryService`), not its
-SQL primary key. Anything mapping an id back to a house must invert that exactly.
+Related: a house's **public** id is not its SQL primary key. An imported house is served
+under its Quickbase id, a house made in the admin panel as 100000 + its SQL id
+(`HousePublicIds`, #35). Before #35 a panel house was served under its bare SQL id, which
+put two houses on "15" live, and stored enquiries still carry such ids. Map an id back to a
+house only through `LeadService.ResolveHouseIdAsync`, which reads all three kinds.
 
 ## Regenerating from a new edition
 

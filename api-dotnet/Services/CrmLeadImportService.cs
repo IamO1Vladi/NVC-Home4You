@@ -87,9 +87,9 @@ public class CrmLeadImportService
         var rows = await FetchAllAsync(_env.TableCrmLeads, fids, ct);
 
         // Houses are addressed by their QUICKBASE record id, never by their SQL primary
-        // key. SqlGalleryService serves `QuickbaseRecordId ?? Id`, so matching on Id would
-        // attach a lead to a different building — silently. The same trap LeadService
-        // documents, and worth paying the one extra query to avoid.
+        // key: these rows come from Quickbase, which only knows its own ids, so matching on
+        // Id would attach a lead to a different building — silently. The same trap
+        // LeadService documents, and worth paying the one extra query to avoid.
         var houseByQbId = await _db.Houses
             .AsNoTracking()
             .Where(h => h.QuickbaseRecordId != null)

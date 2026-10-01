@@ -90,8 +90,8 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
                 // What the visitor reads in the offer form, in their own language.
                 title,
                 // What the lead carries for staff, who read Bulgarian whatever language the
-                // visitor browsed in. The public id alone cannot name the house (two can
-                // share one), so the enquiry also gives its Bulgarian name and the page
+                // visitor browsed in. The public id alone does not name the house for
+                // staff, so the enquiry also gives its Bulgarian name and the page
                 // where staff can see it. Both helpers fall back exactly as the Bulgarian
                 // gallery itself does for an item with no Bulgarian fields, so the path is
                 // always one that gallery resolves.

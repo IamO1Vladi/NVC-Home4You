@@ -637,6 +637,74 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **35. A gallery public id that cannot collide** (built 2026-10-02 on
+  `fix/gallery-public-id`, **not merged, not deployed**; no migration).
+  Verified against live `/api/gallery` on 2026-10-02: two published houses were both
+  `id: 15`. They were the imported „Разгъваема Къща - 73m² с веранда и двоен покрив"
+  (Quickbase id 15) and the „Космическа къща - капсула" made in the panel (SQL id 15).
+  SqlGalleryService served `QuickbaseRecordId ?? Id`, trusting that SQL ids started above
+  Quickbase's. They did not: the import gave Quickbase's 4–17 the SQL ids 1–14, so the
+  first panel house collided, and the next two (16 and 17) would have as well.
+
+  Damage on live:
+  - Before #34, promoting a Space house enquiry linked the lead to the 73 m² house, and
+    the drafted reply quoted that house's price.
+  - The prices page gave the Space house the 73 m² house's €2,280 assembly (`prices.js`
+    is keyed by id).
+  - The gallery had duplicate React keys, product skus, and `#item-15` anchors.
+  - The prerender price check kept one twin per id and never checked the other.
+
+  - **The design.** Imported houses keep their Quickbase id. Houses made in the panel are
+    served as **100000 + SQL id**, so the Space house is 100015 (`HousePublicIds`).
+    - The ranges are disjoint by construction. SQL ids are at least 1, and
+      `GalleryImportService` refuses a run with a Quickbase id ≥ 100000. It is the only
+      code that writes `House.QuickbaseRecordId`.
+    - Nothing already published moves: every imported house keeps its number. Gallery URLs
+      are title slugs and never carried the id.
+    - **Rejected: the SQL id everywhere, with old Quickbase ids mapped.** SQL 1–14 overlap
+      Quickbase 4–17 almost entirely. Every stored enquiry and every key in the assembly
+      table would have become ambiguous, which trades one collision for fourteen.
+    - **Rejected: a stored PublicId column.** It would add a migration and backfill for no
+      extra guarantee, since the computed id is already injective.
+  - **Old enquiries keep resolving** (`LeadService.ResolveHouseIdAsync`). An id above
+    100000 is a panel house. A lower id is a Quickbase id, or else a panel house's bare SQL
+    id from before #35. The bare SQL id counts only if that house already existed when the
+    enquiry was made, because nothing was served under its number before then.
+    - A shared "15" from before the Space house existed is the 73 m² house.
+    - After that, the enquiry's „Модел от сайта: <title>" line (#34) settles it when it
+      names one of the two, using the title the site would have sent (`OfferModel.LineNames`).
+    - Otherwise the lead links to neither, as it has since #34.
+    - Below 100000 the line, when present, must name the house the number found, even a
+      single one. Without that rule, deleting the Space house would let an old "15" about
+      it land on the 73 m² house. The price is that a house retitled between enquiry and
+      promotion stays unlinked for staff to link by hand. Above 100000 the number decides
+      alone, since nothing else was ever served under it.
+    - Considered and not done: retiring the legacy bare-SQL-id rule at a cutoff date. That
+      needs the date #35 reaches production, and a wrong guess would turn a missing link
+      into a wrong one.
+  - **Prerender** (`src/lib/catalogueCompare.js`): an id either side serves twice is
+    skipped with a warning, not compared. Without this, the release that ships #35 would
+    compare local "15" (€28,000) with live's last "15" (€55,000) and refuse to prerender.
+  - **For the owner:** `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql` is a
+    read-only query that lists the 73 m² leads which were really Space house enquiries
+    (HANDOFF, Do next 0b). The Space house has no assembly entry in `prices.js`; if it
+    should have one, that is the owner's number to give.
+  - Tests: 37 .NET and 7 frontend. They pin the live catalogue's ids, the import guard,
+    every way an old or new id resolves (including the retitle trade-off), the model-line
+    reader and the prerender comparison.
+  - Reviewed by an independent skeptic before commit. Six findings, all fixed:
+    - The catalogue skill doc still described the old scheme.
+    - A model line that contradicted the only candidate was ignored (the deletion case
+      above).
+    - The SQL end-of-title check accepted „… капсула 2".
+    - A frontend test passed with the fix reverted, so it was removed.
+    - `House.QuickbaseRecordId`'s comment invited nulling it.
+    - The cutoff idea above was considered and declined, for the reason given.
+  - Noticed, not done: cases use the same `QuickbaseRecordId ?? Id` scheme
+    (`SqlCasesPageService`). No case collides on live today, since there is one case with
+    id 2, and case ids are only React keys. It will collide once a panel-made case's SQL id
+    meets an imported case's Quickbase id.
+
 - [x] **34. A gallery enquiry names its model** (built 2026-10-02, **not yet deployed**).
   Owner, 2026-10-02: sales could not tell which model a gallery „Поискай оферта" was about.
   Traced end to end, a jsdom probe of the real App proving it:
@@ -670,7 +738,7 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     (the ambiguous id above, the scroll lock restoring another overlay's 'hidden', invisible
     astral format characters in the title, the stored link percent-encoded into
     unreadability, the focus), one refuted. Separate tickets, not done here: the id-15
-    collision itself, and product SEO/sitemap reading the Quickbase gallery (live 404s).
+    collision itself (now #35), and product SEO/sitemap reading the Quickbase gallery (live 404s).
 
 - [x] **11. Greek translation completeness audit — and its fixes** (built 2026-10-01, **not
   yet deployed**). The audit found 434 strings a Greek visitor met in English or Bulgarian
