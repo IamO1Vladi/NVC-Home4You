@@ -1,4 +1,4 @@
-# Where things stand — 2026-09-20
+# Where things stand — 2026-09-30
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
@@ -14,10 +14,10 @@ Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 | | |
 |---|---|
 | **Live** | `69f9724`, tagged **`deploy-2026-09-20`** — #28: kitchen appliance placement in the configurator, plus the retirement of the kitchen-extras section. SPA-only release: no API changes, **no migrations**. The bundle rehashed to `index-B6E00noi.js` and the snapshots were regenerated with it — 52/52 routes against a local app run with the SQL data-source flags, freshness guard clean before AND at publish. Verified live the same day, not just probed: the appliance stage renders on Интериор, stacking the hob on the oven produces the OV+HB dot with „позиция 1 · върху фурната", „Кухненски добавки" is gone, the live page's bundle reference resolves 200, and the browser console is clean. **What remains human:** the owner's eyeball pass over the slot-overlay sheet (a nudged dot = one line in `boxConfiguratorApplianceSlots.js` + redeploy), one real offer submission to see the appliance lines and the not-supplied disclaimer arrive in the sales mail, and the offerText-vs-4000-char measurement noted in the #28 DONE entry. |
-| **`production` branch** | `69f9724` = live. |
-| **`master`** | = `production`, plus this note. **Branch `second-payment`** carries #31 (Второ плащане on each purchase + Платено изцяло) and #32 (new A1–A3 renders, their kitchen slots, the sink that follows the drawing) — built and tested 2026-09-30, NOT deployed. SPA changed, so the prerender (DEPLOY §6b) is required with this publish. |
+| **`production` branch** | **`136183a`+ — AHEAD of live, NOT published.** Pushed 2026-09-30 carrying #31 (second payment) and #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing). The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
+| **`master`** | = `production`. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
-| **Migrations** | **ONE PENDING with #31: `AddPurchaseSecondPayment`** — two nullable, additive columns on `Purchases`; the live code reads the table fine with them present, so apply it BEFORE the publish, the usual way (the owner's terminal, `$env:SQL_CONNECTION_STRING`). No reload needed afterwards: a panel tab still on the old bundle sends no second-payment fields, and the server leaves an absent one alone rather than clearing it. Before #31: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -26,6 +26,21 @@ from a pre-squash working tree, so no commit mapped to the zip and `production..
 was empty either way). Checking the live site settles such questions in a minute.
 
 ## Do next
+
+0. **Finish the #31 + #32 publish — on the MAIN device.** Everything up to the prerender
+   is done: `production` is pushed, the migration is applied, tests are green (812 .NET,
+   497 frontend). What is left, in order:
+   - `git checkout production && git pull`, then `npm run build` in `NVC Claude version`.
+   - Start the app with **`SQL_CONNECTION_STRING` AND `BLOB_CONNECTION_STRING`** plus the
+     three `DATA_SOURCE_*=sql` flags (recipe below), then `npm run prerender` — expect
+     **52/52**. On 2026-09-30 the secondary device ran it without the Blob string: every
+     `/api/img` answered 404 in 1 ms and the home and modular-builds pages (7) timed out,
+     because of the retry loop in ROADMAP #33. Without Blob the snapshots would also bake
+     placeholder art in even where they finish, so the Blob string is not optional.
+   - Publish from VS Code; tag `deploy-YYYY-MM-DD`; probe live: the new A1–A3 renders and
+     kitchen dots on the configurator (sink on the drawn sink after picking A2/A3), and in
+     the panel the Второ плащане boxes, the Платено изцяло badge on Клиенти and Поръчки.
+   - Then record the deploy here (Live row, test counts) and move #31/#32 to deployed.
 
 1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
    live panel (2026-09-03) and everything works.** Nothing owed here. The one behaviour
@@ -174,6 +189,7 @@ signal is one MSBuild line. `Prerendered pages staged for publish: 52 files.` = 
 ```powershell
 cd "NVC Claude version"; npm run build
 cd ..\api-dotnet
+$env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'   # BOTH — see Do next 0
 $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'
 dotnet run -p:SkipSpaBuild=true
 # second terminal:

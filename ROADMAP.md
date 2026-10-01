@@ -117,6 +117,19 @@ commits, notes and conversations still resolve.
   of what we send. The panel already has the safety valve for oversized files: the note
   path stores up to 20 MB against the thread ("send a link" instead of attaching).
 
+- [ ] **33. A failed image retries forever on the home and modular-builds pages.** Found
+  2026-09-30 while prerendering without Blob: `/bg` sent 13,412 requests in 15 s (~900/s),
+  `/bg/modulni-postroiki` 9,950. The `onError={(e) => { e.currentTarget.src = fallback }}`
+  pattern (GlideServices, HeroShowcase, ProcessTicker, ServiceTiles, InteriorsPage,
+  InternalDoorsPage, ModularBuildsPage, ModularHousesPage, SteelHousesPage — `card.svg`'s
+  users) predates #9; since #9 every such image also carries a real `srcSet`, which the
+  browser prefers over `src` — so setting `src` re-selects the same failing candidate,
+  which errors again. Dormant in production today (all 13 images on those pages load,
+  checked 2026-09-30), but the day one goes missing every visitor's tab hammers the API.
+  Fix: one shared handler in `lib/img.js` that removes `srcset`, sets the fallback once and
+  ignores any further error, used at every call site, with a test that fires the error
+  twice. Owner, 2026-09-30: another day, not in the #31/#32 release.
+
 ### Infrastructure
 
 - [ ] **17. The app's SQL login is still `dbadmin`** — the server administrator, far more
@@ -556,8 +569,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   OLD A1/A2 tables before this publish keeps its position numbers, which now point at
   different modules; the sales email of any lead already carries the positions as text.
 
-- [x] **31. The second payment on a purchase** (built 2026-09-30, **not yet deployed —
-  needs the `AddPurchaseSecondPayment` migration applied before the publish**). Asked for
+- [x] **31. The second payment on a purchase** (built 2026-09-30, **not yet deployed** —
+  `production` is pushed and the `AddPurchaseSecondPayment` migration is already applied;
+  the publish waits on the prerender, see HANDOFF "Do next" 0). Asked for
   by the owner the same day: a few customers had paid their second half and Клиенти had
   nowhere to put it — the only way to show a customer as settled was to type the full
   price into Платено капаро and lose what the deposit had been. Each purchase card now

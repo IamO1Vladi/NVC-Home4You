@@ -99,6 +99,12 @@ the old tracker (now `ROADMAP.md`).
    cd ../api-dotnet && DATA_SOURCE_GALLERY=sql DATA_SOURCE_CASES=sql DATA_SOURCE_REVIEWS=sql dotnet run
    ```
 
+   **The app also needs `BLOB_CONNECTION_STRING`** (and `SQL_CONNECTION_STRING`), the same
+   values production has. Without Blob every `/api/img` image answers 404 locally, and since
+   #9 (2026-09-05) a failed image retries in a loop on the home and modular-builds pages —
+   those pages never go quiet and time out (2026-09-30: 45/52). Even where a page does
+   finish, its snapshot would carry placeholder art instead of the real images.
+
    **The DATA_SOURCE flags matter, and it is GALLERY, not HOUSES.** A local app without
    them reads Quickbase while production reads SQL, so snapshots would freeze prices from
    the wrong store — this actually happened with a corrected price on 2026-08-15. The
