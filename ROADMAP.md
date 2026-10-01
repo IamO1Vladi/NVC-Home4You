@@ -100,7 +100,10 @@ commits, notes and conversations still resolve.
 ### Platform & polish
 
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
-- [ ] **11. Greek translation completeness audit.**
+- [~] **11. Greek translation completeness audit** — **AUDIT DONE 2026-10-01; the fixes are
+  the open part.** 434 strings a Greek visitor meets in English or Bulgarian, in 34 groups:
+  298 of them in the box configurator, whose catalogue only speaks en/bg. The static page
+  copy is sound. Findings, causes and fixes: the "Greek audit" section below.
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
 - [ ] **33. A failed image retries forever on the home and modular-builds pages.** Found
   2026-09-30 while prerendering without Blob: `/bg` sent 13,412 requests in 15 s (~900/s),
@@ -129,6 +132,110 @@ commits, notes and conversations still resolve.
   done the moment it sits in the calendar.
 
 ---
+
+## Greek audit — the findings (#11)
+
+Audited 2026-10-01, read-only, four ways at once, each checked by a skeptic that threw out
+false positives, then merged and challenged for completeness: the en/el content files key by
+key; every bg-or-else branch in the public code; the LIVE /el site crawled in a headless
+browser through every route and every configurator step (nothing submitted, saved or
+shared); and the server side — emails, SEO tags, sitemap, gallery/reviews/cases data,
+brochures. The live crawl saw the build deployed 2026-09-20.
+
+**What is fine:** all 16 el content files carry every key the pages render, none contains
+Cyrillic, and the 17 prerendered /el pages ship lang="el" with Greek titles and meta.
+
+**What is not — 434 strings, 34 groups.** 341 of them are visible on a page (P1), 89 are
+secondary (assistive text, emails, PDF, downloads — P2), 4 are SEO-only (P3). Only 56 of the
+434 are pure code fixes; the rest need Greek words — which can be drafted here, but should be
+read by a native speaker before they ship — or data/files from the owner.
+
+### P1 — visible on a Greek page
+
+- **Configurator finish names — 107** (facade decors and series, vinyl, herringbone, worktops,
+  interior-panel groups: "Seven brick", "Spray render · flat", "Natural oak", "Marble"…).
+  `boxConfiguratorOptions.js` is GENERATED with en/bg only; `codedOption`/`groupBySeries`
+  (catalogue :171-189) give every non-bg locale the English. Fix: teach the catalogue
+  generator an `el` column and regenerate (never hand-edit), then pick `el` for 'el'.
+- **Configurator hand-kept catalogue — 97**: all 13 layout subtitles ("2 bedrooms + living room
+  and kitchen"), window types and specs, every door, vanity, sink, appliance, terrace and
+  carbon-floor name, "Fully equipped", "Decor n". `byLocale(locale, en, bg)` at catalogue :18
+  (and `pick()` :202) knows two languages. Fix: a third argument and an `el` on every row.
+  The spec notes ("class A", "900 mm leaves", "max …") are English in Bulgarian too.
+- **Configurator UI labels — 30 missing el keys** (`t.labels?.x || (isBg ? … : …)` lands on
+  English) and **12 hardcoded bg/en strings** with no el branch. Fix: add the keys to
+  `content/el/boxConfigurator.js`; give the hardcoded ones content keys.
+- **Configurator images with text baked in:** the step-1 model overview images and the step-6
+  "standard specification" image are pages of the Bulgarian printed catalogue (10 strings),
+  a UV-panel tile is labelled in Bulgarian, and two interior-door thumbnails carry a
+  Bulgarian caption strip that prints into the PDF. Needs Greek (or language-free) images.
+- **Logistics and partner route maps — 21**: destination names in the selects and legend are
+  English (`LogisticsWorld.jsx` SEA_PORTS/AIR_DESTS/RAIL_DESTS :34-65). Move them into content
+  with Greek exonyms (Ρότερνταμ, Αμβούργο, Πειραιάς…).
+- **Reviews — 12**: review text entered in Bulgarian/English shows on /el (home testimonials,
+  /el/erga-kai-kritikes); plus a code bug printing the raw key as the product
+  ("Επαληθευμένη modularBuilds", Testimonials.jsx:105, CasesPage.jsx:576) — the Greek label
+  already exists in `content/el/cases.js`.
+- **Cases page — 5**: the featured case study record has no Greek text.
+- **English left inside Greek copy — 9 + 9 + 5 + 1 + 2**: "Χρώμα deck", "browser", "premium",
+  "flush" (`content/el/boxConfigurator.js` :56/:121/:149, `interiors.js` :60,
+  `internalDoors.js` :61-65); English product terms on /el/domika-spitia and
+  /el/domikes-kataskeves; "Logistics" in the Greek nav, FAQ, breadcrumb, cases form, meta;
+  the desktop "Planning ▾" menu (Header.jsx:43 — key missing everywhere); "Email" as a
+  placeholder/label.
+- **Gallery — 7 + 6 + 2**: titleEl values with English words, descriptionEl with English
+  technical terms (data, in the panel), and a code bug printing the raw category
+  ("MODULAR", "WAGON") as the kicker and in the Product JSON-LD (GalleryItemPage.jsx:64,
+  GalleryStructuredData.jsx:89) though `content/el/gallery.js` has the labels.
+- **Place names — 5**: Bulgarian towns in Latin script inside Greek text (delivery estimator,
+  privacy page, the Greek email signature).
+- **Prices — 5, code only**: euro() formats with en-GB on Greek pages ("από €14,840");
+  catalogue :33-39 and GalleryItemPage.jsx:34. Use el-GR for el.
+- **Modular houses table — 1, code only**: "37м2 / 58м2 / 78м2" hardcoded with a Cyrillic м at
+  ModularHousesPage.jsx:127 (and is 78 meant to be 73? — owner to confirm).
+
+### P2 — secondary
+
+- **Configurator outputs — 21**: the PDF, the offer/question prefill, the clipboard copy and
+  the autoresponder's echo of the configuration repeat all of the above in English; fixed by
+  fixing P1, plus the PDF date format.
+- **Configurator bathroom/kitchen names and codes in Cyrillic — 16.**
+- **Internal-doors enquiries — 10, code only**: InternalDoorsPage.jsx:359 sends no locale, so
+  a Greek visitor's autoresponder (and the lead's language) is English.
+- **Order tracking page — 8 + 1, code only**: /order/{code} has no locale in its path and
+  guesses; the link should carry the customer's language (from the lead), and the model
+  name comes from the API untranslated.
+- **Floor planner — 7**: tooltip and SVG aria-labels; and room names are saved as literal
+  text, so a layout drawn in /en or /bg keeps English/Bulgarian labels when opened in /el.
+- **Brochures — 6**: no Greek PDF editions yet; /el pages get the Bulgarian ones by design
+  until the owner uploads them in Брошури.
+- **Assistive text — 4 + 4 + 2**: configurator aria-labels/placeholders, Leaflet's own map
+  controls, carousel labels.
+- **Marker codes** SI/HB/OV/FR/DW/WM and P/S/B are English initials in every locale.
+- **Map base tiles** show local names (Петрич…) — OpenStreetMap tiles have no language
+  option; a localized tile provider is the only fix, and may not be worth it.
+- **card.svg**, the image-error placeholder, says "Card Image / Replace with model image".
+- **Delivery estimator — 2, code only**: a raw "Failed to fetch" on a network error.
+
+### P3 — SEO / metadata
+
+- The server's HTML shell says lang="en" before the SPA boots for Greek gallery product pages
+  and /el 404s, with English 404 titles (index.html:2, Program.cs :1454-1538) — code only.
+- og:locale on the Greek gallery index; the share card (public/og/default.jpg) is English
+  with a Bulgarian logo tagline on every /el page.
+- The bare domain serves the English home page as first paint to everyone, Greek visitors
+  and the Greek email signature's link included — no Accept-Language negotiation.
+
+### Order of work, when it is picked up
+
+1. **Code only, ~56 strings, no copy needed:** prices el-GR, raw product/category keys,
+   internal-doors locale, order-tracking language, server lang/404 titles, the estimator's
+   raw error, the "Planning" key, the modular-houses size cell.
+2. **The configurator (298):** the generator `el` column, `byLocale`'s third language, the
+   30 + 12 labels — Greek drafted here, read by a native speaker, then shipped together,
+   which also fixes the PDF, prefill and emails.
+3. **Data and files from the owner:** reviews, the case study, gallery titleEl/descriptionEl,
+   Greek brochure PDFs, Greek versions of the catalogue images and the share card.
 
 ## Documents section — the design (#16)
 
