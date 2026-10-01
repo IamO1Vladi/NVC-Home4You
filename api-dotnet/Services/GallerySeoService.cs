@@ -76,14 +76,18 @@ public sealed class GallerySeoService
     }
 
     /// <summary>
-    /// The current path for a product whose URL was minted under the pre-2026-08-17 slug
-    /// algorithm, or null if this path is not a stale slug for anything.
+    /// The current path for a product at a stale address, or null if this path is not a
+    /// stale slug for anything. Two kinds of stale:
     ///
-    /// Asked only after the current-slug lookup has already missed, so this is what stands
-    /// between "we corrected the slugs" and "every gallery URL ever shared or indexed now
-    /// 404s". Matching against the OLD algorithm rather than a hard-coded list of the 16
-    /// affected URLs means it keeps working for titles edited after the change, and there is
-    /// no list to forget to update.
+    /// 1. Minted under the pre-2026-08-17 slug ALGORITHM. Matched by re-running the old
+    ///    algorithm over current titles rather than by a list of the 16 affected URLs, so it
+    ///    keeps working for titles edited after the change and there is no list to forget.
+    /// 2. Minted from a title the product no longer has — GallerySlugs.RetiredSlugs. That one
+    ///    IS a list, because an old title is data the catalogue no longer holds.
+    ///
+    /// Asked only after the current-slug lookup has already missed, so a live product can
+    /// never be redirected away, and this is what stands between "we corrected it" and
+    /// "every URL ever shared or indexed for it now 404s".
     /// </summary>
     public async Task<string?> TryResolveLegacyAsync(string path, CancellationToken ct)
     {
@@ -95,6 +99,12 @@ public sealed class GallerySeoService
 
         var item = items.FirstOrDefault(
             i => string.Equals(GallerySlugs.LegacySlugFor(i, locale), slug, StringComparison.OrdinalIgnoreCase));
+
+        if (item is null && GallerySlugs.RetiredTarget(locale, slug) is { } target)
+        {
+            item = items.FirstOrDefault(
+                i => string.Equals(GallerySlugs.SlugFor(i, locale), target, StringComparison.OrdinalIgnoreCase));
+        }
 
         if (item is null) return null;
 

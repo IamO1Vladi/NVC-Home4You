@@ -142,6 +142,47 @@ public static class GallerySlugs
     /// </summary>
     public static string LegacySlugify(string? value) => Build(value, NormalizationForm.FormKD);
 
+    /// <summary>
+    /// Addresses of products that have since been RETITLED, each with the slug it moved to.
+    ///
+    /// Data, not algorithm — LegacySlugify covers the algorithm change. A corrected title
+    /// leaves its old URL in Google's index, in old emails and in shares, and the SPA cannot
+    /// match it to anything, so without this a visitor lands on "Model not found". These
+    /// are the August 2026 corrections ('Panaromic', and a CYRILLIC а inside two English
+    /// titles); crawlers kept getting the old URLs as live pages until 2026-10-02, because
+    /// the SEO path read Quickbase's uncorrected copy rather than SQL.
+    ///
+    /// The target is a CURRENT slug looked up in the catalogue per request, never a stored
+    /// path, so an entry whose house is unpublished or retitled again answers 404 rather
+    /// than redirecting somewhere wrong. Retitling one of these again means adding the new
+    /// old slug here AND pointing the older entry at the new target — the tests refuse a
+    /// chain, because one hop is all the lookup follows.
+    ///
+    /// Slugs are compared as they arrive, URL-decoded. "а" is the Cyrillic letter,
+    /// written as an escape because on screen it is indistinguishable from the Latin "a".
+    /// </summary>
+    public static readonly (string Locale, string OldSlug, string CurrentSlug)[] RetiredSlugs =
+    {
+        ("en", "panaromic-box-house-37-m2",
+               "panoramic-box-house-37-m2"),
+        ("en", "expandable-house-58m2-with-balcony-and-а-double-roof",
+               "expandable-house-58m2-with-balcony-and-a-double-roof"),
+        ("en", "expandable-house-73m2-with-balcony-and-а-double-roof",
+               "expandable-house-73m2-with-balcony-and-a-double-roof"),
+    };
+
+    /// <summary>The current slug a retired address moved to, or null if it is not one.</summary>
+    public static string? RetiredTarget(string locale, string slug)
+    {
+        foreach (var (loc, oldSlug, currentSlug) in RetiredSlugs)
+        {
+            if (loc == locale && string.Equals(oldSlug, slug, StringComparison.OrdinalIgnoreCase))
+                return currentSlug;
+        }
+
+        return null;
+    }
+
     private static string Build(string? value, NormalizationForm form)
     {
         if (string.IsNullOrWhiteSpace(value)) return "model";

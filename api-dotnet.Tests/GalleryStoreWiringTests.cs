@@ -161,13 +161,12 @@ public class GalleryStoreWiringTests
     }
 
     [Fact]
-    public async Task A_title_the_store_no_longer_holds_does_not_resolve()
+    public async Task A_title_the_store_no_longer_holds_is_not_served_as_a_page()
     {
         // The store is the authority: 'panaromic' survives only in Quickbase, so once these
-        // read the same store as the SPA it is a URL for nothing. It answered 200 live
-        // until this fix and 404s after it; it is not a legacy-ALGORITHM slug, so the 301
-        // path does not catch it either. Redirecting retired titles would be a deliberate
-        // addition — see HANDOFF.
+        // read the same store as the SPA it is not a product page. It answered 200 live
+        // until this fix while the SPA under it said "Model not found". It now 301s to the
+        // corrected page instead (GallerySlugs.RetiredSlugs — GalleryRetiredSlugTests).
         using var sp = Container(new FakeStore(SpaceHouse, PanoramicBox, Expandable58));
         using var scope = sp.CreateScope();
         var seo = Seo(scope);
@@ -176,7 +175,9 @@ public class GalleryStoreWiringTests
         var (outcome, _) = await seo.TryBuildAsync(stale, CancellationToken.None);
 
         Assert.Equal(GallerySeoService.Outcome.ProductNotFound, outcome);
-        Assert.Null(await seo.TryResolveLegacyAsync(stale, CancellationToken.None));
+        Assert.Equal(
+            "/en/gallery/panoramic-box-house-37-m2",
+            await seo.TryResolveLegacyAsync(stale, CancellationToken.None));
     }
 
     // --- Sitemap ------------------------------------------------------------------------
