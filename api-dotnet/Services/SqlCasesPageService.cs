@@ -100,9 +100,10 @@ public sealed class SqlCasesPageService : ICasesPageStore
 
         return new PublicCaseDto
         {
-            // String id, and the Quickbase record id where there is one, so anything already
-            // linking to a case keeps resolving.
-            Id = (c.QuickbaseRecordId ?? c.Id).ToString(),
+            // Imported cases keep their Quickbase record id; admin-created cases are offset
+            // clear of that range, because their bare SQL id can equal an imported case's
+            // Quickbase id — see CasePublicIds.
+            Id = CasePublicIds.For(c.QuickbaseRecordId, c.Id),
             Featured = c.Featured,
             CompanyName = c.CompanyName,
             CompanyType = hasCompany ? c.CompanySector : null,
@@ -142,7 +143,8 @@ public sealed class SqlCasesPageService : ICasesPageStore
 
             byName[name] = new PublicClientDto
             {
-                Id = (c.QuickbaseRecordId ?? c.Id).ToString(),
+                // The id of the client's first case, as on the Quickbase path.
+                Id = CasePublicIds.For(c.QuickbaseRecordId, c.Id),
                 Name = name,
                 Sector = c.CompanySector,
                 Country = c.Country,

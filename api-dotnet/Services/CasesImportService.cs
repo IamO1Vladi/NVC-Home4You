@@ -59,6 +59,15 @@ public sealed class CasesImportService
         var rows = await _cases.LoadForImportAsync(ct);
         var problems = new List<string>();
 
+        // The whole run is refused, as the gallery import refuses one: a case imported under
+        // such an id would be served as the same public id as an admin-created case.
+        var outOfRange = OutOfRange(rows);
+        if (outOfRange.Count > 0)
+        {
+            problems.AddRange(outOfRange);
+            return new ImportResult(rows.Count, 0, 0, 0, 0, problems);
+        }
+
         var existing = await _db.Cases
             .Include(c => c.Images)
             .Where(c => c.QuickbaseRecordId != null)
@@ -280,6 +289,16 @@ public sealed class CasesImportService
             }
         }
     }
+
+    /// <summary>
+    /// One problem line per Quickbase case whose record id reaches the range public ids
+    /// reserve for admin-created cases (CasePublicIds.AdminOffset and up).
+    /// </summary>
+    public static List<string> OutOfRange(IEnumerable<CaseImportRow> rows) =>
+        rows
+            .Where(r => !CasePublicIds.FitsQuickbaseRange(r.QuickbaseRecordId))
+            .Select(r => $"case {r.QuickbaseRecordId} \"{Truncate(string.IsNullOrWhiteSpace(r.CompanyName) ? r.ProductName : r.CompanyName)}\" has a Quickbase id at or above {CasePublicIds.AdminOffset}, the range public ids reserve for cases created in the admin panel")
+            .ToList();
 
     private static string FileNameFrom(string sourceKey)
     {

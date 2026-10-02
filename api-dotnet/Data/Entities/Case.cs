@@ -33,7 +33,10 @@ public class Case
 {
     public int Id { get; set; }
 
-    // Quickbase Record ID# (3).
+    // Quickbase Record ID# (3). Null for rows created in the admin panel.
+    //
+    // Keep it after Quickbase is gone: it is also an imported case's public id
+    // (CasePublicIds). Only the import writes it, and it refuses ids at or above the offset.
     public long? QuickbaseRecordId { get; set; }
 
     public bool IsPublished { get; set; }                              // Publish (6)

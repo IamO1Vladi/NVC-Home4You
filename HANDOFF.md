@@ -395,6 +395,9 @@ nothing errors. Before #35, panel houses were served under their bare SQL id, wh
 houses on "15" live. `LeadService.ResolveHouseIdAsync` is the only code that maps a public
 id back to a house, and it still reads the ids stored before #35.
 
+Cases, and the clients derived from them, follow the same rule through `CasePublicIds` (#36).
+Their ids are only React keys on the cases page, and nothing maps them back.
+
 
 ### Saved configurator links
 

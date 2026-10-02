@@ -637,6 +637,33 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **36. A case public id that cannot collide** (built 2026-10-02 on
+  `fix/case-public-id`, stacked on #35's branch; **not merged, not deployed**; no migration).
+  #35's scheme, applied to the cases page. `SqlCasesPageService` served a case, and each
+  client derived from a case, as `QuickbaseRecordId ?? Id`.
+  - **Why it would collide.** `import-cases` adds Quickbase's cases, unpublished ones
+    included, in Quickbase sort order, so they get SQL ids 1, 2, 3… whatever their Quickbase
+    ids are. A case made in the panel takes the next SQL id. Once that number is an
+    imported case's Quickbase id, two cases (and two clients) share a public id.
+  - **Live, 2026-10-02:** `/api/cases-page` serves one case, `"2"`, with no company, so
+    `clients` is empty and nothing collides. Whether that case was imported or made in the
+    panel cannot be told from outside. If it was made in the panel it becomes `"100002"`,
+    which is harmless.
+  - **Who reads the id:** only `CasesPage.jsx`, as React keys and in the `id` fallback chain.
+    No lead, URL, sitemap or JSON-LD carries a case id, so nothing stored or published
+    changes meaning. Checked across the SPA, scripts and API.
+  - **The design.** A small sibling of `HousePublicIds`, `CasePublicIds`, with the same
+    100000 offset, so below 100000 is a Quickbase id and above it is something made in the
+    panel, for houses and cases alike. Imported cases keep their Quickbase id, panel cases
+    are served as 100000 + SQL id, and a client takes its first case's id, as on the
+    Quickbase path. There is no reverse mapping, because nothing maps a case id back.
+    `CasesImportService`, the only writer of `Case.QuickbaseRecordId`, refuses the whole run
+    if any Quickbase id is 100000 or higher, the same rule the gallery import follows.
+  - Tests: 6 .NET (`CasePublicIdsTests`). The collision test runs the real importer
+    against a stubbed Quickbase, then adds a panel case on the freed number. The refusal test
+    checks `ImportAsync` itself, not only the helper. Reverting the id scheme fails the first
+    test, and dropping the guard call fails the second; both were checked by mutation.
+
 - [x] **35. A gallery public id that cannot collide** (built 2026-10-02 and merged to
   `master` and `production` on the owner's go-ahead the same day, **not yet deployed**; no
   migration).
@@ -716,10 +743,7 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     - Запитвания does print the raw id, and the prices page shows the Space house's
       assembly as „по запитване".
     - One more resolver test, for a longer title that starts with the Space house's.
-  - Noticed, not done: cases use the same `QuickbaseRecordId ?? Id` scheme
-    (`SqlCasesPageService`). No case collides on live today, since there is one case with
-    id 2, and case ids are only React keys. It will collide once a panel-made case's SQL id
-    meets an imported case's Quickbase id.
+  - Noticed then, fixed as #36: cases used the same `QuickbaseRecordId ?? Id` scheme.
 
 - [x] **34. A gallery enquiry names its model** (built 2026-10-02, **not yet deployed**).
   Owner, 2026-10-02: sales could not tell which model a gallery „Поискай оферта" was about.
