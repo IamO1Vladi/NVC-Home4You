@@ -666,8 +666,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 ## DONE — newest first
 
 - [x] **36. A case public id that cannot collide** (built 2026-10-02 and merged to `master`
-  after #35 on the owner's go-ahead the same day; **not in `production`, not deployed**; no
-  migration).
+  after #35, then added to the big release in `production`, both on the owner's go-ahead
+  the same day; **not yet deployed**; no migration).
   #35's scheme, applied to the cases page. `SqlCasesPageService` served a case, and each
   client derived from a case, as `QuickbaseRecordId ?? Id`.
   - **Why it would collide.** `import-cases` adds Quickbase's cases, unpublished ones
