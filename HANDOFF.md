@@ -370,15 +370,15 @@ the current one, and the pre-2026-08-17 form that Greek and some Bulgarian links
 carry. If you retitle a product that already has an entry, point that entry at the new
 slug too, because the lookup follows only one hop. `GalleryRetiredSlugTests` checks every
 entry against the fixtures' current titles, so add the product's new title there as well.
-An admin-side slug history, which would do this on save, would remove the manual step, but
-nobody has built it.
+An admin-side slug history, which would do this on save, would remove the manual step. It
+is proposed as ROADMAP #37 and has not been built.
 
 **Next up: the owner's Greek retitles** (ROADMAP #11 Group 3). Seven gallery `titleEl`
 values carry English words: ids 13, 6, 8, 14, 7 ("Σπίτι τύπου Container …"), 16
 ("Πανοραμικό Box House – 37 m²") and 12 ("Πανοραμικό Office Container …"). Their
 `/el/gkaleri/` URLs are in the sitemap and answer 200. Changing them in the panel moves
 all seven. Do them in one batch, then add seven `("el", …)` rows in one commit, and
-publish soon after.
+publish soon after. If #37 ships first, the batch needs no developer.
 
 ### A house's public id is not its SQL id
 

@@ -113,6 +113,34 @@ commits, notes and conversations still resolve.
   Fix: one shared handler in `lib/img.js` that removes `srcset`, sets the fallback once and
   ignores any further error, used at every call site, with a test that fires the error
   twice. Owner, 2026-09-30: another day, not in the #31/#32 release.
+- [ ] **37. Gallery slug history: a renamed product keeps its old address.** Proposed
+  2026-10-02. A gallery URL is the product's title, slugified per locale, so renaming a
+  house in Галерия moves its address. The old URL is indexed, in emails and in shares, and
+  from then on it shows "Model not found" to visitors and answers 404 to crawlers. Today
+  the fix is by hand: a developer adds a row to `GallerySlugs.RetiredSlugs` and publishes
+  (HANDOFF, "Renaming a product moves its address"). That is already due seven times, for
+  the owner's Greek retitles under #11 Group 3. **Build this first, and that batch needs no
+  developer.**
+  Shape:
+  - **A `HouseSlugHistory` table** (HouseId, Locale, Slug, RetiredAt; unique on
+    Locale + Slug). `GalleryAdminService.UpdateAsync` compares each locale's slug before
+    and after `Apply`, and writes the old slug in the same SaveChanges.
+  - **Keyed by HOUSE, not by target slug.** A redirect then always lands on the house's
+    CURRENT address. Renaming twice cannot leave a chain, and an unpublished house's
+    history stops matching, so it answers 404.
+  - **Read path.** `SqlGalleryService` loads the history with the rows, under the same
+    10-minute cache. `GallerySeoService.StalePath` consults it after the live and legacy
+    lookups, also matching `LegacySlugify(oldSlug)` as `RetiredTarget` does. The
+    live-address guard stays first: a slug that is live again is served as a page, and
+    its history row is ignored.
+  - **What happens to `RetiredSlugs`.** Either it stays for the three Quickbase-era
+    entries, or the migration seeds them into the table and the list is retired.
+  - **One migration**, applied by the owner from a terminal before the publish, as in
+    DEPLOY.md §5b.
+  - **Seeding past renames.** House edits are audited (`AuditPolicy` lists `House`), so
+    renames already made in the panel can be recovered from Одит and seeded once.
+  - **Optional:** the admin form lists "old addresses that redirect here" under the title.
+  Not worth it while products are rarely renamed. It pays for itself before the Greek batch.
 
 ### Infrastructure
 
