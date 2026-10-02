@@ -19,8 +19,13 @@
 // developer running a plain build does not have. Kept as its own step so an ordinary build
 // never fails for want of a server, and so this stays a deliberate release action.
 //
-//   Terminal 1:  cd api-dotnet && dotnet run
-//   Terminal 2:  cd "NVC Claude version" && npm run build && npm run prerender
+//   Terminal 1:  cd "NVC Claude version"; npm run build
+//                cd ..\api-dotnet; dotnet run -p:SkipSpaBuild=true   (with the env below)
+//   Terminal 2:  cd "NVC Claude version"; npm run prerender
+//
+// The app needs SQL_CONNECTION_STRING, BLOB_CONNECTION_STRING and the three
+// DATA_SOURCE_{GALLERY,CASES,REVIEWS}=sql flags — the full recipe is in HANDOFF.md,
+// "Prerendering — read before every release".
 //
 // The output is deliberately written OUTSIDE wwwroot. Anything in the web root is served by
 // the static-file middleware, which would publish every snapshot a second time at
@@ -42,6 +47,10 @@ const BASE = process.env.PRERENDER_BASE || 'http://localhost:5178'
 // hung request cannot stall a release.
 const NAV_TIMEOUT = Number(process.env.PRERENDER_TIMEOUT || 20000)
 
+// How long a page may wait on its own API calls (gallery, prices, reviews, cases). Serverless
+// Azure SQL takes 30-60s to resume from auto-pause, and the app retries through it.
+const DATA_TIMEOUT = Number(process.env.PRERENDER_DATA_TIMEOUT || 60000)
+
 // Below this, a "successful" render almost certainly captured a spinner or an error state.
 // Writing that would replace an empty div with a page that says "Loading…" to Google, which
 // is worse than leaving it empty.
@@ -58,13 +67,29 @@ const MIN_TEXT = 200
  * release.
  *
  * So: sample the rendered text until two consecutive reads agree, then accept it.
+ *
+ * And not while a data call is still open. Stability alone was not enough either, and on
+ * 2026-10-03 it failed the same quiet way: networkidle2 tolerates two open connections, so it
+ * fires while ONE slow API call is pending, and a loading message is perfectly stable. The
+ * first pages of that run hit cold endpoints and froze „Зареждане на цените…" into /bg/ceni,
+ * the same for the gallery and cases, and the home pages lost their reviews section, all
+ * counted as successes. `pending` holds the page's open /api/ calls. Sampling only counts
+ * once there are none, up to DATA_TIMEOUT. The caller treats calls still open as a failure.
  */
-async function settle(page, { interval = 300, stableFor = 2, cap = 15 } = {}) {
+async function settle(page, pending, { interval = 300, stableFor = 2, cap = 15 } = {}) {
+  const deadline = Date.now() + DATA_TIMEOUT
   let previous = -1
   let stable = 0
 
   for (let i = 0; i < cap; i++) {
     await new Promise((r) => setTimeout(r, interval))
+
+    if (pending.size > 0) {
+      if (Date.now() > deadline) return
+      stable = 0
+      i--
+      continue
+    }
 
     const size = await page.evaluate(
       () => (document.getElementById('root')?.innerText || '').length
@@ -140,6 +165,22 @@ function routeList() {
   return [...out].sort()
 }
 
+/**
+ * A data call the page renders from: the app's own /api/, minus /api/img. Images are not data,
+ * and since #9 a failed image retries in a loop (ROADMAP #33), so waiting on them could
+ * never end. The stability sampling covers them as before.
+ */
+function isDataCall(url) {
+  try {
+    const u = new URL(url)
+    return u.origin === new URL(BASE).origin
+      && u.pathname.startsWith('/api/')
+      && !u.pathname.startsWith('/api/img')
+  } catch {
+    return false
+  }
+}
+
 /** "/bg/modulni-kysthi" -> "<outDir>/bg/modulni-kysthi.html"; "/" -> "<outDir>/_root.html" */
 function fileFor(route) {
   if (route === '/') return join(outDir, '_root.html')
@@ -180,10 +221,19 @@ async function dataSourcesAgree() {
     return Array.isArray(body) ? body : (body?.items ?? [])
   }
 
+  // The local read is not optional. An app that cannot serve its own catalogue (a wrong SQL
+  // string, the firewall) renders error states that still clear MIN_TEXT on the header and
+  // footer alone, and would be written as good snapshots.
   let local
+  try {
+    local = await read(BASE)
+  } catch (err) {
+    return { ok: false, reason: `the local app could not serve /api/gallery (${err.message})` }
+  }
+
   let live
   try {
-    ;[local, live] = await Promise.all([read(BASE), read('https://nvc-home4you.eu')])
+    live = await read('https://nvc-home4you.eu')
   } catch (err) {
     // Cannot reach the live site: warn, do not block. A release from a train should still
     // be possible, and the operator has been told what was not verified.
@@ -211,9 +261,14 @@ const routes = routeList()
 
 if (!(await isUp())) {
   console.error(`\nPrerender: nothing is listening on ${BASE}.`)
-  console.error('Start the API first, then re-run:\n')
-  console.error('  cd api-dotnet && dotnet run')
-  console.error('  cd "NVC Claude version" && npm run prerender\n')
+  console.error('Start the API first (full recipe: HANDOFF.md, "Prerendering"), then re-run.\n')
+  console.error('  Terminal 1, from the repo root:')
+  console.error('    cd api-dotnet')
+  console.error("    $env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'   # not needed on the main device")
+  console.error("    $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'")
+  console.error('    dotnet run -p:SkipSpaBuild=true')
+  console.error('  Terminal 2, from the repo root:')
+  console.error('    cd "NVC Claude version"; npm run prerender\n')
   console.error(`Set PRERENDER_BASE to point somewhere else.`)
   process.exit(1)
 }
@@ -225,8 +280,11 @@ if (!dataCheck.ok) {
   console.error('DATA_SOURCE_* flags are per-environment; production sets DATA_SOURCE_GALLERY=sql,')
   console.error('and a machine with it unset falls back to Quickbase. Snapshots taken now would')
   console.error('publish prices from the wrong store.\n')
-  console.error('Start the app with the production flags, e.g.:')
-  console.error('  DATA_SOURCE_HOUSES=sql dotnet run\n')
+  console.error('Start the app with the production store settings (PowerShell; the flags are ignored')
+  console.error('without the SQL string, and the images 404 without the Blob one):')
+  console.error("  $env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'")
+  console.error("  $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'")
+  console.error('  dotnet run -p:SkipSpaBuild=true\n')
   console.error('Set PRERENDER_SKIP_DATA_CHECK=1 only if you know why they differ.\n')
   process.exit(1)
 }
@@ -269,11 +327,26 @@ try {
   // stayed broken in the output across two full rebuilds.
   await page.setExtraHTTPHeaders({ 'X-Prerender-Bypass': '1' })
 
+  // The page's open data calls, for settle(). A request leaves on finishing or failing,
+  // whatever its status: an error page is still a page that has stopped waiting.
+  const pending = new Set()
+  page.on('request', (req) => { if (isDataCall(req.url())) pending.add(req) })
+  page.on('requestfinished', (req) => pending.delete(req))
+  page.on('requestfailed', (req) => pending.delete(req))
+
   for (const route of routes) {
     const url = `${BASE}${route}`
     try {
+      pending.clear()
       await page.goto(url, { waitUntil: 'networkidle2', timeout: NAV_TIMEOUT })
-      await settle(page)
+      await settle(page, pending)
+
+      if (pending.size > 0) {
+        const open = [...pending].map((req) => new URL(req.url()).pathname)
+        results.push({ route, status: 'api', detail: `still waiting after ${DATA_TIMEOUT / 1000}s on ${open.join(', ')}` })
+        continue
+      }
+
       await dedupeHead(page)
 
       const { text, html, title } = await page.evaluate(() => ({
@@ -314,9 +387,25 @@ const total = ok.reduce((n, r) => n + r.chars, 0)
 console.log(`\nPrerender -> ${outDir}`)
 console.log(`Done: ${ok.length}/${routes.length} routes, ${total.toLocaleString('en-US')} characters of crawlable text.`)
 
-// A partial run is still a large improvement, so this does not fail the release — but a run
-// where nothing rendered means the app was up and broken, and that should stop a deploy.
+// A run where nothing rendered means the app was up and broken, and that should stop a deploy.
 if (ok.length === 0) {
   console.error('\nPrerender: not a single route rendered. Refusing to report success.')
+  process.exit(1)
+}
+
+// A partial run fails too, because nothing downstream notices one. The folder was cleared
+// above, so the routes that did not render have NO snapshot. The freshness guard checks only
+// that the snapshots which do exist point at real assets, so a publish ships the gap without
+// a word and those pages go out client-rendered. On 2026-09-30 a run without the Blob string
+// went 45/52, home page included — and in that case the 45 that did render are bad too,
+// because they carry placeholder art instead of the real images. Fix the cause and re-run;
+// publishing a partial run should only ever be a decision.
+if (bad.length > 0) {
+  console.error(`\nPrerender: PARTIAL — ${bad.length} of ${routes.length} routes have no snapshot (listed above).`)
+  console.error('Do not publish this run. The usual causes:')
+  console.error('  - a missing BLOB_CONNECTION_STRING: images 404 and the page never settles. The')
+  console.error('    snapshots that DID render then carry placeholder images, so they are bad too.')
+  console.error('  - an API call that never answered: status API, and the call is named.')
+  console.error('Fix the cause and re-run.')
   process.exit(1)
 }

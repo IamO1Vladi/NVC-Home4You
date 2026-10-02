@@ -1,11 +1,13 @@
-# Where things stand — 2026-09-30
+# Where things stand — 2026-10-03
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
-owns release mechanics, **including §6b, the prerender step, which silently ships stale
-pages when skipped**.
+owns release mechanics, **including §6b, the prerender step**. Skipped when the SPA changed,
+the freshness guard stops the publish. Skipped when only data or copy changed, it **silently
+ships stale pages**.
 
-Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 page-loads.
+Tests at `master` (2026-10-03): **1065 .NET, 824 frontend**, all green. (The live release,
+`deploy-2026-09-20`, was 800 / 479.) `npm run audit:a11y`: 0 violations on 104 page-loads.
 
 ---
 
@@ -17,8 +19,8 @@ Tests: **800 .NET, 479 frontend.** `npm run audit:a11y`: 0 violations on 104 pag
 | **`production` branch** | **AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below), #29, replies with up to 20 MB of files (verified by a real send as step 4b), and — owner's decision 2026-10-01 — **#11, the Greek fixes**, which carry the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. Then — owner's decision 2026-10-02 — **#34, a gallery enquiry names its model** (sales could not tell which house a gallery „Поискай оферта" was about; no migration). Then, also the owner's decisions of 2026-10-02, three more. **The gallery SEO store fix, with 301s for the three retitled product addresses** (API-only, no migration): the product-page `<head>` tags and `sitemap-gallery.xml` read Quickbase while the site serves SQL, so a product that exists only in SQL, or whose title was corrected there, answers crawlers **404 + noindex** (humans see the page; Google and email link-checkers get the 404), and the three addresses from before the August title corrections, which show visitors "Model not found", now 301 to their products. Its probes are in step 4 and the Search Console follow-up is Do next 5. **#35, a gallery public id that cannot collide** (SPA + API, no migration): live serves the Space house (made in the panel, SQL id 15) and the imported 73 m² house (Quickbase id 15) both as `id: 15`, so Space house enquiries became 73 m² leads and the prices page gives the Space house the 73 m² house's €2,280 assembly. Houses made in the panel are now served as 100000 + SQL id (the Space house becomes **100015**); imported houses keep their numbers. Its probes and the owner's read-only lead check are Do next 0b. **#36, a case public id that cannot collide** (API-only, no migration): the same scheme for the cases page and its clients, so cases made in the panel are served as 100000 + SQL id. Nothing collides live today; its probe is in step 4. The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
 | **`master`** | = `production`. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
-| **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal: **user-secrets on this machine do NOT hold the SQL string**, whatever this file's §"user-secrets" implies. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
-| `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18. Quickbase has no live runtime path left.** The token's ~Feb 2027 expiry now only matters for the import tooling (relevant to ROADMAP #21). |
+| **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18.** Quickbase keeps two user-visible runtime paths, plus two silent ones (the save-time code collision check, and `/api/img` falling back on a Blob miss; a dead token degrades both quietly). A `/c/{code}` link that was never imported still falls back to it (by design, see "Saved configurator links"). Until the gallery SEO store fix is published, the product-page SEO tags and `sitemap-gallery.xml` read it too. Otherwise the token's ~Feb 2027 expiry matters only for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
 been wrong before (17 Aug: two "not deployed" fixes were live — the publish had been made
@@ -34,15 +36,21 @@ was empty either way). Checking the live site settles such questions in a minute
 
    1. **Pull and build.** `git checkout production; git pull`, then
       `cd "NVC Claude version"; npm run build`.
-   2. **Prerender.** Start the app with `SQL_CONNECTION_STRING` **and**
+   2. **Prerender.** First copy `api-dotnet\prerendered` to a backup folder outside the
+      repo (DEPLOY 6b has the command). The script empties it before rendering, and outside
+      the App Service it is the only copy of what is live, which a rollback needs.
+      Start the app with `SQL_CONNECTION_STRING` **and**
       `BLOB_CONNECTION_STRING` plus the three `DATA_SOURCE_*=sql` flags (recipe below), then
-      `npm run prerender` in a second terminal — expect **52/52**. The Blob string is not
+      `npm run prerender` in a second terminal. Expect `catalogue matches live (13 items)`,
+      **52/52** and exit code 0. A partial run, or a local app that cannot serve its own
+      catalogue, now exits 1. The Blob string is not
       optional: without it every `/api/img` image 404s locally, the home and modular-builds
       pages never go quiet (ROADMAP #33) and the snapshots would bake placeholder art in.
       The secondary device stopped here on 2026-09-30 for exactly that reason (45/52).
       Expect one warning naming id 15 from the catalogue check; it is #35's, see Do next 0b.
-   3. **Publish.** Stop the local app, publish from VS Code, then
-      `git tag deploy-YYYY-MM-DD; git push --tags`.
+   3. **Publish.** Stop the local app, publish from VS Code — its output must say
+      `Prerendered pages staged for publish: 52 files.` — then
+      `git tag "deploy-$(Get-Date -Format yyyy-MM-dd)"; git push --tags; git checkout master`.
    4. **Probe live** (Ctrl+F5). Configurator: the new A1–A3 renders, kitchen dots on the
       worktops, and the sink dot ON the drawn sink after picking A2 (position 4) and A3
       (position 2); the home page's „58" entry lands on B1 with the sink at position 2.
@@ -75,8 +83,9 @@ was empty either way). Checking the live site settles such questions in a minute
       ever met a stub of Graph. From the panel, reply on a test lead whose address is a
       mailbox you can read, with one PDF of 5–15 MB and one small file. Expect: it sends,
       both files arrive intact, the thread shows the reply and both files, and contact@'s
-      Drafts holds nothing left over. Then pick files totalling over 20 MB: Send greys out
-      with a sentence, and „Запиши като" still files them. If the large send fails, the
+      Drafts holds nothing left over. Then pick files totalling over 20 MB, each one under
+      20 MB (two of ~12 MB): Send greys out with a sentence, and „Запиши като" still files
+      them. Filing is capped per file, so a single 25 MB file is refused there too, by design. If the large send fails, the
       panel's message names the step and the file — keep it for the fix; small attachments
       do not use the new route and keep working regardless.
    5. **Switch on the weekly order digest (#27)** — it ships OFF. With the SQL string set:
@@ -84,7 +93,8 @@ was empty either way). Checking the live site settles such questions in a minute
       as an .html in the temp folder, nothing sent). Check the active count: an old order
       left at „Приета" keeps every week "active", so the email would never skip a week.
       Optional: `dotnet run -- order-digest --send` mails it now (needs the GRAPH_* settings
-      too). Then App Service → Environment variables → `ORDER_DIGEST_ENABLED` = `true`
+      too) — **set `$env:ORDER_DIGEST_TO` to your own address for that run**, or the office
+      gets the same week twice once the flag goes on. Then App Service → Environment variables → `ORDER_DIGEST_ENABLED` = `true`
       (`ORDER_DIGEST_TO` only to change the default tbonin@ + vvladimirov@). The first
       digest arrives a few minutes after that restart; then every Monday 08:00 Sofia.
       DEPLOY.md, "Switching on the weekly order digest", has the details.
@@ -307,6 +317,7 @@ signal is one MSBuild line. `Prerendered pages staged for publish: 52 files.` = 
 cd "NVC Claude version"; npm run build
 cd ..\api-dotnet
 $env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'   # BOTH — see Do next 0
+#   (on the main device user-secrets already supply both; this line then only overrides them)
 $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'
 dotnet run -p:SkipSpaBuild=true
 # second terminal:
@@ -329,9 +340,17 @@ The five traps that each produced a successful-looking run, still true:
 4. **Restart after prerendering** — snapshots load at startup.
 5. **The rendered DOM has two of every meta tag** (server + helmet); `dedupeHead()` keeps
    helmet's. `<title>` is exempt.
+6. **A cold API used to freeze loading pages in, and the run still reported 52/52**
+   (2026-10-03). networkidle2 fires with one slow call still open. The first run of that
+   day froze „Зареждане на цените…" into /bg/ceni, did the same to the BG gallery and
+   cases, and dropped the reviews from the home pages. `settle()` now waits for every open
+   `/api/` call except `/api/img`, up to `PRERENDER_DATA_TIMEOUT` (60s). A call still open
+   fails that route as `API`. Before publishing, compare a few snapshots with the backup:
+   prices, gallery, cases and the home page should have their data in them.
 
-The prerender script writes files but does not prune ones whose route is gone — deleting a
-page means deleting its snapshot by hand, or it keeps shipping.
+The prerender script empties the folder before it renders, so a deleted route's snapshot
+goes with the next run, and so does everything live if the run then fails. Back the folder
+up first (Do next 0, step 2). A partial run exits 1 and names the routes with no snapshot.
 
 ---
 
@@ -436,7 +455,7 @@ rules settled with the owner and the restore steps, is in
 built, bundled nor published.
 
 The one fact that outlives the archive: **the tables and their imported rows are still in
-the production database**, and Quickbase still holds the originals. See Do next #3.
+the production database**, and Quickbase still holds the originals. See the end of Do next 6.
 
 ### The audit log
 
@@ -464,7 +483,7 @@ hyphens). Validating is not qualifying; the error message names the requirement.
 | Expired credential | What breaks | What still works (hiding it) |
 |---|---|---|
 | `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
-| Graph / email credentials | Autoresponder, replies, config emails, **audit archive mail** | Forms still submit |
-| Quickbase token | Only the #21 import tooling now. That is true once the gallery SEO store fix is live; before it, product-page tags and `sitemap-gallery.xml` read Quickbase too | Everything live |
+| Graph / email credentials | Autoresponder, replies, inbound mail filing, config emails, **audit archive mail**, the weekly order digest | Forms still submit |
+| Quickbase token | Never-imported `/c/{code}` links (they answer "not found") and the #21 import tooling. Until the gallery SEO store fix is live, also the product-page tags and `sitemap-gallery.xml` | Everything else live |
 
 Renewal steps in DEPLOY.md. A calendar reminder two weeks ahead is the actual fix.

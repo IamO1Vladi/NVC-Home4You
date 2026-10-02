@@ -87,10 +87,11 @@ if (missing.length > 0) {
   console.error('')
   console.error('    cd "NVC Claude version"; npm run build')
   console.error('    cd ..\\api-dotnet')
+  console.error("    $env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'   # BOTH")
   console.error("    $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'")
   console.error('    dotnet run -p:SkipSpaBuild=true')
   console.error('    # in a second terminal:')
-  console.error('    cd "NVC Claude version"; npm run prerender')
+  console.error('    cd "NVC Claude version"; npm run prerender      # expect Done: N/N, exit 0')
   console.error('')
   process.exit(1)
 }

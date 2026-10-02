@@ -980,8 +980,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   and a maxed-out config's offerText is still owed one measurement against the 4000-char
   lead Message cap, which also carries the growing `#cfg=` share URL.
 
-- [x] **30. Inbound email attachments actually arrive** (2026-09-14, ships with the next
-  publish). The machinery had shipped weeks earlier and filed ZERO files across 171
+- [x] **30. Inbound email attachments actually arrive** (2026-09-14, live since
+  `deploy-2026-09-15`). The machinery had shipped weeks earlier and filed ZERO files across 171
   inbound messages, because every gate lied at once: isInline is stamped on genuine
   Apple Mail PDFs and on the photo a customer pastes from a phone, Graph's hasAttachments
   is false when everything is inline, and every skip was silent. Now the attachment
@@ -995,7 +995,7 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   Older messages are not re-fetched — forwarding an old mail to the shared mailbox
   re-files it, attachments and all.
 
-- [x] **9. Per-breakpoint `srcset`** (2026-09-07, ships with the next publish). The twist:
+- [x] **9. Per-breakpoint `srcset`** (2026-09-07, live since `deploy-2026-09-11`). The twist:
   the frontend was already finished — every heavy image carried srcSet and sizes written
   for a Cloudinary mode that was never enabled, so production srcsets collapsed to the
   plain src. Now `/api/img/{key}?w=` answers first-party: widths snap to a thirteen-rung

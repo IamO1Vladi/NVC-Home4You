@@ -73,16 +73,38 @@ the old tracker (now `ROADMAP.md`).
    Skip it altogether and nothing errors. The site serves, the panel opens, and one part of
    it is quietly empty until somebody notices.
 
-6. **Publish from the `production` checkout.** In VS Code: right-click the `api-dotnet`
-   project → **Publish to Azure** → pick the App Service.
+6. **Publish from the `production` checkout — after 6b, not before.** In VS Code:
+   right-click the `api-dotnet` project → **Publish to Azure** → pick the App Service.
+
+   Do the prerender (6b) first whenever the SPA, page copy, routes or the gallery changed.
+   When the SPA changed, the publish rebuilds the bundle under a new hash, and snapshots still
+   pointing at the previous one make the freshness guard stop the publish (see 6b).
 
    You do **not** need to build the frontend first. Publishing runs `npm run build`
    automatically (the `BuildSpa` target in `api-dotnet.csproj`) and writes it into
    `wwwroot`, so the SPA can never ship stale. There is no `dist/` → `wwwroot` copy step
    any more — if you still have that in muscle memory, drop it.
 
-6b. **Refresh the prerendered pages** — needed whenever page copy, routes or the gallery
-   changed. Skip it and the deploy still works; it just ships the previous snapshots.
+6b. **Refresh the prerendered pages** — before step 6, whenever the SPA, page copy, routes
+   or the gallery changed. What happens if you skip it depends on what changed:
+   - **The SPA changed** (the bundle hash moved): `VerifyPrerenderedFreshness` stops the
+     publish, because shipping snapshots that point at a deleted bundle is the 2026-08-18
+     outage.
+   - **Only data, copy served by the API, or API code changed** (same bundle): nothing stops
+     you, and the previous snapshots ship silently, with the old prices and gallery in them.
+   - **`-p:SkipSpaBuild=true` disables the guard entirely.** The API-only hotfix recipe under
+     "Rules of thumb" is safe only when the snapshots on disk match the bundle in `wwwroot`.
+
+   **Back the folder up first.** The script empties `api-dotnet/prerendered/` before it
+   renders anything, and the folder is gitignored. The live set therefore exists only on the
+   App Service (reachable through Kudu) and in this folder on the machine that made the last
+   publish. A local copy is what a rollback to the previous tag would publish:
+
+   ```powershell
+   $tag = git describe --tags --abbrev=0 --match 'deploy-*' production
+   Copy-Item -Recurse api-dotnet\prerendered "..\prerendered-backup-$tag"
+   (Get-ChildItem "..\prerendered-backup-$tag" -Recurse -File).Count   # must equal N below
+   ```
 
    These are what give crawlers a page with content in it instead of an empty
    `<div id="root">`. Unlike the SPA build, this one is **not** automatic: it needs the app
@@ -91,13 +113,22 @@ the old tracker (now `ROADMAP.md`).
    **Build first, then start the app, then prerender — in that order.** The app reads
    `index.html` once at startup, so a rebuild while it is running leaves it serving a page
    that points at a JS bundle the build just deleted; React never boots and every snapshot
-   would be empty. The script refuses to write anything in that case rather than shipping 55
+   would be empty. The script refuses to write anything in that case rather than shipping
    blank pages, so a mistake here costs a restart, not a bad release.
 
-   ```bash
-   cd "NVC Claude version" && npm run build
-   cd ../api-dotnet && DATA_SOURCE_GALLERY=sql DATA_SOURCE_CASES=sql DATA_SOURCE_REVIEWS=sql dotnet run
+   On Windows PowerShell (the bash prefix form does not parse there):
+
+   ```powershell
+   cd "NVC Claude version"; npm run build
+   cd ..\api-dotnet
+   $env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'
+   $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'
+   dotnet run -p:SkipSpaBuild=true
    ```
+
+   On the main device, user-secrets already hold both connection strings (production's), so
+   the first `$env:` line can be skipped there. Setting it anyway does no harm: environment
+   variables win over user-secrets.
 
    **The app also needs `BLOB_CONNECTION_STRING`** (and `SQL_CONNECTION_STRING`), the same
    values production has. Without Blob every `/api/img` image answers 404 locally, and since
@@ -114,21 +145,33 @@ the old tracker (now `ROADMAP.md`).
    than compared. Expect that warning, naming id 15, exactly once: on the release that
    ships #35, because live still serves the Space house and the 73 m² house both as 15.
    Seen on any later release, it is a bug.
-   then, in a second terminal:
-   ```bash
-   cd "NVC Claude version" && npm run prerender
+
+   Then, in a second terminal:
+   ```powershell
+   cd "NVC Claude version"; npm run prerender
    ```
 
-   Expect `55/55 routes`. It writes to `api-dotnet/prerendered/`, which the publish picks
-   up (`StagePrerenderedForPublish`). Then stop the local app and publish as above.
+   Expect `Prerender: catalogue matches live (… items).` near the top and `Done: N/N routes`
+   at the end, where N is 1 + the distinct paths in `src/routes/paths.js` (52 as of
+   deploy-2026-09-20). A partial run, or a local app that cannot serve its own catalogue,
+   exits non-zero; do not publish over it. Each page waits for its own `/api/` calls (up to
+   `PRERENDER_DATA_TIMEOUT`, 60s), so a cold database makes the first pages slow rather than
+   frozen on their loading text. It writes to `api-dotnet/prerendered/`,
+   which the publish picks up (`StagePrerenderedForPublish`). Then stop the local app and
+   publish (step 6). The publish output must say
+   `Prerendered pages staged for publish: N files.` with the same N.
 
    Run it **against a local app, never against production** — snapshots taken from the live
    site would bake in whatever is currently deployed, which is the version you are replacing.
 
 7. **Tag the deploy** so you can identify what's live later:
-   ```bash
-   git tag deploy-$(date +%Y-%m-%d) && git push --tags
+   ```powershell
+   git tag "deploy-$(Get-Date -Format yyyy-MM-dd)"; git push --tags
    ```
+   (Git Bash: `git tag deploy-$(date +%Y-%m-%d) && git push --tags`. A second publish on the
+   same day takes a `b` suffix, as `deploy-2026-08-20b` did.) Then
+   `git checkout master` before anything else, so the next commit does not land on
+   `production`.
 
 8. **Verify on the live site**, hard-refreshed (Ctrl+F5):
    - the pages you changed
@@ -169,6 +212,13 @@ cd api-dotnet
 dotnet run -- order-digest            # prints the counts, writes order-digest-preview-*.html
 dotnet run -- order-digest --send     # optional: mails it now, to check the mail path
 ```
+
+The preview writes no .html when the active count is 0, because there is nothing to send.
+
+**Point a `--send` at yourself before switching the flag on**
+(`$env:ORDER_DIGEST_TO = 'you@…'` for that run). `--send` does not record the week, and the
+App Service reads its own marker anyway, so the flag would then send the same week to the
+office a second time a few minutes later.
 
 Then set the flag in App Service. **The first digest goes out within a few minutes of the
 app restarting with it** — the week it is switched on is owed. After that, every Monday:
@@ -498,8 +548,8 @@ This matters more than it sounds. Each expiry fails *silently and partially*:
 | Expired credential | What breaks | What still works (hiding it) |
 |---|---|---|
 | `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
-| Graph / email credentials | Lead autoresponder, "email me my config" | Forms still submit successfully |
-| Quickbase token | Gallery, cases, any table still on Quickbase | Anything already moved to SQL |
+| Graph / email credentials | Lead autoresponder, "email me my config", replies and inbound mail filing, the weekly order digest, audit-archive mail | Forms still submit successfully |
+| Quickbase token | Old `/c/{code}` saved-config links that were never imported (they answer "not found"), and the #21 import tooling. Until the gallery SEO store fix is live (the release after deploy-2026-09-20), also the product-page SEO tags and `sitemap-gallery.xml` | The gallery and cases pages, which read SQL |
 
 None of these take the site down, so nothing alerts you — the first sign is usually a
 customer saying they never got an email. **Put a recurring 6-monthly calendar reminder in
@@ -518,7 +568,10 @@ The admin panel fails closed: if any of the three `ENTRA_*` values is missing, e
   machine" reaching customers.
 - **`wwwroot` is generated, never authored.** It's gitignored. Edit the frontend in
   `NVC Claude version/`; the build populates `wwwroot`.
-- **Rolling back** = check out the previous `deploy-*` tag and publish from it.
+- **Rolling back** = check out the previous `deploy-*` tag, put its snapshots back
+  (replace `api-dotnet\prerendered` with `..\prerendered-backup-<that tag>` from 6b, or
+  re-prerender at that tag), and publish. Without that step the snapshots on disk point at
+  the newer bundle and the freshness guard stops the rollback.
 
 ## Local development
 
@@ -533,4 +586,6 @@ Work at <http://localhost:5173>. To exercise the *built* SPA against the local A
 instead, run `npm run build` once and open <http://localhost:5178>.
 
 To publish without rebuilding the frontend (rare — e.g. an API-only hotfix when the
-frontend is known-good): `dotnet publish /p:SkipSpaBuild=true`.
+frontend is known-good): `dotnet publish /p:SkipSpaBuild=true`. This also skips the
+prerender freshness guard, so check first that `api-dotnet\prerendered` and `wwwroot`
+belong to the same build (see 6b).
