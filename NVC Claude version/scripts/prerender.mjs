@@ -47,9 +47,17 @@ const BASE = process.env.PRERENDER_BASE || 'http://localhost:5178'
 // hung request cannot stall a release.
 const NAV_TIMEOUT = Number(process.env.PRERENDER_TIMEOUT || 20000)
 
-// How long a page may wait on its own API calls (gallery, prices, reviews, cases). Serverless
-// Azure SQL takes 30-60s to resume from auto-pause, and the app retries through it.
+// How long a page may wait on its own API calls (gallery, prices, reviews, cases), once the
+// warm-up below has woken the database.
 const DATA_TIMEOUT = Number(process.env.PRERENDER_DATA_TIMEOUT || 60000)
+
+// The data endpoints the pages call, hit once before anything renders. Serverless Azure SQL
+// auto-pauses, and the app retries through the resume with backoff (Program.cs,
+// EnableRetryOnFailure: 12 tries up to 30s apart), so a cold first answer can take ~90s.
+// Paying that here, once, keeps it out of the first routes' DATA_TIMEOUT and out of the data
+// check's 20s read, where a cold start used to be reported as a wrong data store.
+const WARM_UP = ['/api/gallery', '/api/cases-page', '/api/reviews/featured?take=3']
+const WARM_UP_TIMEOUT = Number(process.env.PRERENDER_WARMUP_TIMEOUT || 150000)
 
 // Below this, a "successful" render almost certainly captured a spinner or an error state.
 // Writing that would replace an empty div with a page that says "Loading…" to Google, which
@@ -187,6 +195,37 @@ function fileFor(route) {
   return join(outDir, `${route.replace(/^\//, '')}.html`)
 }
 
+/** Every WARM_UP endpoint must answer 2xx within WARM_UP_TIMEOUT; returns what did not. */
+async function warmUp() {
+  const started = Date.now()
+  const failures = []
+  await Promise.all(WARM_UP.map(async (path) => {
+    try {
+      const res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(WARM_UP_TIMEOUT) })
+      if (!res.ok) failures.push(`${path} -> HTTP ${res.status}`)
+      else await res.arrayBuffer()
+    } catch (err) {
+      // Node's fetch reports a refused or dropped connection as "fetch failed" and keeps the
+      // reason in err.cause; the code (ECONNREFUSED...) is what says the app itself went away.
+      const why = err.name === 'TimeoutError'
+        ? `no answer in ${WARM_UP_TIMEOUT / 1000}s`
+        : (err.cause?.code || err.cause?.message || err.message)
+      failures.push(`${path} -> ${why}`)
+    }
+  }))
+  return { failures, seconds: Math.round((Date.now() - started) / 1000) }
+}
+
+/** The local app is up but cannot serve its own data. Not a data-source mismatch: say so. */
+function refuseBrokenLocalApp(lines) {
+  console.error('\nPrerender: refusing to run — the local app cannot serve its own data:')
+  for (const line of lines) console.error(`  ${line}`)
+  console.error('\nUsually the SQL connection string (missing, wrong, or a rotated password) or the')
+  console.error("Azure SQL firewall not allowing this machine's IP. The app's console has the exception.")
+  console.error('Snapshots taken now would freeze error states into the pages.\n')
+  process.exit(1)
+}
+
 async function isUp() {
   try {
     const res = await fetch(`${BASE}/robots.txt`, { signal: AbortSignal.timeout(4000) })
@@ -208,15 +247,17 @@ async function isUp() {
  *
  * The catalogue is the same data whichever code is deployed, so comparing it against the
  * live site is a valid check: a mismatch means the local app is pointed somewhere else.
- * Skipped with PRERENDER_SKIP_DATA_CHECK=1 for the genuine cases — no network, or a
- * deliberate content change that has not shipped yet.
+ * Skipped with PRERENDER_SKIP_DATA_CHECK=1 for the genuine cases — the live site
+ * unreachable, or a deliberate content change that has not shipped yet. The flag waives only
+ * the comparison with live: the warm-up still requires the local app to reach its own data
+ * stores, so an offline run is refused either way (it would freeze error states in).
  */
 async function dataSourcesAgree() {
   if (process.env.PRERENDER_SKIP_DATA_CHECK === '1') return { ok: true, skipped: true }
 
   const read = async (base) => {
     const res = await fetch(`${base}/api/gallery`, { signal: AbortSignal.timeout(20000) })
-    if (!res.ok) throw new Error(`${base} -> HTTP ${res.status}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const body = await res.json()
     return Array.isArray(body) ? body : (body?.items ?? [])
   }
@@ -228,16 +269,18 @@ async function dataSourcesAgree() {
   try {
     local = await read(BASE)
   } catch (err) {
-    return { ok: false, reason: `the local app could not serve /api/gallery (${err.message})` }
+    return { ok: false, localBroken: true, reason: `/api/gallery -> ${err.cause?.code || err.message}` }
   }
 
   let live
   try {
     live = await read('https://nvc-home4you.eu')
   } catch (err) {
-    // Cannot reach the live site: warn, do not block. A release from a train should still
-    // be possible, and the operator has been told what was not verified.
-    return { ok: true, warning: `could not compare against the live catalogue (${err.message})` }
+    // Cannot reach the live site: warn, do not block. The local app has already proved it
+    // can serve its own data (the warm-up, and the read above), and the operator has been
+    // told what was not verified.
+    const why = err.cause?.code || err.message
+    return { ok: true, warning: `could not compare against the live catalogue (https://nvc-home4you.eu/api/gallery -> ${why})` }
   }
 
   // Matched by id, minus any id either side serves twice — see catalogueCompare.js.
@@ -273,7 +316,13 @@ if (!(await isUp())) {
   process.exit(1)
 }
 
+console.log('Prerender: warming up the local API (a paused database can take a minute or more)…')
+const warm = await warmUp()
+if (warm.failures.length) refuseBrokenLocalApp(warm.failures)
+console.log(`Prerender: local API answered in ${warm.seconds}s.`)
+
 const dataCheck = await dataSourcesAgree()
+if (dataCheck.localBroken) refuseBrokenLocalApp([dataCheck.reason])
 if (!dataCheck.ok) {
   console.error(`\nPrerender: refusing to run — ${dataCheck.reason}\n`)
   console.error('The local app is reading a different store from the one production serves.')

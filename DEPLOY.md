@@ -142,9 +142,9 @@ the old tracker (now `ROADMAP.md`).
    prerender script now compares the local catalogue against the live site and refuses to
    run on a mismatch, so forgetting the flags fails loudly instead of silently. Items are
    matched by public id; an id either side serves twice is skipped with a warning rather
-   than compared. Expect that warning, naming id 15, exactly once: on the release that
-   ships #35, because live still serves the Space house and the 73 m² house both as 15.
-   Seen on any later release, it is a bug.
+   than compared. That warning, naming id 15, was expected once, on deploy-2026-10-03, the
+   release that shipped #35, while live still served the Space house and the 73 m² house
+   both as 15. Seen on any later release, it is a bug.
 
    Then, in a second terminal:
    ```powershell
@@ -154,9 +154,11 @@ the old tracker (now `ROADMAP.md`).
    Expect `Prerender: catalogue matches live (… items).` near the top and `Done: N/N routes`
    at the end, where N is 1 + the distinct paths in `src/routes/paths.js` (52 as of
    deploy-2026-09-20). A partial run, or a local app that cannot serve its own catalogue,
-   exits non-zero; do not publish over it. Each page waits for its own `/api/` calls (up to
-   `PRERENDER_DATA_TIMEOUT`, 60s), so a cold database makes the first pages slow rather than
-   frozen on their loading text. It writes to `api-dotnet/prerendered/`,
+   exits non-zero; do not publish over it. The script first warms the API up (gallery,
+   cases, reviews; up to 150s, since a paused database plus the app's retry backoff can take
+   ~90s), then each page waits for its own `/api/` calls (up to `PRERENDER_DATA_TIMEOUT`,
+   60s), so a cold database makes the start slow rather than freezing pages on their loading
+   text. It writes to `api-dotnet/prerendered/`,
    which the publish picks up (`StagePrerenderedForPublish`). Then stop the local app and
    publish (step 6). The publish output must say
    `Prerendered pages staged for publish: N files.` with the same N.
@@ -549,7 +551,7 @@ This matters more than it sounds. Each expiry fails *silently and partially*:
 |---|---|---|
 | `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
 | Graph / email credentials | Lead autoresponder, "email me my config", replies and inbound mail filing, the weekly order digest, audit-archive mail | Forms still submit successfully |
-| Quickbase token | Old `/c/{code}` saved-config links that were never imported (they answer "not found"), and the #21 import tooling. Until the gallery SEO store fix is live (the release after deploy-2026-09-20), also the product-page SEO tags and `sitemap-gallery.xml` | The gallery and cases pages, which read SQL |
+| Quickbase token | Old `/c/{code}` saved-config links that were never imported (they answer "not found"), and the #21 import tooling. Silently, the save-time code collision check and `/api/img`'s fallback on a Blob miss | The gallery and cases pages, the product SEO tags and `sitemap-gallery.xml` (all SQL since deploy-2026-10-03) |
 
 None of these take the site down, so nothing alerts you — the first sign is usually a
 customer saying they never got an email. **Put a recurring 6-monthly calendar reminder in

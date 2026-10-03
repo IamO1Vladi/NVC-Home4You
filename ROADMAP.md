@@ -68,7 +68,8 @@ commits, notes and conversations still resolve.
 
   Settled 2026-09-11: **tbonin@nvc-home4you.eu owns status moves** (owner's call). The
   routine around it — the **weekly order digest** — was decided and built 2026-10-01
-  (**not yet deployed, and OFF until `ORDER_DIGEST_ENABLED=true`**): every Monday 08:00
+  (**live since `deploy-2026-10-03`; the owner set `ORDER_DIGEST_ENABLED=true` the same
+  day**): every Monday 08:00
   Sofia, to tbonin@ with the owner on the To line too (`ORDER_DIGEST_TO`; the internal
   mail path has no Cc), every active order with the ones „Без движение" on top, and
   nothing at all in a week with no active order. "Stuck" is the board's own rule — no move
@@ -665,9 +666,31 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **The prerender waits for its data** (2026-10-03, script only, nothing shipped). The
+  big release's first prerender reported 52/52 with „Зареждане на цените…" frozen into
+  /bg/ceni, the BG gallery and cases empty, and the reviews missing from / and /bg: the run
+  started on a cold database, and networkidle2 fires with one slow call still open. Pages now
+  wait for their own `/api/` calls (not `/api/img`), a warm-up wakes the API before the first
+  route, a partial run or a local app that cannot serve its own data exits 1 with the right
+  message, and the docs say what skipping the prerender really does. Tested against a stub
+  server with real Puppeteer, and end to end from a sandbox copy of the script. The re-run
+  matched or beat every 09-20 snapshot.
+
+- [x] **Product SEO and the gallery sitemap read the store the site serves** (built
+  2026-10-02, **live since `deploy-2026-10-03`**; API only, no migration). The product-page
+  `<head>` tags and `sitemap-gallery.xml` named the Quickbase `GalleryService` while the site
+  served SQL, so a product that existed only in SQL, or whose title was corrected there,
+  answered crawlers 404 + noindex while visitors saw the page. Both now take `IGalleryStore`,
+  and `GalleryStoreWiringTests` refuses a constructor that names a concrete store. The three
+  addresses from before the August title corrections (`panaromic…`, and the two with a
+  Cyrillic „а") are `GallerySlugs.RetiredSlugs` and 301 to their products with the query
+  kept. Probed live the day it shipped: the six former 404s answer 200, the three retired
+  addresses 301, and the sitemap lists 45 addresses (was 42), `space-house` included.
+  Search Console follow-up: HANDOFF Do next.
+
 - [x] **36. A case public id that cannot collide** (built 2026-10-02 and merged to `master`
   after #35, then added to the big release in `production`, both on the owner's go-ahead
-  the same day; **not yet deployed**; no migration).
+  the same day; **live since `deploy-2026-10-03`**; no migration).
   #35's scheme, applied to the cases page. `SqlCasesPageService` served a case, and each
   client derived from a case, as `QuickbaseRecordId ?? Id`.
   - **Why it would collide.** `import-cases` adds Quickbase's cases, unpublished ones
@@ -694,8 +717,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     test, and dropping the guard call fails the second; both were checked by mutation.
 
 - [x] **35. A gallery public id that cannot collide** (built 2026-10-02 and merged to
-  `master` and `production` on the owner's go-ahead the same day, **not yet deployed**; no
-  migration).
+  `master` and `production` on the owner's go-ahead the same day, **live since
+  `deploy-2026-10-03`**; no migration; live `/api/gallery` serves the Space house as `100015`
+  with no id twice, and /bg/ceni prices its assembly „по запитване").
   Verified against live `/api/gallery` on 2026-10-02: two published houses were both
   `id: 15`. They were the imported „Разгъваема Къща - 73m² с веранда и двоен покрив"
   (Quickbase id 15) and the „Космическа къща - капсула" made in the panel (SQL id 15).
@@ -745,10 +769,10 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     compare local "15" (€28,000) with live's last "15" (€55,000) and refuse to prerender.
   - **For the owner:** `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql` is a
     read-only query that lists the 73 m² leads which were really Space house enquiries
-    (HANDOFF, Do next 0b). It returns one result, because the Azure portal's Query editor
+    (HANDOFF, Do next 0). It returns one result, because the Azure portal's Query editor
     shows only a script's last: a STOP row when the two houses are not exactly one each,
     otherwise the leads. The Space house has no assembly entry in `prices.js`; if it
-    should have one, that is the owner's number to give.
+    should have one, that is the owner's number to give (owner, 2026-10-03: none for now).
   - Tests: 38 .NET and 7 frontend. They pin the live catalogue's ids, the import guard,
     every way an old or new id resolves (including the retitle trade-off), the model-line
     reader and the prerender comparison.
@@ -774,7 +798,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     - One more resolver test, for a longer title that starts with the Space house's.
   - Noticed then, fixed as #36: cases used the same `QuickbaseRecordId ?? Id` scheme.
 
-- [x] **34. A gallery enquiry names its model** (built 2026-10-02, **not yet deployed**).
+- [x] **34. A gallery enquiry names its model** (built 2026-10-02, **live since
+  `deploy-2026-10-03`**; the owner sent a real gallery enquiry and it arrived named).
   Owner, 2026-10-02: sales could not tell which model a gallery „Поискай оферта" was about.
   Traced end to end, a jsdom probe of the real App proving it:
   - **The model was thrown away.** Since 739a7f8 (2026-08-12) App cleared the selected
@@ -807,10 +832,12 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     (the ambiguous id above, the scroll lock restoring another overlay's 'hidden', invisible
     astral format characters in the title, the stored link percent-encoded into
     unreadability, the focus), one refuted. Separate tickets, not done here: the id-15
-    collision itself (now #35), and product SEO/sitemap reading the Quickbase gallery (live 404s).
+    collision itself (now #35), and product SEO/sitemap reading the Quickbase gallery (live
+    404s), done as "Product SEO and the gallery sitemap read the store the site serves" above.
 
-- [x] **11. Greek translation completeness audit — and its fixes** (built 2026-10-01, **not
-  yet deployed**). The audit found 434 strings a Greek visitor met in English or Bulgarian
+- [x] **11. Greek translation completeness audit — and its fixes** (built 2026-10-01, **live
+  since `deploy-2026-10-03`**, which also ended the doors „review & send" bug live since
+  2026-08-18; the owner sent a real doors enquiry and it arrived). The audit found 434 strings a Greek visitor met in English or Bulgarian
   (the "Greek audit" section below). The owner split the order of work in three: groups 1
   and 2 here, group 3 the owner's own.
   - **Group 1, code only:** reviews and gallery pages printed raw keys ("Επαληθευμένη
@@ -847,7 +874,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     meant to be 73? The Greek bathroom codes B1–B9 are spelled like the 58 m² layouts B1–B6.
     The Greek was drafted here; a native speaker should read it before or soon after release.
 
-- [x] **29. Replies carry up to 20 MB of files** (built 2026-10-01, **not yet deployed**).
+- [x] **29. Replies carry up to 20 MB of files** (built 2026-10-01, **live since
+  `deploy-2026-10-03`**; the owner's real large send from the panel worked, the first time
+  it met the real Graph).
   Asked for by the owner 2026-09-10; the cap was 3 MB because that is Graph's ceiling for
   attaching a file in ONE request. Now each file takes the route Graph documents for its
   size (learn.microsoft.com/graph/outlook-large-attachments): under 3,000,000 bytes the
@@ -885,12 +914,13 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   answer after the send is asked for that is not a definite 4xx says the reply MAY have
   gone out and to check Sent Items first (and is logged as such even if the browser left);
   before that point a timeout is a plain "not sent". Each post-send file copy has its own
-  clock, so a slow one can no longer cost the thread entry. **Verify after the publish:**
-  send a reply with a 5–15 MB PDF to a mailbox you can read — the session path has only
-  ever met a stub of Graph.
+  clock, so a slow one can no longer cost the thread entry. **Verified 2026-10-03 against
+  the real Graph:** a 5–15 MB reply sent and arrived, and the over-20 MB case greyed Send
+  out as designed.
 
 - [x] **32. New A1–A3 renders, their kitchens re-mapped, and a sink that follows the
-  drawing** (built 2026-09-30, ships with #31). The owner supplied new furnished renders
+  drawing** (built 2026-09-30, **live since `deploy-2026-10-03`** with #31; A2 serves five
+  kitchen positions with the sink on 4). The owner supplied new furnished renders
   for A1, A2 and A3 (A3 at 1254 px, like A4 — coordinates are percentages, so size is
   free). They replace the old artwork on every stage, the window stage included: the old
   `-nowindows` canvases showed the OLD drawing and are deleted, exactly as B and C went on
@@ -912,9 +942,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   OLD A1/A2 tables before this publish keeps its position numbers, which now point at
   different modules; the sales email of any lead already carries the positions as text.
 
-- [x] **31. The second payment on a purchase** (built 2026-09-30, **not yet deployed** —
-  `production` is pushed and the `AddPurchaseSecondPayment` migration is already applied;
-  the publish waits on the prerender, see HANDOFF "Do next" 0). Asked for
+- [x] **31. The second payment on a purchase** (built 2026-09-30, **live since
+  `deploy-2026-10-03`**; `AddPurchaseSecondPayment` was applied 2026-09-30, ahead of the
+  publish; the owner checked Клиенти and Поръчки signed in). Asked for
   by the owner the same day: a few customers had paid their second half and Клиенти had
   nowhere to put it — the only way to show a customer as settled was to type the full
   price into Платено капаро and lose what the deposit had been. Each purchase card now

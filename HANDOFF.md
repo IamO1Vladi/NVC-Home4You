@@ -6,8 +6,8 @@ owns release mechanics, **including §6b, the prerender step**. Skipped when the
 the freshness guard stops the publish. Skipped when only data or copy changed, it **silently
 ships stale pages**.
 
-Tests at `master` (2026-10-03): **1065 .NET, 824 frontend**, all green. (The live release,
-`deploy-2026-09-20`, was 800 / 479.) `npm run audit:a11y`: 0 violations on 104 page-loads.
+Tests at `deploy-2026-10-03`: **1065 .NET, 824 frontend**, all green. `npm run audit:a11y`:
+0 violations on 104 page-loads.
 
 ---
 
@@ -15,12 +15,12 @@ Tests at `master` (2026-10-03): **1065 .NET, 824 frontend**, all green. (The liv
 
 | | |
 |---|---|
-| **Live** | `69f9724`, tagged **`deploy-2026-09-20`** — #28: kitchen appliance placement in the configurator, plus the retirement of the kitchen-extras section. SPA-only release: no API changes, **no migrations**. The bundle rehashed to `index-B6E00noi.js` and the snapshots were regenerated with it — 52/52 routes against a local app run with the SQL data-source flags, freshness guard clean before AND at publish. Verified live the same day, not just probed: the appliance stage renders on Интериор, stacking the hob on the oven produces the OV+HB dot with „позиция 1 · върху фурната", „Кухненски добавки" is gone, the live page's bundle reference resolves 200, and the browser console is clean. **What remains human:** the owner's eyeball pass over the slot-overlay sheet (a nudged dot = one line in `boxConfiguratorApplianceSlots.js` + redeploy), one real offer submission to see the appliance lines and the not-supplied disclaimer arrive in the sales mail, and the offerText-vs-4000-char measurement noted in the #28 DONE entry. |
-| **`production` branch** | **AHEAD of live, NOT published.** Pushed 2026-09-30/10-01 carrying #31 (second payment), #32 (A1–A3 renders + kitchen slots + the sink that follows the drawing) #27's weekly order digest (ships OFF; switched on as step 5 below), #29, replies with up to 20 MB of files (verified by a real send as step 4b), and — owner's decision 2026-10-01 — **#11, the Greek fixes**, which carry the fix for a LIVE bug: the internal-doors „review & send" button has thrown since 2026-08-18, so no doors enquiry can be sent. Then — owner's decision 2026-10-02 — **#34, a gallery enquiry names its model** (sales could not tell which house a gallery „Поискай оферта" was about; no migration). Then, also the owner's decisions of 2026-10-02, three more. **The gallery SEO store fix, with 301s for the three retitled product addresses** (API-only, no migration): the product-page `<head>` tags and `sitemap-gallery.xml` read Quickbase while the site serves SQL, so a product that exists only in SQL, or whose title was corrected there, answers crawlers **404 + noindex** (humans see the page; Google and email link-checkers get the 404), and the three addresses from before the August title corrections, which show visitors "Model not found", now 301 to their products. Its probes are in step 4 and the Search Console follow-up is Do next 5. **#35, a gallery public id that cannot collide** (SPA + API, no migration): live serves the Space house (made in the panel, SQL id 15) and the imported 73 m² house (Quickbase id 15) both as `id: 15`, so Space house enquiries became 73 m² leads and the prices page gives the Space house the 73 m² house's €2,280 assembly. Houses made in the panel are now served as 100000 + SQL id (the Space house becomes **100015**); imported houses keep their numbers. Its probes and the owner's read-only lead check are Do next 0b. **#36, a case public id that cannot collide** (API-only, no migration): the same scheme for the cases page and its clients, so cases made in the panel are served as 100000 + SQL id. Nothing collides live today; its probe is in step 4. The publish could not be finished from the secondary device (no Blob string there for the prerender); it is the first item under Do next. |
-| **`master`** | = `production`. |
+| **Live** | `36f158c`, tagged **`deploy-2026-10-03`**, the big release. It carries #31 (second payment), #32 (new A1–A3 renders, kitchens re-mapped, a sink that follows the drawing), #27's weekly order digest, #29 (replies with up to 20 MB of files), #11 (the Greek fixes, which also ended the doors „review & send" bug live since 2026-08-18), #34 (a gallery enquiry names its model), the gallery SEO store fix with 301s for the three retitled addresses, #35 (gallery public ids, the Space house is `100015`) and #36 (case public ids). Its one migration, `AddPurchaseSecondPayment`, was applied 2026-09-30, before the publish. The bundle is `index-B9GWv4Xp.js` with 52/52 snapshots. The first prerender reported 52/52 with loading text frozen into /bg/ceni, the BG gallery and cases; it was caught by comparing against the 09-20 snapshots, the script was fixed (ROADMAP DONE, "The prerender waits for its data"), and the re-run matched or beat every page. A trial publish to a temp folder showed the same bundle hash and "staged for publish: 52 files" before the real one. **Verified live 2026-10-03:** the bundle loads; the six gallery addresses that answered 404 answer 200; the three retired ones 301 and keep the query; `sitemap-gallery.xml` lists 45 (was 42), with `space-house` and no `panaromic`; all 96 sitemap addresses answer 200; `/api/gallery` has `100015` and no id twice; `/api/cases-page` has no duplicates; live /bg/ceni is the new snapshot byte for byte, with „по запитване"; the configurator serves the new A1–A3 art and A2's five kitchen positions with the sink on 4; the Greek configurator shows `14.000 €` prices; the console is clean. The owner, signed in: the second payment in Клиенти and Поръчки, a real 5–15 MB reply plus the over-20 MB case, and a real doors enquiry and a real gallery enquiry, all working. `ORDER_DIGEST_ENABLED=true` set the same day. The 09-20 snapshots are kept at `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-09-20` on the main device, for a rollback. **What remains human:** Do next 0. |
+| **`production` branch** | = live, `36f158c`. |
+| **`master`** | `production` plus this record and the prerender warm-up (script and docs only; nothing in it ships). |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
-| **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks) — two nullable columns on `Purchases`; the live `69f9724` code reads the table fine with them present, so the gap until the publish is harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
-| `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18.** Quickbase keeps two user-visible runtime paths, plus two silent ones (the save-time code collision check, and `/api/img` falling back on a Blob miss; a dead token degrades both quietly). A `/c/{code}` link that was never imported still falls back to it (by design, see "Saved configurator links"). Until the gallery SEO store fix is published, the product-page SEO tags and `sitemap-gallery.xml` read it too. Otherwise the token's ~Feb 2027 expiry matters only for the import tooling (relevant to ROADMAP #21). |
+| **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18.** Quickbase keeps one user-visible runtime path, plus two silent ones (the save-time code collision check, and `/api/img` falling back on a Blob miss; a dead token degrades both quietly). A `/c/{code}` link that was never imported still falls back to it (by design, see "Saved configurator links"). The product-page SEO tags and `sitemap-gallery.xml` read it too until deploy-2026-10-03 moved them to SQL. Otherwise the token's ~Feb 2027 expiry matters only for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
 been wrong before (17 Aug: two "not deployed" fixes were live — the publish had been made
@@ -29,97 +29,15 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **THE BIG RELEASE — #31 + #32 + #27 + #29 + #11 + #34 + the gallery SEO fix + #35 +
-   #36, from the MAIN device.** Pushed and waiting: `production` = `master`. The
-   `AddPurchaseSecondPayment` migration is ALREADY applied to production; nothing else in
-   the release needs one. Tests green at the release: 1065 .NET, 824 frontend. In order:
-
-   1. **Pull and build.** `git checkout production; git pull`, then
-      `cd "NVC Claude version"; npm run build`.
-   2. **Prerender.** First copy `api-dotnet\prerendered` to a backup folder outside the
-      repo (DEPLOY 6b has the command). The script empties it before rendering, and outside
-      the App Service it is the only copy of what is live, which a rollback needs.
-      Start the app with `SQL_CONNECTION_STRING` **and**
-      `BLOB_CONNECTION_STRING` plus the three `DATA_SOURCE_*=sql` flags (recipe below), then
-      `npm run prerender` in a second terminal. Expect `catalogue matches live (13 items)`,
-      **52/52** and exit code 0. A partial run, or a local app that cannot serve its own
-      catalogue, now exits 1. The Blob string is not
-      optional: without it every `/api/img` image 404s locally, the home and modular-builds
-      pages never go quiet (ROADMAP #33) and the snapshots would bake placeholder art in.
-      The secondary device stopped here on 2026-09-30 for exactly that reason (45/52).
-      Expect one warning naming id 15 from the catalogue check; it is #35's, see Do next 0b.
-   3. **Publish.** Stop the local app, publish from VS Code — its output must say
-      `Prerendered pages staged for publish: 52 files.` — then
-      `git tag "deploy-$(Get-Date -Format yyyy-MM-dd)"; git push --tags; git checkout master`.
-   4. **Probe live** (Ctrl+F5). Configurator: the new A1–A3 renders, kitchen dots on the
-      worktops, and the sink dot ON the drawn sink after picking A2 (position 4) and A3
-      (position 2); the home page's „58" entry lands on B1 with the sink at position 2.
-      Panel: Клиенти shows Второ плащане + Дата на второто плащане on a purchase and
-      Платено изцяло once a client is settled; Поръчки shows the badge and the second
-      payment in the report line. Greek (#11): /el/diamorfotis-box-spitiou shows Greek
-      option names and „14.840 €"-style prices; a /el gallery product page names its
-      category in Greek. **The doors fix:** /bg/interiorni-vrati's „review & send" opens the
-      form (it has not since 2026-08-18) — send one real enquiry to see it arrive.
-      **#34:** open a model from the gallery LIST (the pop-up, not a direct link), press
-      „Поискай оферта": the form shows „Модел: <name>". Send it: the sales email has a
-      „Модел:" row with the name linked to its page and the name at the end of the
-      subject, and Запитвания shows „Модел от сайта: …" as the message's first line.
-      **Gallery SEO store fix:** check the HTTP status, not the page (the SPA renders it
-      either way): `curl.exe -s -o NUL -w "%{http_code}" <url>` for
-      `/en/gallery/space-house`, `/bg/galeriq/космическа-къща-капсула` and
-      `/en/gallery/panoramic-box-house-37-m2` must answer **200**. They answered 404 on
-      2026-10-02. `/sitemap-gallery.xml` must list one `<loc>` per item per locale (45 for
-      today's 15 items; it was 42), including `space-house`, with no `panaromic`.
-      **The three retitled addresses:**
-      `curl.exe -s -o NUL -w "%{http_code} %{redirect_url}" <url>` on
-      `/en/gallery/panaromic-box-house-37-m2` must print `301` and the
-      `…/panoramic-box-house-37-m2` URL. It printed 200 on 2026-10-02. With
-      `?utm_source=x` added, the printed URL must end in `?utm_source=x` too, because the
-      redirect keeps the query.
-      **#36:** in `/api/cases-page`, no case `id` and no client `id` appears twice. The
-      one case served on 2026-10-02 was `"2"`; it stays `"2"` if it was imported and becomes
-      `"100002"` if it was made in the panel. Either is correct.
-   4b. **Send a real large attachment (#29)** — the one part of this release that has only
-      ever met a stub of Graph. From the panel, reply on a test lead whose address is a
-      mailbox you can read, with one PDF of 5–15 MB and one small file. Expect: it sends,
-      both files arrive intact, the thread shows the reply and both files, and contact@'s
-      Drafts holds nothing left over. Then pick files totalling over 20 MB, each one under
-      20 MB (two of ~12 MB): Send greys out with a sentence, and „Запиши като" still files
-      them. Filing is capped per file, so a single 25 MB file is refused there too, by design. If the large send fails, the
-      panel's message names the step and the file — keep it for the fix; small attachments
-      do not use the new route and keep working regardless.
-   5. **Switch on the weekly order digest (#27)** — it ships OFF. With the SQL string set:
-      `cd api-dotnet; dotnet run -- order-digest` previews it (counts on screen, the email
-      as an .html in the temp folder, nothing sent). Check the active count: an old order
-      left at „Приета" keeps every week "active", so the email would never skip a week.
-      Optional: `dotnet run -- order-digest --send` mails it now (needs the GRAPH_* settings
-      too) — **set `$env:ORDER_DIGEST_TO` to your own address for that run**, or the office
-      gets the same week twice once the flag goes on. Then App Service → Environment variables → `ORDER_DIGEST_ENABLED` = `true`
-      (`ORDER_DIGEST_TO` only to change the default tbonin@ + vvladimirov@). The first
-      digest arrives a few minutes after that restart; then every Monday 08:00 Sofia.
-      DEPLOY.md, "Switching on the weekly order digest", has the details.
-   6. **Record it.** Here: the Live row, the test counts, and this item gone. In ROADMAP:
-      #31, #32, #29, #11, #34, #35 and #36 marked deployed, #27's digest marked live.
-
-0b. **#35, the gallery id fix: what its release needs, and one read-only check for the
-   owner.** In `master` and `production` on the owner's go-ahead (2026-10-02), so it ships
-   with the big release. No migration. ROADMAP #35 has the design.
-   - **In the big release:**
-     - At step 2 the prerender prints one warning naming id 15. That is expected. Live
-       still serves both houses as 15, so that id is skipped rather than compared (DEPLOY
-       §6b).
-     - At step 4, probe `/api/gallery`: the Space house has `"id":100015`, and no id appears
-       twice.
-     - At step 4, probe /bg/ceni: the Space house's assembly reads „по запитване" and its
-       total equals its price. It currently shows €2,280 assembly, which is the 73 m²
-       house's.
-     - **Owner's call:** if the Space house has an assembly cost of its own, it goes into
-       `BOX_ASSEMBLY_NET_BY_ID` in `content/shared/prices.js` as `100015: <net €>`.
-   - **The read-only lead check, run by the owner, not Claude (it is production SQL).**
-     Open `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql`, paste it into the Azure
-     portal's Query editor (or any SQL client) on the production database, and run it. It
-     is SELECTs only and returns ONE result, because the portal shows only a script's last
-     one:
+0. **After `deploy-2026-10-03`: what the owner still owes, all of it small.** The release
+   itself is done and verified (State of play, Live row).
+   - **The read-only Space house lead check (#35). Run it now; the release is live.** This
+     is the owner's to run, not Claude's, because it is production SQL. Open
+     `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql`, paste it into the Azure
+     portal's Query editor on the production database (SQL databases → the database →
+     Query editor), and run it. Sign in with SQL authentication, using the server admin
+     login, or with Entra if the server has an Entra admin set. Any SQL client works too. It holds SELECTs only and returns ONE
+     result, because the portal shows only a script's last one:
      - A single STOP row if there is not exactly one 73 m² house (Quickbase id 15) and one
        Space house (SQL id 15, no Quickbase id). The leads query did not run; find out why
        before anything else.
@@ -127,29 +45,38 @@ was empty either way). Checking the live site settles such questions in a minute
        the Space house, each with a Verdict (no rows means nothing to review):
        - **1 SPACE HOUSE:** the enquiry's model line names the Space house. Decisive.
        - **2 UNDECIDED:** the enquiry was made while both houses were "15" and has no model
-         line. Read the message; the Hint column flags „космическа", „капсула" and 55 000.
+         line. Read the message. The Hint column flags „космическа", „капсула" and 55 000.
+         It misses "55,000" and the Bulgarian non-breaking-space form, so read the message
+         rather than trusting a blank hint.
        - **x:** nothing to fix. The last column shows the Space house line rows were matched
          against, in case its title has changed.
 
      Fix a row in the panel (Лийдове, the lead, its model), not with an UPDATE, so Одит
-     records the change. Expect very few verdict-1 rows: #34 already stopped linking a
-     shared 15 to either house, so one only appears if someone linked it by hand. Before
-     #34, few gallery enquiries carried an id at all, because the modal threw it away. The
-     whole list should be short.
-
-     **The file has never been run against a database.** It was checked only with a T-SQL
-     parser (which also confirmed it holds no write statement) and against the column
-     names in the EF model snapshot.
-   - **Old enquiries keep resolving.** Promoting a stored offer understands three kinds of
-     id: the new 100015-style ids, Quickbase ids, and the bare SQL id a panel-made house had
-     before #35. A shared "15" is settled by the enquiry's date (made before the Space house
-     existed means the 73 m² house) or by its „Модел от сайта:" line. Otherwise it links to
-     neither, as it has since #34.
-     - Below 100000, a model line that names a different house than the number found means
-       no link. That covers a Space house deleted later: an old "15" whose line names it
-       would otherwise find only the 73 m² house. An enquiry from before #34 has no line, so
-       it has no such protection. The cost is that a house retitled between enquiry and
-       promotion is not linked automatically; staff link it by hand from the line.
+     records the change. Expect very few verdict-1 rows and a short list overall. #34
+     already stopped linking a shared 15 to either house, and before #34 few gallery
+     enquiries carried an id at all. The file was run on 2026-10-03 against a scratch LocalDB
+     copy of the schema (one result in both branches, the verdicts as described). It has
+     never met production data.
+   - **Search Console:** Do next 5.
+   - **The first weekly order digest.** `ORDER_DIGEST_ENABLED=true` was set on 2026-10-03,
+     and the restart that caused owes the current week. It should have gone out a few
+     minutes later to tbonin@ and vvladimirov@, unless no order is active, in which case
+     nothing is sent and the week still counts as done. Check that it arrived. Read its
+     active count: an old order left at „Приета" counts as active every week, so the email
+     would never skip a week. Then every Monday 08:00 Sofia. If nothing came and orders are
+     active, the App Service log stream shows the digest's "not done" line. DEPLOY.md,
+     "Switching on the weekly order digest", has the preview and `--send`.
+   - **#11, now live: a native speaker's read of the drafted Greek,** and the two open
+     questions in ROADMAP #11. Should the modular-houses cell's 78 m² be 73? And the Greek
+     bathroom codes B1–B9 read like the 58 m² layouts B1–B6.
+   - **#28's leftovers.** The slot-overlay eyeball pass goes on the post-release A1–A3 art,
+     because #32 re-mapped those kitchens after the 09-20 sheet was made (A4–C6 on the old
+     sheet are unaffected). One real configurator offer submission, to see the appliance
+     lines and the not-supplied disclaimer in the sales mail. The offerText-vs-4000-char
+     measurement noted in the ROADMAP #28 entry.
+   - **Space house assembly: decided 2026-10-03, none for now.** It stays „по запитване"
+     on /bg/ceni. If it gets one, add `100015: <net €>` to `BOX_ASSEMBLY_NET_BY_ID` in
+     `content/shared/prices.js`.
 
 1. **The 2026-09-02 pair is CHECKED — the owner went through the new features on the
    live panel (2026-09-03) and everything works.** Nothing owed here. The one behaviour
@@ -204,29 +131,47 @@ was empty either way). Checking the live site settles such questions in a minute
    a small edit, **Фабрични поръчки**, and accepting the factory-sheet import banner on
    whichever browser still holds the old localStorage copy.
 
-5. **Search Console: RESUBMIT `sitemap-gallery.xml` once the gallery SEO store fix is
-   live** (Sitemaps → the gallery sitemap → resubmit). Until then the sitemap was built from
-   Quickbase, not from the SQL catalogue the site serves. So "the two title fixes are done"
-   (verified 2026-08-19) was true of `/api/gallery` and the SPA, but **never reached
-   crawlers**: the sitemap and the server's 200/404 answer still carried Quickbase's titles.
-   Diffing the live sitemap against the live `/api/gallery` on 2026-10-02 showed this:
-   - **404 until the fix, 200 after it. Request indexing:** `/en/gallery/space-house`,
-     `/bg/galeriq/космическа-къща-капсула`, `/el/gkaleri/φουτουριστική-κατοικία-κάψουλα`,
-     `/en/gallery/panoramic-box-house-37-m2`, and
-     `/en/gallery/expandable-house-{58,73}m2-with-balcony-and-a-double-roof`.
-   - **200 until the fix, 301 to the corrected page after it** (owner's decision,
-     2026-10-02): `/en/gallery/panaromic-box-house-37-m2` and the two
-     `…-and-а-double-roof` URLs, whose "а" is Cyrillic. The 200 was only ever the server's
-     answer. A visitor there has seen "Model not found" since the August corrections,
-     because the SPA matches against the corrected titles. They are the three entries in
-     `GallerySlugs.RetiredSlugs`. Nothing to do in Search Console: Google follows the 301
-     and moves them to the corrected URLs on its own.
-
-   Then, as before, request indexing for the remaining product URLs (~10/day).
-   **#35 ships in the same release** (Do next 0b). It fixes the duplicate public id 15: the
-   Space house and the 73 m² house both serve `id: 15` from `/api/gallery`, which breaks
-   the uniqueness of the JSON-LD `sku`. Slugs, the sitemap and the product tags do not key
-   on id, so this fix does not depend on #35, but the SEO is not clean until both are live.
+5. **Search Console, after `deploy-2026-10-03`: the checklist.** Before that release the
+   product-page 200/404 and `sitemap-gallery.xml` came from Quickbase, so the August title
+   fixes never reached crawlers, and six product addresses (four products) answered Google
+   404 + noindex. All 96
+   addresses in both sitemaps answered 200 on 2026-10-03. In the domain property
+   `nvc-home4you.eu`:
+   1. **Sitemaps** (Indexing → Sitemaps): resubmit `https://nvc-home4you.eu/sitemap-gallery.xml`
+      (45 addresses; it was 42) and `https://nvc-home4you.eu/sitemap.xml` (51). Both should
+      read "Success" with those counts once Google refetches. robots.txt already names both.
+   2. **Request indexing for the six that answered 404.** The quota is roughly 10 a day per
+      property, so these go first. For each: URL Inspection → paste. The first panel may
+      still say "URL is not on Google" / "Not found (404)". That is Google's old crawl and is
+      expected. Press **Test live URL**: it should say "URL is available to Google" with
+      "Indexing allowed? Yes". Then press **Request indexing**.
+      - `https://nvc-home4you.eu/en/gallery/space-house`
+      - `https://nvc-home4you.eu/bg/galeriq/космическа-къща-капсула`
+      - `https://nvc-home4you.eu/el/gkaleri/φουτουριστική-κατοικία-κάψουλα`
+      - `https://nvc-home4you.eu/en/gallery/panoramic-box-house-37-m2`
+      - `https://nvc-home4you.eu/en/gallery/expandable-house-58m2-with-balcony-and-a-double-roof`
+      - `https://nvc-home4you.eu/en/gallery/expandable-house-73m2-with-balcony-and-a-double-roof`
+   3. **The three retired addresses need nothing.** `/en/gallery/panaromic-box-house-37-m2`
+      and the two `…-and-а-double-roof` addresses (Cyrillic „а") now 301; Google follows that
+      on its own. If one is inspected, "Page with redirect" is the right answer.
+      They are `GallerySlugs.RetiredSlugs`.
+   4. **Pages report** (Indexing → Pages): open "Not found (404)" and "Excluded by 'noindex'
+      tag". **Validate fix** re-checks every address under that reason, not just the six,
+      and both lists can hold addresses that are meant to stay gone (junk URLs land on the
+      noindex 404 page). Validation would then end "Failed" with the six fixed. So press it
+      only where the six are all or most of the list; otherwise leave it, since step 2
+      already covers them. Validation takes days to weeks and reports by email.
+   5. **Product snippets / Merchant listings** (under Shopping or Enhancements): look, do
+      not press Validate fix. #35's sku fix has no issue type there, and the usual
+      missing-field warnings (shippingDetails, hasMerchantReturnPolicy, review) were not
+      changed by this release. An absent or empty report is fine.
+   6. **Then the rest, about 10 a day, optional.** Google will also find them from the
+      sitemap. The other 32 product addresses are everything in `sitemap-gallery.xml`
+      except the six above and seven Greek ones. **Do not request the seven Greek
+      addresses with English words in them**: the five `σπίτι-τύπου-container-…`,
+      `πανοραμικό-box-house-37-m2` and `πανοραμικό-office-container-6000-3000-mm`. They are
+      the owner's pending Greek retitles (ids 13, 6, 8, 14, 7, 16, 12; "Next up" below),
+      and their addresses move when the titles change.
 6. **Order tracking (#27): the decision is MADE, and the feature was rebuilt around it.**
    The owner settled it on 2026-08-20: **a member of staff moves every order along by hand,
    from the admin Поръчки board. There will be no carrier account and no feed.** That turns
@@ -316,7 +261,7 @@ signal is one MSBuild line. `Prerendered pages staged for publish: 52 files.` = 
 ```powershell
 cd "NVC Claude version"; npm run build
 cd ..\api-dotnet
-$env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'   # BOTH — see Do next 0
+$env:SQL_CONNECTION_STRING = '...'; $env:BLOB_CONNECTION_STRING = '...'   # BOTH — DEPLOY 6b says why
 #   (on the main device user-secrets already supply both; this line then only overrides them)
 $env:DATA_SOURCE_GALLERY = 'sql'; $env:DATA_SOURCE_CASES = 'sql'; $env:DATA_SOURCE_REVIEWS = 'sql'
 dotnet run -p:SkipSpaBuild=true
@@ -328,7 +273,7 @@ cd "NVC Claude version"; npm run prerender     # expect 52/52
 its lines, mid-prerender, and the script clears the snapshot folder before writing, so the
 folder is left EMPTY (happened 18 Aug; a publish in that window would have shipped zero).
 
-The five traps that each produced a successful-looking run, still true:
+The six traps that each produced a successful-looking run, still true:
 
 1. **`DATA_SOURCE_GALLERY`, not `DATA_SOURCE_HOUSES`.** Without the flags a dev machine
    reads Quickbase while production reads SQL; the script now compares the local catalogue
@@ -343,14 +288,18 @@ The five traps that each produced a successful-looking run, still true:
 6. **A cold API used to freeze loading pages in, and the run still reported 52/52**
    (2026-10-03). networkidle2 fires with one slow call still open. The first run of that
    day froze „Зареждане на цените…" into /bg/ceni, did the same to the BG gallery and
-   cases, and dropped the reviews from the home pages. `settle()` now waits for every open
-   `/api/` call except `/api/img`, up to `PRERENDER_DATA_TIMEOUT` (60s). A call still open
-   fails that route as `API`. Before publishing, compare a few snapshots with the backup:
+   cases, and dropped the reviews from the home pages. Before the first route, a warm-up
+   now calls the gallery, cases and reviews endpoints with up to 150s each
+   (`PRERENDER_WARMUP_TIMEOUT`), because a paused database plus the app's retry backoff can
+   take ~90s. A local app that cannot answer is refused with that reason, before the folder
+   is emptied. Then `settle()` waits for every open `/api/` call except `/api/img`, up to
+   `PRERENDER_DATA_TIMEOUT` (60s). A call still open fails that route as `API`. Before publishing, compare a few snapshots with the backup:
    prices, gallery, cases and the home page should have their data in them.
 
 The prerender script empties the folder before it renders, so a deleted route's snapshot
 goes with the next run, and so does everything live if the run then fails. Back the folder
-up first (Do next 0, step 2). A partial run exits 1 and names the routes with no snapshot.
+up first (DEPLOY 6b has the command). A partial run exits 1 and names the routes with no
+snapshot.
 
 ---
 
@@ -416,6 +365,16 @@ pickers, blob keys) uses the SQL `House.Id`; only Запитвания prints an
 nothing errors. Before #35, panel houses were served under their bare SQL id, which put two
 houses on "15" live. `LeadService.ResolveHouseIdAsync` is the only code that maps a public
 id back to a house, and it still reads the ids stored before #35.
+
+Promoting a stored offer understands three kinds of id: the 100015-style ids, Quickbase
+ids, and the bare SQL id a panel-made house had before #35. A shared "15" is settled by the
+enquiry's date (made before the Space house existed means the 73 m² house) or by its
+„Модел от сайта:" line; otherwise it links to neither, as it has since #34. Below 100000, a
+model line that names a different house than the number found means no link. That covers
+a Space house deleted later (an old "15" whose line names it would otherwise find only the
+73 m² house). An enquiry from before #34 has no line, so it has no such protection. The
+cost is that a house retitled between enquiry and
+promotion is not linked automatically; staff link it by hand from the line.
 
 Cases, and the clients derived from them, follow the same rule through `CasePublicIds` (#36).
 Their ids are only React keys on the cases page, and nothing maps them back.
@@ -484,6 +443,6 @@ hyphens). Validating is not qualifying; the error message names the requirement.
 |---|---|---|
 | `ENTRA_CLIENT_SECRET` | Admin sign-in | The whole public site |
 | Graph / email credentials | Autoresponder, replies, inbound mail filing, config emails, **audit archive mail**, the weekly order digest | Forms still submit |
-| Quickbase token | Never-imported `/c/{code}` links (they answer "not found") and the #21 import tooling. Until the gallery SEO store fix is live, also the product-page tags and `sitemap-gallery.xml` | Everything else live |
+| Quickbase token | Never-imported `/c/{code}` links (they answer "not found") and the #21 import tooling | Everything else live, including the product tags and `sitemap-gallery.xml` since deploy-2026-10-03 |
 
 Renewal steps in DEPLOY.md. A calendar reminder two weeks ahead is the actual fix.
