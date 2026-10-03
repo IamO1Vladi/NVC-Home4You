@@ -65,6 +65,8 @@ public static class AuditedEntities
     /// SavedConfig — written by customers using the configurator, not by staff. High volume,
     ///   no human decision behind it.
     /// AuditEntry — auditing the audit log is a loop, and it is append-only anyway.
+    /// HouseSlugHistory — derived from the House edit that writes it, which is audited with
+    ///   its old and new titles; the seeder rebuilds it from exactly those entries.
     /// </summary>
     public static bool IsAudited(string? entityType) =>
         entityType is not null && Included.Contains(entityType);

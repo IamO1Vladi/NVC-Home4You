@@ -84,6 +84,7 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.SqlReviewService>();
     builder.Services.AddScoped<Services.ReviewModerationService>();
     builder.Services.AddScoped<Services.SqlGalleryService>();
+    builder.Services.AddScoped<Services.SlugHistorySeeder>();
     builder.Services.AddScoped<Services.SqlCasesPageService>();
     builder.Services.AddScoped<Services.SqlLeadService>();
     builder.Services.AddScoped<Services.LeadImportService>();
@@ -660,6 +661,44 @@ if (args.Length > 0 && args[0] == "import-payments-sheet")
         PrintList("Problems", sheetResult.Problems);
 
     return sheetResult.Problems.Count > 0 ? 1 : 0;
+}
+
+// Seeds HouseSlugHistory (#37) from Одит, once: the addresses houses lost to retitles made in
+// the panel before #37 kept them. --dry-run lists them and writes nothing. Never overwrites,
+// so a second run adds nothing. See SlugHistorySeeder for what it will not guess.
+if (args.Length > 0 && args[0] == "seed-slug-history")
+{
+    // Cyrillic and Greek addresses on a Windows console — see import-payments-sheet.
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+    using var seedScope = app.Services.CreateScope();
+    var seeder = seedScope.ServiceProvider.GetService<Services.SlugHistorySeeder>();
+    if (seeder is null)
+    {
+        Console.Error.WriteLine("SQL is not configured (SQL_CONNECTION_STRING), so there is no audit log to read.");
+        return 1;
+    }
+
+    var seedDryRun = args.Contains("--dry-run");
+    var seeded = await seeder.RunAsync(seedDryRun, CancellationToken.None);
+
+    string Line(Services.SlugHistorySeeder.Candidate c) =>
+        $"  house #{c.HouseId}  {Services.GallerySlugs.Locales.Single(l => l.Locale == c.Locale).Prefix}{c.Slug}" +
+        $"  (retired {c.RetiredAt:yyyy-MM-dd}{(c.RetiredByUpn is null ? "" : " by " + c.RetiredByUpn)}; was \"{c.FromTitle}\")";
+
+    Console.WriteLine(seedDryRun ? "DRY RUN — nothing was written." : "Written.");
+    Console.WriteLine($"{(seedDryRun ? "Would add" : "Added")}: {seeded.Added.Count}");
+    foreach (var c in seeded.Added) Console.WriteLine(Line(c));
+    Console.WriteLine($"Already in the history: {seeded.AlreadyKnown.Count}");
+    foreach (var c in seeded.AlreadyKnown) Console.WriteLine(Line(c));
+    Console.WriteLine($"Served today (by the same house, or another published one), so left alone: {seeded.ServedToday.Count}");
+    foreach (var c in seeded.ServedToday) Console.WriteLine(Line(c));
+    if (seeded.Warnings.Count > 0)
+    {
+        Console.WriteLine($"Not replayed past this point: {seeded.Warnings.Count}");
+        foreach (var w in seeded.Warnings) Console.WriteLine("  " + w);
+    }
+    return 0;
 }
 
 // The weekly order digest (#27), by hand. Without --send it is a PREVIEW: it reads the

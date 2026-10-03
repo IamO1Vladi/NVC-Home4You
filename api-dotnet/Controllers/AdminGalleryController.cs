@@ -54,6 +54,15 @@ public class AdminGalleryController : ControllerBase
         return house is null ? NotFound() : Ok(house);
     }
 
+    // The old addresses that 301 to this house (#37), so whoever retitles it can see the old
+    // URL was kept rather than take it on trust.
+    [HttpGet("{id:int}/retired-addresses")]
+    public async Task<IActionResult> RetiredAddresses(int id, CancellationToken ct)
+    {
+        Response.Headers["Cache-Control"] = "no-store";
+        return Ok(await _svc.RetiredAddressesAsync(id, ct));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] HouseInput input, CancellationToken ct)
     {

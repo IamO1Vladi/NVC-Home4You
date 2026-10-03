@@ -2107,3 +2107,8 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 @media (max-width: 720px) {
   .adm-doc-slots { grid-template-columns: 1fr; }
 }
+
+/* Old addresses of a retitled model (#37): long Cyrillic/Greek paths must wrap, not widen the dialog. */
+.adm-old-addresses { margin: 0; padding-left: 1.1em; }
+.adm-old-addresses li { margin: 0.25em 0; }
+.adm-old-addresses code { word-break: break-all; }

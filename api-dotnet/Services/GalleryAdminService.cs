@@ -50,6 +50,9 @@ public sealed record AdminHouseDto(
 
 public sealed record AdminImageDto(int Id, string ImageKey, string Url, int SortOrder, string? AltText);
 
+/// <summary>An old address that 301s to a house (#37): its locale, its decoded path, when and by whom.</summary>
+public sealed record RetiredAddressDto(string Locale, string Path, DateTimeOffset RetiredAt, string? RetiredByUpn);
+
 // Create/update/delete for the gallery, behind the admin panel's auth.
 //
 // Writes only ever go to SQL. Quickbase is the store being retired, and dual-writing to it
@@ -108,6 +111,11 @@ public sealed class GalleryAdminService
         house.SortOrder = input.SortOrder ?? await NextSortOrderAsync(ct);
 
         _db.Houses.Add(house);
+
+        // A house created published serves its addresses from now on, so another house's
+        // old-address row for one of them is released (see RecordAddressChangesAsync).
+        if (house.IsPublished) await ReleaseAddressesAsync(PublicSlugs(house), onlyHouseId: null, ct);
+
         await _db.SaveChangesAsync(ct);
         Evict();
 
@@ -119,13 +127,149 @@ public sealed class GalleryAdminService
         var house = await _db.Houses.Include(h => h.Images).FirstOrDefaultAsync(h => h.Id == id, ct);
         if (house is null) return null;
 
+        var addressesBefore = PublicSlugs(house);
+        var wasPublished = house.IsPublished;
+
         Apply(house, input, actor);
         if (input.SortOrder.HasValue) house.SortOrder = input.SortOrder.Value;
+
+        // In the SAME save as the retitle, so a title can never move without its old address
+        // being kept: either both land or neither does.
+        await RecordAddressChangesAsync(house, addressesBefore, wasPublished, actor, ct);
 
         await _db.SaveChangesAsync(ct);
         Evict();
 
         return ToDto(house);
+    }
+
+    /// <summary>
+    /// The address a house has in each locale, exactly as /api/gallery and the sitemap build
+    /// it: GallerySlugs over the public id and the localized titles with their fallbacks. So
+    /// a Bulgarian address moves when the ENGLISH title changes and TitleBg is empty, because
+    /// that is when the Bulgarian page's address actually moves.
+    /// </summary>
+    public static Dictionary<string, string> PublicSlugs(House house)
+    {
+        var item = new GalleryItem
+        {
+            Id = HousePublicIds.For(house.QuickbaseRecordId, house.Id),
+            Title = house.Title,
+            TitleBg = house.TitleBg,
+            TitleEl = house.TitleEl,
+        };
+
+        return GallerySlugs.Locales.ToDictionary(l => l.Locale, l => GallerySlugs.SlugFor(item, l.Locale));
+    }
+
+    /// <summary>
+    /// ROADMAP #37, the one place HouseSlugHistory is written on save. Two rules:
+    ///
+    /// 1. AN ADDRESS GOES TO WHOEVER HELD IT LAST. A published house serves its addresses,
+    ///    so a row for one of them — whichever house gave it up before — is released.
+    ///    Otherwise, if this house were later unpublished or deleted, its own address would
+    ///    301 to the earlier holder, a different product, where it should 404. A draft
+    ///    releases only its own rows (renamed back to an old title): its page is not public,
+    ///    and another house's redirect from that address is still the useful one.
+    /// 2. AN ADDRESS THIS EDIT GAVE UP becomes a row pointing at the house, unless another
+    ///    PUBLISHED house serves it today (two houses sharing a title): that page is the other
+    ///    house's, not an old address of this one. And a draft never takes over a row another
+    ///    house holds. The seeder applies the same rules.
+    ///
+    /// An edit that neither moves an address nor publishes the house — price, description,
+    /// category, order — does not read the table at all.
+    ///
+    /// Two people retiring the same address in the same instant: the second save fails on
+    /// the unique index and nothing of it is written, title included. With three staff and a
+    /// handful of retitles a year, that is a retry, not a design problem.
+    /// </summary>
+    private async Task RecordAddressChangesAsync(
+        House house, IReadOnlyDictionary<string, string> before, bool wasPublished, string? actor, CancellationToken ct)
+    {
+        var after = PublicSlugs(house);
+        var moved = GallerySlugs.Locales
+            .Select(l => l.Locale)
+            .Where(l => !string.Equals(before[l], after[l], StringComparison.Ordinal))
+            .ToList();
+        var publishedNow = house.IsPublished && !wasPublished;
+
+        if (moved.Count == 0 && !publishedNow) return;
+
+        await ReleaseAddressesAsync(after, onlyHouseId: house.IsPublished ? null : house.Id, ct);
+
+        if (moved.Count == 0) return;
+
+        var servedByOthers = await AddressesOfOtherPublishedHousesAsync(house.Id, ct);
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var locale in moved)
+        {
+            var oldSlug = before[locale];
+            if (oldSlug.Length > HouseSlugHistory.MaxSlugLength) continue;
+            if (servedByOthers.Contains((locale, oldSlug))) continue;
+
+            // One house per address. A row another house already holds passes to this one
+            // only if this one was PUBLIC at that address. A draft that briefly carried an
+            // old title never served it; taking the row would 404 the published house's
+            // redirect now and point it at an unrelated product once the draft goes live.
+            var row = await _db.HouseSlugHistory.FirstOrDefaultAsync(x => x.Locale == locale && x.Slug == oldSlug, ct);
+            if (row is not null && row.HouseId != house.Id && !wasPublished) continue;
+            if (row is null)
+            {
+                _db.HouseSlugHistory.Add(new HouseSlugHistory
+                {
+                    HouseId = house.Id,
+                    Locale = locale,
+                    Slug = oldSlug,
+                    RetiredAt = now,
+                    RetiredByUpn = actor,
+                });
+            }
+            else
+            {
+                row.HouseId = house.Id;
+                row.RetiredAt = now;
+                row.RetiredByUpn = actor;
+            }
+        }
+    }
+
+    /// <summary>Removes the history rows for these addresses — every house's, or one house's.</summary>
+    private async Task ReleaseAddressesAsync(
+        IReadOnlyDictionary<string, string> addresses, int? onlyHouseId, CancellationToken ct)
+    {
+        foreach (var (locale, slug) in addresses)
+        {
+            var rows = _db.HouseSlugHistory.Where(x => x.Locale == locale && x.Slug == slug);
+            if (onlyHouseId is int id) rows = rows.Where(x => x.HouseId == id);
+            _db.HouseSlugHistory.RemoveRange(await rows.ToListAsync(ct));
+        }
+    }
+
+    /// <summary>Every (locale, slug) another published house serves today. The gallery is a few dozen rows.</summary>
+    private async Task<HashSet<(string Locale, string Slug)>> AddressesOfOtherPublishedHousesAsync(int houseId, CancellationToken ct)
+    {
+        var others = await _db.Houses.AsNoTracking()
+            .Where(h => h.Id != houseId && h.IsPublished)
+            .Select(h => new House { Id = h.Id, QuickbaseRecordId = h.QuickbaseRecordId, Title = h.Title, TitleBg = h.TitleBg, TitleEl = h.TitleEl })
+            .ToListAsync(ct);
+
+        return others.SelectMany(h => PublicSlugs(h).Select(s => (s.Key, s.Value))).ToHashSet();
+    }
+
+    /// <summary>The old addresses that redirect to this house, newest first, for the panel.</summary>
+    public async Task<List<RetiredAddressDto>> RetiredAddressesAsync(int houseId, CancellationToken ct)
+    {
+        var rows = await _db.HouseSlugHistory.AsNoTracking()
+            .Where(x => x.HouseId == houseId)
+            .OrderByDescending(x => x.RetiredAt).ThenBy(x => x.Locale)
+            .ToListAsync(ct);
+
+        return rows.Select(x => new RetiredAddressDto(
+            x.Locale,
+            GallerySlugs.Locales.Single(l => l.Locale == x.Locale).Prefix + x.Slug,
+            x.RetiredAt,
+            x.RetiredByUpn)).ToList();
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct)
@@ -235,7 +379,7 @@ public sealed class GalleryAdminService
     // to save again.
     private void Evict()
     {
-        _cache.Remove("gallery:sql:v1");
+        _cache.Remove(SqlGalleryService.CacheKey);
         _cache.Remove("gallery:list:v2");
     }
 

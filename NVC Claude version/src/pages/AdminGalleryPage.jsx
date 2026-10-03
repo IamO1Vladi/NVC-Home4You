@@ -57,6 +57,12 @@ const TEXT = {
     saveError: 'Промяната не беше запазена.',
     noImages: 'Няма снимки.',
     cover: 'Корица',
+    // ROADMAP #37. Retitling moves the page's address; this is what says the old one was kept.
+    oldAddresses: 'Стари адреси',
+    oldAddressesHint: 'Смяната на заглавие сменя адреса на страницата. Старият адрес се запазва тук автоматично и пренасочва към модела, така че стари връзки и Google продължават да го намират.',
+    oldAddressesNone: 'Няма — адресите на модела не са сменяни.',
+    oldAddressesError: 'Старите адреси не можаха да се заредят.',
+    oldAddressesHidden: 'Моделът е скрит, затова тези адреси засега не пренасочват. Ще пренасочват, щом го публикувате.',
   },
   en: {
     title: 'Gallery',
@@ -104,6 +110,11 @@ const TEXT = {
     saveError: 'That change was not saved.',
     noImages: 'No photos yet.',
     cover: 'Cover',
+    oldAddresses: 'Old addresses',
+    oldAddressesHint: 'Changing a title changes the page’s address. The old address is kept here automatically and redirects to this model, so old links and Google still find it.',
+    oldAddressesNone: 'None — this model’s addresses have not changed.',
+    oldAddressesError: 'The old addresses could not be loaded.',
+    oldAddressesHidden: 'This model is hidden, so these addresses do not redirect yet. They will once it is published.',
   },
 }
 
@@ -296,6 +307,10 @@ export default function AdminGalleryPage() {
           categories={categories}
           onSubmit={save}
         />
+
+        {editingHouse ? (
+          <OldAddresses t={t} lang={lang} house={editingHouse} onUnauthorized={() => setState('unauthorized')} />
+        ) : null}
 
         {editingHouse ? (
           <ImageManager
@@ -493,6 +508,56 @@ function LangFields({ t, lang, required, inputRef, titleLabel, title, onTitle, d
         <RichTextEditor value={desc} onChange={onDesc} lang={lang} placeholder={t.descPlaceholder} />
       </div>
     </div>
+  )
+}
+
+// The addresses this model used to have, each of which now 301s to it (ROADMAP #37). Read-
+// only: the server writes them in the same save that changes a title, so there is nothing
+// to do here except see that it happened. Refetched when the house's UpdatedAt moves, i.e.
+// after a save that might have retired one.
+function OldAddresses({ t, lang, house, onUnauthorized }) {
+  const [rows, setRows] = React.useState(null) // null = loading, 'error', or a list
+
+  React.useEffect(() => {
+    let alive = true
+    setRows(null)
+    adminGet(`/api/admin/gallery/${house.id}/retired-addresses`)
+      .then((list) => { if (alive) setRows(Array.isArray(list) ? list : []) })
+      .catch((err) => {
+        if (!alive) return
+        if (err instanceof UnauthorizedError) { onUnauthorized(); return }
+        // Not "none": an empty list here would tell someone their old address was lost.
+        setRows('error')
+      })
+    return () => { alive = false }
+  }, [house.id, house.updatedAt])
+
+  const date = (iso) => {
+    try { return new Date(iso).toLocaleDateString(lang === 'bg' ? 'bg-BG' : 'en-GB') } catch { return '' }
+  }
+
+  return (
+    <section className="adm-modal-section">
+      <h3>{t.oldAddresses}</h3>
+      <p className="adm-hint">{t.oldAddressesHint}</p>
+      {rows === 'error' ? <p className="adm-muted">{t.oldAddressesError}</p> : null}
+      {Array.isArray(rows) && rows.length === 0 ? <p className="adm-muted">{t.oldAddressesNone}</p> : null}
+      {/* The server serves only published houses' old addresses, so for a hidden one the
+          hint above would not be true yet. */}
+      {Array.isArray(rows) && rows.length > 0 && !house.isPublished
+        ? <p className="adm-note">{t.oldAddressesHidden}</p>
+        : null}
+      {Array.isArray(rows) && rows.length > 0 ? (
+        <ul className="adm-old-addresses">
+          {rows.map((r) => (
+            <li key={`${r.locale}:${r.path}`}>
+              <code>{r.path}</code>
+              <span className="adm-muted"> · {date(r.retiredAt)}{r.retiredByUpn ? ` · ${r.retiredByUpn}` : ''}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   )
 }
 

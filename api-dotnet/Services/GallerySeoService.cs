@@ -77,13 +77,15 @@ public sealed class GallerySeoService
 
     /// <summary>
     /// The current path for a product at a stale address, or null if this path is not a
-    /// stale slug for anything. Two kinds of stale:
+    /// stale slug for anything. Three kinds of stale:
     ///
     /// 1. Minted under the pre-2026-08-17 slug ALGORITHM. Matched by re-running the old
     ///    algorithm over current titles rather than by a list of the 16 affected URLs, so it
     ///    keeps working for titles edited after the change and there is no list to forget.
-    /// 2. Minted from a title the product no longer has — GallerySlugs.RetiredSlugs. That one
-    ///    IS a list, because an old title is data the catalogue no longer holds.
+    /// 2. Minted from a title the product no longer has, retitled in the panel —
+    ///    HouseSlugHistory (#37), written by the save that changed the title.
+    /// 3. The same, from before #37 — GallerySlugs.RetiredSlugs, the hand-kept list of the
+    ///    Quickbase-era corrections.
     ///
     /// This is what stands between "we corrected it" and "every URL ever shared or indexed
     /// for it now 404s".
@@ -96,19 +98,25 @@ public sealed class GallerySeoService
         try { items = await _gallery.GetAsync(ct); }
         catch { return null; }
 
-        return StalePath(items, locale, slug, GallerySlugs.RetiredSlugs);
+        // The history only adds redirects; losing it costs those and nothing else.
+        IReadOnlyList<RetiredSlug> history;
+        try { history = await _gallery.GetRetiredSlugsAsync(ct); }
+        catch { history = Array.Empty<RetiredSlug>(); }
+
+        return StalePath(items, locale, slug, GallerySlugs.RetiredSlugs, history);
     }
 
     /// <summary>
-    /// The rules behind TryResolveLegacyAsync, over a given catalogue and retired-slug table
-    /// — public so they can be pinned with entries the live table does not hold yet (a Greek
-    /// retitle, say), without a store or a request.
+    /// The rules behind TryResolveLegacyAsync, over a given catalogue, retired-slug table and
+    /// history — public so they can be pinned with entries the live data does not hold yet
+    /// (a Greek retitle, say), without a store or a request.
     /// </summary>
     public static string? StalePath(
         IReadOnlyList<GalleryItem> items,
         string locale,
         string slug,
-        IEnumerable<(string Locale, string OldSlug, string CurrentSlug)> retired)
+        IEnumerable<(string Locale, string OldSlug, string CurrentSlug)> retired,
+        IEnumerable<RetiredSlug>? history = null)
     {
         // A LIVE address is never redirected, whatever else it matches. The fallback only
         // asks after the live lookup has missed, but this must not lean on the caller: a
@@ -121,10 +129,26 @@ public sealed class GallerySeoService
         var item = items.FirstOrDefault(
             i => string.Equals(GallerySlugs.LegacySlugFor(i, locale), slug, StringComparison.OrdinalIgnoreCase));
 
+        // History is keyed by HOUSE: it lands on the house's current address whatever the
+        // house has been called since, and on nothing once the house is unpublished or gone.
+        if (item is null && history is not null
+            && history.FirstOrDefault(h => h.Locale == locale && GallerySlugs.MatchesRetired(h.Slug, slug)) is { } moved)
+        {
+            item = items.FirstOrDefault(i => i.Id == moved.PublicId);
+        }
+
         if (item is null && GallerySlugs.RetiredTarget(retired, locale, slug) is { } target)
         {
             item = items.FirstOrDefault(
                 i => string.Equals(GallerySlugs.SlugFor(i, locale), target, StringComparison.OrdinalIgnoreCase));
+
+            // The target itself retitled since, in the panel: follow the house through the
+            // history, so a Quickbase-era address survives a later rename like any other.
+            if (item is null && history is not null
+                && history.FirstOrDefault(h => h.Locale == locale && GallerySlugs.MatchesRetired(h.Slug, target)) is { } onward)
+            {
+                item = items.FirstOrDefault(i => i.Id == onward.PublicId);
+            }
         }
 
         return item is null ? null : GallerySlugs.PathFor(item, locale);

@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<House> Houses => Set<House>();
     public DbSet<HouseImage> HouseImages => Set<HouseImage>();
+    public DbSet<HouseSlugHistory> HouseSlugHistory => Set<HouseSlugHistory>();
     public DbSet<Case> Cases => Set<Case>();
     public DbSet<CaseImage> CaseImages => Set<CaseImage>();
     public DbSet<Offer> Offers => Set<Offer>();
@@ -80,6 +81,22 @@ public class AppDbContext : DbContext
             e.HasIndex(i => new { i.HouseId, i.SourceKey })
              .IsUnique()
              .HasFilter("[SourceKey] IS NOT NULL");
+        });
+
+        b.Entity<HouseSlugHistory>(e =>
+        {
+            e.ToTable("HouseSlugHistory");
+
+            // A house's old addresses go with it: a deleted product's old URL should 404,
+            // not redirect to nothing.
+            e.HasOne(x => x.House)
+             .WithMany()
+             .HasForeignKey(x => x.HouseId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            // An address belongs to one house at a time; the request path looks it up this way.
+            e.HasIndex(x => new { x.Locale, x.Slug }).IsUnique();
+            e.HasIndex(x => x.HouseId);
         });
 
         b.Entity<Case>(e =>

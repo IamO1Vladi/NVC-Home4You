@@ -187,16 +187,21 @@ public static class GallerySlugs
         foreach (var (loc, oldSlug, currentSlug) in table)
         {
             if (loc != locale) continue;
-
-            if (string.Equals(oldSlug, slug, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(LegacySlugify(oldSlug), slug, StringComparison.OrdinalIgnoreCase))
-            {
-                return currentSlug;
-            }
+            if (MatchesRetired(oldSlug, slug)) return currentSlug;
         }
 
         return null;
     }
+
+    /// <summary>
+    /// Whether a requested slug is a retired one, as written or in its pre-2026-08-17 form.
+    /// Shared by RetiredSlugs and the HouseSlugHistory table (#37), so both accept the same
+    /// addresses: re-running the old algorithm over a current-form slug equals running it over
+    /// the old title, which GalleryRetiredSlugTests pins.
+    /// </summary>
+    public static bool MatchesRetired(string retiredSlug, string requestedSlug) =>
+        string.Equals(retiredSlug, requestedSlug, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(LegacySlugify(retiredSlug), requestedSlug, StringComparison.OrdinalIgnoreCase);
 
     private static string Build(string? value, NormalizationForm form)
     {
