@@ -6,7 +6,8 @@ owns release mechanics, **including §6b, the prerender step**. Skipped when the
 the freshness guard stops the publish. Skipped when only data or copy changed, it **silently
 ships stale pages**.
 
-Tests at `deploy-2026-10-03`: **1065 .NET, 824 frontend**, all green. `npm run audit:a11y`:
+Tests at `deploy-2026-10-03`: **1065 .NET, 824 frontend**; at `master` with #33 and #37:
+**1104 .NET, 843 frontend**, all green. `npm run audit:a11y`:
 0 violations on 104 page-loads.
 
 ---
@@ -15,9 +16,9 @@ Tests at `deploy-2026-10-03`: **1065 .NET, 824 frontend**, all green. `npm run a
 
 | | |
 |---|---|
-| **Live** | `36f158c`, tagged **`deploy-2026-10-03`**, the big release. It carries #31 (second payment), #32 (new A1–A3 renders, kitchens re-mapped, a sink that follows the drawing), #27's weekly order digest, #29 (replies with up to 20 MB of files), #11 (the Greek fixes, which also ended the doors „review & send" bug live since 2026-08-18), #34 (a gallery enquiry names its model), the gallery SEO store fix with 301s for the three retitled addresses, #35 (gallery public ids, the Space house is `100015`) and #36 (case public ids). Its one migration, `AddPurchaseSecondPayment`, was applied 2026-09-30, before the publish. The bundle is `index-B9GWv4Xp.js` with 52/52 snapshots. The first prerender reported 52/52 with loading text frozen into /bg/ceni, the BG gallery and cases; it was caught by comparing against the 09-20 snapshots, the script was fixed (ROADMAP DONE, "The prerender waits for its data"), and the re-run matched or beat every page. A trial publish to a temp folder showed the same bundle hash and "staged for publish: 52 files" before the real one. **Verified live 2026-10-03:** the bundle loads; the six gallery addresses that answered 404 answer 200; the three retired ones 301 and keep the query; `sitemap-gallery.xml` lists 45 (was 42), with `space-house` and no `panaromic`; all 96 sitemap addresses answer 200; `/api/gallery` has `100015` and no id twice; `/api/cases-page` has no duplicates; live /bg/ceni is the new snapshot byte for byte, with „по запитване"; the configurator serves the new A1–A3 art and A2's five kitchen positions with the sink on 4; the Greek configurator shows `14.000 €` prices; the console is clean. The owner, signed in: the second payment in Клиенти and Поръчки, a real 5–15 MB reply plus the over-20 MB case, and a real doors enquiry and a real gallery enquiry, all working. `ORDER_DIGEST_ENABLED=true` set the same day. The 09-20 snapshots are kept at `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-09-20` on the main device, for a rollback. **What remains human:** Do next 0. |
+| **Live** | `36f158c`, tagged **`deploy-2026-10-03`**, the big release. It carries #31 (second payment), #32 (new A1–A3 renders, kitchens re-mapped, a sink that follows the drawing), #27's weekly order digest, #29 (replies with up to 20 MB of files), #11 (the Greek fixes, which also ended the doors „review & send" bug live since 2026-08-18), #34 (a gallery enquiry names its model), the gallery SEO store fix with 301s for the three retitled addresses, #35 (gallery public ids, the Space house is `100015`) and #36 (case public ids). Its one migration, `AddPurchaseSecondPayment`, was applied 2026-09-30, before the publish. The bundle is `index-B9GWv4Xp.js` with 52/52 snapshots. The first prerender reported 52/52 with loading text frozen into /bg/ceni, the BG gallery and cases; it was caught by comparing against the 09-20 snapshots, the script was fixed (ROADMAP DONE, "The prerender waits for its data"), and the re-run matched or beat every page. A trial publish to a temp folder showed the same bundle hash and "staged for publish: 52 files" before the real one. **Verified live 2026-10-03:** the bundle loads; the six gallery addresses that answered 404 answer 200; the three retired ones 301 and keep the query; `sitemap-gallery.xml` lists 45 (was 42), with `space-house` and no `panaromic`; all 96 sitemap addresses answer 200; `/api/gallery` has `100015` and no id twice; `/api/cases-page` has no duplicates; live /bg/ceni is the new snapshot byte for byte, with „по запитване"; the configurator serves the new A1–A3 art and A2's five kitchen positions with the sink on 4; the Greek configurator shows `14.000 €` prices; the console is clean. The owner, signed in: the second payment in Клиенти and Поръчки, a real 5–15 MB reply plus the over-20 MB case, and a real doors enquiry and a real gallery enquiry, all working. `ORDER_DIGEST_ENABLED=true` set the same day. The 09-20 snapshots are kept at `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-09-20` on the main device, for a rollback. **What remains human:** Do next 0b. |
 | **`production` branch** | = live, `36f158c`. |
-| **`master`** | `production` plus this record and the prerender warm-up (script and docs only; nothing in it ships). |
+| **`master`** | **AHEAD of production, NOT published:** #33 (a failed image retries once, then falls back, and the prerender refuses a page with a failed image; SPA + script) and #37 (renamed products keep their old addresses; API + SPA + **one migration, `AddHouseSlugHistory`**). Plus the deploy-2026-10-03 record and prerender script/doc fixes, which do not ship. The release is Do next 0. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
 | **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18.** Quickbase keeps one user-visible runtime path, plus two silent ones (the save-time code collision check, and `/api/img` falling back on a Blob miss; a dead token degrades both quietly). A `/c/{code}` link that was never imported still falls back to it (by design, see "Saved configurator links"). The product-page SEO tags and `sitemap-gallery.xml` read it too until deploy-2026-10-03 moved them to SQL. Otherwise the token's ~Feb 2027 expiry matters only for the import tooling (relevant to ROADMAP #21). |
@@ -29,7 +30,30 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **After `deploy-2026-10-03`: what the owner still owes, all of it small.** The release
+0. **The next release: #33 + #37, from the MAIN device.** In `master`, not in `production`.
+   No hurry for #33 (dormant live: every image loads today); #37 is what the Greek
+   retitles wait on. In order:
+   1. **Apply the migration FIRST** (DEPLOY §5b): `AddHouseSlugHistory`, one new table, no
+      change to any existing one. On the main device user-secrets already point
+      `dotnet ef database update` at production; check with `dotnet ef migrations list`
+      that it is the only one pending. The live code ignores the table, so applying early
+      is harmless; publishing first would not break the gallery either (the history read
+      fails soft) but would cost the redirects until the migration lands.
+   2. **Fast-forward and push:** `git checkout production; git merge --ff-only master; git push`.
+   3. **Prerender** as in DEPLOY §6b, with the backup first. New since #33: a route showing a
+      failed image fails as `IMAGES`. One or two on a clean run: re-run. Most routes: the
+      Blob string is missing.
+   4. **Publish**, tag, `git checkout master`.
+   5. **Seed the history:** `cd api-dotnet; dotnet run -- seed-slug-history --dry-run`
+      (production SQL via user-secrets; it reads Одит and writes nothing). Read the list and
+      the warnings, then run it without `--dry-run`. A second run adds nothing.
+   6. **Probe:** `/en/gallery/panaromic-box-house-37-m2` still 301s. In Галерия, the
+      Panoramic 37 m² house and the 58 m² and 73 m² double-roof houses list their August
+      addresses under „Стари адреси" (the seeder turns `RetiredSlugs` into rows too), plus
+      anything it recovered from Одит.
+   7. **Then the Greek retitles** ("Next up" under "Renaming a product moves its address").
+
+0b. **After `deploy-2026-10-03`: what the owner still owes, all of it small.** The release
    itself is done and verified (State of play, Live row).
    - **The read-only Space house lead check (#35). Run it now; the release is live.** This
      is the owner's to run, not Claude's, because it is production SQL. Open
@@ -331,25 +355,30 @@ Quickbase.
 
 ### Renaming a product moves its address
 
-A gallery URL is its title, slugified per locale. Staff can retitle a house in the admin
-panel, and the moment they do, the old URL (indexed, in emails, shared) shows "Model not
-found" to visitors and answers 404 to crawlers. **Nothing records old titles
-automatically.** To keep an old address alive, add it to `GallerySlugs.RetiredSlugs`,
-with the locale, the old slug (`GallerySlugs.Slugify(oldTitle)`) and the new slug. It
-will then 301, with any query string kept. One row covers both forms of the old address:
-the current one, and the pre-2026-08-17 form that Greek and some Bulgarian links still
-carry. If you retitle a product that already has an entry, point that entry at the new
-slug too, because the lookup follows only one hop. `GalleryRetiredSlugTests` checks every
-entry against the fixtures' current titles, so add the product's new title there as well.
-An admin-side slug history, which would do this on save, would remove the manual step. It
-is proposed as ROADMAP #37 and has not been built.
+A gallery URL is its title, slugified per locale. Retitling a house in the admin panel
+moves it, and the old URL (indexed, in emails, shared) would show "Model not found" to
+visitors and answer 404 to crawlers.
+
+**Once #37 is live this is automatic** (built 2026-10-03, in `master`, NOT yet published).
+The save that changes a title writes the old address into `HouseSlugHistory`, and it 301s
+to the house's current address, with any query string kept, in both its current and its
+pre-2026-08-17 form. The house dialog lists them under „Стари адреси". Nothing to do by
+hand: no `RetiredSlugs` row, no publish. Renames made in the panel BEFORE #37 are recovered
+once from Одит by `dotnet run -- seed-slug-history` (`--dry-run` first).
+
+`GallerySlugs.RetiredSlugs` stays, for the three Quickbase-era corrections that never
+passed through the panel. A new row there is only ever needed for an address the panel
+never held. `GalleryRetiredSlugTests` checks every entry against the fixtures' current
+titles.
+
+**Until #37 is published, do not retitle anything**: the old address would 404.
 
 **Next up: the owner's Greek retitles** (ROADMAP #11 Group 3). Seven gallery `titleEl`
 values carry English words: ids 13, 6, 8, 14, 7 ("Σπίτι τύπου Container …"), 16
 ("Πανοραμικό Box House – 37 m²") and 12 ("Πανοραμικό Office Container …"). Their
-`/el/gkaleri/` URLs are in the sitemap and answer 200. Changing them in the panel moves
-all seven. Do them in one batch, then add seven `("el", …)` rows in one commit, and
-publish soon after. If #37 ships first, the batch needs no developer.
+`/el/gkaleri/` URLs are in the sitemap and answer 200. **After #37 is live** (Do next 0):
+retitle them in the panel, check „Стари адреси" on each, and request indexing for the
+seven new `/el/gkaleri/` addresses in Search Console. No developer needed.
 
 ### A house's public id is not its SQL id
 

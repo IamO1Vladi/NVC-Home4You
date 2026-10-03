@@ -102,46 +102,9 @@ commits, notes and conversations still resolve.
 
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
-- [ ] **33. A failed image retries forever on the home and modular-builds pages.** Found
-  2026-09-30 while prerendering without Blob: `/bg` sent 13,412 requests in 15 s (~900/s),
-  `/bg/modulni-postroiki` 9,950. The `onError={(e) => { e.currentTarget.src = fallback }}`
-  pattern (GlideServices, HeroShowcase, ProcessTicker, ServiceTiles, InteriorsPage,
-  InternalDoorsPage, ModularBuildsPage, ModularHousesPage, SteelHousesPage — `card.svg`'s
-  users) predates #9; since #9 every such image also carries a real `srcSet`, which the
-  browser prefers over `src` — so setting `src` re-selects the same failing candidate,
-  which errors again. Dormant in production today (all 13 images on those pages load,
-  checked 2026-09-30), but the day one goes missing every visitor's tab hammers the API.
-  Fix: one shared handler in `lib/img.js` that removes `srcset`, sets the fallback once and
-  ignores any further error, used at every call site, with a test that fires the error
-  twice. Owner, 2026-09-30: another day, not in the #31/#32 release.
-- [ ] **37. Gallery slug history: a renamed product keeps its old address.** Proposed
-  2026-10-02. A gallery URL is the product's title, slugified per locale, so renaming a
-  house in Галерия moves its address. The old URL is indexed, in emails and in shares, and
-  from then on it shows "Model not found" to visitors and answers 404 to crawlers. Today
-  the fix is by hand: a developer adds a row to `GallerySlugs.RetiredSlugs` and publishes
-  (HANDOFF, "Renaming a product moves its address"). That is already due seven times, for
-  the owner's Greek retitles under #11 Group 3. **Build this first, and that batch needs no
-  developer.**
-  Shape:
-  - **A `HouseSlugHistory` table** (HouseId, Locale, Slug, RetiredAt; unique on
-    Locale + Slug). `GalleryAdminService.UpdateAsync` compares each locale's slug before
-    and after `Apply`, and writes the old slug in the same SaveChanges.
-  - **Keyed by HOUSE, not by target slug.** A redirect then always lands on the house's
-    CURRENT address. Renaming twice cannot leave a chain, and an unpublished house's
-    history stops matching, so it answers 404.
-  - **Read path.** `SqlGalleryService` loads the history with the rows, under the same
-    10-minute cache. `GallerySeoService.StalePath` consults it after the live and legacy
-    lookups, also matching `LegacySlugify(oldSlug)` as `RetiredTarget` does. The
-    live-address guard stays first: a slug that is live again is served as a page, and
-    its history row is ignored.
-  - **What happens to `RetiredSlugs`.** Either it stays for the three Quickbase-era
-    entries, or the migration seeds them into the table and the list is retired.
-  - **One migration**, applied by the owner from a terminal before the publish, as in
-    DEPLOY.md §5b.
-  - **Seeding past renames.** House edits are audited (`AuditPolicy` lists `House`), so
-    renames already made in the panel can be recovered from Одит and seeded once.
-  - **Optional:** the admin form lists "old addresses that redirect here" under the title.
-  Not worth it while products are rarely renamed. It pays for itself before the Greek batch.
+
+(#33 and #37 were built 2026-10-03 and moved to DONE; neither is deployed yet.)
+
 
 ### Infrastructure
 
@@ -666,6 +629,79 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **37. Gallery slug history: a renamed product keeps its old address** (built
+  2026-10-03, **not yet deployed**; ONE migration, `AddHouseSlugHistory`, applied by the
+  owner BEFORE the publish, DEPLOY §5b). A gallery URL is the title slugified per locale, so
+  retitling a house in Галерия moved its address and the old one, indexed and shared, showed
+  "Model not found" and answered crawlers 404 until a developer added a
+  `GallerySlugs.RetiredSlugs` row and published. Now:
+  - **`HouseSlugHistory`** (HouseId, Locale, Slug, RetiredAt, RetiredByUpn; unique on
+    Locale + Slug; cascades with the house). `GalleryAdminService.UpdateAsync` compares
+    each locale's address before and after the edit, using the same fallbacks the site does
+    (an English retitle moves the Bulgarian address too when TitleBg is empty), and writes
+    the retired ones in the SAME save. **An address goes to whoever held it last:** a
+    published house (on create, retitle or publish) releases every row for the addresses
+    it now serves, so if it is later unpublished or deleted its address 404s instead of
+    301ing to an earlier holder; a draft releases only its own. An address another
+    published house serves today (two houses sharing a title) is not recorded. An edit
+    that moves no address and publishes nothing never reads the table.
+  - **Keyed by house.** `GallerySeoService.StalePath` checks it after the live guard and the
+    pre-2026-08-17 algorithm rule, before `RetiredSlugs`, and lands on the house's CURRENT
+    address, so renaming twice leaves no chain, and an unpublished or deleted house's old
+    addresses 404. The old slug's pre-2026-08-17 form matches too (`MatchesRetired`, shared
+    with `RetiredTarget`), which the Greek titles need.
+  - **Read path.** `IGalleryStore.GetRetiredSlugsAsync` (a default no-op, so the Quickbase
+    store and test fakes are untouched); `SqlGalleryService` loads it with the rows under one
+    cache entry (`gallery:sql:v2`, evicted by every admin edit, so a redirect works straight
+    after the save). If the table is missing (code published before the migration), the
+    gallery still serves and old addresses 404 as before, with an error in the log, and that
+    degraded snapshot is cached for a minute, not ten. A request abandoned mid-query is not
+    mistaken for a failure.
+  - **`RetiredSlugs` stays** for the three Quickbase-era corrections, and a target that has
+    since been retitled in the panel is followed on through the history.
+  - **`dotnet run -- seed-slug-history [--dry-run]`** fills the history once. It replays
+    each house's audited title edits newest first from its current titles, and turns the
+    three `RetiredSlugs` entries into rows keyed by house (dated 2026-08-19). It stops for a
+    house whose log does not line up with its titles, whose old title the log cut short, or
+    whose replay does not arrive at its creation record, and says so. It never overwrites,
+    and applies the writer's rule to addresses served today. A second run adds nothing.
+  - **The panel** shows "Стари адреси" in the house dialog: each old address that 301s to
+    the model, with date and author, from `GET /api/admin/gallery/{id}/retired-addresses`.
+  - Tests: 39 .NET (write path, ownership, redirects, the missing-table and cancelled
+    cases, the seeder) and 4 frontend. Twenty mutations of the core lines each caught. Three
+    adversarial reviews; their findings are fixed here.
+  **After the publish:** run the seeder with `--dry-run`, read it, then without. Then the
+  owner's seven Greek retitles (#11 Group 3) need no developer.
+
+- [x] **33. A failed image no longer retries forever** (built 2026-10-03, **not yet
+  deployed**; SPA only). `/bg` sent 13,412 image requests in 15 s without Blob (2026-09-30):
+  `onError={(e) => { e.currentTarget.src = fallback }}` on an image with a srcset makes the
+  browser re-pick the same failing candidate, so the error repeats; without a srcset it
+  looped the moment the fallback failed too. All 17 handlers in 10 files now use ONE helper,
+  `imageFallback(...fallbacks)` in `lib/img.js`:
+  - **One retry first**, 1.5 s later and only if React has not moved the node to another
+    image. The old loop healed a one-off failure by accident; this keeps that on purpose.
+    (Setting src to its own value makes Chromium fetch again; checked in the browser.)
+  - **Then the chain**, one step per error: srcset removed, src = the next fallback not yet
+    tried, and the image marked `data-img-fallback`. sizes is kept, because React would not
+    rewrite it for the next image a reused node shows (InteriorsPage's before/after). Ends
+    when the chain does; deduped so it cannot cycle.
+  - **The prerender refuses a page with a failed image** (status `IMAGES`). The loop was
+    also what made a run without the Blob string fail (pages never settled); without it,
+    such a run would have reported 52/52 with placeholder art. It first waits out any
+    image's retry, so a one-off failure the retry fixes passes and a lasting one is caught,
+    and it checks and captures the page in one step. `PRERENDER_ALLOW_IMAGE_FAILURES=1`
+    overrides, deliberately.
+  - InternalDoorsPage's chains lost a dead first step (`/clear.webp`, `/kit.webp` never
+    existed at the root).
+  - A guard test reads every `onError={...}` in the source by brace matching, whatever the
+    handler is spelled like, and refuses anything but `imageFallback(` and the listed
+    non-image handlers.
+  Verified in Chromium against a dev server with no API: `/bg` settled at 48 image requests
+  with all 21 failing images retried once and on their fallback (the only later requests
+  are the hero carousel's preload of its next slide, one per turn), and
+  `/bg/modulni-postroiki` at 4. Reviewed adversarially; the six findings are fixed here.
+
 - [x] **The prerender waits for its data** (2026-10-03, script only, nothing shipped). The
   big release's first prerender reported 52/52 with „Зареждане на цените…" frozen into
   /bg/ceni, the BG gallery and cases empty, and the reviews missing from / and /bg: the run
@@ -769,7 +805,7 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
     compare local "15" (€28,000) with live's last "15" (€55,000) and refuse to prerender.
   - **For the owner:** `sql/2026-10-02-space-house-leads-on-the-73m2-house.sql` is a
     read-only query that lists the 73 m² leads which were really Space house enquiries
-    (HANDOFF, Do next 0). It returns one result, because the Azure portal's Query editor
+    (HANDOFF, Do next 0b). It returns one result, because the Azure portal's Query editor
     shows only a script's last: a STOP row when the two houses are not exactly one each,
     otherwise the leads. The Space house has no assembly entry in `prices.js`; if it
     should have one, that is the owner's number to give (owner, 2026-10-03: none for now).
