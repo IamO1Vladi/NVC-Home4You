@@ -26,8 +26,13 @@ export const APPLIANCE_SLOTS = {
   // is skipped on all three, as on the B and C runs.
   //
   // A1: sink drawn at position 3 — the hob is drawn at position 1; position 4 is the leg.
+  // Position 5 (owner, 2026-10-03: "under number 4, for a fridge for example") is the tall
+  // cream unit that closes the leg against the bathroom wall: a full-height housing, not
+  // worktop, centred on its top face like every other dot. Placed by two blind readers of
+  // the raw render, who agreed on it to the decimal. Appended, so positions 1–4 and every
+  // saved configuration that uses them keep their numbers.
   A1: {
-    run: [{ x: 18.5, y: 14.3 }, { x: 26.6, y: 14.3 }, { x: 34, y: 14.3 }, { x: 40.3, y: 22.3 }],
+    run: [{ x: 18.5, y: 14.3 }, { x: 26.6, y: 14.3 }, { x: 34, y: 14.3 }, { x: 40.3, y: 22.3 }, { x: 40.3, y: 30.4 }],
     sinkIndex: 2,
   },
   // A2: sink drawn at position 4, on the leg — the hob is drawn at position 1, over an oven.

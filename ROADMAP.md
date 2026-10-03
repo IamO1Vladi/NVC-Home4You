@@ -1017,7 +1017,10 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   guarded, a wagon's block vanishing mid-edit, the wagon badge rule, the missing-price hint).
 
 - [x] **28. Kitchen appliance placement in the configurator** (built 2026-09-19/20,
-  deployed `deploy-2026-09-20`, verified on the live site the same day). Buyers place
+  deployed `deploy-2026-09-20`, verified on the live site the same day). **A1 gained a
+  fifth position on 2026-10-03** (owner: "under number 4, for a fridge for example"): the
+  tall unit closing the leg, at (40.3, 30.4), placed by two blind readers who agreed to
+  the decimal, appended so positions 1–4 and saved links are unchanged. Buyers place
   seven appliances — вградена фурна, плот, хладилник, мивка, съдомиялна in 45 and 60 cm,
   пералня — into named SLOTS along each plan's kitchen run. An appliance is stored as
   `{id, kind, slot}` and its coordinates derive from the plan's slot table at render

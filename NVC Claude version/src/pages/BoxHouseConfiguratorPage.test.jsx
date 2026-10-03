@@ -333,6 +333,22 @@ describe.each([
     expect(JSON.parse(window.sessionStorage.getItem(CONFIG_PREFILL_KEY)).questionText.startsWith(want.question)).toBe(true)
   })
 
+  it('A1 draws a fifth kitchen position under the fourth, and keeps a fridge saved there', () => {
+    // Owner, 2026-10-03. Before it, A1 had four positions and a fridge on k5 was dropped.
+    const container = renderPage(locale, {
+      config: { model: '37', variant: 'standard', plan: 'A1', appliances: [{ id: 'app-fridge', kind: 'fridge', slot: 'k5' }] },
+    })
+    fireEvent.click(container.querySelectorAll('.bhc-rail-step')[3])
+
+    const stage = container.querySelector('.bhc-appliance-stage.is-interactive') || container.querySelector('.bhc-appliance-stage')
+    const spots = [...stage.querySelectorAll('.bhc-appliance-dot, .bhc-appliance-slot')]
+      .map((el) => `${el.style.left} ${el.style.top}`)
+    expect(spots).toHaveLength(5)
+    expect(spots).toContain('40.3% 30.4%')
+    const fridge = [...stage.querySelectorAll('.bhc-appliance-dot')].find((el) => el.style.top === '30.4%')
+    expect(fridge).toBeTruthy()
+  })
+
   it('phone: step counter, stepper label, standard-spec disclosure and heating note', () => {
     const container = renderPage(locale, { mobile: true })
     expect(container.querySelector('.bhc-mstepper-count').textContent).toBe(want.step)

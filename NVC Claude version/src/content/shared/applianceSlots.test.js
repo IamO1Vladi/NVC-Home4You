@@ -49,6 +49,18 @@ describe('APPLIANCE_SLOTS', () => {
       }
     }
   })
+
+  it('A1 has a fifth position under the fourth, on the tall unit closing the leg (owner, 2026-10-03)', () => {
+    const { run, sinkIndex } = APPLIANCE_SLOTS.A1
+    expect(run).toHaveLength(5)
+    // Appended, not inserted: positions 1–4 keep their numbers, so saved links still mean
+    // the same places, and the sink is still drawn at position 3.
+    expect(run.slice(0, 4)).toEqual([{ x: 18.5, y: 14.3 }, { x: 26.6, y: 14.3 }, { x: 34, y: 14.3 }, { x: 40.3, y: 22.3 }])
+    expect(sinkIndex).toBe(2)
+    // Straight down the leg from position 4, one module further on.
+    expect(Math.abs(run[4].x - run[3].x)).toBeLessThan(1)
+    expect(run[4].y - run[3].y).toBeGreaterThan(5)
+  })
 })
 
 describe('catalog appliance wiring', () => {
