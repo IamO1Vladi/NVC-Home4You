@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import './ServiceTiles.css'
 import { paths } from '../routes/paths.js'
+import { imageFallback } from '../lib/img.js'
 
 function IconHome() {
   return (
@@ -78,7 +79,7 @@ export default function ServiceTiles({ locale = 'en', content }) {
                 className="svx-img"
                 src={item.img}
                 alt={item.title}
-                onError={(e) => { e.currentTarget.src = fallback }}
+                onError={imageFallback(fallback)}
                 width="1600"
                 height="1000"
                 loading="lazy"

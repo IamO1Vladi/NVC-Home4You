@@ -1,7 +1,7 @@
 import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import '../style/Interiors.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 import { brochureUrl } from '../lib/brochure.js'
 
 function asset(path) {
@@ -73,7 +73,7 @@ function BeforeAfter({ before, after, altBefore, altAfter, labels, initial = 50 
         srcSet={cdnSrcSet(after, [600, 900, 1200, 1600])}
         sizes="(max-width: 900px) 100vw, 860px"
         alt={altAfter}
-        onError={(e) => { e.currentTarget.src = fallback }}
+        onError={imageFallback(fallback)}
       />
 
       <img
@@ -83,7 +83,7 @@ function BeforeAfter({ before, after, altBefore, altAfter, labels, initial = 50 
         srcSet={cdnSrcSet(before, [600, 900, 1200, 1600])}
         sizes="(max-width: 900px) 100vw, 860px"
         alt={altBefore}
-        onError={(e) => { e.currentTarget.src = fallback }}
+        onError={imageFallback(fallback)}
       />
 
       <div

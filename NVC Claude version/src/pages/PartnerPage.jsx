@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useModalActions } from '../context/ModalActions.jsx'
 import LogisticsWorld from '../components/LogisticsWorld.jsx'
 import '../style/Partner.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 function resolveAsset(assetFn, src) {
   if (!src) return ''
@@ -222,9 +222,7 @@ export default function PartnerPage({ content }) {
                             height="1040"
                             loading="lazy"
                             decoding="async"
-                            onError={(event) => {
-                              event.currentTarget.src = fallback
-                            }}
+                            onError={imageFallback(fallback)}
                           />
                           <span className="ppr-road-mediaTag">{step.badge}</span>
                         </div>

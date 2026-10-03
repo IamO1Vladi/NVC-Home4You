@@ -174,9 +174,9 @@ function routeList() {
 }
 
 /**
- * A data call the page renders from: the app's own /api/, minus /api/img. Images are not data,
- * and since #9 a failed image retries in a loop (ROADMAP #33), so waiting on them could
- * never end. The stability sampling covers them as before.
+ * A data call the page renders from: the app's own /api/, minus /api/img. Images are not
+ * data: they are checked separately after settling (status IMAGES), and an image retry
+ * (lib/img.js, one per image since #33) must not hold a page open as if data were missing.
  */
 function isDataCall(url) {
   try {
@@ -186,6 +186,33 @@ function isDataCall(url) {
       && !u.pathname.startsWith('/api/img')
   } catch {
     return false
+  }
+}
+
+// MUST MATCH IMAGE_RETRY_MS in src/lib/img.js (img.test.js pins the two). Not imported:
+// img.js reads import.meta.env, which only exists under Vite.
+const IMAGE_RETRY_MS = 1500
+
+/**
+ * Waits until no image is mid-retry: one that has failed once (imageFallback stamped
+ * data-img-retried with its src), still shows that src, has not loaded since, and has not
+ * been given up on (data-img-failed: no fallback left). That spans the wait before the
+ * retry and the retried request itself. Capped, so a retry that never answers cannot hold
+ * the run. An image still in flight at the cap is NOT flagged by the check after it: it is
+ * captured with its real src and srcset, which is the right snapshot if the image loads
+ * for visitors, so a hanging (rather than failing) image store passes unnoticed.
+ */
+async function settleImageRetries(page, { interval = 250, cap = IMAGE_RETRY_MS + 5000 } = {}) {
+  const deadline = Date.now() + cap
+  while (Date.now() < deadline) {
+    const midRetry = await page.evaluate(() => [...document.querySelectorAll('#root img')].some((img) => {
+      const src = img.getAttribute('src')
+      return img.dataset.imgRetried === src
+        && img.dataset.imgFailed !== src
+        && !(img.complete && img.naturalWidth > 0)
+    }))
+    if (!midRetry) return
+    await new Promise((r) => setTimeout(r, interval))
   }
 }
 
@@ -396,13 +423,41 @@ try {
         continue
       }
 
+      // An image that failed would be frozen in as its placeholder (or as nothing). Until
+      // #33 a failing image retried in a loop, so a run without the Blob string never
+      // settled and failed loudly; the loop is gone, so the failure is looked for instead:
+      // imageFallback marks every fallback it applies (data-img-fallback), and an /api/img
+      // image with no handler shows up as loaded-with-no-pixels. A one-off failure passes on
+      // a re-run; PRERENDER_ALLOW_IMAGE_FAILURES=1 ships the page anyway, deliberately.
+      //
+      // Not while an image is between its first error and the end of its one retry: the
+      // check would catch it mid-flight (not complete, so neither rule matches) and pass a
+      // failing image, or catch it before the retry and fail one the retry would have fixed.
+      await settleImageRetries(page)
+
       await dedupeHead(page)
 
-      const { text, html, title } = await page.evaluate(() => ({
+      // The check and the capture in ONE evaluate, so a fallback cannot land between them.
+      const { text, html, title, failedImages } = await page.evaluate(() => ({
         text: (document.getElementById('root')?.innerText || '').trim(),
         html: document.documentElement.outerHTML,
         title: document.title,
+        failedImages: [...document.querySelectorAll('#root img')]
+          .filter((img) => {
+            const src = img.getAttribute('src') || ''
+            if (img.dataset.imgFallback && src === img.dataset.imgFallback) return true
+            if (img.dataset.imgFailed !== undefined && img.dataset.imgFailed === src) return true
+            return img.complete && img.naturalWidth === 0 && /\/api\/img\//.test(img.currentSrc || src)
+          })
+          .map((img) => img.dataset.imgRetried || img.currentSrc || img.getAttribute('src')),
       }))
+
+      if (failedImages.length > 0 && process.env.PRERENDER_ALLOW_IMAGE_FAILURES !== '1') {
+        const shown = failedImages.slice(0, 3).map((u) => u.replace(BASE, '')).join(', ')
+        const more = failedImages.length > 3 ? ` and ${failedImages.length - 3} more` : ''
+        results.push({ route, status: 'images', detail: `${failedImages.length} image(s) failed to load: ${shown}${more}` })
+        continue
+      }
 
       if (text.length < MIN_TEXT) {
         results.push({ route, status: 'thin', chars: text.length })
@@ -452,8 +507,9 @@ if (ok.length === 0) {
 if (bad.length > 0) {
   console.error(`\nPrerender: PARTIAL — ${bad.length} of ${routes.length} routes have no snapshot (listed above).`)
   console.error('Do not publish this run. The usual causes:')
-  console.error('  - a missing BLOB_CONNECTION_STRING: images 404 and the page never settles. The')
-  console.error('    snapshots that DID render then carry placeholder images, so they are bad too.')
+  console.error('  - a missing BLOB_CONNECTION_STRING: every /api/img image fails (status IMAGES on')
+  console.error('    most routes). One or two IMAGES routes on an otherwise clean run is more likely a')
+  console.error('    one-off failure; a re-run settles it.')
   console.error('  - an API call that never answered: status API, and the call is named.')
   console.error('Fix the cause and re-run.')
   process.exit(1)

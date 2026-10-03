@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import './HeroShowcase.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 export default function HeroShowcase({
   slides = [],
@@ -108,7 +108,7 @@ export default function HeroShowcase({
                   srcSet={cdnSrcSet(s.src, [560, 800, 1120])}
                   sizes="(max-width: 980px) 90vw, 560px"
                   alt={s.alt}
-                  onError={(e) => { e.currentTarget.src = fallback }}
+                  onError={imageFallback(fallback)}
                   width="2200"
                   height="1400"
                   loading={i === 0 ? 'eager' : 'lazy'}

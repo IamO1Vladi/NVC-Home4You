@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import './ProcessTicker.css'
+import { imageFallback } from '../lib/img.js'
 
 /**
  * ProcessTicker
@@ -147,9 +148,7 @@ export default function ProcessTicker({
                 <img
                   src={m?.src}
                   alt={m?.alt || steps[i] || `Step ${i + 1}`}
-                  onError={(e) => {
-                    e.currentTarget.src = `${import.meta.env.BASE_URL}modular-builds/card.svg`
-                  }}
+                  onError={imageFallback(`${import.meta.env.BASE_URL}modular-builds/card.svg`)}
                   width="1600"
                   height="900"
                   loading="lazy"

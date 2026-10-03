@@ -2,7 +2,7 @@ import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import Modal from '../components/Modal.jsx'
 import '../style/InternalDoors.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 import { submitInBackground } from '../lib/backgroundSubmit.js'
 
@@ -125,9 +125,7 @@ function ThumbGrid({ options, value, onChange, ariaLabel, fallbackSrc }) {
               sizes="120px"
               alt=""
               loading="lazy"
-              onError={(e) => {
-                if (fallbackSrc) e.currentTarget.src = fallbackSrc
-              }}
+              onError={imageFallback(fallbackSrc)}
             />
             <div className="id-opt-label">{opt.label}</div>
             {opt.meta ? <div className="id-opt-meta">{opt.meta}</div> : null}
@@ -155,9 +153,7 @@ function ConfigGroup({ title, hint, options, value, onChange, ariaLabel, fallbac
             sizes="(max-width: 760px) 60vw, 360px"
             alt=""
             loading="lazy"
-            onError={(e) => {
-              if (fallbackSrc) e.currentTarget.src = fallbackSrc
-            }}
+            onError={imageFallback(fallbackSrc)}
           />
           <div className="id-choice-name">{selected?.label}</div>
         </div>
@@ -477,17 +473,7 @@ export default function InternalDoorsPage({ content, locale }) {
                 alt=""
                 aria-hidden="true"
                 loading="eager"
-                onError={(e) => {
-                  const img = e.currentTarget
-                  const step = Number(img.dataset.step || '0')
-                  if (step === 0) {
-                    img.dataset.step = '1'
-                    img.src = asset('clear.webp')
-                    return
-                  }
-                  img.onerror = null
-                  img.src = activeImg || fallback
-                }}
+                onError={imageFallback(activeImg, fallback)}
               />
               <div className="id-intro-shade" aria-hidden="true" />
 
@@ -532,17 +518,7 @@ export default function InternalDoorsPage({ content, locale }) {
                                 src={asset('internal-doors/kit.webp')}
                                 alt={content.hero.kit.mediaAlt}
                                 loading="lazy"
-                                onError={(e) => {
-                                  const img = e.currentTarget
-                                  const step = Number(img.dataset.step || '0')
-                                  if (step === 0) {
-                                    img.dataset.step = '1'
-                                    img.src = asset('kit.webp')
-                                    return
-                                  }
-                                  img.onerror = null
-                                  img.src = fallback
-                                }}
+                                onError={imageFallback(fallback)}
                               />
                             </div>
                           )}
@@ -577,17 +553,7 @@ export default function InternalDoorsPage({ content, locale }) {
                         src={asset('internal-doors/kit.webp')}
                         alt={content.hero.kit.mediaAlt}
                         loading="lazy"
-                        onError={(e) => {
-                          const img = e.currentTarget
-                          const step = Number(img.dataset.step || '0')
-                          if (step === 0) {
-                            img.dataset.step = '1'
-                            img.src = asset('kit.webp')
-                            return
-                          }
-                          img.onerror = null
-                          img.src = fallback
-                        }}
+                        onError={imageFallback(fallback)}
                       />
                     </div>
                   )}
@@ -614,9 +580,7 @@ export default function InternalDoorsPage({ content, locale }) {
                     sizes="(max-width: 900px) 90vw, 560px"
                     alt={content.preview.alt}
                     onLoad={() => setLoaded(true)}
-                    onError={(e) => {
-                      e.currentTarget.src = fallback
-                    }}
+                    onError={imageFallback(fallback)}
                   />
 
                   <div className="id-preview-tag">{typeCopy[typeKey]?.tag}</div>
@@ -716,10 +680,7 @@ export default function InternalDoorsPage({ content, locale }) {
                         alt={it.alt || it.label || ''}
                         loading="lazy"
                         decoding="async"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null
-                          e.currentTarget.src = fallback
-                        }}
+                        onError={imageFallback(fallback)}
                       />
                     ) : (
                       <span className="id-review-thumb-fallback" aria-hidden="true">—</span>

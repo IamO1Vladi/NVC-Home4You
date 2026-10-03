@@ -131,10 +131,13 @@ the old tracker (now `ROADMAP.md`).
    variables win over user-secrets.
 
    **The app also needs `BLOB_CONNECTION_STRING`** (and `SQL_CONNECTION_STRING`), the same
-   values production has. Without Blob every `/api/img` image answers 404 locally, and since
-   #9 (2026-09-05) a failed image retries in a loop on the home and modular-builds pages —
-   those pages never go quiet and time out (2026-09-30: 45/52). Even where a page does
-   finish, its snapshot would carry placeholder art instead of the real images.
+   values production has. Without Blob every `/api/img` image answers 404 locally, and the
+   snapshots would carry placeholder art instead of the real images. Until #33 a failed
+   image retried in a loop, so those pages never went quiet and timed out (2026-09-30:
+   45/52). Since #33 an image falls back after one retry and is marked, and the prerender
+   refuses any route showing a fallback or a broken `/api/img` image (status `IMAGES`), so
+   a run without Blob fails on most routes. `PRERENDER_ALLOW_IMAGE_FAILURES=1` ships such
+   pages anyway, and should only ever be a decision.
 
    **The DATA_SOURCE flags matter, and it is GALLERY, not HOUSES.** A local app without
    them reads Quickbase while production reads SQL, so snapshots would freeze prices from

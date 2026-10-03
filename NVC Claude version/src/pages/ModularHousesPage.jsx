@@ -2,7 +2,7 @@
 import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import '../style/ModularHouses.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 import { brochureUrl } from '../lib/brochure.js'
 
 
@@ -77,7 +77,7 @@ export default function ModularHousesPage({ locale, content }) {
                 srcSet={cdnSrcSet(m.image, [512, 768, 1024, 1440])}
                 sizes="(max-width: 820px) 100vw, 520px"
                 alt={content.models[m.key].alt}
-                onError={(e)=>{ e.currentTarget.src = m.fallback }}
+                onError={imageFallback(m.fallback)}
                 width="1024"
                 height="640"
                 loading="lazy"

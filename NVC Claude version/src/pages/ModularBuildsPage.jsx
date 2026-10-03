@@ -1,7 +1,7 @@
 // src/pages/ModularBuildsPage.jsx
 import React from 'react'
 import '../style/ModularBuilds.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 import { brochureUrl } from '../lib/brochure.js'
 
 function publicAsset(file) {
@@ -59,9 +59,7 @@ export default function ModularBuildsPage({ locale, content }) {
                 width="960"
                 height="600"
                 loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.src = fallback
-                }}
+                onError={imageFallback(fallback)}
               />
 
               <div className="mb-card-label">{product.title}</div>

@@ -72,6 +72,69 @@ export function cdnImage(url, { width, quality = 'auto' } = {}) {
   return `${url}${url.includes('?') ? '&' : '?'}w=${snapped}`
 }
 
+// The ONE way an <img> falls back when it fails to load: onError={imageFallback(fallback)},
+// or with a chain, imageFallback(firstTry, secondTry, lastResort). ROADMAP #33.
+//
+// THE LOOP THIS ENDS. The pattern it replaces, onError={(e) => { e.currentTarget.src =
+// fallback }}, predates #9. Since #9 most of those images also carry a real srcset, which
+// the browser prefers over src, so setting src re-selected the same failing candidate,
+// which failed again, forever: on 2026-09-30, with the Blob store unreachable, /bg sent
+// 13,412 image requests in 15 seconds. Images without a srcset looped the same way the
+// moment their fallback failed too, because each error set the same src again.
+//
+// WHAT THE LOOP HAD BEEN DOING RIGHT, BY ACCIDENT, and this keeps on purpose:
+// - A ONE-OFF failure healed. The loop re-requested the real image until it loaded, so an
+//   instance recycling or a dropped connection cost a moment, not the photo. Here the image
+//   itself gets ONE retry, IMAGE_RETRY_MS later, before any fallback. (Setting src to the
+//   value it already has makes Chromium fetch again, srcset or not; checked 2026-10-03.)
+// - The prerender NOTICED a missing image store, because the loop kept the network busy and
+//   the page never settled. Now the image settles on its fallback, quietly, so every
+//   fallback is marked: data-img-fallback holds the URL it fell back to, and the prerender
+//   refuses to snapshot a page with an image showing one (scripts/prerender.mjs).
+//
+// After the retry, each error moves one step along the chain: srcset is removed, so the
+// browser takes the src it is given, and src becomes the next fallback not yet tried. When
+// the chain is exhausted it stops and leaves the broken image as it is. sizes is LEFT: it
+// does nothing without a srcset, and React only rewrites an attribute whose prop changed,
+// so removing it would strip the next image a reused node shows (InteriorsPage's
+// before/after swaps images in the same node) of its sizes and fetch the 100vw candidate.
+//
+// The position is read from the src attribute itself, not stored, so when React swaps in a
+// new image (a carousel, a picker) that image gets its own retry and the whole chain again.
+// Falsy and repeated entries are dropped, so within one chain each step strictly advances
+// and it always ends. In an outage that is at most two requests for the image plus one per
+// fallback, where the loop was hundreds a second.
+export const IMAGE_RETRY_MS = 1500
+
+export function imageFallback(...fallbacks) {
+  const chain = [...new Set(fallbacks.filter(Boolean))]
+  return (event) => {
+    const img = event.currentTarget
+    const src = img.getAttribute('src')
+    const at = chain.indexOf(src)
+
+    if (at === -1 && src && img.dataset.imgRetried !== src) {
+      img.dataset.imgRetried = src
+      setTimeout(() => {
+        // Not if React has moved this node to another image in the meantime.
+        if (img.getAttribute('src') === src) img.setAttribute('src', src)
+      }, IMAGE_RETRY_MS)
+      return
+    }
+
+    const next = chain[at + 1]
+    if (!next) {
+      // Nothing left to try. Marked, so the prerender neither waits on it as a retry still
+      // in progress nor ships it as fine.
+      img.dataset.imgFailed = src ?? ''
+      return
+    }
+    img.removeAttribute('srcset')
+    img.setAttribute('src', next)
+    img.dataset.imgFallback = next
+  }
+}
+
 // A `srcset` string across the given widths — or undefined when nothing can resize this
 // URL, so React omits the attribute entirely and the plain `src` is used.
 //

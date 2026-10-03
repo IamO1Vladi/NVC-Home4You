@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import './GlideServices.css'
 import { paths } from '../routes/paths.js'
 import { getHomeContent } from '../content/home/index.js'
+import { imageFallback } from '../lib/img.js'
 
 export default function GlideServices({ locale = 'en', content }) {
   const asset = (p) => `${import.meta.env.BASE_URL}${p}`
@@ -128,7 +129,7 @@ export default function GlideServices({ locale = 'en', content }) {
                   src={slide.img}
                   alt=""
                   role="presentation"
-                  onError={(e) => { e.currentTarget.src = fallback }}
+                  onError={imageFallback(fallback)}
                   width="1600"
                   height="1000"
                   loading="lazy"

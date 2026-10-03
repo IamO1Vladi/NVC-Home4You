@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import ProcessTicker from '../components/ProcessTicker.jsx'
 import '../style/SteelHouses.css'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 import { brochureUrl } from '../lib/brochure.js'
 import { getHomeContent } from '../content/home/index.js'
 
@@ -128,9 +128,7 @@ export default function SteelHousesPage({ locale, content }) {
                     srcSet={cdnSrcSet(src, [600, 900, 1200, 1600])}
                     sizes="(max-width: 900px) 100vw, 900px"
                     alt={fillTemplate(content.gallery.alt, i + 1)}
-                    onError={(e) => {
-                      e.currentTarget.src = fallback
-                    }}
+                    onError={imageFallback(fallback)}
                     width="1600"
                     height="1000"
                     loading="lazy"
