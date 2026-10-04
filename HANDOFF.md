@@ -29,14 +29,15 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **After `deploy-2026-10-04`: seed the old addresses, then the Greek retitles.**
-   1. **Seed the history, once.** `cd api-dotnet; dotnet run -- seed-slug-history --dry-run`
-      on the main device (production SQL via user-secrets; it reads Одит and writes
-      nothing). Read the list and every warning, then run it without `--dry-run`. A second
-      run adds nothing. It writes production data, so it is the owner's to run.
-   2. **Probe:** in Галерия, the Panoramic 37 m² house and the 58 m² and 73 m² double-roof
-      houses list their August addresses under „Стари адреси" (the seeder turns
-      `RetiredSlugs` into rows too), plus anything it recovered from Одит.
+0. **After `deploy-2026-10-04`: the Greek retitles, then Search Console.**
+   1. **The history is seeded — DONE 2026-10-04** by the owner (`seed-slug-history`, dry
+      run read first, no warnings). Five rows: the three `RetiredSlugs` addresses, now keyed
+      to SQL houses #6, #7 and #12 (dated 2026-08-19), and two the hand-kept list never had:
+      the Space house's (#15) `/bg/galeriq/space-house` and `/el/gkaleri/space-house`, its
+      addresses until nlekov@ gave it Bulgarian and Greek titles on 2026-09-24. Those two
+      answered 404 before the seed and 301 to the current pages, query kept, once the
+      gallery cache turned over (~6.5 minutes; verified live 2026-10-04). A re-run adds nothing.
+   2. **Probe (signed in):** in Галерия, those four houses list the five under „Стари адреси".
    3. **Then the Greek retitles** ("Next up" under "Renaming a product moves its address").
       Retitling is safe from now on: the save itself keeps the old address.
    4. **Search Console:** Do next 5, and the owner's Word checklist
