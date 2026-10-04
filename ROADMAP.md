@@ -103,7 +103,7 @@ commits, notes and conversations still resolve.
 - [ ] **8. PWA** — service worker via vite-plugin-pwa; installable, fast repeat visits.
 - [ ] **13. @vitejs/plugin-react upgrade path** (v6 supports vite 8) — only when needed.
 
-(#33 and #37 were built 2026-10-03 and moved to DONE; neither is deployed yet.)
+(#33 and #37 were built 2026-10-03, moved to DONE and went live in deploy-2026-10-04.)
 
 
 ### Infrastructure
@@ -630,8 +630,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 ## DONE — newest first
 
 - [x] **37. Gallery slug history: a renamed product keeps its old address** (built
-  2026-10-03, **not yet deployed**; ONE migration, `AddHouseSlugHistory`, applied by the
-  owner BEFORE the publish, DEPLOY §5b). A gallery URL is the title slugified per locale, so
+  2026-10-03, **live since `deploy-2026-10-04`**; its one migration, `AddHouseSlugHistory`,
+  applied by the owner on 2026-10-03, before the publish). A gallery URL is the title slugified per locale, so
   retitling a house in Галерия moved its address and the old one, indexed and shared, showed
   "Model not found" and answered crawlers 404 until a developer added a
   `GallerySlugs.RetiredSlugs` row and published. Now:
@@ -673,8 +673,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   **After the publish:** run the seeder with `--dry-run`, read it, then without. Then the
   owner's seven Greek retitles (#11 Group 3) need no developer.
 
-- [x] **33. A failed image no longer retries forever** (built 2026-10-03, **not yet
-  deployed**; SPA only). `/bg` sent 13,412 image requests in 15 s without Blob (2026-09-30):
+- [x] **33. A failed image no longer retries forever** (built 2026-10-03, **live
+  since `deploy-2026-10-04`**; SPA only). `/bg` sent 13,412 image requests in 15 s without Blob (2026-09-30):
   `onError={(e) => { e.currentTarget.src = fallback }}` on an image with a srcset makes the
   browser re-pick the same failing candidate, so the error repeats; without a srcset it
   looped the moment the fallback failed too. All 17 handlers in 10 files now use ONE helper,
@@ -1018,7 +1018,7 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 - [x] **28. Kitchen appliance placement in the configurator** (built 2026-09-19/20,
   deployed `deploy-2026-09-20`, verified on the live site the same day). **A1 gained a
-  fifth position on 2026-10-03** (owner: "under number 4, for a fridge for example"): the
+  fifth position on 2026-10-03, live since `deploy-2026-10-04`** (owner: "under number 4, for a fridge for example"): the
   tall unit closing the leg, at (40.3, 30.4), placed by two blind readers who agreed to
   the decimal, appended so positions 1–4 and saved links are unchanged. Buyers place
   seven appliances — вградена фурна, плот, хладилник, мивка, съдомиялна in 45 and 60 cm,
