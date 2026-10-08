@@ -72,14 +72,20 @@ public class EmailService
     //
     // The model comes after the token, against convention, so QuestionController's
     // positional call keeps compiling: the question form never names a model.
-    public async Task<bool> TrySendLeadNotificationAsync(bool isOffer, string name, string leadEmail, string? phone, string details, CancellationToken ct = default, OfferModel? model = null)
+    //
+    // With an intake note (#38) the representative is copied in and the mail says what
+    // became of the lead; Reply-To stays the customer, because the rep answering the
+    // customer directly is the whole point of the link.
+    public async Task<bool> TrySendLeadNotificationAsync(
+        bool isOffer, string name, string leadEmail, string? phone, string details,
+        CancellationToken ct = default, OfferModel? model = null, LeadIntakeNote? intake = null)
     {
         if (!IsConfigured) return false;
-        var recipients = ParseRecipients(_env.LeadNotifyEmail);
+        var recipients = WithRecipient(ParseRecipients(_env.LeadNotifyEmail), intake?.RepUpn);
         if (recipients.Count == 0) return false;
         try
         {
-            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model);
+            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model, intake);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
             var replyTo = string.IsNullOrWhiteSpace(leadEmail) ? null : leadEmail.Trim();
@@ -206,6 +212,21 @@ public class EmailService
             .Where(x => x.Contains('@'))
             .Distinct()
             .ToArray();
+
+    // The configured list plus one more address — the representative an enquiry came
+    // through (#38). Case-insensitive on purpose, unlike ParseRecipients' Distinct(): the
+    // rep's UPN comes from a registry setting and the sales list from another, and a
+    // salesperson who is also a representative would otherwise get every such mail twice.
+    // A blank or address-less extra changes nothing. Public static so the rule is pinned
+    // by a test rather than inferred from an inbox.
+    public static IReadOnlyCollection<string> WithRecipient(IReadOnlyCollection<string> recipients, string? extra)
+    {
+        var trimmed = (extra ?? "").Trim();
+        if (trimmed.Length == 0 || !trimmed.Contains('@')) return recipients;
+        if (recipients.Contains(trimmed, StringComparer.OrdinalIgnoreCase)) return recipients;
+
+        return recipients.Append(trimmed).ToArray();
+    }
 
     // Picks the configured transport (Graph preferred, SMTP fallback).
     private Task SendAsync(IReadOnlyCollection<string> toEmails, string subject, string html, string? replyTo, CancellationToken ct) =>
@@ -474,7 +495,9 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
     }
 
     // Internal team notification (Bulgarian) with the lead's contact details and submission.
-    private (string subject, string html) BuildLeadNotification(bool isOffer, string name, string leadEmail, string? phone, string details, OfferModel? model = null)
+    private (string subject, string html) BuildLeadNotification(
+        bool isOffer, string name, string leadEmail, string? phone, string details,
+        OfferModel? model = null, LeadIntakeNote? intake = null)
     {
         var trimmedName = (name ?? "").Trim();
         var trimmedEmail = (leadEmail ?? "").Trim();
@@ -492,6 +515,10 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         // already flattened the title to one line, which a subject header needs.
         var subject = $"Ново {kind}: {(string.IsNullOrEmpty(trimmedName) ? trimmedEmail : trimmedName)}";
         if (model?.Title is { } modelTitle) subject += $" — {modelTitle}";
+        // A further suffix, for the same reason the model is one: the prefix stays put, and
+        // the rep's own inbox rule can key on the slug. Safe in a header — the registry
+        // only admits single-line slugs.
+        if (intake is not null) subject += $" — представител: {intake.RepSlug}";
 
         var phoneRow = string.IsNullOrEmpty(safePhone)
             ? ""
@@ -501,6 +528,8 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
             ? ""
             : $@"<p style=""margin:2px 0""><strong>Модел:</strong> {ModelHtml(model)}</p>";
 
+        var representativeRows = intake is null ? "" : RepresentativeHtml(intake);
+
         var html =
 $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.6;max-width:600px"">
   <p style=""font-size:15px""><strong>Ново {kind} от сайта</strong></p>
@@ -508,6 +537,7 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1
   <p style=""margin:2px 0""><strong>Имейл:</strong> <a href=""mailto:{safeEmail}"">{safeEmail}</a></p>
   {phoneRow}
   {modelRow}
+  {representativeRows}
   <p style=""font-size:13px;color:#555;margin-top:16px"">Детайли:</p>
   <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>
   <hr style=""border:none;border-top:1px solid #eee;margin:20px 0"" />
@@ -535,4 +565,49 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1
             ? title
             : $@"{title} <span style=""color:#888"">(№{safeId})</span>";
     }
+
+    // The representative block (#38): who the enquiry came through, then what the intake
+    // did about it — one line that either links the new lead into the panel or says why
+    // there is none and where the enquiry is waiting — and, when an open lead already looked
+    // like this customer, which one. Sales read all three; the rep reads the first two.
+    //
+    // Every interpolated value is encoded. The slug and UPN come from configuration and the
+    // reason from our own code, but the rule is "encode everything" rather than "encode what
+    // we distrust today": the owner UPN of the duplicate is a database column.
+    private static string RepresentativeHtml(LeadIntakeNote note)
+    {
+        var outcome = note.Outcome;
+        var safeSlug = System.Net.WebUtility.HtmlEncode(note.RepSlug);
+
+        string resultRow;
+        if (outcome.LeadCreated && outcome.LeadId is { } leadId)
+        {
+            // Two links to the same lead, because the mail has two readers: sales open the
+            // admin panel, the representative can only open his own, and the admin link
+            // would answer him 403.
+            var href = System.Net.WebUtility.HtmlEncode(LeadFollowUpService.LeadUrl(note.BaseUrl, leadId));
+            var repHref = System.Net.WebUtility.HtmlEncode(LeadFollowUpService.RepLeadUrl(note.BaseUrl, leadId));
+            var safeUpn = System.Net.WebUtility.HtmlEncode(note.RepUpn);
+            resultRow = $@"<p style=""margin:2px 0"">Лийд <a href=""{href}"">#{leadId}</a> е създаден и възложен на {safeUpn} (<a href=""{repHref}"">в панела на представителя</a>).</p>";
+        }
+        else
+        {
+            var reason = System.Net.WebUtility.HtmlEncode(outcome.SkippedBecause ?? "unknown");
+            resultRow = $@"<p style=""margin:2px 0"">Лийд не е създаден ({reason}) — вижте Запитвания.</p>";
+        }
+
+        var duplicateRow = outcome.DuplicateOfLeadId is { } duplicateId
+            ? $@"<p style=""margin:2px 0"">Възможен дубликат на лийд #{duplicateId} (отговорник: {System.Net.WebUtility.HtmlEncode(outcome.DuplicateOwnerUpn ?? "никой")}).</p>"
+            : "";
+
+        return $@"<p style=""margin:2px 0""><strong>Представител:</strong> {safeSlug}</p>
+  {resultRow}
+  {duplicateRow}";
+    }
 }
+
+// What the notification needs to say about a representative's enquiry (#38): whose link it
+// came through, what the intake did, and the origin the lead link is built on — passed in
+// from the request like LeadFollowUpService's baseUrl, because this app has answered on
+// more than one hostname and a link built from a setting goes stale.
+public sealed record LeadIntakeNote(string RepSlug, string RepUpn, IntakeOutcome Outcome, string BaseUrl);

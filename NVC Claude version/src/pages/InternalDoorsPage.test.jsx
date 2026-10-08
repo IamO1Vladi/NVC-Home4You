@@ -5,6 +5,7 @@ import InternalDoorsPage from './InternalDoorsPage.jsx'
 import elContent from '../content/el/internalDoors.js'
 import bgContent from '../content/bg/internalDoors.js'
 import { submitInBackground } from '../lib/backgroundSubmit.js'
+import { clearRep, saveRep } from '../lib/repAttribution.js'
 
 vi.mock('../lib/backgroundSubmit.js', () => ({ submitInBackground: vi.fn() }))
 
@@ -43,5 +44,22 @@ describe('InternalDoorsPage enquiry', () => {
 
   it('a Bulgarian one as Bulgarian', () => {
     expect(sendEnquiry(bgContent, 'bg').payload.locale).toBe('bg')
+  })
+
+  // The doors page posts its own /api/offer, so the representative link (#38) has to reach
+  // it separately from the site-wide modal: the remembered slug, and the honeypot the
+  // server drops bots by, which a human never fills.
+  it('carries the representative the visitor arrived through, and an empty honeypot', () => {
+    saveRep('dtodorov')
+    try {
+      const { payload } = sendEnquiry(bgContent, 'bg')
+      expect(payload).toMatchObject({ rep: 'dtodorov', website: '' })
+    } finally {
+      clearRep()
+    }
+  })
+
+  it('sends no representative when there was none', () => {
+    expect(sendEnquiry(elContent, 'el').payload).toMatchObject({ rep: '', website: '' })
   })
 })

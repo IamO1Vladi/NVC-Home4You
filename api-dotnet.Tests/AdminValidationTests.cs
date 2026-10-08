@@ -23,27 +23,34 @@ public class AdminValidationTests
             .GetMethod("Validate", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, new object[] { input })!;
 
+    // The pipeline rules moved out of AdminPipelineController into the internal
+    // PipelineRules (#38, shared with the representative's panel); the type is reached by
+    // name and the rules by reflection exactly as before. Same cases, same expectations.
+    private static readonly Type Rules =
+        typeof(AdminPipelineController).Assembly.GetType("Controllers.PipelineRules")
+        ?? throw new InvalidOperationException("Controllers.PipelineRules has moved or been renamed");
+
     private static List<string> ValidateAttachments(params IFormFile[] files) =>
-        (List<string>)typeof(AdminPipelineController)
-            .GetMethod("ValidateAttachments", BindingFlags.NonPublic | BindingFlags.Static)!
+        (List<string>)Rules
+            .GetMethod("ValidateAttachments", BindingFlags.Public | BindingFlags.Static)!
             .Invoke(null, new object[] { files })!;
 
     private static List<string> ValidateCc(params string[] recipients) =>
-        (List<string>)typeof(AdminPipelineController)
-            .GetMethod("ValidateCc", BindingFlags.NonPublic | BindingFlags.Static)!
+        (List<string>)Rules
+            .GetMethod("ValidateCc", BindingFlags.Public | BindingFlags.Static)!
             .Invoke(null, new object[] { recipients })!;
 
     private static List<string> SplitCc(string? raw) =>
-        (List<string>)typeof(AdminPipelineController)
-            .GetMethod("SplitCc", BindingFlags.NonPublic | BindingFlags.Static)!
+        (List<string>)Rules
+            .GetMethod("SplitCc", BindingFlags.Public | BindingFlags.Static)!
             .Invoke(null, new object?[] { raw })!;
 
     // storedEmail defaults to "nothing there yet", which is the plain case: every rule but
     // one reads only what arrived. The exception has its own tests below.
     private static List<string> ValidateContact(
         AdminPipelineController.FieldsChange body, string? storedEmail = null) =>
-        (List<string>)typeof(AdminPipelineController)
-            .GetMethod("ValidateContact", BindingFlags.NonPublic | BindingFlags.Static)!
+        (List<string>)Rules
+            .GetMethod("ValidateContact", BindingFlags.Public | BindingFlags.Static)!
             .Invoke(null, new object?[] { body, storedEmail })!;
 
     // Only the three customer fields matter to that rule, and a positional record cannot be

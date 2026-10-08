@@ -1,4 +1,7 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
 
@@ -28,6 +31,32 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .AllowAnyMethod()
     .AllowCredentials()
 ));
+
+// A per-visitor budget on the public write endpoints (#38): the two enquiry forms, the
+// reviews form and the two "save my configuration" routes — every route a stranger can
+// POST to without signing in. Ten writes per IP per ten minutes is far above anything a
+// person does on this site (one enquiry, maybe a retry, maybe a saved config) and far
+// below what a script does, which is the whole distinction. Keyed on the client address
+// as UseForwardedHeaders has corrected it; see the UseRateLimiter() call below for why
+// the order of those two matters.
+//
+// Fixed window, no queue: a request over the budget is answered 429 at once rather than
+// held open. The SPA's backgroundSubmit treats 429 as retryable with backoff, so a real
+// visitor who somehow trips it sees "retrying" and then the ordinary error banner, not a
+// dead button — do not change that status without changing the SPA.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("public-write", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0,
+            }));
+});
 
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
@@ -92,6 +121,11 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.LeadDuplicateService>();
     builder.Services.AddScoped<Services.LeadAdminService>();
     builder.Services.AddScoped<Services.LeadService>();
+
+    // Turns an enquiry that came through a representative's link into that
+    // representative's lead the moment it arrives (#38). In this block because it needs
+    // LeadService; the no-database stand-in is registered after the block closes.
+    builder.Services.AddScoped<Services.IRepresentativeIntake, Services.RepresentativeIntake>();
     builder.Services.AddScoped<Services.LeadPipelineService>();
     builder.Services.AddScoped<Services.LeadMailService>();
     builder.Services.AddScoped<Services.LeadFollowUpService>();
@@ -143,6 +177,12 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddScoped<Services.PublicDocumentService>();
     builder.Services.AddScoped<Services.PublicDocumentImportService>();
 }
+
+// Without SQL there is nothing to promote an enquiry into, but the public form controllers
+// still have to construct: the enquiry lands in Quickbase with the representative's line in
+// its message, and the intake answers "sql-not-configured" instead of throwing. TryAdd, so
+// the real one registered inside the block above wins whenever it is there.
+builder.Services.TryAddScoped<Services.IRepresentativeIntake, Services.NullRepresentativeIntake>();
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
 // Registered only when client id, tenant id and secret are all present. If any is missing
@@ -267,6 +307,12 @@ builder.Services.AddAuthorization(options =>
             });
         }
     });
+
+    // The representative's panel (#38): the same fail-closed shape, a different list — the
+    // REPRESENTATIVES registry rather than the allow-list, and neither gate implies the
+    // other. The body is in RepresentativePolicy so a test can exercise it.
+    options.AddPolicy(Services.RepresentativePolicy.Name, policy =>
+        Services.RepresentativePolicy.Configure(policy, adminAuthReady, envCfg));
 });
 // Singleton so proxied image bytes survive across requests (it owns its own size-capped cache).
 builder.Services.AddSingleton<Services.ImageCache>();
@@ -1310,6 +1356,16 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
+// The per-visitor budget on the public write routes (the "public-write" policy above).
+//
+// AFTER UseForwardedHeaders, and that is the whole placement rule: it is what makes
+// RemoteIpAddress the visitor rather than App Service's front end, and before it every
+// visitor on the site would share one bucket of ten. Routing has already run — with no
+// explicit UseRouting, WebApplication puts it ahead of everything here — so the endpoint's
+// [EnableRateLimiting] is visible to the middleware. Only endpoints carrying that attribute
+// are counted; static files, reads and the panel pass straight through.
+app.UseRateLimiter();
+
 if (adminAuthReady)
 {
     app.UseAuthentication();
@@ -1483,9 +1539,15 @@ app.MapFallback(async context =>
     var pathLocale = SpaShell.LocaleOf(path);
 
     // Unlisted pages: served as a 200 with a noindex tag, so direct links and refreshes
-    // work while nothing reaches search results. Three kinds, for two different reasons:
+    // work while nothing reaches search results. Four kinds, for two different reasons:
     //
     //   /internal/, /admin/  — internal tools, not linked anywhere, gated in the SPA.
+    //   /rep/                — the representatives' panel (#38): the same kind of tool,
+    //                          gated by the API's RepresentativeOnly policy.
+    //   /r/{slug}            — a representative's landing page (#38). The CUSTOMER's, like
+    //                          /order/ below, and unlisted for the opposite reason: the
+    //                          link is public by design (it goes in a video), but a search
+    //                          result would attribute strangers to the representative.
     //   /order/{code}        — the CUSTOMER's order tracking page (#27). Its parameter is
     //                          an unguessable code, so it can never be in the SEO manifest;
     //                          without this branch it fell through to the unknown-URL case
@@ -1499,20 +1561,27 @@ app.MapFallback(async context =>
     // rendered client-side. This only says the URL is a page we serve. The noindex matters
     // more here than for the internal tools: a tracking URL that reaches a search index is
     // a tracking URL that reaches everyone.
+    //
+    // Keep in sync with src/App.jsx, where each of these routes is registered.
     if (path.StartsWith("/internal/", StringComparison.OrdinalIgnoreCase) ||
         path.Equals("/admin", StringComparison.OrdinalIgnoreCase) ||
         path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase) ||
-        path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase))
+        path.Equals("/rep", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/rep/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/r/", StringComparison.OrdinalIgnoreCase))
     {
-        // The tracking page is the CUSTOMER's, so it is titled with the brand rather than
-        // "NVC internal" — that is the tab and any link preview before React runs. Only the
-        // brand, because the URL does not say which language the customer reads; the page
-        // titles itself in it once it knows.
+        // The tracking page and the representative's landing page are the CUSTOMER's, so
+        // they are titled with the brand rather than "NVC internal" — that is the tab and
+        // any link preview before React runs. Only the brand, because the URL does not say
+        // which language the customer reads; the page titles itself in it once it knows.
         const string internalTags =
             "<title>NVC internal</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";
         const string orderTags =
             "<title>NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,nofollow\" />";
-        var unlistedTags = path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase) ? orderTags : internalTags;
+        var unlistedTags =
+            path.StartsWith("/r/", StringComparison.OrdinalIgnoreCase) ? orderTags :
+            path.StartsWith("/order/", StringComparison.OrdinalIgnoreCase) ? orderTags : internalTags;
         if (start >= 0 && end > start)
             html = html[..(start + seoStart.Length)] + "\n    " + unlistedTags + "\n    " + html[end..];
         await context.Response.WriteAsync(SpaShell.WithLang(html, pathLocale));

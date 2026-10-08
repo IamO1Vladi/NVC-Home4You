@@ -21,6 +21,14 @@ import '../style/Admin.css'
 // a translation step first. The nav keys below are still `leads` and `pipeline` because that
 // is what the API routes are called — renaming those is a separate change with nothing in it
 // for the people using this.
+//
+// TWO PANELS, ONE SHELL (ROADMAP #38). A representative signs in through the same Entra
+// flow as staff and lands in a panel that is this chrome around one section: his own
+// leads. The `area` prop picks which panel this is. 'admin' is everything above; 'rep' is
+// the one section, /api/rep/me for who is signed in, and no badges — the two counts are
+// admin endpoints, and a representative has no queue to count. The sign-in card, the
+// sign-in and sign-out links, the language and the theme are the same in both, because
+// they are the same thing.
 
 const LANG_KEY = 'nvc_admin_lang_v1'
 const THEME_KEY = 'nvc_admin_theme_v1'
@@ -28,11 +36,14 @@ const THEME_KEY = 'nvc_admin_theme_v1'
 const TEXT = {
   bg: {
     brand: 'Администрация',
+    brandRep: 'Представител',
     nav: {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', orders: 'Поръчки',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти', documents: 'Брошури',
       factorySheets: 'Фабрични поръчки', audit: 'Одит',
+      // The representatives' panel's one section (#38).
+      myLeads: 'Моите лийдове',
     },
     loading: 'Зареждане…',
     error: 'Нещо се обърка при зареждането.',
@@ -49,11 +60,13 @@ const TEXT = {
   },
   en: {
     brand: 'Admin',
+    brandRep: 'Representative',
     nav: {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', orders: 'Orders',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases', documents: 'Brochures',
       factorySheets: 'Factory orders', audit: 'Audit',
+      myLeads: 'My leads',
     },
     loading: 'Loading…',
     error: 'Something went wrong while loading.',
@@ -235,24 +248,41 @@ const SECTIONS = [
   { key: 'audit', to: '/admin/audit' },
 ]
 
+// The representatives' panel (#38): one section, and no Home — with a single screen, a menu
+// page would be a door that opens onto the same room. The icon is the pipeline's, because
+// this IS the pipeline, seen by one person.
+const REP_SECTIONS = [
+  { key: 'myLeads', to: '/rep/leads', icon: 'pipeline' },
+]
+
+// Everything that differs between the two panels this shell renders, looked up once from
+// the `area` prop so nothing below has to ask which panel it is in. `brand` names the TEXT
+// key for the word beside the mark; `home` is where that mark links.
+const AREAS = {
+  admin: { home: '/admin', brand: 'brand', me: '/api/admin/me', sections: SECTIONS, counts: true },
+  // No counts: the two badges read admin endpoints a representative cannot call, and the
+  // one section he has carries nothing to count anyway.
+  rep: { home: '/rep/leads', brand: 'brandRep', me: '/api/rep/me', sections: REP_SECTIONS, counts: false },
+}
+
 // `me` and the pending-review count are chrome, not page data, so the shell fetches them
 // once instead of every page repeating the call. Counts refresh whenever a page finishes
 // loading, which is what makes the badge drop as soon as a review is approved.
-function useAdminChrome(state) {
+function useAdminChrome(state, area) {
   const [me, setMe] = React.useState(null)
   const [pending, setPending] = React.useState(0)
   const [outstandingLeads, setOutstandingLeads] = React.useState(0)
 
   React.useEffect(() => {
     let alive = true
-    adminGet('/api/admin/me')
+    adminGet(area.me)
       .then((who) => { if (alive) setMe(who) })
       .catch(() => { /* the page's own state already covers 401 and errors */ })
     return () => { alive = false }
-  }, [])
+  }, [area])
 
   React.useEffect(() => {
-    if (state !== 'ready') return undefined
+    if (state !== 'ready' || !area.counts) return undefined
     let alive = true
     adminGet('/api/admin/reviews/counts')
       .then((counts) => { if (alive) setPending(Number(counts?.pending) || 0) })
@@ -261,17 +291,18 @@ function useAdminChrome(state) {
       .then((counts) => { if (alive) setOutstandingLeads(Number(counts?.notReachedOut) || 0) })
       .catch(() => { /* same */ })
     return () => { alive = false }
-  }, [state])
+  }, [state, area])
 
   return { me, pending, outstandingLeads }
 }
 
 export default function AdminShell({
-  lang, setLang, active, title, subtitle, state, onRetry, actions, children,
+  lang, setLang, active, title, subtitle, state, onRetry, actions, children, area: areaKey = 'admin',
 }) {
   const t = TEXT[lang] ?? TEXT.bg
+  const area = AREAS[areaKey] ?? AREAS.admin
   const [theme, setTheme] = useAdminTheme()
-  const { me, pending, outstandingLeads } = useAdminChrome(state)
+  const { me, pending, outstandingLeads } = useAdminChrome(state, area)
   if (state === 'unauthorized') {
     // The server redirects here with ?authError=... when the Entra callback fails, rather
     // than leaving a bare 500 on /signin-oidc. Surfacing it means a broken sign-in says why
@@ -298,7 +329,7 @@ export default function AdminShell({
     )
   }
 
-  const navLink = ({ key, to }, onClick) => (
+  const navLink = ({ key, to, icon }, onClick) => (
     <Link
       key={key}
       to={to}
@@ -306,7 +337,7 @@ export default function AdminShell({
       aria-current={active === key ? 'page' : undefined}
       onClick={onClick}
     >
-      <NavIcon name={key} />
+      <NavIcon name={icon ?? key} />
       <span className="adm-nav-label">{t.nav[key]}</span>
       {key === 'reviews' && pending > 0
         ? <span className="adm-dot" aria-label={`${pending}`}>{pending}</span>
@@ -317,9 +348,9 @@ export default function AdminShell({
     </Link>
   )
 
-  // The sidebar shows every section; there is room, and hiding screens behind a press on a
-  // desktop would be friction for nothing.
-  const nav = SECTIONS.map((s) => navLink(s))
+  // The sidebar shows every section of the area; there is room, and hiding screens behind
+  // a press on a desktop would be friction for nothing.
+  const nav = area.sections.map((s) => navLink(s))
 
   // The phone tab bar shows the same sections. It briefly folded the money screens into a
   // "Финанси" tab, because sixteen tabs in an equal-width grid left every icon a sliver;
@@ -333,9 +364,9 @@ export default function AdminShell({
           exist once in the DOM: the sidebar is hidden on phones, so anything living only
           inside it would be unreachable there. */}
       <div className="adm-topbar">
-        <Link to="/admin" className="adm-brand">
+        <Link to={area.home} className="adm-brand">
           <span className="adm-brand-mark" aria-hidden="true">NVC</span>
-          <span className="adm-brand-text">{t.brand}</span>
+          <span className="adm-brand-text">{t[area.brand]}</span>
         </Link>
 
         <div className="adm-topbar-side">
@@ -426,10 +457,12 @@ function initials(me) {
   return (parts.length > 1 ? parts[0][0] + parts[1][0] : source.slice(0, 2)).toUpperCase()
 }
 
-// Always an /admin path. Anything else would hand the sign-in redirect an arbitrary
-// destination, and there is no legitimate reason to come back from Entra to a marketing page.
+// Always a panel path — /admin, or /rep for the representatives' panel (#38), which signs in
+// through the same /admin/signin endpoint. Anything else would hand the sign-in redirect an
+// arbitrary destination, and there is no legitimate reason to come back from Entra to a
+// marketing page.
 function currentPath() {
   if (typeof window === 'undefined') return '/admin'
   const path = window.location.pathname || ''
-  return path.startsWith('/admin') ? path : '/admin'
+  return path.startsWith('/admin') || path === '/rep' || path.startsWith('/rep/') ? path : '/admin'
 }

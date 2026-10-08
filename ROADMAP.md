@@ -22,6 +22,47 @@ commits, notes and conversations still resolve.
 
 ### Product & revenue
 
+- [~] **38. Representative links: one link per representative, and the enquiry becomes that
+  representative's lead** — **BUILT 2026-10-08 on branch `rep-links`, not yet merged or
+  deployed.** A representative puts `https://nvc-home4you.eu/r/dtodorov` in a video. The
+  page behind it (unlisted, noindex, trilingual, inside the site's own header and footer)
+  offers the offer form and the configurator; the browser remembers the slug for 30 days
+  (`repAttribution.js`, last touch wins), and every enquiry from the modal, the configurator
+  or the doors page then carries `rep`. The server resolves the slug ONLY through the
+  `REPRESENTATIVES` App Service setting (`slug=upn,…`, DEPLOY.md), stamps
+  „Представител: dtodorov" into the stored message below the model line (zero-migration
+  provenance, the `WithModelLine` precedent, so the queue, its search and the thread's first
+  message all show it even when promotion is skipped) and — when SQL is the lead store and
+  the address is well-formed — promotes the enquiry at once through the same
+  `LeadService.PromoteAsync` the panel's button uses: `OwnerUpn` = the rep,
+  `Source` = „Представител: dtodorov", `Offer.LeadCreated` ticked, the thread opened with
+  the customer's words. A customer who already has an OPEN lead (same normalised email or
+  last-nine-digits phone) still gets the rep's lead, plus a thread line and an email line
+  naming the older one — the owner's call (2026-10-08): an edge case, report it, never merge.
+  The internal notification copies the rep (Reply-To stays the customer) and says what became
+  of the lead, with a link into the panel.
+  - **The representatives' panel.** `/rep/leads` is the pipeline page in `scope="rep"` over
+    `api/rep/pipeline` (policy `RepresentativeOnly`: Entra sign-in + a UPN in
+    `REPRESENTATIVES`). It lists only leads the caller owns; every per-lead route answers
+    404 for anyone else's (never 403, so ids cannot be enumerated); there is no users,
+    promote, create, convert, owner or due-report route. Admins are not representatives and
+    representatives are not admins: `AdminEndpointAuthTests` is untouched and
+    `RepEndpointAuthTests` sweeps the new routes the same way.
+  - **Anti-abuse on the public forms**, because the link turns each enquiry into a lead
+    the moment it arrives: a honeypot field (`website`, off-screen, answered with the real
+    success shape while storing and sending nothing); a per-IP budget of 10 writes per 10
+    minutes on every anonymous write route (`public-write`, answered 429, which the SPA
+    retries with backoff); and auto-promotion only for a well-formed address.
+  - **Not done, by decision:** no migration or table (the registry is a setting; a table
+    with an admin page is the upgrade path once there are more than a handful of reps); no
+    captcha (Cloudflare Turnstile is the next layer if the honeypot and the budget are not
+    enough); no cross-device attribution (localStorage only, so per-rep numbers undercount);
+    no per-owner email digest.
+  - Tests: **1228 .NET** (124 new: intake, registry, notification, honeypot, rate-limit pins,
+    rep endpoint sweep, rep scoping, policy) **and 883 frontend** (36 new: attribution,
+    landing page, consent banner, doors form, rep panel). Both green on 2026-10-08.
+  - **After the publish:** DEPLOY.md „Switching on representative links".
+
 - [ ] **3. Popular presets / quick-start bundles in the configurator.** 3–4 ready-made
   configurations to pick and tweak; fights choice overload. Partly addressed by the
   home-page configurator strip, which makes the FIRST choice for the visitor.

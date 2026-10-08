@@ -205,6 +205,38 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 | `AUDIT_RETENTION_MONTHS` | How much history stays in the panel. Defaults to 6; anything under 1 is ignored. |
 | `ORDER_DIGEST_ENABLED` | `true` to send the weekly order digest (Mondays 08:00 Sofia). **Absent = never sent.** |
 | `ORDER_DIGEST_TO` | Optional. Who gets it; defaults to `tbonin@nvc-home4you.eu,vvladimirov@nvc-home4you.eu`. |
+| `REPRESENTATIVES` | Optional (#38). `slug=upn` entries, comma- or semicolon-separated, e.g. `dtodorov=dtodorov@nvc-home4you.eu`. Absent = `/r/{slug}` links are plain landing pages, no lead is created automatically, and nobody can sign in to `/rep/leads`. |
+
+### Switching on representative links (#38)
+
+Nothing happens until `REPRESENTATIVES` is set: `/r/{slug}` renders the landing page for
+any slug and attributes nothing, and `/rep/leads` refuses every sign-in. Set it in App
+Service (`dtodorov=dtodorov@nvc-home4you.eu`; the app restarts on its own), then:
+
+1. Open `https://nvc-home4you.eu/r/dtodorov` signed out: the landing page with both
+   buttons, and `noindex` in the head (view source). `/r/does-not-exist` answers the same
+   page; nothing on it says which slugs exist.
+2. Send one real test enquiry through it, with a well-formed address. Expect: the
+   Запитвания row with „Представител: dtodorov" in its message and an „Open lead" link, a
+   lead on the board owned by `dtodorov@nvc-home4you.eu` with Source
+   „Представител: dtodorov", and the notification mail — to the sales list AND the rep —
+   saying „Лийд #N е създаден и възложен". A junk address stays an enquiry (the mail says
+   `invalid-email`); promote it by hand if it was real.
+3. Have the rep sign in at `https://nvc-home4you.eu/rep/leads` with his tenant account.
+   He sees that one lead and nothing else. `/admin` still refuses him unless he is also in
+   `ADMIN_ALLOWED_USERS`, which is the WHOLE panel (customers, ЕГН, prices, audit) — do not
+   add him for this.
+4. Give him the link, with `?lang=bg` (or `en` / `el`) when he knows his audience.
+
+To retire a representative, remove the entry: his links stop attributing, his sign-in stops
+working, and the leads he owns stay his until someone reassigns them (the owner dropdown
+keeps listing a UPN that is already on a lead).
+
+**The public write routes have a budget since #38.** `/api/offer`, `/api/question`,
+`/api/config-email`, `POST /api/config-link` and `POST /api/reviews` allow 10 writes per
+client address per 10 minutes and answer 429 beyond that; the SPA retries a 429 with backoff
+and then reports in its banner. An office behind one NAT address shares one budget. The
+limiter is per app instance and in memory, so a restart forgets it — that is fine.
 
 ### Switching on the weekly order digest
 

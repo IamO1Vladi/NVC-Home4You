@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Data;
+using Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Services;
@@ -97,6 +98,52 @@ public class LeadDuplicateService
 
         return new Report(leads.Count, strong, byName);
     }
+
+    /// <summary>
+    /// The open lead that already looks like this customer, or null — the single-customer
+    /// question the representative intake asks before it creates a lead of its own (#38).
+    /// </summary>
+    /// <remarks>
+    /// Same two strong signals as the report, same normalisers, and the same stance: this
+    /// REPORTS. The caller still creates the representative's lead and writes a note naming
+    /// this one, because the alternative — silently attaching a new enquiry to whichever
+    /// older lead matched — is the automatic merge the class comment refuses.
+    ///
+    /// Open leads only (LeadStatuses.Open): a customer who was Lost last year and comes back
+    /// through a representative is a new conversation, not a duplicate of a closed one.
+    /// Most recently active first, so a customer with two old open rows is reported against
+    /// the one somebody is actually working.
+    ///
+    /// Normalisation happens in memory: the phone rule strips to the last nine digits, which
+    /// no SQL translation of this query could express. The open set is bounded (closed deals
+    /// archive off the board), so reading it is cheap, and only the handful of columns that
+    /// decide the match are pulled.
+    /// </remarks>
+    public async Task<OpenMatch?> FindOpenMatchAsync(string? email, string? phone, CancellationToken ct = default)
+    {
+        var wantedEmail = NormaliseEmail(email);
+        var wantedPhone = NormalisePhone(phone);
+        if (wantedEmail is null && wantedPhone is null) return null;
+
+        var open = await _db.Leads
+            .AsNoTracking()
+            .Where(l => LeadStatuses.Open.Contains(l.Status) && (l.Email != null || l.Phone != null))
+            .Select(l => new { l.Id, l.Email, l.Phone, l.OwnerUpn, l.CreatedAt, l.LastActivityAt })
+            .ToListAsync(ct);
+
+        var match = open
+            .Where(l =>
+                (wantedEmail is not null && NormaliseEmail(l.Email) == wantedEmail) ||
+                (wantedPhone is not null && NormalisePhone(l.Phone) == wantedPhone))
+            .OrderByDescending(l => l.LastActivityAt ?? l.CreatedAt)
+            .ThenByDescending(l => l.Id)
+            .FirstOrDefault();
+
+        return match is null ? null : new OpenMatch(match.Id, match.OwnerUpn);
+    }
+
+    /// <summary>What the intake needs to name the older lead: which row, and whose it is.</summary>
+    public sealed record OpenMatch(int Id, string? OwnerUpn);
 
     private static List<KeyValuePair<string, List<int>>> GroupBy(IEnumerable<(int Id, string? Key)> rows) =>
         rows.Where(r => r.Key is not null)

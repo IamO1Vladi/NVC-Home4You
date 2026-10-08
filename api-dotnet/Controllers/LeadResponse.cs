@@ -48,4 +48,31 @@ internal static class LeadResponse
             StatusCodes.Status502BadGateway,
             new { error = "We could not record your enquiry. Please try again or call us.", stored = false });
     }
+
+    // Whether the honeypot caught something. The field is off-screen and unlabelled in the
+    // SPA, so a human cannot reach it; a value in it is a bot that filled every box it found.
+    public static bool HoneypotTripped(string? website) => !string.IsNullOrWhiteSpace(website);
+
+    // The answer a tripped honeypot gets: the success shape above, byte for byte in what
+    // matters, with nothing stored and nothing emailed. A 4xx here would be a signal — a bot
+    // operator who learns which field gave them away simply stops filling it — so the decoy
+    // must be indistinguishable from the real thing to anyone reading the status code.
+    //
+    // Logged at Information, not Warning: it is the system working, and an alert that fires
+    // on every spam attempt is one that gets muted. Only the address's domain is kept, which
+    // is enough to see a wave and is not a person.
+    public static IActionResult Decoy(ControllerBase controller, ILogger logger, string kind, string? leadEmail)
+    {
+        logger.LogInformation(
+            "A {Kind} tripped the honeypot (sender domain {Domain}); nothing stored, nothing sent.",
+            kind, EmailDomain(leadEmail));
+
+        return controller.Ok(new { recordId = (long?)null, stored = true });
+    }
+
+    private static string EmailDomain(string? email)
+    {
+        var at = email?.LastIndexOf('@') ?? -1;
+        return at < 0 ? "(none)" : email![(at + 1)..].Trim();
+    }
 }

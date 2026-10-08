@@ -1,10 +1,12 @@
 import React from 'react'
 import { useModalActions } from '../context/ModalActions.jsx'
 import Modal from '../components/Modal.jsx'
+import HoneypotField from '../components/HoneypotField.jsx'
 import '../style/InternalDoors.css'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 import { submitInBackground } from '../lib/backgroundSubmit.js'
+import { loadRep } from '../lib/repAttribution.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -363,6 +365,10 @@ export default function InternalDoorsPage({ content, locale }) {
       project: fd.get('project') || '',
       modelId: '',
       locale,
+      // Same as the site-wide offer form (App.jsx): the representative whose link brought
+      // this visitor (#38), and the honeypot, which is empty for every human.
+      rep: loadRep() || '',
+      website: fd.get('website') || '',
     }
     if (!payload.name || !payload.email) return
 
@@ -701,6 +707,7 @@ export default function InternalDoorsPage({ content, locale }) {
             <input name="email" type="email" required placeholder={content.forms.email} autoComplete="email" />
             <input name="phone" placeholder={content.forms.phone} autoComplete="tel" />
             <textarea name="project" rows="6" required placeholder={content.forms.project} value={projectDraft} onChange={(e) => setProjectDraft(e.target.value)} />
+            <HoneypotField />
 
             <button className="btn" type="submit">{content.forms.submit}</button>
 

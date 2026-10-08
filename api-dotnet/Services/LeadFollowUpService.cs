@@ -118,6 +118,21 @@ public class LeadFollowUpService
     /// read on a phone, forwarded, and printed, and every one of those goes better with
     /// less.
     /// </summary>
+    /// <summary>
+    /// Where a lead opens in the panel. The one place this URL shape is spelled, so the
+    /// due report and the new-enquiry notification (EmailService, #38) cannot drift apart;
+    /// the panel reads ?lead= off /admin/pipeline and opens the sheet.
+    /// </summary>
+    public static string LeadUrl(string baseUrl, int leadId) =>
+        $"{baseUrl.TrimEnd('/')}/admin/pipeline?lead={leadId}";
+
+    /// <summary>
+    /// The same lead in the representative's panel (#38), which reads ?lead= the same way.
+    /// The notification carries both: the admin link answers a representative 403.
+    /// </summary>
+    public static string RepLeadUrl(string baseUrl, int leadId) =>
+        $"{baseUrl.TrimEnd('/')}/rep/leads?lead={leadId}";
+
     private static string BuildHtml(IReadOnlyList<LeadSummaryDto> due, string baseUrl)
     {
         var root = baseUrl.TrimEnd('/');
@@ -157,7 +172,7 @@ public class LeadFollowUpService
                 $"""
                  <tr>
                    <td style="padding:10px 0;border-bottom:1px solid #e3e8ee">
-                     <a href="{root}/admin/pipeline?lead={lead.Id}"
+                     <a href="{LeadUrl(root, lead.Id)}"
                         style="font-weight:600;font-size:15px;color:#1b5e8f;text-decoration:none">{Escape(lead.Name)}</a>
                      <div style="color:{tone};font-size:13px;margin-top:2px">{Escape(whenLabel)}</div>
                      {DetailLine(lead)}

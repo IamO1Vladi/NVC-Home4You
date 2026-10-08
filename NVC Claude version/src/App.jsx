@@ -16,7 +16,9 @@ import { getRouteSeo } from './seo/routeMeta.js'
 import { readConfiguratorPrefill } from './lib/configPrefill.js'
 import { trackEvent } from './lib/analytics.js'
 import { submitInBackground } from './lib/backgroundSubmit.js'
+import { loadRep } from './lib/repAttribution.js'
 import SubmitStatus from './components/SubmitStatus.jsx'
+import HoneypotField from './components/HoneypotField.jsx'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -94,6 +96,11 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'))
 // only credential, so it is not in the sitemap and not linked from anywhere on the site.
 const OrderTrackingPage = lazy(() => import('./pages/OrderTrackingPage.jsx'))
 
+// A representative's landing page, /r/{slug} (ROADMAP #38). Unlisted and noindex for the
+// opposite reason to the order page: the link is public by design (it goes in a video),
+// but a search result would attribute strangers to the representative.
+const RepresentativePage = lazy(() => import('./pages/RepresentativePage.jsx'))
+
 // Staff admin panel. Entra ID protects the API it calls; this is only the UI, so a
 // signed-out visitor reaching it sees a sign-in prompt and no data.
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
@@ -108,6 +115,10 @@ const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
 const AdminDocumentsPage = lazy(() => import('./pages/AdminDocumentsPage.jsx'))
+
+// The representatives' panel (#38): the leads pipeline, scoped by the API to the leads the
+// signed-in representative owns. Staff-side chrome, like /admin, and the same sign-in.
+const RepLeadsPage = lazy(() => import('./pages/RepLeadsPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -133,8 +144,15 @@ function AppShell() {
   const currentLocale = getLocaleFromPath(location.pathname) || fallbackLocale
   const ui = getHomeContent(currentLocale)
 
-  // Internal tools render full-screen without the marketing header/footer/widgets.
-  const isInternal = location.pathname.startsWith('/internal/') || location.pathname.startsWith('/admin')
+  // Internal tools render full-screen without the marketing header/footer/widgets. /rep is
+  // the representatives' panel (#38): staff-side chrome, like /admin. Matched as the exact
+  // path and the prefix rather than as '/rep' alone, which would also catch a marketing
+  // URL that merely starts with those letters.
+  const isInternal =
+    location.pathname.startsWith('/internal/') ||
+    location.pathname.startsWith('/admin') ||
+    location.pathname === '/rep' ||
+    location.pathname.startsWith('/rep/')
 
   // The configurator and the floor planner are hands-on tools with their own fixed
   // corner controls, so the floating chat launcher covers them instead of helping.
@@ -214,6 +232,9 @@ function AppShell() {
       content_id: payload.catalogId || '',
       lead_source: payload.leadSource || 'site',
       model_label: payload.modelLabel || '',
+      // Which representative's link the enquiry came through (#38), so the owner can see
+      // in GA what a video brought in. dataLayer only — it never goes to Meta below.
+      rep: payload.rep || '',
       ...(leadValue ? { lead_value: leadValue, currency: 'EUR' } : {}),
     })
 
@@ -267,6 +288,12 @@ function AppShell() {
       modelTitle: fd.get('modelTitle') || '',
       modelPath: fd.get('modelPath') || '',
       locale: currentLocale,
+      // The representative whose link brought this visitor, if any (#38): read at submit,
+      // not at open, so it is whatever the visit remembers the moment the enquiry is made.
+      // The server resolves it against its registry and ignores anything it does not know.
+      rep: loadRep() || '',
+      // The honeypot (HoneypotField): empty for every human.
+      website: fd.get('website') || '',
     }
     if (!payload.name || !payload.email) return
 
@@ -308,12 +335,16 @@ function AppShell() {
       email: fd.get('email') || '',
       question: fd.get('question') || '',
       locale: currentLocale,
+      // Same two as the offer form: the representative's slug, and the honeypot.
+      rep: loadRep() || '',
+      website: fd.get('website') || '',
     }
     if (!payload.name || !payload.email) return
 
     const analytics = {
       lead_source: questionPrefillData?.source || 'site',
       model_label: questionPrefillData?.modelLabel || '',
+      rep: payload.rep,
     }
 
     setQuestionOpen(false)
@@ -428,6 +459,10 @@ function AppShell() {
                   bookmark working, and the admin page offers to import the sheet still
                   sitting in this browser's localStorage (same origin, so it can). */}
               <Route path="/order/:reference" element={<OrderTrackingPage />} />
+              {/* A representative's link (#38). Registered here, not in paths.js: it must
+                  never enter the prerender, the SEO manifest or the sitemap. Program.cs
+                  serves /r/ with the brand-titled noindex shell — keep the two in sync. */}
+              <Route path="/r/:slug" element={<RepresentativePage />} />
               <Route path="/internal/factory-sheet" element={<Navigate to="/admin/factory-sheets" replace />} />
 
               {/* Staff admin panel (unlisted, noindex). The API enforces Entra sign-in.
@@ -460,6 +495,14 @@ function AppShell() {
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/factory-sheets" element={<AdminFactorySheetsPage />} />
 
+              {/* The representatives' panel (#38): unlisted, noindex, and only the UI — the
+                  API enforces RepresentativeOnly, so a signed-out visitor sees the sign-in
+                  card and no data. /rep is the front door the way /admin is, and with one
+                  section the door opens straight onto it. Program.cs serves /rep/ with the
+                  internal (noindex) shell — keep the two in sync. */}
+              <Route path="/rep" element={<Navigate to="/rep/leads" replace />} />
+              <Route path="/rep/leads" element={<RepLeadsPage />} />
+
               {/* Catch-all: unknown URLs render a localized 404 (noindex) instead of a
                   blank soft-404. The .NET fallback returns a real HTTP 404 status too. */}
               <Route path="*" element={<NotFoundPage />} />
@@ -487,6 +530,7 @@ function AppShell() {
               {/* Bulgarian whatever the visitor's language: these are for staff. */}
               <input type="hidden" name="modelTitle" value={selectedModel?.titleBg || ''} />
               <input type="hidden" name="modelPath" value={selectedModel?.path || ''} />
+              <HoneypotField />
               <button className="btn" type="submit">{ui.forms.offer.submit}</button>
             </form>
           </Modal>
@@ -496,6 +540,7 @@ function AppShell() {
               <input name="name" required placeholder={ui.forms.question.fields.name} autoComplete="name" />
               <input name="email" type="email" required placeholder={ui.forms.question.fields.email} autoComplete="email" />
               <textarea key={questionPrefill || 'blank'} name="question" rows={questionPrefill ? 8 : 4} required placeholder={ui.forms.question.fields.question} defaultValue={questionPrefill} />
+              <HoneypotField />
               <button className="btn" type="submit">{ui.forms.question.submit}</button>
             </form>
           </Modal>

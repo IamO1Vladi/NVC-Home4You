@@ -460,6 +460,99 @@ public class EnvConfig
             .Select(v => v.ToLowerInvariant())
             .ToArray();
 
+    // --- Representatives (#38) --------------------------------------------------------
+    // Who may hand out a personal enquiry link (/r/{slug}) and sign in to see the leads it
+    // brings. An App Service setting rather than a table, deliberately: there is one
+    // representative today, the list changes about as often as ADMIN_ALLOWED_USERS does,
+    // and a registry that lives beside that allow-list is read and edited the same way.
+    //
+    // Shape: `slug=upn` entries separated by ',' or ';', e.g.
+    //   REPRESENTATIVES=dtodorov=dtodorov@nvc-home4you.eu
+    //
+    // The slug is what goes in the public link, so it is the part a stranger can type into
+    // a form: it is lower-cased and held to a narrow shape (a letter or digit, then up to 39
+    // more of letters, digits, '.', '_' or '-') so nothing that reaches a stored message, a
+    // mail subject or a Lead.Source ever carries a line break, a tag or a lookalike. The UPN
+    // is what the lead is owned by and who gets copied on the notification, so it has to be
+    // a real mail address. Entries that fail either rule are skipped silently — EnvConfig
+    // has no logger, same as the allow-list above — and the first spelling of a slug wins,
+    // so a typo further along the setting cannot quietly re-point an existing link.
+    //
+    // The address check is done here with MailAddress rather than through EmailService on
+    // purpose: configuration must not depend on the mail layer.
+    public sealed record Representative(string Slug, string Upn);
+
+    // \z rather than $, as in OfferModel.SlugShape: $ also matches before a trailing
+    // newline. Mirrors REP_SLUG_RE in the SPA's repAttribution.js.
+    private static readonly System.Text.RegularExpressions.Regex RepresentativeSlugShape =
+        new(@"^[a-z0-9][a-z0-9._-]{1,39}\z", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    // Parsed on each access, like AdminAllowedUsers: the setting is tiny and the parse is
+    // cheaper than a cache that has to notice a changed App Service setting.
+    public IReadOnlyList<Representative> Representatives
+    {
+        get
+        {
+            var list = new List<Representative>();
+            var entries = (_cfg["REPRESENTATIVES"] ?? "")
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (var entry in entries)
+            {
+                var eq = entry.IndexOf('=');
+                if (eq <= 0) continue;
+
+                var slug = entry[..eq].Trim().ToLowerInvariant();
+                var upn = entry[(eq + 1)..].Trim().ToLowerInvariant();
+
+                if (!RepresentativeSlugShape.IsMatch(slug)) continue;
+                if (!IsMailAddress(upn)) continue;
+                if (list.Any(r => r.Slug == slug)) continue;
+
+                list.Add(new Representative(slug, upn));
+            }
+
+            return list;
+        }
+    }
+
+    // The slug arrives from the browser (a stored value from a link the visitor opened), so
+    // it is cleaned the same way the registry was before it is compared. Null for anything
+    // that is not a registered representative — the caller treats that as "no rep", never
+    // as an error, because an unknown slug is an ordinary enquiry with a stale link on it.
+    public Representative? FindRepresentativeBySlug(string? slug)
+    {
+        var key = (slug ?? "").Trim().ToLowerInvariant();
+        if (key.Length == 0) return null;
+        return Representatives.FirstOrDefault(r => r.Slug == key);
+    }
+
+    // For the sign-in side: the UPN comes from the Entra token, whose casing is not ours
+    // to rely on.
+    public Representative? FindRepresentativeByUpn(string? upn)
+    {
+        var key = (upn ?? "").Trim();
+        if (key.Length == 0) return null;
+        return Representatives.FirstOrDefault(r => string.Equals(r.Upn, key, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // The same round-trip rule EmailService.IsValidAddress applies, restated here so that
+    // configuration does not depend on the mail layer: MailAddress accepts a display name
+    // and a trailing comment, and only an address that parses back to itself is one a lead
+    // can be owned by.
+    private static bool IsMailAddress(string value)
+    {
+        if (value.Length == 0) return false;
+        try
+        {
+            return new System.Net.Mail.MailAddress(value).Address == value;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static string NormalizeRealm(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return "";

@@ -20,8 +20,17 @@ public class SqlLeadServiceTests
             .UseInMemoryDatabase($"leads-{Guid.NewGuid()}")
             .Options);
 
-    private static SqlLeadService Store(AppDbContext db) =>
-        new(db, NullLogger<SqlLeadService>.Instance);
+    // No registry unless a test hands one in: with REPRESENTATIVES unset every enquiry is
+    // stored exactly as before #38, which is what the tests above this comment pin.
+    private static SqlLeadService Store(AppDbContext db, EnvConfig? env = null) =>
+        new(db, env ?? Config(), NullLogger<SqlLeadService>.Instance);
+
+    private static EnvConfig Config(params (string Key, string Value)[] settings)
+    {
+        var dict = new Dictionary<string, string?>();
+        foreach (var (k, v) in settings) dict[k] = v;
+        return new EnvConfig(new ConfigurationBuilder().AddInMemoryCollection(dict).Build());
+    }
 
     [Fact]
     public async Task An_offer_lands_with_every_field_the_modal_collects()
@@ -173,6 +182,143 @@ public class SqlLeadServiceTests
         var message = db.Offers.Single().Message!;
         Assert.Equal(4000, message.Length);
         Assert.StartsWith(ModelLine + "\n\nxxx", message);
+    }
+
+    // --- The representative, carried in the message (#38) -------------------------------
+    //
+    // The same device as the model line, for the same reason: no column, no migration, and
+    // every staff screen already reads the message. It is the provenance that survives when
+    // the automatic promotion is skipped or fails, which is exactly when it is needed.
+
+    private const string RepLine = "Представител: dtodorov";
+
+    private static EnvConfig WithRegistry() =>
+        Config(("REPRESENTATIVES", "dtodorov=dtodorov@nvc-home4you.eu"));
+
+    [Fact]
+    public async Task A_representatives_offer_names_them_under_the_model_line()
+    {
+        // The model line stays FIRST: LeadService resolves the house off the first line, and
+        // a representative line above it would unlink every gallery enquiry from a link.
+        using var db = NewDb();
+
+        await Store(db, WithRegistry()).CreateOfferAsync(
+            GalleryOffer("Delivery to Varna?") with { Rep = "dtodorov" }, CancellationToken.None);
+
+        var message = db.Offers.Single().Message!;
+        Assert.Equal(ModelLine + "\n\n" + RepLine + "\n\nDelivery to Varna?", message);
+        Assert.True(OfferModel.HasModelLine(message));
+    }
+
+    [Fact]
+    public async Task Without_a_model_the_representative_line_opens_the_message()
+    {
+        using var db = NewDb();
+
+        await Store(db, WithRegistry()).CreateOfferAsync(
+            new OfferDto("Ivan", "ivan@example.com", null, "Two-bedroom box house", null, "bg", Rep: "dtodorov"),
+            CancellationToken.None);
+
+        Assert.Equal(RepLine + "\n\nTwo-bedroom box house", db.Offers.Single().Message);
+    }
+
+    [Fact]
+    public async Task A_representatives_question_opens_with_the_line()
+    {
+        // The question form has no model, so the line is simply first.
+        using var db = NewDb();
+
+        await Store(db, WithRegistry()).CreateQuestionAsync(
+            new QuestionDto("Maria", "maria@example.com", "Do you deliver to Greece?", "el", Rep: "dtodorov"),
+            CancellationToken.None);
+
+        Assert.Equal(RepLine + "\n\nDo you deliver to Greece?", db.Questions.Single().Message);
+    }
+
+    [Fact]
+    public async Task The_line_uses_the_registrys_spelling_not_the_browsers()
+    {
+        // The slug is whatever localStorage held; only the registered spelling may reach a
+        // row, so the queue's search finds every enquiry for one representative the same way.
+        using var db = NewDb();
+
+        await Store(db, WithRegistry()).CreateQuestionAsync(
+            new QuestionDto("Maria", "maria@example.com", "Hi", "en", Rep: "  DTodorov "), CancellationToken.None);
+
+        Assert.Equal(RepLine + "\n\nHi", db.Questions.Single().Message);
+    }
+
+    [Fact]
+    public async Task A_slug_the_registry_does_not_know_leaves_the_message_alone()
+    {
+        // A stale link, or a stranger typing into the field: an ordinary enquiry.
+        using var db = NewDb();
+
+        await Store(db, WithRegistry()).CreateOfferAsync(
+            new OfferDto("Ivan", "ivan@example.com", null, "Hi", null, "bg", Rep: "nobody"), CancellationToken.None);
+        await Store(db, WithRegistry()).CreateQuestionAsync(
+            new QuestionDto("Maria", "maria@example.com", "Hi", "en", Rep: "nobody"), CancellationToken.None);
+
+        Assert.Equal("Hi", db.Offers.Single().Message);
+        Assert.Equal("Hi", db.Questions.Single().Message);
+    }
+
+    [Fact]
+    public async Task With_no_registry_at_all_a_slug_changes_nothing()
+    {
+        // REPRESENTATIVES unset is every installation before #38, and the slug the browser
+        // sends must not be able to write itself into a row there.
+        using var db = NewDb();
+
+        await Store(db).CreateOfferAsync(
+            new OfferDto("Ivan", "ivan@example.com", null, "Hi", null, "bg", Rep: "dtodorov"), CancellationToken.None);
+        await Store(db).CreateQuestionAsync(
+            new QuestionDto("Maria", "maria@example.com", "Hi", "en", Rep: "dtodorov"), CancellationToken.None);
+
+        Assert.Equal("Hi", db.Offers.Single().Message);
+        Assert.Equal("Hi", db.Questions.Single().Message);
+    }
+}
+
+// The helper itself, apart from any store. Mirrors the WithModelLine tests in
+// OfferModelTests, because it mirrors WithModelLine.
+public class RepresentativeLineTests
+{
+    [Fact]
+    public void The_line_goes_first_with_a_blank_line_before_the_customers_text()
+    {
+        Assert.Equal("Представител: dtodorov\n\nDelivery to Varna?", RepresentativeLine.Prepend("  Delivery to Varna?  ", "dtodorov"));
+    }
+
+    [Fact]
+    public void With_no_text_the_line_stands_alone()
+    {
+        Assert.Equal("Представител: dtodorov", RepresentativeLine.Prepend("   ", "dtodorov"));
+        Assert.Equal("Представител: dtodorov", RepresentativeLine.Prepend(null, "dtodorov"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Without_a_slug_the_message_is_left_exactly_as_sent(string? slug)
+    {
+        Assert.Equal("  hi  ", RepresentativeLine.Prepend("  hi  ", slug));
+        Assert.Null(RepresentativeLine.Prepend(null, slug));
+    }
+
+    [Fact]
+    public void Applied_before_the_model_line_it_keeps_the_model_line_first()
+    {
+        // The order SqlLeadService uses, and the reason: the house is read off line one.
+        var model = OfferModel.From("15", "Космическа къща", "/en/gallery/space-house");
+
+        var stored = OfferModel.WithModelLine(model, RepresentativeLine.Prepend("Hi", "dtodorov"));
+
+        Assert.Equal(
+            "Модел от сайта: Космическа къща — https://nvc-home4you.eu/en/gallery/space-house\n\nПредставител: dtodorov\n\nHi",
+            stored);
+        Assert.True(OfferModel.HasModelLine(stored));
     }
 }
 

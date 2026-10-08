@@ -46,18 +46,29 @@ public class LeadService
     /// making a second one. The unique index is the real guarantee — this check just means
     /// the common case doesn't have to surface as a constraint violation.
     /// </summary>
-    public async Task<PromotionResult> PromoteAsync(string kind, int id, string? actorUpn, CancellationToken ct = default)
+    public Task<PromotionResult> PromoteAsync(string kind, int id, string? actorUpn, CancellationToken ct = default) =>
+        PromoteAsync(kind, id, actorUpn, source: null, ct);
+
+    /// <summary>
+    /// The same, stamping where the lead came from (Lead.Source) — "Представител: dtodorov"
+    /// for an enquiry that arrived through a representative's link (#38). Free prose, never
+    /// parsed; null leaves the column empty exactly as the panel's own promote button does.
+    ///
+    /// <c>source</c> is NOT optional here on purpose: with a default it would compete with
+    /// the overload above for every existing three-argument call and make them ambiguous.
+    /// </summary>
+    public async Task<PromotionResult> PromoteAsync(string kind, int id, string? actorUpn, string? source, CancellationToken ct = default)
     {
         if (string.Equals(kind, LeadAdminService.KindOffer, StringComparison.OrdinalIgnoreCase))
-            return await PromoteOfferAsync(id, actorUpn, ct);
+            return await PromoteOfferAsync(id, actorUpn, source, ct);
 
         if (string.Equals(kind, LeadAdminService.KindQuestion, StringComparison.OrdinalIgnoreCase))
-            return await PromoteQuestionAsync(id, actorUpn, ct);
+            return await PromoteQuestionAsync(id, actorUpn, source, ct);
 
         return new PromotionResult(PromotionOutcome.NotFound, null);
     }
 
-    private async Task<PromotionResult> PromoteOfferAsync(int offerId, string? actorUpn, CancellationToken ct)
+    private async Task<PromotionResult> PromoteOfferAsync(int offerId, string? actorUpn, string? source, CancellationToken ct)
     {
         var existing = await _db.Leads
             .Include(l => l.Activities)
@@ -78,6 +89,7 @@ public class LeadService
             HouseId = await ResolveHouseIdAsync(offer, ct),
             Status = LeadStatuses.New,
             OwnerUpn = actorUpn,
+            Source = source,
             // Born at the moment the customer asked, not the moment someone got round to
             // promoting it. Otherwise every lead looks brand new on the day sales opened it
             // and "how long did we sit on this?" becomes unanswerable.
@@ -91,7 +103,7 @@ public class LeadService
         });
     }
 
-    private async Task<PromotionResult> PromoteQuestionAsync(int questionId, string? actorUpn, CancellationToken ct)
+    private async Task<PromotionResult> PromoteQuestionAsync(int questionId, string? actorUpn, string? source, CancellationToken ct)
     {
         var existing = await _db.Leads
             .Include(l => l.Activities)
@@ -112,6 +124,7 @@ public class LeadService
             Locale = question.Locale,
             Status = LeadStatuses.New,
             OwnerUpn = actorUpn,
+            Source = source,
             CreatedAt = question.CreatedAt,
         };
 
@@ -414,6 +427,25 @@ public class LeadService
             .Where(l => l.Id == leadId)
             .Select(l => l.Email)
             .FirstOrDefaultAsync(ct);
+
+    /// <summary>
+    /// Whether a lead exists and, if so, whose it is — the question the representative's
+    /// panel asks in front of every action (#38, RepPipelineController).
+    ///
+    /// Two answers in one tuple rather than a nullable owner, because an unassigned lead is
+    /// a real state (see Lead.OwnerUpn) and a caller that read "null owner" as "no such
+    /// lead" would be wrong about exactly the rows nobody is watching. One column, no
+    /// tracking: it runs before the real read on every request to that panel.
+    /// </summary>
+    public async Task<(bool Exists, string? OwnerUpn)> OwnerOfAsync(int leadId, CancellationToken ct = default)
+    {
+        var row = await _db.Leads.AsNoTracking()
+            .Where(l => l.Id == leadId)
+            .Select(l => new { l.OwnerUpn })
+            .FirstOrDefaultAsync(ct);
+
+        return row is null ? (false, null) : (true, row.OwnerUpn);
+    }
 
     /// <summary>
     /// Reads a follow-up date off the wire. Blank is a real answer — it means "no date" —

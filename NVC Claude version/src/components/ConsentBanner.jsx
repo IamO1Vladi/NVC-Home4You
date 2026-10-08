@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { paths, getLocaleFromPath } from '../routes/paths.js';
+import { LANG_STORAGE_KEY } from '../i18n/I18nContext.jsx';
 
 /**
  * Minimal cookie banner wired for Google Consent Mode v2 + GTM.
@@ -36,11 +37,37 @@ const COPY = {
   },
 };
 
-// Staff-only areas: internal tools and the admin panel. Not public pages, so there is no
-// visitor to ask for advertising consent — showing the banner there is just noise in a
-// tool people use all day.
+// Staff-only areas: internal tools, the admin panel and the representatives' panel (/rep,
+// #38). Not public pages, so there is no visitor to ask for advertising consent — showing
+// the banner there is just noise in a tool people use all day.
 function isStaffArea(pathname = '') {
-  return pathname.startsWith('/internal/') || pathname === '/admin' || pathname.startsWith('/admin/');
+  return (
+    pathname.startsWith('/internal/') ||
+    pathname === '/admin' || pathname.startsWith('/admin/') ||
+    pathname === '/rep' || pathname.startsWith('/rep/')
+  );
+}
+
+const spoken = (value) => {
+  const l = String(value || '').trim().toLowerCase().slice(0, 2);
+  return l === 'bg' || l === 'el' || l === 'en' ? l : null;
+};
+
+// The language a customer path with NO locale prefix — /order/{code}, /r/{slug} — will
+// render in, so the banner at the bottom of it is not the one English thing on the page.
+// The same order those pages resolve: a ?lang on the link, then the language the site
+// remembers (I18nProvider writes it on every change), then the browser's. Read directly
+// rather than through the provider, because this component renders outside it.
+function siteLangFor(search) {
+  const fromLink = spoken(new URLSearchParams(search || '').get('lang'));
+  if (fromLink) return fromLink;
+  try {
+    const stored = spoken(localStorage.getItem(LANG_STORAGE_KEY));
+    if (stored) return stored;
+  } catch {
+    // private mode or blocked storage: fall through to the browser's language
+  }
+  return spoken(typeof navigator !== 'undefined' ? navigator.language : '');
 }
 
 export default function ConsentBanner() {
@@ -51,7 +78,9 @@ export default function ConsentBanner() {
   });
 
   const locale =
-    (typeof window !== 'undefined' && getLocaleFromPath(window.location.pathname)) || 'en';
+    (typeof window !== 'undefined' &&
+      (getLocaleFromPath(window.location.pathname) || siteLangFor(window.location.search))) ||
+    'en';
   const t = COPY[locale] || COPY.en;
   const policyHref = paths.privacy[locale] || paths.privacy.en;
 

@@ -20,11 +20,24 @@ import {
 // reading the thread and replying, and a round trip back to a list between every reply is
 // the thing that makes internal tools feel slow. On a phone the list collapses and the
 // thread takes the screen, because a chat is unusable in half a viewport.
+//
+// ONE SCREEN, TWO PANELS (ROADMAP #38). A representative sees this same page at /rep/leads,
+// over /api/rep/pipeline — an API that answers request for request like the admin one but
+// only ever about the leads he owns, and says 404 rather than 403 to the rest so ids cannot
+// be enumerated. What he does NOT get is everything that is about the team: a lead typed in
+// by hand, the follow-up report, the owner filter, assigning, converting to a customer, and
+// the catalogue behind the model picker. Those differences live in SCOPES below, keyed by
+// the `scope` prop, and nowhere else — so the representative's page is this page minus a
+// list, not a second page that drifts from it.
 
 const TEXT = {
   bg: {
     title: 'Лийдове',
     subtitle: 'Всеки клиент с историята на разговора. Отговорите се записват тук автоматично.',
+    // The representatives' panel's words for the same screen (#38): for one person there is
+    // no "every customer", there are the ones his link brought in.
+    repTitle: 'Моите лийдове',
+    repSubtitle: 'Клиентите, дошли през вашия линк, с историята на разговора. Отговорите се записват тук автоматично.',
     tabs: { due: 'За връзка', open: 'Активни', mine: 'Мои', all: 'Всички', archived: 'Архив' },
     empty: 'Няма лийдове в този изглед.',
     dueEmpty: 'Няма просрочени лийдове. Всичко е по график.',
@@ -134,6 +147,8 @@ const TEXT = {
   en: {
     title: 'Leads',
     subtitle: 'Every customer with their conversation. Replies land here automatically.',
+    repTitle: 'My leads',
+    repSubtitle: 'The customers who came through your link, with their conversation. Replies land here automatically.',
     tabs: { due: 'Due', open: 'Active', mine: 'Mine', all: 'All', archived: 'Archived' },
     empty: 'No leads in this view.',
     dueEmpty: 'Nothing overdue. Everything is on schedule.',
@@ -342,6 +357,57 @@ const TABS = [
   { key: 'archived', query: 'status=archived' },
 ]
 
+// Which panel this page is rendering for (#38), and everything that differs between the
+// two. Looked up once from the `scope` prop. A control that is not named here behaves
+// identically in both, which is the point of the list — see the header comment.
+const SCOPES = {
+  admin: {
+    // The shell's area, and the nav entry to light up in it.
+    area: 'admin',
+    active: 'pipeline',
+    api: '/api/admin/pipeline',
+    me: '/api/admin/me',
+    tabs: TABS,
+    // Which TEXT keys head the page.
+    text: { title: 'title', subtitle: 'subtitle' },
+    // The team's controls: a lead typed in by hand, the follow-up report, narrowing the
+    // board to one owner, assigning a lead, and turning one into a customer.
+    canCreate: true,
+    canReport: true,
+    canFilterByOwner: true,
+    canAssign: true,
+    canConvert: true,
+    // The catalogue and the category list behind the model picker — two admin endpoints,
+    // and the sheet's two controls that read them.
+    catalogue: true,
+    // The server says where a file lives.
+    attachmentHref: (file) => file.downloadUrl,
+  },
+  rep: {
+    area: 'rep',
+    active: 'myLeads',
+    api: '/api/rep/pipeline',
+    me: '/api/rep/me',
+    // No Мои and no Всички: everything the server returns is already the caller's.
+    tabs: TABS.filter(({ key }) => key !== 'mine' && key !== 'all'),
+    text: { title: 'repTitle', subtitle: 'repSubtitle' },
+    canCreate: false,
+    canReport: false,
+    canFilterByOwner: false,
+    canAssign: false,
+    canConvert: false,
+    // The picker and the category dropdown are read-only text instead: a representative
+    // does not correct what a customer asked for, and the two lists behind them are admin
+    // endpoints he cannot call anyway.
+    catalogue: false,
+    // Rebuilt from the id rather than read off the row. The server writes every download
+    // link for the admin route (LeadPipelineService), whichever controller served the lead,
+    // and a representative is not allowed through that one; his copy of the file is at the
+    // same path under his own route.
+    attachmentHref: (file) => `/api/rep/pipeline/attachments/${file.id}`,
+  },
+}
+
 // Everything a new lead can carry, in the order someone would say it out loud.
 const NEW_DEAL_FIELDS = [
   ['name', 'fName'], ['email', 'fEmail'], ['phone', 'fPhone'], ['customModel', 'fModel'],
@@ -430,7 +496,7 @@ function formatWhen(iso, lang) {
 // A status move is written into the thread by the server, so it shows up here as an
 // entry too. Rendered as a thin divider rather than a bubble — it is punctuation in the
 // conversation, not part of it.
-function Entry({ activity, t, lang, leadEmail }) {
+function Entry({ activity, t, lang, leadEmail, hrefFor }) {
   if (activity.type === 'status') {
     return (
       <li className="adm-thread-meta">
@@ -489,12 +555,13 @@ function Entry({ activity, t, lang, leadEmail }) {
           : <p className="adm-bubble-body">{activity.body}</p>}
         {/* Files, on both sides of the conversation: the plan a customer emailed us and
             the quote we sent back. The href is the authenticated endpoint, never a blob
-            URL — see AdminPipelineFilesController for why that is not an accident. */}
+            URL — see AdminPipelineFilesController for why that is not an accident — and
+            WHICH endpoint is the scope's to say (SCOPES.attachmentHref). */}
         {activity.attachments?.length ? (
           <ul className="adm-bubble-files">
             {activity.attachments.map((f) => (
               <li key={f.id}>
-                <a href={f.downloadUrl} className="adm-file">
+                <a href={hrefFor(f)} className="adm-file">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"
                        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M13.6 3.2H7.4a2 2 0 0 0-2 2v13.6a2 2 0 0 0 2 2h9.2a2 2 0 0 0 2-2V8.2z" />
@@ -515,13 +582,13 @@ function Entry({ activity, t, lang, leadEmail }) {
 // The conversation itself, rendered the same way in the pane and in the full-screen
 // reader. One component rather than two, because the version people reach for when a
 // thread is long is exactly the one that must not be a simplified copy.
-function Thread({ activities, t, lang, leadEmail, endRef }) {
+function Thread({ activities, t, lang, leadEmail, hrefFor, endRef }) {
   return (
     <ol className="adm-thread">
       {activities.length === 0
         ? <li className="adm-empty"><p>{t.noThread}</p></li>
         : activities.map((a) => (
-          <Entry key={a.id} activity={a} t={t} lang={lang} leadEmail={leadEmail} />
+          <Entry key={a.id} activity={a} t={t} lang={lang} leadEmail={leadEmail} hrefFor={hrefFor} />
         ))}
       {endRef ? <li ref={endRef} aria-hidden="true" /> : null}
     </ol>
@@ -543,7 +610,8 @@ function DueLabel({ iso, t, className = '' }) {
   )
 }
 
-export default function AdminPipelinePage() {
+export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
+  const scope = SCOPES[scopeKey] ?? SCOPES.admin
   const [lang, setLang] = useAdminLang()
   const t = TEXT[lang] ?? TEXT.bg
 
@@ -553,7 +621,7 @@ export default function AdminPipelinePage() {
   // otherwise every link in that mail lands on the default board and the person has to
   // find the report again by hand.
   const [tab, setTab] = React.useState(() =>
-    TABS.some((x) => x.key === params.get('view')) ? params.get('view') : 'open')
+    scope.tabs.some((x) => x.key === params.get('view')) ? params.get('view') : 'open')
   const [creating, setCreating] = React.useState(false)
   // Phones get one pane at a time. Stacking the board above a conversation means
   // scrolling past every other deal to reach the message you opened, which is the whole
@@ -712,21 +780,21 @@ export default function AdminPipelinePage() {
     // Built here, once, so a filter that is on screen cannot be missing from the request
     // that answers it — which would quietly widen the list back out under someone.
     const query = [
-      TABS.find((x) => x.key === which)?.query ?? '',
-      (which === 'due' || which === 'open') && ownerFilter
+      scope.tabs.find((x) => x.key === which)?.query ?? '',
+      scope.canFilterByOwner && (which === 'due' || which === 'open') && ownerFilter
         ? `owner=${encodeURIComponent(ownerFilter)}`
         : '',
     ].filter(Boolean).join('&')
 
-    const rows = await adminGet(`/api/admin/pipeline${query ? `?${query}` : ''}`)
+    const rows = await adminGet(`${scope.api}${query ? `?${query}` : ''}`)
     setBoard(rows ?? [])
     return rows ?? []
-  }, [ownerFilter])
+  }, [ownerFilter, scope])
 
   const loadLead = React.useCallback(async (id) => {
     if (!id) { setLead(null); return }
-    setLead(await adminGet(`/api/admin/pipeline/${id}`))
-  }, [])
+    setLead(await adminGet(`${scope.api}/${id}`))
+  }, [scope])
 
   React.useEffect(() => {
     let alive = true
@@ -823,35 +891,43 @@ export default function AdminPipelinePage() {
 
   // Tolerates failure on purpose: without the catalogue the model dropdown falls back to
   // the free-text box, which is worse than having it and far better than a page that will
-  // not load because the gallery endpoint hiccuped.
+  // not load because the gallery endpoint hiccuped. Not asked at all where the sheet shows
+  // the model as text — the endpoint is the admins', and the answer would go unused.
   React.useEffect(() => {
+    if (!scope.catalogue) return undefined
     let alive = true
     adminGet('/api/admin/gallery')
       .then((rows) => { if (alive) setHouses(Array.isArray(rows) ? rows : []) })
       .catch(() => { /* the free-text field still works */ })
     return () => { alive = false }
-  }, [])
+  }, [scope])
 
   // Same tolerance: without the list the owner control still shows the current owner and
   // "Take it" still works, which is most of what assignment is used for day to day.
   React.useEffect(() => {
     let alive = true
-    adminGet('/api/admin/pipeline/users')
-      .then((rows) => { if (alive) setUsers(Array.isArray(rows) ? rows : []) })
-      .catch(() => { /* the take-it path still works */ })
-    adminGet('/api/admin/me')
+    // Who can own a lead — only where the page offers to change that. The owner filter
+    // reads the same list, and goes with the same scope.
+    if (scope.canAssign) {
+      adminGet('/api/admin/pipeline/users')
+        .then((rows) => { if (alive) setUsers(Array.isArray(rows) ? rows : []) })
+        .catch(() => { /* the take-it path still works */ })
+    }
+    adminGet(scope.me)
       .then((who) => { if (alive && who) setMe(who) })
       .catch(() => { /* no signature; the composer still works */ })
     // Which categories carry catalogue models, from the list that already serves the
     // customer purchases screen — the two screens ask the same question of the same
     // catalogue, and a second copy of the answer in here is one that drifts silently.
-    adminGet('/api/admin/customers/categories')
-      .then((res) => {
-        if (alive && Array.isArray(res?.withGalleryModels)) setWithGalleryModels(res.withGalleryModels)
-      })
-      .catch(() => { /* WITH_GALLERY_MODELS_FALLBACK */ })
+    if (scope.catalogue) {
+      adminGet('/api/admin/customers/categories')
+        .then((res) => {
+          if (alive && Array.isArray(res?.withGalleryModels)) setWithGalleryModels(res.withGalleryModels)
+        })
+        .catch(() => { /* WITH_GALLERY_MODELS_FALLBACK */ })
+    }
     return () => { alive = false }
-  }, [])
+  }, [scope])
 
   // A fresh composer starts as the signature. Refilled when the lead changes (the locale
   // may differ) — but never over something someone has typed: only an empty box or one
@@ -918,7 +994,7 @@ export default function AdminPipelinePage() {
     if (cc.trim()) form.append('cc', cc.trim())
     for (const file of files) form.append('files', file, file.name)
 
-    const answer = await adminSendForm(`/api/admin/pipeline/${selectedId}/reply`, form)
+    const answer = await adminSendForm(`${scope.api}/${selectedId}/reply`, form)
     // Reset only after the server confirms — back to the bare signature, ready for the
     // next message. Resetting optimistically loses what someone typed if the send fails,
     // and retyping a reply is the least forgivable data loss in a tool like this.
@@ -934,7 +1010,7 @@ export default function AdminPipelinePage() {
   }, t.sendError)
 
   const draft = () => run('draft', async () => {
-    const result = await adminSend(`/api/admin/pipeline/${selectedId}/draft`, 'POST', {
+    const result = await adminSend(`${scope.api}/${selectedId}/draft`, 'POST', {
       // The steer is what was typed, as prose — the signature is not an instruction, and
       // the model reads text, not markup.
       instruction: composed || null,
@@ -946,24 +1022,24 @@ export default function AdminPipelinePage() {
   }, t.draftError)
 
   const setStatus = (status) => run('save', async () => {
-    await adminSend(`/api/admin/pipeline/${selectedId}/status`, 'POST', { status })
+    await adminSend(`${scope.api}/${selectedId}/status`, 'POST', { status })
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
   const takeIt = () => run('save', async () => {
-    await adminSend(`/api/admin/pipeline/${selectedId}/owner`, 'POST', { ownerUpn: 'me' })
+    await adminSend(`${scope.api}/${selectedId}/owner`, 'POST', { ownerUpn: 'me' })
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
   const assignTo = (upn) => run('save', async () => {
     // Empty string is the "Nobody" option; the server takes null as "unassign", and an
     // unassigned lead is a real state — it is the one nobody has picked up.
-    await adminSend(`/api/admin/pipeline/${selectedId}/owner`, 'POST', { ownerUpn: upn || null })
+    await adminSend(`${scope.api}/${selectedId}/owner`, 'POST', { ownerUpn: upn || null })
     await Promise.all([loadLead(selectedId), loadBoard(tab)])
   }, t.saveError)
 
   const makeCustomer = () => run('save', async () => {
-    const result = await adminSend(`/api/admin/pipeline/${selectedId}/convert`, 'POST')
+    const result = await adminSend(`${scope.api}/${selectedId}/convert`, 'POST')
     // Straight into the customer's card — identity is created, the purchase is added
     // there. Also where a SECOND click lands: the server answers with the existing
     // customer rather than a namesake, so this doubles as "open their customer card".
@@ -994,7 +1070,7 @@ export default function AdminPipelinePage() {
     // has nothing typed (see canLog), so what arrives here has words; if it somehow does
     // not, the endpoint says no and the person reads why.
     if (files.length === 0 || separately) {
-      await adminSend(`/api/admin/pipeline/${selectedId}/activities`, 'POST', { type: logType, body })
+      await adminSend(`${scope.api}/${selectedId}/activities`, 'POST', { type: logType, body })
     }
 
     // This is also the way to keep a file that is too big to email — the note path stores up
@@ -1003,7 +1079,7 @@ export default function AdminPipelinePage() {
     // The caption is plain text — it labels a file, it is not a document.
     for (const [index, file] of files.entries()) {
       await adminUpload(
-        `/api/admin/pipeline/${selectedId}/attachments`,
+        `${scope.api}/${selectedId}/attachments`,
         file,
         !separately && index === 0 && composed ? { caption: composed } : {},
       )
@@ -1038,7 +1114,7 @@ export default function AdminPipelinePage() {
     const { modelText, ...body } = fields
     const leadId = selectedId
     const answer = await adminSave({
-      url: `/api/admin/pipeline/${leadId}/fields`,
+      url: `${scope.api}/${leadId}/fields`,
       body,
       lang,
       subject: body.name,
@@ -1075,7 +1151,7 @@ export default function AdminPipelinePage() {
     if (!name) { setError(t.nameRequired); return }
     // No onLateSuccess and no background: a create is never handed to the retries, so this
     // dialog either closes on an answer or stays open on one. See adminSave's `repeatable`.
-    const answer = await adminSave({ url: '/api/admin/pipeline', body: { ...draftLead, name }, lang, subject: name })
+    const answer = await adminSave({ url: scope.api, body: { ...draftLead, name }, lang, subject: name })
 
     // Refused, or sent into silence: either way the dialog keeps the phone number and the
     // notes that were typed into it. A create is the one save the retries may NOT have,
@@ -1090,7 +1166,7 @@ export default function AdminPipelinePage() {
   }, t.saveError)
 
   const sendReport = () => run('report', async () => {
-    const result = await adminSend('/api/admin/pipeline/due/report', 'POST', {
+    const result = await adminSend(`${scope.api}/due/report`, 'POST', {
       to: reportTo.trim() || null,
       // The narrowing travels with the report, because the button sits two controls from
       // the filter and the invariant above it is that the report is of the view it reports
@@ -1109,14 +1185,15 @@ export default function AdminPipelinePage() {
     <AdminShell
       lang={lang}
       setLang={setLang}
-      active="pipeline"
-      title={t.title}
-      subtitle={t.subtitle}
+      area={scope.area}
+      active={scope.active}
+      title={t[scope.text.title]}
+      subtitle={t[scope.text.subtitle]}
       state={state}
       onRetry={() => setRetryAt(Date.now())}
     >
-      <nav className="adm-tabs" aria-label={t.title}>
-        {TABS.map(({ key }) => (
+      <nav className="adm-tabs" aria-label={t[scope.text.title]}>
+        {scope.tabs.map(({ key }) => (
           <button
             key={key}
             type="button"
@@ -1134,12 +1211,14 @@ export default function AdminPipelinePage() {
             would put a failed reply's sentence above an empty form, where it reads as
             though creating a lead had already gone wrong — the sheet's opener below has
             cleared it for the same reason since the day it started showing one. */}
-        <button type="button" className="btn" onClick={() => { setError(''); setCreating(true) }}>
-          + {t.newDeal}
-        </button>
+        {scope.canCreate ? (
+          <button type="button" className="btn" onClick={() => { setError(''); setCreating(true) }}>
+            + {t.newDeal}
+          </button>
+        ) : null}
         {/* The report goes with the view it reports on. On the other tabs it would be a
             button whose result has nothing to do with what is on screen. */}
-        {tab === 'due' ? (
+        {tab === 'due' && scope.canReport ? (
           <button type="button" className="btn ghost" onClick={() => setReporting(true)}>
             {t.sendReport}
           </button>
@@ -1151,7 +1230,7 @@ export default function AdminPipelinePage() {
             therefore always in view, which is the right way round for the one thing
             nobody has picked up. The list is the assignment dropdown's, unchanged: a
             second idea of who can own a lead is a second list to keep in step. */}
-        {tab === 'due' || tab === 'open' ? (
+        {scope.canFilterByOwner && (tab === 'due' || tab === 'open') ? (
           <label className="adm-filter">
             <span className="adm-small adm-muted">{t.filterOwner}</span>
             <select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
@@ -1201,9 +1280,13 @@ export default function AdminPipelinePage() {
             ))}
           </select>
         </label>
-        <span className="adm-small adm-muted">
-          {tab === 'due' ? t.dueSubtitle : t.newDealHint}
-        </span>
+        {/* The hint for the new-lead button belongs to the button: where there is none,
+            a line about calls and trade fairs would be about nothing on screen. */}
+        {tab === 'due' || scope.canCreate ? (
+          <span className="adm-small adm-muted">
+            {tab === 'due' ? t.dueSubtitle : t.newDealHint}
+          </span>
+        ) : null}
         {reportNote ? <span className="adm-small adm-report-note" role="status">{reportNote}</span> : null}
       </div>
 
@@ -1408,31 +1491,38 @@ export default function AdminPipelinePage() {
                   {/* Assignment. The current owner is always an option even when the
                       users list does not carry them (someone who left still owns their
                       history) — a dropdown that cannot express the stored value would
-                      silently reassign it the moment anyone touches the control. */}
-                  <label className="adm-filter adm-small adm-muted">
-                    <span>{t.owner}:</span>
-                    <select
-                      value={lead.ownerUpn || ''}
-                      disabled={busy === 'save'}
-                      onChange={(e) => assignTo(e.target.value)}
-                    >
-                      <option value="">{t.unassigned}</option>
-                      {/* Case-insensitively, because that is how the server decided what
-                          counted as a duplicate when it merged ADMIN_ALLOWED_USERS with the
-                          owners already on leads. Comparing exactly here would readmit the
-                          very duplicate that merge removed: an owner stored as
-                          Vvladimirov@… against a list carrying vvladimirov@… reads as
-                          missing, gets prepended, and the same person appears twice. */}
-                      {(!lead.ownerUpn || users.some((u) => sameUser(u, lead.ownerUpn))
-                        ? users
-                        : [lead.ownerUpn, ...users])
-                        .map((u) => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </label>
-                  {!lead.ownerUpn ? (
-                    <button type="button" className="adm-linkbtn" onClick={takeIt} disabled={busy === 'save'}>
-                      {t.takeIt}
-                    </button>
+                      silently reassign it the moment anyone touches the control.
+
+                      Not in the representatives' scope at all: every lead there is the
+                      caller's, and the API has no owner route to send a change to. */}
+                  {scope.canAssign ? (
+                    <>
+                      <label className="adm-filter adm-small adm-muted">
+                        <span>{t.owner}:</span>
+                        <select
+                          value={lead.ownerUpn || ''}
+                          disabled={busy === 'save'}
+                          onChange={(e) => assignTo(e.target.value)}
+                        >
+                          <option value="">{t.unassigned}</option>
+                          {/* Case-insensitively, because that is how the server decided what
+                              counted as a duplicate when it merged ADMIN_ALLOWED_USERS with the
+                              owners already on leads. Comparing exactly here would readmit the
+                              very duplicate that merge removed: an owner stored as
+                              Vvladimirov@… against a list carrying vvladimirov@… reads as
+                              missing, gets prepended, and the same person appears twice. */}
+                          {(!lead.ownerUpn || users.some((u) => sameUser(u, lead.ownerUpn))
+                            ? users
+                            : [lead.ownerUpn, ...users])
+                            .map((u) => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </label>
+                      {!lead.ownerUpn ? (
+                        <button type="button" className="adm-linkbtn" onClick={takeIt} disabled={busy === 'save'}>
+                          {t.takeIt}
+                        </button>
+                      ) : null}
+                    </>
                   ) : null}
 
                   {/* ONE button, and a real one rather than a link.
@@ -1443,15 +1533,19 @@ export default function AdminPipelinePage() {
                       next — were on opposite sides of the screen and neither was easy to
                       spot. Same screen now, and it is the one thing on this header you
                       cannot miss. */}
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    title={t.makeCustomerHint}
-                    onClick={makeCustomer}
-                    disabled={busy !== ''}
-                  >
-                    {t.makeCustomer}
-                  </button>
+                  {/* A customer is the team's record, not one person's: the representatives'
+                      API has no convert route, and the card it would open is an admin page. */}
+                  {scope.canConvert ? (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      title={t.makeCustomerHint}
+                      onClick={makeCustomer}
+                      disabled={busy !== ''}
+                    >
+                      {t.makeCustomer}
+                    </button>
+                  ) : null}
 
                   <button
                     type="button"
@@ -1481,7 +1575,7 @@ export default function AdminPipelinePage() {
                 </p>
               ) : null}
 
-              <Thread activities={lead.activities} t={t} lang={lang} leadEmail={lead.email} endRef={threadEnd} />
+              <Thread activities={lead.activities} t={t} lang={lang} leadEmail={lead.email} hrefFor={scope.attachmentHref} endRef={threadEnd} />
 
               {/* The lead sheet: everything about this customer on one screen, editable.
                   What happens next comes FIRST — it is the field people open this to
@@ -1565,111 +1659,140 @@ export default function AdminPipelinePage() {
                           </label>
                         ))}
 
-                        {/* The category the lead already carries is always an option, even
-                            when it is not one of the gallery's four — it came from the
-                            customer, and a dropdown that silently drops the current value
-                            rewrites the record the moment anyone saves. */}
-                        <label>
-                          <span className="adm-small">{t.category}</span>
-                          <select
-                            value={fields.categoryKey}
-                            onChange={(e) => setFields((f) => ({
-                              ...f,
-                              categoryKey: e.target.value,
-                              // A model belongs to a category, so the text is re-resolved
-                              // against the new one. A title that is a real model in both
-                              // stays linked; anything else drops to free text rather than
-                              // lingering as a mismatch nobody notices.
-                              //
-                              // WHAT WAS TYPED ALWAYS SURVIVES THE SWITCH — only the link
-                              // to a catalogue row can fall away. Moving a lead from
-                              // modular to garage leaves "Nova 60" sitting in the box that
-                              // has just become free text, and the line underneath changes
-                              // from "linked model" to "free text", so the one thing that
-                              // did change is the one thing that gets said out loud.
-                              // Emptying the box instead would throw away a sentence
-                              // somebody typed to fix a dropdown they got wrong, and
-                              // keeping the old foreign key would leave a garage lead
-                              // pointing at a modular house that no screen would ever show
-                              // them again.
-                              ...resolveModel(
-                                f.modelText, e.target.value,
-                                modelsFor(houses, e.target.value, withGalleryModels),
-                              ),
-                            }))}
-                          >
-                            <option value="">{t.noCategory}</option>
-                            {GALLERY_CATEGORIES.map((key) => (
-                              <option key={key} value={key}>{t.categories[key] ?? key}</option>
-                            ))}
-                            {fields.categoryKey && !GALLERY_CATEGORIES.includes(fields.categoryKey)
-                              ? <option value={fields.categoryKey}>{fields.categoryKey}</option>
-                              : null}
-                          </select>
-                        </label>
+                        {/* Chosen, or merely said (#38). In the admins' scope these are a
+                            dropdown over the four gallery categories and a combobox over
+                            the catalogue; in the representatives' they are the same two
+                            values as plain text — a representative does not correct what
+                            a customer asked for, and the two lists behind the controls are
+                            admin endpoints he cannot call. The values still travel with the
+                            save, untouched, so nothing is blanked by a sheet that cannot
+                            edit them. */}
+                        {scope.catalogue ? (
+                          <>
+                            {/* The category the lead already carries is always an option, even
+                                when it is not one of the gallery's four — it came from the
+                                customer, and a dropdown that silently drops the current value
+                                rewrites the record the moment anyone saves. */}
+                            <label>
+                              <span className="adm-small">{t.category}</span>
+                              <select
+                                value={fields.categoryKey}
+                                onChange={(e) => setFields((f) => ({
+                                  ...f,
+                                  categoryKey: e.target.value,
+                                  // A model belongs to a category, so the text is re-resolved
+                                  // against the new one. A title that is a real model in both
+                                  // stays linked; anything else drops to free text rather than
+                                  // lingering as a mismatch nobody notices.
+                                  //
+                                  // WHAT WAS TYPED ALWAYS SURVIVES THE SWITCH — only the link
+                                  // to a catalogue row can fall away. Moving a lead from
+                                  // modular to garage leaves "Nova 60" sitting in the box that
+                                  // has just become free text, and the line underneath changes
+                                  // from "linked model" to "free text", so the one thing that
+                                  // did change is the one thing that gets said out loud.
+                                  // Emptying the box instead would throw away a sentence
+                                  // somebody typed to fix a dropdown they got wrong, and
+                                  // keeping the old foreign key would leave a garage lead
+                                  // pointing at a modular house that no screen would ever show
+                                  // them again.
+                                  ...resolveModel(
+                                    f.modelText, e.target.value,
+                                    modelsFor(houses, e.target.value, withGalleryModels),
+                                  ),
+                                }))}
+                              >
+                                <option value="">{t.noCategory}</option>
+                                {GALLERY_CATEGORIES.map((key) => (
+                                  <option key={key} value={key}>{t.categories[key] ?? key}</option>
+                                ))}
+                                {fields.categoryKey && !GALLERY_CATEGORIES.includes(fields.categoryKey)
+                                  ? <option value={fields.categoryKey}>{fields.categoryKey}</option>
+                                  : null}
+                              </select>
+                            </label>
 
-                        {/* One box, and what it offers follows the category.
+                            {/* One box, and what it offers follows the category.
 
-                            Where the catalogue has models — wagons and modular houses, as
-                            the server's list reads today — it is a <datalist> combobox, so
-                            the answer can be picked and the lead comes out LINKED to a real
-                            row rather than to a title somebody spelled their own way. A
-                            <select> would be the stricter control and the wrong one: even
-                            in those categories the answer is sometimes "two wagons joined",
-                            and a dropdown cannot hold that.
+                                Where the catalogue has models — wagons and modular houses, as
+                                the server's list reads today — it is a <datalist> combobox, so
+                                the answer can be picked and the lead comes out LINKED to a real
+                                row rather than to a title somebody spelled their own way. A
+                                <select> would be the stricter control and the wrong one: even
+                                in those categories the answer is sometimes "two wagons joined",
+                                and a dropdown cannot hold that.
 
-                            Where it has none — prefab and garage today, and every imported
-                            category the gallery never had a filter for — it is a plain text
-                            box. Not a cosmetic difference: a combobox whose list is empty
-                            has an arrow that opens onto nothing, which reads as a catalogue
-                            that failed to load rather than as a category with nothing to
-                            offer, and the second reading is the one that gets reported as a
-                            bug. */}
-                        <label className="adm-span-2">
-                          <span className="adm-small">{t.model}</span>
-                          <input
-                            type="text"
-                            // Undefined rather than '' when there is no list to point at: an
-                            // <input> carrying a list attribute IS a combobox to a browser
-                            // and to a screen reader, so naming a datalist that is not
-                            // rendered promises a dropdown that never opens.
-                            list={canPickModel ? 'leadModelOptions' : undefined}
-                            title={noCatalogue ? t.modelHintFree : t.modelHint}
-                            value={fields.modelText}
-                            onChange={(e) => setFields((f) => ({
-                              ...f,
-                              ...resolveModel(e.target.value, f.categoryKey, leadModels),
-                            }))}
-                          />
-                          {canPickModel ? (
-                            <datalist id="leadModelOptions">
-                              {leadModels.map((h) => <option key={h.id} value={h.title} />)}
-                            </datalist>
-                          ) : null}
+                                Where it has none — prefab and garage today, and every imported
+                                category the gallery never had a filter for — it is a plain text
+                                box. Not a cosmetic difference: a combobox whose list is empty
+                                has an arrow that opens onto nothing, which reads as a catalogue
+                                that failed to load rather than as a category with nothing to
+                                offer, and the second reading is the one that gets reported as a
+                                bug. */}
+                            <label className="adm-span-2">
+                              <span className="adm-small">{t.model}</span>
+                              <input
+                                type="text"
+                                // Undefined rather than '' when there is no list to point at: an
+                                // <input> carrying a list attribute IS a combobox to a browser
+                                // and to a screen reader, so naming a datalist that is not
+                                // rendered promises a dropdown that never opens.
+                                list={canPickModel ? 'leadModelOptions' : undefined}
+                                title={noCatalogue ? t.modelHintFree : t.modelHint}
+                                value={fields.modelText}
+                                onChange={(e) => setFields((f) => ({
+                                  ...f,
+                                  ...resolveModel(e.target.value, f.categoryKey, leadModels),
+                                }))}
+                              />
+                              {canPickModel ? (
+                                <datalist id="leadModelOptions">
+                                  {leadModels.map((h) => <option key={h.id} value={h.title} />)}
+                                </datalist>
+                              ) : null}
 
-                          {/* Which of the two things just happened, said out loud. The
-                              linking is the one part of this control a person cannot see,
-                              and an invisible foreign key is how a lead ends up attached to
-                              a house nobody meant to attach it to.
+                              {/* Which of the two things just happened, said out loud. The
+                                  linking is the one part of this control a person cannot see,
+                                  and an invisible foreign key is how a lead ends up attached to
+                                  a house nobody meant to attach it to.
 
-                              An EMPTY box is the first test, ahead of the catalogue one,
-                              because nothing has happened yet to describe. A caption under
-                              a box nobody has typed in is a permanent line about a state
-                              the person never asked to be in — and on a lead with no
-                              category chosen yet, which is the ordinary state of a phone
-                              lead and of a good share of the imported ones, it blamed the
-                              catalogue for holding nothing before anybody had asked it for
-                              anything. It never went away whatever was typed, and it never
-                              gave the instruction that would have helped: choose a
-                              category first. */}
-                          <span className="adm-small adm-muted adm-model-state">
-                            {fields.houseId > 0
-                              ? `✓ ${t.modelLinked(fields.modelText)}`
-                              : !fields.modelText.trim()
-                                ? ' '
-                                : (noCatalogue ? t.modelNoCatalogue : t.modelFree)}
-                          </span>
-                        </label>
+                                  An EMPTY box is the first test, ahead of the catalogue one,
+                                  because nothing has happened yet to describe. A caption under
+                                  a box nobody has typed in is a permanent line about a state
+                                  the person never asked to be in — and on a lead with no
+                                  category chosen yet, which is the ordinary state of a phone
+                                  lead and of a good share of the imported ones, it blamed the
+                                  catalogue for holding nothing before anybody had asked it for
+                                  anything. It never went away whatever was typed, and it never
+                                  gave the instruction that would have helped: choose a
+                                  category first. */}
+                              <span className="adm-small adm-muted adm-model-state">
+                                {fields.houseId > 0
+                                  ? `✓ ${t.modelLinked(fields.modelText)}`
+                                  : !fields.modelText.trim()
+                                    ? ' '
+                                    : (noCatalogue ? t.modelNoCatalogue : t.modelFree)}
+                              </span>
+                            </label>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ display: 'grid', gap: 4 }}>
+                              <span className="adm-small">{t.category}</span>
+                              <span className={fields.categoryKey ? '' : 'adm-muted'}>
+                                {fields.categoryKey
+                                  ? (t.categories[fields.categoryKey] ?? fields.categoryKey)
+                                  : t.noCategory}
+                              </span>
+                            </div>
+                            <div className="adm-span-2" style={{ display: 'grid', gap: 4 }}>
+                              <span className="adm-small">{t.model}</span>
+                              <span className={fields.modelText ? '' : 'adm-muted'}>
+                                {fields.modelText || '—'}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       <label className="adm-sheet-notes">
@@ -1685,7 +1808,7 @@ export default function AdminPipelinePage() {
 
                     <section>
                       <h3 className="adm-sheet-head">{t.thread}</h3>
-                      <Thread activities={lead.activities} t={t} lang={lang} leadEmail={lead.email} />
+                      <Thread activities={lead.activities} t={t} lang={lang} leadEmail={lead.email} hrefFor={scope.attachmentHref} />
                     </section>
                   </div>
                 ) : null}

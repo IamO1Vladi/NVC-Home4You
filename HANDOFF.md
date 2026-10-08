@@ -15,7 +15,7 @@ Tests at `deploy-2026-10-04`: **1104 .NET, 847 frontend**, all green. `npm run a
 
 | | |
 |---|---|
-| **Live** | `ac5286b`, tagged **`deploy-2026-10-04`** (published 2026-10-04). It carries #33 (a failed image retries once, then falls back once and stops; the prerender refuses a page with a failed image), #37 (a retitled product keeps its old address: `HouseSlugHistory`, written by the save that changes a title, 301s it to the house's current page; „Стари адреси" in the house dialog) and A1's fifth kitchen position (owner, 2026-10-03: the tall unit under position 4, at 40.3/30.4, for a fridge). Its one migration, `AddHouseSlugHistory`, was applied by the owner on 2026-10-03, before the publish. The bundle is `index-BXFgat5H.js` with 52/52 snapshots (catalogue matched live on all 15 items, no `IMAGES` route), compared page by page against the deploy-2026-10-03 set and trial-published before the real one. **Verified live 2026-10-04:** the bundle loads; the configurator shows A1 with five positions, позиция 5 at 40.3% 30.4%, free for the fridge; `/en/gallery/panaromic-box-house-37-m2?utm_source=x` and the Cyrillic-„а" address still 301 with the query kept; `/en/gallery/space-house` 200; an unknown product 404; `/api/gallery` 15 items, no id twice; `sitemap-gallery.xml` 45; `GET /api/admin/gallery/{id}/retired-addresses` answers 401 signed out. Before it: `deploy-2026-10-03` (`36f158c`), the big release (#31, #32, #27, #29, #11, #34, the gallery SEO store fix, #35, #36); its record is in git history. Rollback snapshots for both on the main device: `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-10-03` and `…-2026-09-20`. **What remains human:** Do next 0 and 0b. |
+| **Live** | `ac5286b`, tagged **`deploy-2026-10-04`** (published 2026-10-04). It carries #33 (a failed image retries once, then falls back once and stops; the prerender refuses a page with a failed image), #37 (a retitled product keeps its old address: `HouseSlugHistory`, written by the save that changes a title, 301s it to the house's current page; „Стари адреси" in the house dialog) and A1's fifth kitchen position (owner, 2026-10-03: the tall unit under position 4, at 40.3/30.4, for a fridge). Its one migration, `AddHouseSlugHistory`, was applied by the owner on 2026-10-03, before the publish. The bundle is `index-BXFgat5H.js` with 52/52 snapshots (catalogue matched live on all 15 items, no `IMAGES` route), compared page by page against the deploy-2026-10-03 set and trial-published before the real one. **Verified live 2026-10-04:** the bundle loads; the configurator shows A1 with five positions, позиция 5 at 40.3% 30.4%, free for the fridge; `/en/gallery/panaromic-box-house-37-m2?utm_source=x` and the Cyrillic-„а" address still 301 with the query kept; `/en/gallery/space-house` 200; an unknown product 404; `/api/gallery` 15 items, no id twice; `sitemap-gallery.xml` 45; `GET /api/admin/gallery/{id}/retired-addresses` answers 401 signed out. Before it: `deploy-2026-10-03` (`36f158c`), the big release (#31, #32, #27, #29, #11, #34, the gallery SEO store fix, #35, #36); its record is in git history. Rollback snapshots for both on the main device: `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-10-03` and `…-2026-09-20`. **What remains human:** Do next 0a and 0b; 0 is the next release. |
 | **`production` branch** | = live, `ac5286b`. |
 | **`master`** | = `production`, plus this record. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
@@ -29,7 +29,19 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **After `deploy-2026-10-04`: the Greek retitles, then Search Console.**
+0. **Representative links (#38) — BUILT 2026-10-08 on branch `rep-links`, NOT merged, NOT
+   deployed.** One link per representative (`/r/dtodorov`), every enquiry through it becomes
+   dtodorov's lead at once, and `/rep/leads` is his own restricted panel; ROADMAP #38 has
+   the design and the decisions. The branch carries no migration. To ship it: read the
+   branch (`git log master..rep-links`), merge it fast-forward into `master`, run both
+   suites, then release per DEPLOY.md — the SPA changed, so §6b (the prerender) is owed.
+   After the publish, DEPLOY.md „Switching on representative links": set `REPRESENTATIVES`
+   in App Service, probe `/r/dtodorov` and `/r/does-not-exist` (both 200 + noindex, signed
+   out), send one live enquiry and watch it land on the board owned by
+   `dtodorov@nvc-home4you.eu`, have him sign in at `/rep/leads` and see only that lead. Do
+   NOT add him to `ADMIN_ALLOWED_USERS` — that is the whole panel.
+
+0a. **After `deploy-2026-10-04`: the Greek retitles, then Search Console.**
    1. **The history is seeded — DONE 2026-10-04** by the owner (`seed-slug-history`, dry
       run read first, no warnings). Five rows: the three `RetiredSlugs` addresses, now keyed
       to SQL houses #6, #7 and #12 (dated 2026-08-19), and two the hand-kept list never had:
@@ -364,7 +376,7 @@ titles.
 **Next up: the owner's Greek retitles** (ROADMAP #11 Group 3). Seven gallery `titleEl`
 values carry English words: ids 13, 6, 8, 14, 7 ("Σπίτι τύπου Container …"), 16
 ("Πανοραμικό Box House – 37 m²") and 12 ("Πανοραμικό Office Container …"). Their
-`/el/gkaleri/` URLs are in the sitemap and answer 200. **Now, after the seeder** (Do next 0):
+`/el/gkaleri/` URLs are in the sitemap and answer 200. **Now, after the seeder** (Do next 0a):
 retitle them in the panel, check „Стари адреси" on each, and request indexing for the
 seven new `/el/gkaleri/` addresses in Search Console. No developer needed.
 
@@ -447,6 +459,15 @@ Fire-and-forget since 2026-08-18: modals close on Send; `backgroundSubmit.js` re
 to 5 times (2/4/8/16s) on network errors and 408/425/429/5xx, never on other 4xx; the
 top-right banner reports; analytics fire only on confirmed sends. If someone reports
 "nothing happens when I press send", the banner IS the feedback — check it before the code.
+
+Since #38 (branch `rep-links`): a non-blank `website` field is the HONEYPOT — the server
+answers the real success shape, stores nothing, sends nothing, and logs at Information, so
+a bot never learns which field gave it away; every anonymous write route carries a per-IP
+budget of 10 writes per 10 minutes (429, which the SPA's retry list already includes); and
+an enquiry whose `rep` resolves through `REPRESENTATIVES` is promoted to a lead owned by
+that representative at submit time. So an anonymous POST CAN name a lead owner — only
+through that setting, never from the body, and `RepresentativeIntake` never changes what
+the customer is told.
 
 ### The www certificate (for the next domain)
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Models;
 using Services;
 
@@ -13,7 +14,12 @@ public class ConfigLinkController : ControllerBase
     public ConfigLinkController(ISavedConfigStore svc) { _svc = svc; }
 
     // Save a configuration and get back a short code + absolute /c/{code} URL.
+    //
+    // Rate-limited on the write only: each call stores an opaque blob under a fresh code,
+    // which is the kind of thing a script fills a table with. Resolving a code (below) is a
+    // read that every emailed link depends on, and stays open.
     [HttpPost]
+    [EnableRateLimiting("public-write")]
     public async Task<IActionResult> Create([FromBody] SaveConfigRequest req, CancellationToken ct)
     {
         if (!_svc.IsConfigured)

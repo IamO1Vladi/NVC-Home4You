@@ -80,7 +80,13 @@ public class AdminPipelineController : ControllerBase
     public async Task<IActionResult> Users(CancellationToken ct)
     {
         Response.Headers["Cache-Control"] = "no-store";
-        return Ok(await _read.ListAssignableAsync(_env.AdminAllowedUsers, CurrentUpn, ct));
+
+        // Registered representatives (#38) are assignable from day one, not only once a
+        // link of theirs has brought a lead: a salesperson handing a customer to "the person
+        // whose video they watched" should not have to wait for that. Same merge and
+        // de-duplication as the allow-list, in ListAssignableAsync.
+        var configured = _env.AdminAllowedUsers.Concat(_env.Representatives.Select(r => r.Upn));
+        return Ok(await _read.ListAssignableAsync(configured, CurrentUpn, ct));
     }
 
     public record ReportRequest(string? To, string? Owner);
@@ -288,8 +294,9 @@ public class AdminPipelineController : ControllerBase
         if (body is null) return BadRequest(new { errors = new[] { "Nothing to update." } });
 
         // Read before anything is judged, because one of the rules is about what CHANGED
-        // rather than about what arrived. See ValidateContact and LeadService.StoredEmailAsync.
-        var errors = ValidateContact(body, await _leads.StoredEmailAsync(id, ct));
+        // rather than about what arrived. See PipelineRules.ValidateContact and
+        // LeadService.StoredEmailAsync.
+        var errors = PipelineRules.ValidateContact(body, await _leads.StoredEmailAsync(id, ct));
         if (errors.Count > 0) return BadRequest(new { errors });
 
         // Refused here rather than absorbed. A date the server cannot read would otherwise
@@ -315,76 +322,8 @@ public class AdminPipelineController : ControllerBase
         return ok ? Ok(new { ok = true, id }) : NotFound();
     }
 
-    /// <summary>
-    /// Everything wrong with the customer's own details on a field edit.
-    ///
-    /// These three are here at all because a name or an address mistyped at enquiry time was
-    /// previously uncorrectable: the offer behind the lead is an immutable event and must
-    /// keep saying what the form said, so the lead row is the only place the correction can
-    /// go, and this endpoint did not accept it.
-    ///
-    /// ABSENT AND EMPTY ARE DIFFERENT here, exactly as they are for every other field on
-    /// this endpoint: null is "this save is not about that box, leave it alone", and a blank
-    /// string is "clear it". Collapsing the two would make the panel wipe a phone number
-    /// every time somebody saved a note from a form that does not carry one.
-    ///
-    /// The refusals are English, like every other one in the panel's API (see
-    /// CustomerAdminService.Validate) — the SPA translates stable KEYS for stored values, and
-    /// validation messages have always travelled as prose instead. Worth saying because these
-    /// are the first refusals on this screen an ordinary working day will produce.
-    /// </summary>
-    /// <param name="storedEmail">
-    /// What is in the column now. The panel resends every field on every save, so the email
-    /// box arrives on a save that was about the follow-up date — and this column has never
-    /// been validated on the way in (see LeadService.StoredEmailAsync). Comparing against it
-    /// is what keeps a pre-existing bad address blocking an attempt to change it rather than
-    /// every other edit on the row.
-    /// </param>
-    private static List<string> ValidateContact(FieldsChange body, string? storedEmail)
-    {
-        var errors = new List<string>();
-
-        // Blank is a real edit for the other two and an impossible one for this: the column
-        // is NOT NULL, and every list on the board is a column of names — a nameless row is
-        // one nobody can find again to fix. So it is refused rather than stored or quietly
-        // ignored, because a save that reports success and keeps the old name is how someone
-        // walks away believing they renamed a lead.
-        if (body.Name is not null && string.IsNullOrWhiteSpace(body.Name))
-            errors.Add("A lead has to keep a name.");
-        else if (body.Name is not null && body.Name.Trim().Length > 200)
-            errors.Add("That name is too long.");
-
-        // Only when there is something to check, and only when it is not what is already
-        // there. Clearing an address is legitimate — plenty of leads arrive by phone with
-        // nothing but a number — so an empty box means "no email", not "a malformed one";
-        // and an untouched box means this save is not about the email at all, whatever
-        // happens to be sitting in it.
-        //
-        // That second half is not defensive tidiness. The imported book is full of addresses
-        // no parser accepts, the panel resends the box on every save, and without the
-        // comparison the lead most likely to need a note or a follow-up date — an imported
-        // one nobody has cleaned up — is the one lead on which nothing can be saved at all,
-        // over a field the person never opened.
-        var emailChanged = !string.Equals(
-            (body.Email ?? "").Trim(), (storedEmail ?? "").Trim(), System.StringComparison.Ordinal);
-
-        if (emailChanged && !string.IsNullOrWhiteSpace(body.Email))
-        {
-            // The same rule the config-email endpoint sends to; see EmailService for why it
-            // is a parser and not a regex. Refused rather than stored, because an address
-            // the mail transport will reject is one whose failure surfaces days later, in a
-            // reply that never arrived.
-            if (!EmailService.IsValidAddress(body.Email))
-                errors.Add("That does not look like an email address.");
-            else if (body.Email.Trim().Length > 320)
-                errors.Add("That email address is too long.");
-        }
-
-        if (!string.IsNullOrWhiteSpace(body.Phone) && body.Phone.Trim().Length > 64)
-            errors.Add("That phone number is too long.");
-
-        return errors;
-    }
+    // The contact, CC and attachment rules this controller used to carry as private statics
+    // live in PipelineRules since #38, shared with the representative's panel.
 
     // --- The thread ------------------------------------------------------------------
 
@@ -403,15 +342,8 @@ public class AdminPipelineController : ControllerBase
         if (!LeadActivityTypes.IsManuallyLoggable(body.Type))
             return BadRequest(new { errors = new[] { $"'{body.Type}' cannot be logged by hand." } });
 
-        System.DateTimeOffset? occurred = null;
-        if (!string.IsNullOrWhiteSpace(body.OccurredAt)
-            && System.DateTimeOffset.TryParse(body.OccurredAt, out var parsed))
-        {
-            occurred = parsed;
-        }
-
         var activity = await _leads.AddActivityAsync(
-            id, body.Type, body.Subject, body.Body, CurrentUpn, occurred, ct: ct);
+            id, body.Type, body.Subject, body.Body, CurrentUpn, PipelineRules.ParseOccurredAt(body.OccurredAt), ct: ct);
 
         return activity is null ? NotFound() : Ok(new { ok = true, id = activity.Id });
     }
@@ -449,27 +381,16 @@ public class AdminPipelineController : ControllerBase
         // full before a single attachment byte is read — the same front-loading as the
         // files below, and for the same reason: a bad address Graph rejects mid-send
         // costs the reply someone typed.
-        var ccRecipients = SplitCc(cc);
-        var errors = ValidateCc(ccRecipients);
+        var ccRecipients = PipelineRules.SplitCc(cc);
+        var errors = PipelineRules.ValidateCc(ccRecipients);
         if (errors.Count > 0) return BadRequest(new { errors });
 
         var picked = files ?? new List<IFormFile>();
 
-        errors = ValidateAttachments(picked);
+        errors = PipelineRules.ValidateAttachments(picked);
         if (errors.Count > 0) return BadRequest(new { errors });
 
-        var attachments = new List<LeadMailService.OutgoingFile>();
-        foreach (var file in picked)
-        {
-            if (file.Length == 0) continue;
-
-            var fileName = System.IO.Path.GetFileName(file.FileName);
-            LeadFileStore.IsAllowed(fileName, out var contentType);
-
-            using var stream = new System.IO.MemoryStream();
-            await file.CopyToAsync(stream, ct);
-            attachments.Add(new LeadMailService.OutgoingFile(fileName, contentType, stream.ToArray()));
-        }
+        var attachments = await PipelineRules.ReadAttachmentsAsync(picked, ct);
 
         var result = await _mail.SendReplyAsync(id, subject, body, CurrentUpn, attachments, ccRecipients, ct);
 
@@ -494,95 +415,6 @@ public class AdminPipelineController : ControllerBase
 
             _ => StatusCode(502, new { errors = new[] { result.Error } }),
         };
-    }
-
-    /// <summary>
-    /// The CC box, split but NOT judged — every non-empty token survives, so that
-    /// ValidateCc below gets to refuse the bad ones by name. ParseRecipients is not used
-    /// here on purpose: its '@' filter would swallow exactly the token this box mistypes
-    /// most — an address whose '@' became a dot — and the reply would go out with that
-    /// person quietly missing, which is the very failure the strict rule exists to stop.
-    /// </summary>
-    private static List<string> SplitCc(string? raw) =>
-        (raw ?? "")
-            .Split(new[] { ',', ';' }, System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
-            // Case-insensitively, unlike ParseRecipients: capitals are not identity in an
-            // address, and Arch@ и arch@ copied twice is the same person emailed twice.
-            .Distinct(System.StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-    /// <summary>
-    /// Everything wrong with the CC list on a reply, checked BEFORE anything is sent.
-    ///
-    /// STRICT where ParseRecipients is lax, and deliberately so: the due-report's "to" box
-    /// mails a colleague who watches the result arrive, while a CC here is stored against
-    /// the thread and sent alongside the customer's copy — a mistyped one is a bounce the
-    /// customer may see and a record that names someone who was never told. So every token
-    /// meets IsValidAddress, and the refusal names the token, because "one of your
-    /// addresses is wrong" out of five is not a sentence anyone can act on.
-    /// </summary>
-    private static List<string> ValidateCc(IReadOnlyList<string> recipients)
-    {
-        var errors = new List<string>();
-
-        foreach (var address in recipients)
-        {
-            if (!EmailService.IsValidAddress(address))
-                errors.Add($"'{address}' does not look like an email address.");
-        }
-
-        // The joined list is what LeadActivity.CcRecipients stores, so its ceiling is the
-        // column's — refused here as a sentence rather than surfacing as a 500 after the
-        // mail has already gone out, which is the one order of events with no way back.
-        if (string.Join(", ", recipients).Length > 500)
-            errors.Add("That is too many CC addresses for one reply.");
-
-        return errors;
-    }
-
-    /// <summary>
-    /// Everything wrong with the files on a reply, checked BEFORE anything is sent.
-    ///
-    /// Order matters here: an oversized file discovered by Graph mid-send costs the reply
-    /// someone typed as well as the attachment, because there is no draft left to go back
-    /// to. Refusing up front turns that into a sentence they can act on.
-    /// </summary>
-    private static List<string> ValidateAttachments(IEnumerable<IFormFile> files)
-    {
-        var errors = new List<string>();
-        long total = 0;
-
-        foreach (var file in files)
-        {
-            if (file.Length == 0) continue;
-
-            // Path components stripped: the browser chose this string, and it is a label
-            // rather than a location.
-            var fileName = System.IO.Path.GetFileName(file.FileName ?? "");
-            if (string.IsNullOrWhiteSpace(fileName))
-            {
-                errors.Add("One of the files has no name.");
-                continue;
-            }
-
-            // Allow-listed by extension, exactly as on the upload endpoint. The browser's
-            // content type is ignored: it is trivially spoofed and tells us nothing.
-            if (!LeadFileStore.IsAllowed(fileName, out _))
-                errors.Add($"'{System.IO.Path.GetExtension(fileName)}' files are not accepted.");
-
-            total += file.Length;
-        }
-
-        // The total, not just each file: Exchange judges the message, so two 15 MB drawings
-        // pass every per-file check and still could not go out together (see MaxEmailBytes).
-        if (total > LeadFileStore.MaxEmailBytes)
-        {
-            errors.Add(
-                $"Files sent with a reply can total at most {LeadFileStore.MaxEmailBytes / (1024 * 1024)} MB. " +
-                "Attach bigger ones with a note instead, or send a link.");
-        }
-
-        return errors;
     }
 
     // --- Drafting --------------------------------------------------------------------
