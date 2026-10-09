@@ -463,9 +463,12 @@ top-right banner reports; analytics fire only on confirmed sends. If someone rep
 Since #38 (branch `rep-links`): a non-blank `website` field is the HONEYPOT — the server
 answers the real success shape, stores nothing, sends nothing, and logs at Information, so
 a bot never learns which field gave it away; every anonymous write route carries a per-IP
-budget of 10 writes per 10 minutes (429, which the SPA's retry list already includes); and
-an enquiry whose `rep` resolves through `REPRESENTATIVES` is promoted to a lead owned by
-that representative at submit time. So an anonymous POST CAN name a lead owner — only
+budget of 10 writes per 10 minutes (429: the two enquiry forms retry it with backoff, the
+reviews form and the config-share helpers report or fall back at once); and an enquiry
+whose `rep` resolves through `REPRESENTATIVES` is promoted to a lead owned by that
+representative at submit time (when SQL is the lead store and the address is well-formed;
+otherwise it waits in Запитвания and the mail says why). So an anonymous POST CAN name a
+lead owner — only
 through that setting, never from the body, and `RepresentativeIntake` never changes what
 the customer is told.
 

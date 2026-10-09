@@ -31,7 +31,7 @@ const COPY = {
     lead: 'Попълнете формата и наш консултант ще се свърже с вас. Или сглобете дома си сами в конфигуратора и поискайте оферта оттам.',
     offer: 'Поискай оферта',
     configurator: 'Отвори конфигуратора',
-    note: 'Без ангажимент. Отговаряме в рамките на един работен ден.',
+    note: 'Без ангажимент.',
   },
   en: {
     eyebrow: 'NVC Home4You',
@@ -39,7 +39,7 @@ const COPY = {
     lead: 'Fill in the form and one of our consultants will contact you. Or assemble your home yourself in the configurator and request an offer from there.',
     offer: 'Request an offer',
     configurator: 'Open the configurator',
-    note: 'No commitment. We reply within one working day.',
+    note: 'No commitment.',
   },
   el: {
     eyebrow: 'NVC Home4You',
@@ -47,7 +47,7 @@ const COPY = {
     lead: 'Συμπληρώστε τη φόρμα και ένας σύμβουλός μας θα επικοινωνήσει μαζί σας. Ή συνθέστε μόνοι σας το σπίτι σας στον διαμορφωτή και ζητήστε προσφορά από εκεί.',
     offer: 'Ζητήστε προσφορά',
     configurator: 'Ανοίξτε τον διαμορφωτή',
-    note: 'Χωρίς δέσμευση. Απαντάμε εντός μίας εργάσιμης ημέρας.',
+    note: 'Χωρίς δέσμευση.',
   },
 }
 
@@ -81,13 +81,17 @@ export default function RepresentativePage() {
   // language used on this device, else the browser's) is what a bare link gets. A
   // representative who knows his audience adds ?lang=bg|en|el, applied ONCE as the site
   // language so the header, the footer and the offer form follow it; after that the
-  // header's own switch still works rather than being overruled.
+  // header's own switch still works rather than being overruled — which is why the page
+  // renders from the site language below, not from the URL: the query string stays in
+  // the address bar after a switch, and a page that kept reading it would be the one
+  // thing on the screen still in the old language. The one render before the effect
+  // lands is the same flash OrderTrackingPage accepts.
   const urlLang = spokenLang(searchParams.get('lang'))
   React.useEffect(() => {
     if (urlLang) setLang(urlLang)
   }, [urlLang, setLang])
 
-  const locale = langKeyOf(urlLang || lang)
+  const locale = langKeyOf(lang)
   const t = COPY[locale] || COPY.en
   const configuratorPath = paths.boxConfigurator[locale] || paths.boxConfigurator.en
 

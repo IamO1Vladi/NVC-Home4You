@@ -590,6 +590,12 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1
             var safeUpn = System.Net.WebUtility.HtmlEncode(note.RepUpn);
             resultRow = $@"<p style=""margin:2px 0"">Лийд <a href=""{href}"">#{leadId}</a> е създаден и възложен на {safeUpn} (<a href=""{repHref}"">в панела на представителя</a>).</p>";
         }
+        else if (outcome.SkippedBecause == "enquiry-not-stored")
+        {
+            // Nothing to see in Запитвания: the write failed, and this mail is the only
+            // copy of the enquiry (LeadResponse explains why it was still sent).
+            resultRow = @"<p style=""margin:2px 0"">Лийд не е създаден: запитването не беше записано и този имейл е единственото му копие — създайте лийда на ръка от него.</p>";
+        }
         else
         {
             var reason = System.Net.WebUtility.HtmlEncode(outcome.SkippedBecause ?? "unknown");

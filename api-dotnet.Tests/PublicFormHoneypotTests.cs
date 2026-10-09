@@ -121,7 +121,7 @@ public class PublicFormHoneypotTests
 
         Assert.Equal(0, store.OfferCalls);
         Assert.True(stored);        // the decoy: a 200 with stored:true, like the real thing
-        Assert.Null(recordId);
+        Assert.True(recordId > 0);  // and a plausible id — null would give the decoy away
     }
 
     [Fact]

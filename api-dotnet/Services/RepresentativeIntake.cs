@@ -106,9 +106,21 @@ public sealed class RepresentativeIntake : IRepresentativeIntake
                         // LeadService.SetOwnerAsync): StatusChange type, no actor. Not a
                         // Note, which the panel offers as something a person files, and not
                         // "our move" either — a warning does not promise the customer anything.
-                        await _leads.AddActivityAsync(
-                            lead.Id, LeadActivityTypes.StatusChange, subject: null,
-                            body: DuplicateNote(duplicate, rep.Slug), actorUpn: null, ct: ct);
+                        //
+                        // Its own try: the lead is already committed by now, and a note that
+                        // fails to write must not turn the outcome into "no lead was created"
+                        // — the mail still names the duplicate, which is the point of it.
+                        try
+                        {
+                            await _leads.AddActivityAsync(
+                                lead.Id, LeadActivityTypes.StatusChange, subject: null,
+                                body: DuplicateNote(duplicate, rep.Slug), actorUpn: null, ct: ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "The duplicate note on lead {LeadId} was not written; the lead itself stands.", lead.Id);
+                        }
                     }
 
                     return new IntakeOutcome(true, lead.Id, duplicate?.Id, duplicate?.OwnerUpn, null);

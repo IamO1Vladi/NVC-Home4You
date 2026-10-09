@@ -210,8 +210,11 @@ strings tab below it — App Service renames those to `SQLAZURECONNSTR_*`).
 ### Switching on representative links (#38)
 
 Nothing happens until `REPRESENTATIVES` is set: `/r/{slug}` renders the landing page for
-any slug and attributes nothing, and `/rep/leads` refuses every sign-in. Set it in App
-Service (`dtodorov=dtodorov@nvc-home4you.eu`; the app restarts on its own), then:
+any slug and attributes nothing, and `/rep/leads` refuses every sign-in. The automatic
+lead also needs SQL to be the lead store (`DATA_SOURCE_LEADS=sql`, production's setting
+since 2026-08-12); under Quickbase the enquiry still carries the representative's line, but
+no lead is created and the mail says `leads-not-sql`. Set the registry in App Service
+(`dtodorov=dtodorov@nvc-home4you.eu`; the app restarts on its own), then:
 
 1. Open `https://nvc-home4you.eu/r/dtodorov` signed out: the landing page with both
    buttons, and `noindex` in the head (view source). `/r/does-not-exist` answers the same
@@ -223,9 +226,10 @@ Service (`dtodorov=dtodorov@nvc-home4you.eu`; the app restarts on its own), then
    saying „Лийд #N е създаден и възложен". A junk address stays an enquiry (the mail says
    `invalid-email`); promote it by hand if it was real.
 3. Have the rep sign in at `https://nvc-home4you.eu/rep/leads` with his tenant account.
-   He sees that one lead and nothing else. `/admin` still refuses him unless he is also in
-   `ADMIN_ALLOWED_USERS`, which is the WHOLE panel (customers, ЕГН, prices, audit) — do not
-   add him for this.
+   He sees that one lead and nothing else. `/admin` refuses him: a registered
+   representative is refused by AdminOnly even when `ADMIN_ALLOWED_USERS` is empty, and
+   when it is set (it is) he is not on it. Adding him there would make him a full admin
+   (customers, ЕГН, prices, audit) — do not do that for this.
 4. Give him the link, with `?lang=bg` (or `en` / `el`) when he knows his audience.
 
 To retire a representative, remove the entry: his links stop attributing, his sign-in stops
@@ -234,9 +238,11 @@ keeps listing a UPN that is already on a lead).
 
 **The public write routes have a budget since #38.** `/api/offer`, `/api/question`,
 `/api/config-email`, `POST /api/config-link` and `POST /api/reviews` allow 10 writes per
-client address per 10 minutes and answer 429 beyond that; the SPA retries a 429 with backoff
-and then reports in its banner. An office behind one NAT address shares one budget. The
-limiter is per app instance and in memory, so a restart forgets it — that is fine.
+client address per 10 minutes and answer 429 beyond that. The two enquiry forms retry a
+429 with backoff and then report in their banner; the reviews form shows its error at once,
+and the two config-share helpers fall back quietly (the hash link, "could not send"). An
+office behind one NAT address shares one budget. The limiter is per app instance and in
+memory, so a restart forgets it — that is fine.
 
 ### Switching on the weekly order digest
 

@@ -51,8 +51,10 @@ commits, notes and conversations still resolve.
   - **Anti-abuse on the public forms**, because the link turns each enquiry into a lead
     the moment it arrives: a honeypot field (`website`, off-screen, answered with the real
     success shape while storing and sending nothing); a per-IP budget of 10 writes per 10
-    minutes on every anonymous write route (`public-write`, answered 429, which the SPA
-    retries with backoff); and auto-promotion only for a well-formed address.
+    minutes on every anonymous write route (`public-write`, answered 429; the two enquiry
+    forms retry it with backoff, the rest report or fall back at once); and auto-promotion
+    only for a well-formed address. AdminOnly refuses a registered representative even
+    when the allow-list is empty, so the two roles cannot blur through a missing setting.
   - **Not done, by decision:** no migration or table (the registry is a setting; a table
     with an admin page is the upgrade path once there are more than a handful of reps); no
     captcha (Cloudflare Turnstile is the next layer if the honeypot and the budget are not

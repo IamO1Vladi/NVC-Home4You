@@ -41,9 +41,11 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 // the order of those two matters.
 //
 // Fixed window, no queue: a request over the budget is answered 429 at once rather than
-// held open. The SPA's backgroundSubmit treats 429 as retryable with backoff, so a real
-// visitor who somehow trips it sees "retrying" and then the ordinary error banner, not a
-// dead button — do not change that status without changing the SPA.
+// held open. The two enquiry forms go through the SPA's backgroundSubmit, which treats 429
+// as retryable with backoff, so a real visitor who somehow trips it there sees "retrying"
+// and then the ordinary error banner, not a dead button; the reviews form reports its
+// error at once and the two config-share helpers fall back quietly. Do not change this
+// status without checking all three.
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -305,6 +307,15 @@ builder.Services.AddAuthorization(options =>
                           ?? "";
                 return allowed.Contains(upn.Trim().ToLowerInvariant());
             });
+        }
+        else
+        {
+            // "Anyone in the tenant" has, since #38, a kind of account that is in the
+            // tenant by design and is NOT staff: a representative. An unset allow-list
+            // must not hand him the whole panel, so he is refused here even then. A
+            // salesperson who is also a representative is admitted by being allow-listed,
+            // which is the only way such a person should ever hold both.
+            policy.RequireAssertion(ctx => !Services.RepresentativePolicy.IsRepresentative(ctx.User, envCfg));
         }
     });
 

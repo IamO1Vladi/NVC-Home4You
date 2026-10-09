@@ -67,7 +67,9 @@ internal static class LeadResponse
             "A {Kind} tripped the honeypot (sender domain {Domain}); nothing stored, nothing sent.",
             kind, EmailDomain(leadEmail));
 
-        return controller.Ok(new { recordId = (long?)null, stored = true });
+        // A plausible id rather than null: the real success always carries one, so a null
+        // here would be the one tell the status code was chosen to avoid.
+        return controller.Ok(new { recordId = (long?)Random.Shared.Next(1000, 100000), stored = true });
     }
 
     private static string EmailDomain(string? email)
