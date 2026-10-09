@@ -1,4 +1,4 @@
-# Where things stand — 2026-10-03
+# Where things stand — 2026-10-09
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
@@ -6,8 +6,8 @@ owns release mechanics, **including §6b, the prerender step**. Skipped when the
 the freshness guard stops the publish. Skipped when only data or copy changed, it **silently
 ships stale pages**.
 
-Tests at `deploy-2026-10-04`: **1104 .NET, 847 frontend**, all green. `npm run audit:a11y`:
-0 violations on 104 page-loads.
+Tests at `deploy-2026-10-09`: **1247 .NET, 890 frontend**, all green. `npm run audit:a11y`
+(last run at deploy-2026-10-04): 0 violations on 104 page-loads.
 
 ---
 
@@ -15,8 +15,8 @@ Tests at `deploy-2026-10-04`: **1104 .NET, 847 frontend**, all green. `npm run a
 
 | | |
 |---|---|
-| **Live** | `ac5286b`, tagged **`deploy-2026-10-04`** (published 2026-10-04). It carries #33 (a failed image retries once, then falls back once and stops; the prerender refuses a page with a failed image), #37 (a retitled product keeps its old address: `HouseSlugHistory`, written by the save that changes a title, 301s it to the house's current page; „Стари адреси" in the house dialog) and A1's fifth kitchen position (owner, 2026-10-03: the tall unit under position 4, at 40.3/30.4, for a fridge). Its one migration, `AddHouseSlugHistory`, was applied by the owner on 2026-10-03, before the publish. The bundle is `index-BXFgat5H.js` with 52/52 snapshots (catalogue matched live on all 15 items, no `IMAGES` route), compared page by page against the deploy-2026-10-03 set and trial-published before the real one. **Verified live 2026-10-04:** the bundle loads; the configurator shows A1 with five positions, позиция 5 at 40.3% 30.4%, free for the fridge; `/en/gallery/panaromic-box-house-37-m2?utm_source=x` and the Cyrillic-„а" address still 301 with the query kept; `/en/gallery/space-house` 200; an unknown product 404; `/api/gallery` 15 items, no id twice; `sitemap-gallery.xml` 45; `GET /api/admin/gallery/{id}/retired-addresses` answers 401 signed out. Before it: `deploy-2026-10-03` (`36f158c`), the big release (#31, #32, #27, #29, #11, #34, the gallery SEO store fix, #35, #36); its record is in git history. Rollback snapshots for both on the main device: `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-10-03` and `…-2026-09-20`. **What remains human:** Do next 0a and 0b; 0 is the next release. |
-| **`production` branch** | = live, `ac5286b`. |
+| **Live** | `9727add`, tagged **`deploy-2026-10-09`** (published 2026-10-09 — from the SECONDARY device, for the first time: the owner started the API with production's SQL and Blob strings in his own terminal, Claude ran the prerender and `dotnet publish` to `D:\NVC Code\publish-2026-10-09`, the owner deployed from VS Code). It carries **#38, representative links**: `/r/{slug}` landing pages, the `REPRESENTATIVES` registry, the automatic lead with the rep as owner, the rep panel at `/rep/leads` behind `RepresentativeOnly`, the honeypot and the per-IP budget on the public write routes (ROADMAP #38 has the whole design). **No migration.** The bundle is `index-B78sWw4x.js` with 52/52 snapshots (the prerender exited 0, so the catalogue matched live and no image failed). **Verified live 2026-10-09:** the bundle serves; `/r/dtodorov` and `/r/does-not-exist` both 200 with the brand title and `noindex,nofollow`; `/rep` and `/rep/leads` 200 titled NVC internal, noindex; `/api/rep/me`, `/api/rep/pipeline` and `/api/admin/me` 401 signed out; `/en/prices` and `/bg/galeriq` serve their prerendered text; an unknown product 404; robots.txt disallows `/r/` and `/rep/`; a honeypot-filled POST to `/api/offer` answered the decoy 200 and stored nothing. `/api/gallery` now lists 16 items and `sitemap-gallery.xml` 48 URLs (one house was added by staff since deploy-2026-10-04; not this release). **The feature is OFF until `REPRESENTATIVES` is set** — Do next 0. Before it: `deploy-2026-10-04` (`ac5286b`, #33, #37, A1's fifth kitchen position); its record is in git history at `4bdce10`. Rollback: the deploy-2026-10-04 snapshot set is on the main device's `api-dotnet/prerendered/`, and the exact deployed artifact of this release is `D:\NVC Code\publish-2026-10-09.zip` on the secondary device. **What remains human:** Do next 0, 0a and 0b. |
+| **`production` branch** | = live, `9727add`. |
 | **`master`** | = `production`, plus this record. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
 | **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
@@ -29,17 +29,19 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-0. **Representative links (#38) — BUILT 2026-10-08 on branch `rep-links`, NOT merged, NOT
-   deployed.** One link per representative (`/r/dtodorov`), every enquiry through it becomes
-   dtodorov's lead at once, and `/rep/leads` is his own restricted panel; ROADMAP #38 has
-   the design and the decisions. The branch carries no migration. To ship it: read the
-   branch (`git log master..rep-links`), merge it fast-forward into `master`, run both
-   suites, then release per DEPLOY.md — the SPA changed, so §6b (the prerender) is owed.
-   After the publish, DEPLOY.md „Switching on representative links": set `REPRESENTATIVES`
-   in App Service, probe `/r/dtodorov` and `/r/does-not-exist` (both 200 + noindex, signed
-   out), send one live enquiry and watch it land on the board owned by
-   `dtodorov@nvc-home4you.eu`, have him sign in at `/rep/leads` and see only that lead. Do
-   NOT add him to `ADMIN_ALLOWED_USERS` — that is the whole panel.
+0. **Representative links (#38) are LIVE since `deploy-2026-10-09`, and OFF until the owner
+   switches them on.** DEPLOY.md „Switching on representative links" is the procedure:
+   1. App Service → Environment variables → App settings: add `REPRESENTATIVES` =
+      `dtodorov=dtodorov@nvc-home4you.eu` (the app restarts). Confirm `DATA_SOURCE_LEADS` is
+      `sql` and `ADMIN_ALLOWED_USERS` is still set; do NOT add dtodorov to it.
+   2. Send one real test enquiry through `https://nvc-home4you.eu/r/dtodorov` with a proper
+      address. Expect: a lead on the board owned by `dtodorov@nvc-home4you.eu` with Source
+      „Представител: dtodorov", the Запитвания row carrying that line, and the notification
+      mail to the sales list plus the rep, linking the lead in both panels.
+   3. Have dtodorov sign in at `https://nvc-home4you.eu/rep/leads` with his tenant account:
+      that lead and nothing else. Then give him the link (`?lang=bg` if he knows his audience).
+   The signed-out probes of this release are already done (State of play). Per-rep numbers
+   undercount by design (attribution lives in the visitor's browser for 30 days).
 
 0a. **After `deploy-2026-10-04`: the Greek retitles, then Search Console.**
    1. **The history is seeded — DONE 2026-10-04** by the owner (`seed-slug-history`, dry
@@ -460,7 +462,7 @@ to 5 times (2/4/8/16s) on network errors and 408/425/429/5xx, never on other 4xx
 top-right banner reports; analytics fire only on confirmed sends. If someone reports
 "nothing happens when I press send", the banner IS the feedback — check it before the code.
 
-Since #38 (branch `rep-links`): a non-blank `website` field is the HONEYPOT — the server
+Since `deploy-2026-10-09` (#38): a non-blank `website` field is the HONEYPOT — the server
 answers the real success shape, stores nothing, sends nothing, and logs at Information, so
 a bot never learns which field gave it away; every anonymous write route carries a per-IP
 budget of 10 writes per 10 minutes (429: the two enquiry forms retry it with backoff, the
