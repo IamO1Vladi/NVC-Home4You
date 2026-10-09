@@ -47,7 +47,9 @@ commits, notes and conversations still resolve.
     404 for anyone else's (never 403, so ids cannot be enumerated); there is no users,
     promote, create, convert, owner or due-report route. Admins are not representatives and
     representatives are not admins: `AdminEndpointAuthTests` is untouched and
-    `RepEndpointAuthTests` sweeps the new routes the same way.
+    `RepEndpointAuthTests` sweeps the new routes the same way. A signed-in person the API
+    refuses (403) gets a „Няма достъп" card naming the right door, not a Retry button —
+    on the pipeline page in both areas; the other admin pages still show the generic error.
   - **Anti-abuse on the public forms**, because the link turns each enquiry into a lead
     the moment it arrives: a honeypot field (`website`, off-screen, answered with the real
     success shape while storing and sending nothing); a per-IP budget of 10 writes per 10
@@ -60,9 +62,10 @@ commits, notes and conversations still resolve.
     captcha (Cloudflare Turnstile is the next layer if the honeypot and the budget are not
     enough); no cross-device attribution (localStorage only, so per-rep numbers undercount);
     no per-owner email digest.
-  - Tests: **1228 .NET** (124 new: intake, registry, notification, honeypot, rate-limit pins,
-    rep endpoint sweep, rep scoping, policy) **and 883 frontend** (36 new: attribution,
-    landing page, consent banner, doors form, rep panel). Both green on 2026-10-08.
+  - Tests: **1247 .NET** (143 new: intake, registry, notification on the wire, honeypot,
+    rate-limit pins, rep endpoint sweep, rep scoping, both policies, the owner dropdown,
+    the Quickbase store) **and 890 frontend** (43 new: attribution, landing page, consent
+    banner, doors form, rep panel, the no-access card). Both green on 2026-10-09.
   - **After the publish:** DEPLOY.md „Switching on representative links".
 
 - [ ] **3. Popular presets / quick-start bundles in the configurator.** 3–4 ready-made

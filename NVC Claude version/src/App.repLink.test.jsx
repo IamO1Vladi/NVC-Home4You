@@ -121,6 +121,21 @@ async function fillAndSend(user, ui) {
 /** The representative page's own primary button, once the lazy route has rendered. */
 const findOfferButton = (copy) => screen.findByRole('button', { name: copy.offer }, SLOW)
 
+/**
+ * The honeypot inside a form, checked to be where no human can reach it: off-screen, out
+ * of the tab order, hidden from assistive tech, and never display:none (the better bots
+ * skip fields the browser would not render). Returned so the test can fill it as a bot would.
+ */
+function honeypotOf(dialog) {
+  const trap = dialog.querySelector('input[name="website"]')
+  expect(trap).not.toBeNull()
+  expect(trap.tabIndex).toBe(-1)
+  expect(trap.closest('[aria-hidden="true"]')).not.toBeNull()
+  expect(trap.closest('[aria-hidden="true"]').style.display).not.toBe('none')
+  expect(within(dialog).queryByRole('textbox', { name: /website/i })).toBeNull()
+  return trap
+}
+
 describe('a representative link', () => {
   it('remembers the slug and sends it with an offer requested from the page', async () => {
     const user = userEvent.setup()
@@ -197,16 +212,7 @@ describe('a representative link', () => {
     renderAppAt('/r/dtodorov?lang=bg')
 
     await user.click(await findOfferButton(PAGE.bg))
-    const dialog = offerDialog(BG)
-
-    // No human can reach it: off-screen, out of the tab order, hidden from assistive tech,
-    // and never display:none (the better bots skip fields the browser would not render).
-    const trap = dialog.querySelector('input[name="website"]')
-    expect(trap).not.toBeNull()
-    expect(trap.tabIndex).toBe(-1)
-    expect(trap.closest('[aria-hidden="true"]')).not.toBeNull()
-    expect(trap.closest('[aria-hidden="true"]').style.display).not.toBe('none')
-    expect(within(dialog).queryByRole('textbox', { name: /website/i })).toBeNull()
+    const trap = honeypotOf(offerDialog(BG))
 
     // A form-filler fills every field it finds.
     fireEvent.change(trap, { target: { value: 'http://spam.example' } })
@@ -214,6 +220,26 @@ describe('a representative link', () => {
 
     await waitFor(() => expect(offers).toHaveLength(1))
     expect(offers[0]).toMatchObject({ rep: 'dtodorov', website: 'http://spam.example' })
+  }, 30000)
+
+  it('the question form carries the same honeypot, equally out of reach', async () => {
+    // The second public form that becomes a lead the moment it arrives (#38), so a bot
+    // that found the offer form guarded would otherwise simply use this one.
+    const user = userEvent.setup()
+    renderAppAt(paths.home.bg)
+
+    await user.click((await screen.findAllByRole('button', { name: BG.home.hero.secondaryCta }, SLOW))[0])
+    const dialog = screen.getByRole('dialog', { name: BG.forms.question.title })
+    const trap = honeypotOf(dialog)
+
+    fireEvent.change(trap, { target: { value: 'http://spam.example' } })
+    await user.type(within(dialog).getByPlaceholderText(BG.forms.question.fields.name), 'Ivan Petrov')
+    await user.type(within(dialog).getByPlaceholderText(BG.forms.question.fields.email), 'ivan@example.com')
+    await user.type(within(dialog).getByPlaceholderText(BG.forms.question.fields.question), 'How long is delivery?')
+    await user.click(within(dialog).getByRole('button', { name: BG.forms.question.submit }))
+
+    await waitFor(() => expect(questions).toHaveLength(1))
+    expect(questions[0]).toMatchObject({ rep: '', website: 'http://spam.example' })
   }, 30000)
 
   it('sends no slug when the visit was not through a link', async () => {
@@ -233,6 +259,17 @@ describe('a representative link', () => {
     // Signed out, so what the panel shows is its sign-in card — and around it the header
     // and its offer button are staff-side absent.
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Необходим е вход' })).toBeInTheDocument(), SLOW)
+    expect(screen.queryByRole('button', { name: EN.header.nav.quote })).toBeNull()
+    expect(screen.queryByRole('button', { name: BG.header.nav.quote })).toBeNull()
+  }, 30000)
+
+  it('/rep is the panel’s front door and opens straight onto its one section', async () => {
+    // What a representative types from memory. With a single section, the door opens onto
+    // it rather than onto a menu — and still with none of the marketing chrome around it.
+    renderAppAt('/rep')
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Необходим е вход' })).toBeInTheDocument(), SLOW)
+    expect(currentPath()).toBe('/rep/leads')
     expect(screen.queryByRole('button', { name: EN.header.nav.quote })).toBeNull()
     expect(screen.queryByRole('button', { name: BG.header.nav.quote })).toBeNull()
   }, 30000)

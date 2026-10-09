@@ -62,4 +62,28 @@ describe('InternalDoorsPage enquiry', () => {
   it('sends no representative when there was none', () => {
     expect(sendEnquiry(elContent, 'el').payload).toMatchObject({ rep: '', website: '' })
   })
+
+  it('renders the honeypot where no visitor can reach it, and sends whatever a bot puts in it', () => {
+    render(<InternalDoorsPage content={bgContent} locale="bg" />)
+    fireEvent.click(screen.getByRole('button', { name: bgContent.review.cta }))
+    const form = screen.getByPlaceholderText(bgContent.forms.email).closest('form')
+
+    // Off-screen, out of the tab order and hidden from assistive tech — and never
+    // display:none, which the better bots skip (HoneypotField).
+    const trap = form.querySelector('input[name="website"]')
+    expect(trap).not.toBeNull()
+    expect(trap.tabIndex).toBe(-1)
+    expect(trap.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(trap.closest('[aria-hidden="true"]').style.display).not.toBe('none')
+    expect(screen.queryByRole('textbox', { name: /website/i })).toBeNull()
+
+    // A form-filler fills every field it finds.
+    fireEvent.change(trap, { target: { value: 'http://spam.example' } })
+    fireEvent.change(screen.getByPlaceholderText(bgContent.forms.name), { target: { value: 'Bot' } })
+    fireEvent.change(screen.getByPlaceholderText(bgContent.forms.email), { target: { value: 'bot@example.com' } })
+    fireEvent.submit(form)
+
+    expect(submitInBackground).toHaveBeenCalledTimes(1)
+    expect(submitInBackground.mock.calls[0][0].payload).toMatchObject({ website: 'http://spam.example' })
+  })
 })

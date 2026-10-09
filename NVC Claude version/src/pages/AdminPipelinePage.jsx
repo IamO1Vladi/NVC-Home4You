@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import RichTextEditor from '../admin/RichTextEditor.jsx'
-import { adminGet, adminSend, adminSendForm, adminUpload, UnauthorizedError } from '../admin/adminApi.js'
+import { adminGet, adminSend, adminSendForm, adminUpload, ForbiddenError, UnauthorizedError } from '../admin/adminApi.js'
 import { adminSave, keepsTheEditorOpen } from '../admin/adminSave.js'
 import { resolveModel, modelsFor, WITH_GALLERY_MODELS_FALLBACK } from '../admin/modelPicker.js'
 import {
@@ -437,6 +437,18 @@ function sameUser(a, b) {
     && a.trim().toLowerCase() === b.trim().toLowerCase()
 }
 
+// Which of the shell's screens a failed load lands on. Three answers, because they are
+// three different problems with three different ways out: a 401 wants the sign-in card; a
+// 403 wants the person told which panel is theirs — a member of staff who opened /rep/leads,
+// or a representative who opened /admin (#38), is signed in perfectly well, and the error
+// card's Retry would be refused the same way for ever; and only what is left is something
+// worth trying again.
+function loadFailureState(err) {
+  if (err instanceof UnauthorizedError) return 'unauthorized'
+  if (err instanceof ForbiddenError) return 'forbidden'
+  return 'error'
+}
+
 // Whole days between the follow-up date and today, in UTC on both sides.
 function daysOverdue(iso) {
   const value = dateInputValue(iso)
@@ -817,7 +829,7 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
           || (current && rows.some((r) => r.id === current) ? current : rows[0]?.id ?? null))
         setState('ready')
       })
-      .catch((err) => { if (alive) setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error') })
+      .catch((err) => { if (alive) setState(loadFailureState(err)) })
     return () => { alive = false }
   }, [loadBoard, tab, params, retryAt])
 
@@ -825,7 +837,10 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
     let alive = true
     loadLead(selectedId).catch((err) => {
       if (!alive) return
-      if (err instanceof UnauthorizedError) setState('unauthorized')
+      // Only the two answers that take the whole page with them. A lead that merely failed
+      // to load leaves the board standing, as it always has.
+      const next = loadFailureState(err)
+      if (next !== 'error') setState(next)
     })
     return () => { alive = false }
   }, [loadLead, selectedId])

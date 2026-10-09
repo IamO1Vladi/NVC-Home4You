@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Services;
@@ -51,6 +56,48 @@ public class RepresentativeNotificationTests
     private static IntakeOutcome Created(int leadId, int? duplicateOf = null, string? duplicateOwner = null) =>
         new(true, leadId, duplicateOf, duplicateOwner, null);
 
+    // The factory LeadMailSendTests keeps private: one handler for every client the service
+    // asks for, so the token fetch and the send land in the same list of calls.
+    private sealed class HandlerFactory : IHttpClientFactory
+    {
+        private readonly HttpMessageHandler _handler;
+        public HandlerFactory(HttpMessageHandler handler) => _handler = handler;
+        public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false);
+    }
+
+    // A service that will actually send: Graph configured, the sales list as given, and a
+    // stub on the wire that answers the token fetch and then whatever comes next.
+    private static (EmailService Service, GraphStubHandler Graph) Sending(string salesList)
+    {
+        var env = new EnvConfig(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["GRAPH_TENANT_ID"] = "tenant",
+            ["GRAPH_CLIENT_ID"] = "client",
+            ["GRAPH_CLIENT_SECRET"] = "secret",
+            ["GRAPH_SENDER"] = "contact@nvc-home4you.eu",
+            ["LEAD_NOTIFY_EMAIL"] = salesList,
+        }).Build());
+
+        var graph = new GraphStubHandler();
+        graph.Enqueue(HttpStatusCode.OK, """{ "access_token": "tok", "expires_in": 3600 }""");
+        var factory = new HandlerFactory(graph);
+        return (new EmailService(env, factory, NullLogger<EmailService>.Instance, new GraphTokens(env, factory)), graph);
+    }
+
+    // The sendMail payload. Call [0] is the token fetch and [1] the message, as in
+    // LeadMailSendTests; exactly two, or something was sent that should not have been.
+    private static JsonElement SentMessage(GraphStubHandler graph)
+    {
+        Assert.Equal(2, graph.Calls.Count);
+        Assert.EndsWith("/sendMail", new Uri(graph.Calls[1].Url).AbsolutePath);
+        return JsonDocument.Parse(graph.Calls[1].Body).RootElement.GetProperty("message");
+    }
+
+    private static string[] Addresses(JsonElement recipients) =>
+        recipients.EnumerateArray()
+            .Select(r => r.GetProperty("emailAddress").GetProperty("address").GetString()!)
+            .ToArray();
+
     // --- Who gets it ----------------------------------------------------------------------
 
     [Fact]
@@ -92,6 +139,53 @@ public class RepresentativeNotificationTests
         var recipients = EmailService.WithRecipient(EmailService.ParseRecipients("a@x.com; b@x.com"), " rep@x.com ");
 
         Assert.Equal(new[] { "a@x.com", "b@x.com", "rep@x.com" }, recipients);
+    }
+
+    [Fact]
+    public async Task On_the_wire_the_representative_is_a_recipient_once_and_the_sales_list_stays()
+    {
+        // WithRecipient above is the rule; this is the rule reaching Graph. The merged list
+        // is what TrySendLeadNotificationAsync hands the transport, and nothing between the
+        // two re-derives it — so the rep is on the message, after sales, once.
+        var (service, graph) = Sending("a@nvc-home4you.eu; b@nvc-home4you.eu");
+
+        var sent = await service.TrySendLeadNotificationAsync(
+            isOffer: true, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?",
+            CancellationToken.None, model: null, intake: Note(Created(42)));
+
+        Assert.True(sent);
+        var message = SentMessage(graph);
+        Assert.Equal(new[] { "a@nvc-home4you.eu", "b@nvc-home4you.eu", Upn }, Addresses(message.GetProperty("toRecipients")));
+        // Reply-To stays the customer: the rep answering him directly is the point of the link.
+        Assert.Equal(new[] { "ivan@example.com" }, Addresses(message.GetProperty("replyTo")));
+        Assert.Equal("Ново запитване за оферта: Ivan — представител: dtodorov", message.GetProperty("subject").GetString());
+    }
+
+    [Fact]
+    public async Task On_the_wire_a_salesperson_who_is_the_representative_is_still_one_recipient()
+    {
+        // The registry's casing against the sales list's, the way two hand-typed settings
+        // differ; Graph would deliver both spellings to the one inbox.
+        var (service, graph) = Sending($"a@nvc-home4you.eu; {Upn}");
+
+        await service.TrySendLeadNotificationAsync(
+            isOffer: false, "Ivan", "ivan@example.com", null, "Delivery to Varna?",
+            CancellationToken.None, intake: Note(Created(42), upn: "DTodorov@NVC-Home4You.eu"));
+
+        var to = Addresses(SentMessage(graph).GetProperty("toRecipients"));
+        Assert.Equal(2, to.Length);
+        Assert.Single(to, a => string.Equals(a, Upn, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task On_the_wire_an_enquiry_without_a_link_goes_to_the_sales_list_alone()
+    {
+        var (service, graph) = Sending("a@nvc-home4you.eu; b@nvc-home4you.eu");
+
+        await service.TrySendLeadNotificationAsync(
+            isOffer: true, "Ivan", "ivan@example.com", null, "Delivery to Varna?", CancellationToken.None);
+
+        Assert.Equal(new[] { "a@nvc-home4you.eu", "b@nvc-home4you.eu" }, Addresses(SentMessage(graph).GetProperty("toRecipients")));
     }
 
     // --- What it says ---------------------------------------------------------------------
@@ -153,6 +247,21 @@ public class RepresentativeNotificationTests
         Assert.DoesNotContain("възложен", html);
         Assert.DoesNotContain("/admin/pipeline?lead=", html);
         Assert.DoesNotContain("/rep/leads?lead=", html);
+    }
+
+    [Fact]
+    public void An_enquiry_that_was_never_stored_says_this_mail_is_its_only_copy()
+    {
+        // The controllers hand this reason in when the write itself failed: there is no row
+        // in Запитвания to promote by hand, so "вижте Запитвания" would send the reader to
+        // look for something that does not exist. The mail IS the enquiry now, and says so.
+        var (_, html) = Render(Note(IntakeOutcome.Skipped("enquiry-not-stored")));
+
+        Assert.Contains("Лийд не е създаден: запитването не беше записано и този имейл е единственото му копие", html);
+        Assert.DoesNotContain("вижте Запитвания", html);
+        Assert.DoesNotContain("(enquiry-not-stored)", html);
+        Assert.DoesNotContain("възложен", html);
+        Assert.DoesNotContain("/admin/pipeline?lead=", html);
     }
 
     [Fact]

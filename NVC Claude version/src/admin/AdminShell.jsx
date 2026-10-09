@@ -4,7 +4,7 @@ import { adminGet } from './adminApi.js'
 import '../style/Admin.css'
 
 // Shared chrome for the admin pages: navigation, language toggle, who is signed in, and the
-// loading / unauthorized / error states every page needs to handle identically.
+// loading / unauthorized / forbidden / error states every page needs to handle identically.
 //
 // Not a localized route like the marketing pages — this is an internal tool, so it lives at
 // a single /admin path with its own BG/EN toggle rather than three SEO'd URLs. The choice is
@@ -51,6 +51,11 @@ const TEXT = {
     retry: 'Опитай отново',
     unauthorized: 'За да продължите, влезте със служебния си акаунт.',
     unauthorizedTitle: 'Необходим е вход',
+    // Signed in and refused (403): the wrong panel, not a broken one. See the card below.
+    forbiddenTitle: 'Няма достъп',
+    forbiddenRep: 'Този панел е за представители.',
+    forbiddenRepHint: 'Ако сте служител, използвайте Администрация.',
+    forbiddenAdmin: 'Нямате достъп до този панел.',
     signIn: 'Вход с Microsoft',
     signOut: 'Изход',
     menu: 'Меню',
@@ -74,6 +79,10 @@ const TEXT = {
     retry: 'Try again',
     unauthorized: 'Sign in with your work account to continue.',
     unauthorizedTitle: 'Sign-in required',
+    forbiddenTitle: 'No access',
+    forbiddenRep: 'This panel is for representatives.',
+    forbiddenRepHint: 'If you are a member of staff, use the Admin panel.',
+    forbiddenAdmin: 'You do not have access to this panel.',
     signIn: 'Sign in with Microsoft',
     signOut: 'Sign out',
     menu: 'Menu',
@@ -257,12 +266,23 @@ const REP_SECTIONS = [
 
 // Everything that differs between the two panels this shell renders, looked up once from
 // the `area` prop so nothing below has to ask which panel it is in. `brand` names the TEXT
-// key for the word beside the mark; `home` is where that mark links.
+// key for the word beside the mark; `home` is where that mark links. `forbidden` is what
+// the 403 card says (TEXT keys) and, when there is one, the other panel's door it offers.
 const AREAS = {
-  admin: { home: '/admin', brand: 'brand', me: '/api/admin/me', sections: SECTIONS, counts: true },
+  admin: {
+    home: '/admin', brand: 'brand', me: '/api/admin/me', sections: SECTIONS, counts: true,
+    // No door: the representatives' panel is unlisted, and a card on /admin is not where
+    // to advertise it. Whoever lands here is offered the way out, nothing else.
+    forbidden: { lines: ['forbiddenAdmin'], door: null },
+  },
   // No counts: the two badges read admin endpoints a representative cannot call, and the
   // one section he has carries nothing to count anyway.
-  rep: { home: '/rep/leads', brand: 'brandRep', me: '/api/rep/me', sections: REP_SECTIONS, counts: false },
+  rep: {
+    home: '/rep/leads', brand: 'brandRep', me: '/api/rep/me', sections: REP_SECTIONS, counts: false,
+    // A member of staff who followed a representative's link by mistake is the likely
+    // visitor; the admin panel is where they meant to go.
+    forbidden: { lines: ['forbiddenRep', 'forbiddenRepHint'], door: '/admin' },
+  },
 }
 
 // `me` and the pending-review count are chrome, not page data, so the shell fetches them
@@ -324,6 +344,29 @@ export default function AdminShell({
           <a className="btn adm-btn-lg" href={`/admin/signin?returnUrl=${encodeURIComponent(currentPath())}`}>
             {t.signIn}
           </a>
+        </div>
+      </main>
+    )
+  }
+
+  if (state === 'forbidden') {
+    // Signed in, and refused: the API answered 403 (adminApi's ForbiddenError). Neither of
+    // the two cards above fits it. The error card's Retry would be refused the same way
+    // for ever, and the sign-in card would send a perfectly good session round through
+    // Microsoft and back to this screen. What the person is, is in the wrong panel (#38):
+    // staff on /rep/leads, or a representative — or anyone else with an Entra account —
+    // on /admin. Said plainly, with the other panel's door where there is one to offer,
+    // and the way out in both. No chrome around it, for the same reason as the sign-in
+    // card: every section in the nav would be refused the same way.
+    const { lines, door } = area.forbidden
+    return (
+      <main className="adm-page adm-center">
+        <div className="adm-card adm-signin">
+          <div className="adm-signin-mark" aria-hidden="true">NVC</div>
+          <h1>{t.forbiddenTitle}</h1>
+          {lines.map((key) => <p key={key} className="adm-muted">{t[key]}</p>)}
+          {door ? <Link className="btn adm-btn-lg" to={door}>{t.brand}</Link> : null}
+          <a className={`btn adm-btn-lg${door ? ' btn-ghost' : ''}`} href="/admin/signout">{t.signOut}</a>
         </div>
       </main>
     )

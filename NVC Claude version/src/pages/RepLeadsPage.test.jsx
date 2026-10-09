@@ -47,14 +47,32 @@ const DETAIL = {
   ],
 }
 
+// A second owned lead, served only when asked for BY ID, so a test can tell "opened the
+// linked lead" apart from "opened the first row, as every morning".
+const DETAIL_2 = {
+  ...DETAIL,
+  id: 2, name: 'Maria Dimitrova', email: 'maria@example.com', status: 'new',
+  nextStep: 'Call back about the plot', nextContactAt: '2026-08-20T00:00:00.0000000Z',
+  notes: 'Wants a site visit in September.', houseId: 0, houseTitle: '', customModel: 'Custom 80',
+  offerId: 9, createdAt: '2026-08-10T09:00:00Z', lastActivityAt: '2026-08-11T09:00:00Z',
+  activities: [
+    { id: 20, type: 'email_in', subject: 'Plot', body: 'Can the 80 go on a slope?', actorUpn: '', fromCustomer: true, occurredAt: '2026-08-10T09:00:00Z', attachments: [] },
+  ],
+}
+
 let calls = []
 let detail = DETAIL
 let signedIn = true
+// Whether the server knows this account as a representative. False is the 403 every
+// api/rep route answers a signed-in member of staff — or anyone the registry does not
+// list — with.
+let representative = true
 
 beforeEach(() => {
   calls = []
   detail = DETAIL
   signedIn = true
+  representative = true
   _resetSubmissions()
   // Zero backoff, for the same reason as the admin suite: a save handed to the retries
   // must not still be firing into the next test's call log.
@@ -66,8 +84,10 @@ beforeEach(() => {
     const u = String(url)
     calls.push({ url: u, method: options.method || 'GET', body: options.body })
     if (!signedIn) return json({}, 401)
+    if (!representative) return json({}, 403)
     if (u.includes('/api/rep/me')) return json({ name: 'Dimitar Todorov', email: REP, role: 'representative' })
     if (u.includes('/api/rep/pipeline/1/reply')) return json({ ok: true, activityId: 99 })
+    if (u.match(/\/api\/rep\/pipeline\/2$/)) return json(DETAIL_2)
     if (u.match(/\/api\/rep\/pipeline\/\d+$/)) return json(detail)
     if (u.includes('/api/rep/pipeline')) return json(BOARD)
     return json({}, 403)
@@ -227,5 +247,40 @@ describe('RepLeadsPage', () => {
     // not the admin one — the one place the two panels' paths had to be told apart.
     const link = screen.getByRole('link', { name: /Вход/ })
     expect(link.getAttribute('href')).toBe(`/admin/signin?returnUrl=${encodeURIComponent('/rep/leads')}`)
+  })
+
+  it('a 403 says the panel is for representatives and offers the admin door — not a retry', async () => {
+    // A member of staff who followed a representative's link, or an account the registry
+    // does not list. Signed in, so the sign-in card would be a loop; refused for good, so a
+    // Retry button would answer 403 all afternoon. Said plainly instead, with both ways out.
+    representative = false
+    render(<RepLeadsPage />)
+
+    expect(await screen.findByText('Този панел е за представители.')).toBeInTheDocument()
+    expect(screen.getByText('Ако сте служител, използвайте Администрация.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Опитай отново|Try again/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Необходим е вход' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Ivan Petrov')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Администрация' })).toHaveAttribute('href', '/admin')
+    expect(screen.getByRole('link', { name: 'Изход' })).toHaveAttribute('href', '/admin/signout')
+  })
+
+  it('a ?lead= link opens that lead, not the first row', async () => {
+    // The notification mail links the representative straight to his new lead
+    // (LeadFollowUpService: /rep/leads?lead=N). It is rarely the quietest row, so the page
+    // has to fetch the linked one rather than select whatever sorted to the top.
+    const user = userEvent.setup()
+    render(<RepLeadsPage />, '/rep/leads?lead=2')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Maria Dimitrova' })).toBeInTheDocument())
+
+    const urls = calls.map((c) => c.url)
+    expect(urls).toContain('/api/rep/pipeline/2')
+    expect(urls).not.toContain('/api/rep/pipeline/1')
+
+    const dialog = await openSheet(user)
+    expect(within(dialog).getByDisplayValue('Call back about the plot')).toBeInTheDocument()
+    expect(within(dialog).getByDisplayValue('Wants a site visit in September.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Can the 80 go on a slope?')).toBeInTheDocument()
+    expect(adminCalls()).toEqual([])
   })
 })
