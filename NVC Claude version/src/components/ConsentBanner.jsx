@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react';
 import { paths, getLocaleFromPath } from '../routes/paths.js';
 
 /**
- * Minimal cookie banner wired for Google Consent Mode v2 + GTM.
+ * Cookie consent card wired for Google Consent Mode v2 + GTM.
  * - Defaults are set to DENIED in index.html (before GTM loads).
  * - Accept/Reject will update consent and emit a dataLayer event.
- * - Re-opens on the `nvc:open-consent` window event (dispatched from the
- *   Privacy & Cookie Policy page's "Cookie settings" button).
+ * - Re-opens on the `nvc:open-consent` window event (dispatched from the site footer's
+ *   and the Privacy & Cookie Policy page's "Cookie settings" buttons).
  * NOTE: For EEA/UK personalized ads you should use a Google-certified CMP.
+ *
+ * Rendered as a small card in the site's own tokens (.consent-card in index.css) rather
+ * than a black full-width strip. While it is mounted the <html> element carries
+ * data-consent-open, which hides the floating contact dock so the two never share the
+ * phone's bottom band.
  *
  * This component renders outside the React Router tree (see main.jsx), so it
  * reads the locale from window.location and links to the policy with a plain <a>.
@@ -72,6 +77,16 @@ export default function ConsentBanner() {
     return () => window.removeEventListener('nvc:open-consent', onOpen);
   }, []);
 
+  // Tell the page the card is up (CSS hides the contact dock on :root[data-consent-open]);
+  // the cleanup removes it on close and on unmount alike.
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return undefined;
+    document.documentElement.dataset.consentOpen = '';
+    return () => {
+      delete document.documentElement.dataset.consentOpen;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   const acceptAll = () => {
@@ -103,47 +118,19 @@ export default function ConsentBanner() {
     setOpen(false);
   };
 
-  // A named region, because this bar renders OUTSIDE the router tree and therefore
+  // A named region, because this card renders OUTSIDE the router tree and therefore
   // outside every landmark on the page — it was the one element axe flagged on all 52
   // routes. role=region with a name makes it a landmark of its own.
   return (
-    <div data-nosnippet role="region" aria-label={t.label} style={barStyle}>
-      <span style={{maxWidth:'60ch'}}>
+    <div className="consent-card" data-nosnippet role="region" aria-label={t.label}>
+      <span>
         {t.text}{' '}
-        <a href={policyHref} style={{color:'#fff', textDecoration:'underline'}}>{t.learnMore}</a>
+        <a href={policyHref}>{t.learnMore}</a>
       </span>
-      <div style={{display:'flex', gap:'0.5rem'}}>
-        <button onClick={rejectAll} style={btnStyle('outline')}>{t.reject}</button>
-        <button onClick={acceptAll} style={btnStyle('solid')}>{t.accept}</button>
+      <div className="consent-card-actions">
+        <button type="button" className="btn ghost" onClick={rejectAll}>{t.reject}</button>
+        <button type="button" className="btn" onClick={acceptAll}>{t.accept}</button>
       </div>
     </div>
   );
-}
-
-const barStyle = {
-  position: 'fixed',
-  left: 0, right: 0, bottom: 0,
-  padding: '1rem',
-  background: '#111', color: '#fff',
-  zIndex: 10000,
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  gap: '0.75rem', flexWrap: 'wrap',
-  boxShadow: '0 -4px 12px rgba(0,0,0,0.2)'
-};
-
-function btnStyle(variant) {
-  if (variant === 'solid') {
-    return {
-      padding: '0.6rem 1rem',
-      border: 'none',
-      cursor: 'pointer'
-    };
-  }
-  return {
-    padding: '0.6rem 1rem',
-    border: '1px solid #fff',
-    background: 'transparent',
-    color: '#fff',
-    cursor: 'pointer'
-  };
 }

@@ -11,8 +11,26 @@
       })();
     </script>
 
+    <!-- Theme before first paint: light unless the device prefers dark or the visitor chose dark.
+         Runs before any stylesheet so the page never flashes the other theme; ThemeContext takes
+         over once React mounts and keeps writing the same attribute. -->
+    <script>
+      (function () {
+        var choice = null;
+        try { choice = localStorage.getItem('theme'); } catch (e) {}
+        var resolved = choice === 'dark' || choice === 'light'
+          ? choice
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Commissioner, self-hosted (public/fonts): one woff2 per script, so a page downloads only the subsets it uses. -->
+    <link rel="stylesheet" href="/fonts/commissioner.css" />
 
     <!-- Static SEO defaults: crawlers that don't run JS see these; react-helmet overrides them per route.
          The .NET server replaces everything between SEO-START / SEO-END per route (see api-dotnet/Program.cs). -->

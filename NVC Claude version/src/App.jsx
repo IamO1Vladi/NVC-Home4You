@@ -1,9 +1,8 @@
 import React, { useState, useCallback, lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { LazyMotion, domAnimation } from 'framer-motion'
+import { LazyMotion, MotionConfig, domAnimation } from 'framer-motion'
 import Header from './components/Header.jsx'
 import Modal from './components/Modal.jsx'
-import MobileDock from './components/MobileDock.jsx'
 import ContactDock from './components/ContactDock.jsx'
 import SiteFooter from './components/SiteFooter.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
@@ -108,6 +107,7 @@ const AdminCasesPage = lazy(() => import('./pages/AdminCasesPage.jsx'))
 const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage.jsx'))
 const AdminFactorySheetsPage = lazy(() => import('./pages/AdminFactorySheetsPage.jsx'))
 const AdminDocumentsPage = lazy(() => import('./pages/AdminDocumentsPage.jsx'))
+const AdminHomePhotosPage = lazy(() => import('./pages/AdminHomePhotosPage.jsx'))
 
 function LocalePathGate({ children }) {
   const location = useLocation()
@@ -358,7 +358,7 @@ function AppShell() {
             const routeSeo = getRouteSeo(location.pathname, currentLocale)
             return routeSeo ? <SEO {...routeSeo} /> : null
           })()}
-          {!isInternal && <Header locale={currentLocale} content={ui.header} onLanguageChange={handleLanguageChange} onOpenOffer={openOfferModal} />}
+          {!isInternal && <Header locale={currentLocale} content={ui.header} telephone={ui.home?.localBusiness?.telephone} phone={ui.home?.finalCta?.phone} onLanguageChange={handleLanguageChange} onOpenOffer={openOfferModal} />}
 
           <Suspense fallback={<div className="page-loading" />}>
             <Routes>
@@ -457,6 +457,7 @@ function AppShell() {
               <Route path="/admin/gallery" element={<AdminGalleryPage />} />
               <Route path="/admin/cases" element={<AdminCasesPage />} />
               <Route path="/admin/documents" element={<AdminDocumentsPage />} />
+              <Route path="/admin/home-photos" element={<AdminHomePhotosPage />} />
               <Route path="/admin/audit" element={<AdminAuditPage />} />
               <Route path="/admin/factory-sheets" element={<AdminFactorySheetsPage />} />
 
@@ -500,9 +501,7 @@ function AppShell() {
             </form>
           </Modal>
 
-          {!isInternal && !isBuilderTool && <ContactDock labels={{ contact: ui.common.contactLabel, whatsapp: ui.common.whatsAppChatLabel, viber: ui.common.viberChatLabel }} />}
-
-          {!isInternal && <MobileDock content={ui.home.mobileDock} />}
+          {!isInternal && !isBuilderTool && <ContactDock labels={{ contact: ui.common.contactLabel, call: ui.common.callLabel, whatsapp: ui.common.whatsAppChatLabel, viber: ui.common.viberChatLabel }} />}
           <SubmitStatus />
         </LocalePathGate>
       </ModalActionsProvider>
@@ -513,11 +512,14 @@ function AppShell() {
 export default function App() {
   return (
     <LazyMotion features={domAnimation}>
-      <ThemeProvider>
-        <I18nProvider>
-          <AppShell />
-        </I18nProvider>
-      </ThemeProvider>
+      {/* reducedMotion="user": every framer animation left on the site follows the OS setting. */}
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider>
+          <I18nProvider>
+            <AppShell />
+          </I18nProvider>
+        </ThemeProvider>
+      </MotionConfig>
     </LazyMotion>
   )
 }

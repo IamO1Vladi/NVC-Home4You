@@ -12,6 +12,7 @@ const content = {
   countLabel: '{count} verified reviews',
   verified: 'Verified',
   customerFallback: 'Customer',
+  aggregatePattern: '{score} from {count} verified reviews',
   ctaLabel: 'Read all reviews →',
 }
 
@@ -51,9 +52,8 @@ describe('Testimonials', () => {
     renderTestimonials()
 
     expect(await screen.findByText('What our customers say')).toBeInTheDocument()
-    // Aggregate score and resolved count label.
-    expect(screen.getByText('4.7')).toBeInTheDocument()
-    expect(screen.getByText('12 verified reviews')).toBeInTheDocument()
+    // The aggregate is one sentence from aggregatePattern, score and count filled in.
+    expect(screen.getByText('4.7 from 12 verified reviews')).toBeInTheDocument()
     // One card per review.
     expect(screen.getByText('Alice')).toBeInTheDocument()
     expect(screen.getByText('Bob')).toBeInTheDocument()

@@ -1,56 +1,37 @@
+// The configurator's front door, on the home page: three models, three finished prices.
+//
+// A LIVE ENTRY POINT, not a link. Each card is a real model with its photograph and its
+// finished price, and tapping one lands inside the configurator with that model already
+// chosen (?model=<key>, read by BoxHouseConfiguratorPage). The first decision is made
+// before the tool even loads.
+//
+// Prices come from the same getPriceRows() the prices page renders — house price inc VAT
+// plus assembly grossed up — so the number a visitor taps on here is exactly the number
+// the prices page and the configurator will show them next; the title's "from" figure is
+// the lowest card beneath it. The photo is the admin's model slot when one is set (served
+// by /api/img, so it gets the resizer), else the static catalogue render under /public.
+//
+// Copy lives in home.strip of the three content files so the Greek audit scans it.
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { paths } from '../routes/paths.js'
 import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import { getPriceRows } from '../content/shared/prices.js'
+import { brochureUrl } from '../lib/brochure.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
-// The configurator's front door, on the home page.
-//
-// A LIVE ENTRY POINT, not a link. Each card is a real model with its real photograph and
-// finished price, and tapping one lands inside the configurator with that model already
-// chosen (?model=<key>, read by BoxHouseConfiguratorPage). The first decision is made
-// before the tool even loads, which is the difference between "here is a tool" and
-// "here is your house, adjust it".
-//
-// Prices come from the same getPriceRows() the prices page renders — house price inc VAT
-// plus assembly grossed up — so the number a visitor taps on here is exactly the number
-// the prices page and the configurator will show them next. Three surfaces, one source.
-//
-// Static content, so it prerenders into the crawlable HTML like everything else on the
-// home page — which also quietly gives the home page model names and prices in text form.
+const fill = (pattern, values) => Object.entries(values).reduce(
+  (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+  String(pattern || ''),
+)
 
-const STRIP_COPY = {
-  bg: {
-    kicker: 'Конфигуратор',
-    title: 'Сглобете своята къща онлайн',
-    lead: 'Изберете модел и вижте цената на всяка стъпка — план, дограма, баня, кухня.',
-    from: 'от',
-    cta: 'Конфигурирай',
-    all: 'Всички цени',
-    planner: 'Планирай разпределението',
-  },
-  en: {
-    kicker: 'Configurator',
-    title: 'Build your house online',
-    lead: 'Pick a model and see the price at every step — plan, windows, bathroom, kitchen.',
-    from: 'from',
-    cta: 'Configure',
-    all: 'All prices',
-    planner: 'Plan the layout',
-  },
-  el: {
-    kicker: 'Διαμορφωτής',
-    title: 'Φτιάξτε το σπίτι σας online',
-    lead: 'Διαλέξτε μοντέλο και δείτε την τιμή σε κάθε βήμα — κάτοψη, κουφώματα, μπάνιο, κουζίνα.',
-    from: 'από',
-    cta: 'Διαμορφώστε',
-    all: 'Όλες οι τιμές',
-    planner: 'Σχεδιάστε την κάτοψη',
-  },
+function Doc() {
+  return <svg className="hp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /></svg>
 }
 
-export default function ConfiguratorStrip({ locale = 'en' }) {
-  const t = STRIP_COPY[locale] || STRIP_COPY.en
+export default function ConfiguratorStrip({ locale = 'en', content, photos = {} }) {
+  if (!content) return null
+
   const rows = getPriceRows(locale)
   const { models } = getBoxConfiguratorCatalog(locale)
 
@@ -59,52 +40,65 @@ export default function ConfiguratorStrip({ locale = 'en' }) {
   const pricesPath = paths.prices[locale] || paths.prices.en
 
   const base = import.meta.env.BASE_URL || '/'
+  const cardFallback = `${base}modular-builds/card.svg`
+
+  const minPrice = Math.min(...rows.map((row) => row.standard.total))
+  const title = fill(content.titlePattern, { count: rows.length, price: euro(minPrice, locale) })
 
   return (
-    <section className="cfg-strip">
-      <div className="container">
-        <div className="cfg-strip-head">
+    <section className="hp-strip" id="prices" aria-labelledby="hp-strip-title">
+      <div className="hp-container">
+        <div className="hp-head">
           <div>
-            <p className="cfg-strip-kicker">{t.kicker}</p>
-            <h2 className="cfg-strip-title">{t.title}</h2>
-            <p className="cfg-strip-lead">{t.lead}</p>
+            <span className="hp-eyebrow">{content.kicker}</span>
+            <h2 id="hp-strip-title">{title}</h2>
+            <p className="hp-sub">{content.lead}</p>
           </div>
-          {/* "Price it yourself": the from-price next to the tool that computes the rest.
-              A number beside a button that explains the number is the natural next click. */}
-          <Link className="cfg-strip-all" to={pricesPath}>{t.all} →</Link>
+          <div className="hp-head-links">
+            <Link to={pricesPath}>{content.all}</Link>
+            <Link className="hp-desk" to={plannerPath}>{content.planner}</Link>
+          </div>
         </div>
 
-        <div className="cfg-strip-cards">
+        <div className="hp-models">
           {rows.map((row) => {
             const model = models.find((m) => m.key === row.key)
+            const staticSrc = `${base}box-config/${model?.standardHeroImage || model?.heroImage}`
+            const apiSrc = photos?.[row.key] || null
+            const src = apiSrc || staticSrc
             return (
               <Link
                 key={row.key}
-                className="cfg-strip-card"
+                className="hp-card hp-model"
                 to={`${configuratorPath}?model=${row.key}`}
+                data-model={row.key}
               >
                 <img
-                  src={`${base}box-config/${model?.standardHeroImage || model?.heroImage}`}
+                  src={cdnImage(src, { width: 640 })}
+                  srcSet={cdnSrcSet(src, [480, 640, 800, 1200])}
+                  sizes="(max-width: 639px) 120px, (max-width: 1199px) 33vw, 384px"
                   alt={row.label}
                   loading="lazy"
                   decoding="async"
-                  width="480"
-                  height="300"
+                  width="1200"
+                  height="900"
+                  onError={imageFallback(apiSrc ? staticSrc : null, cardFallback)}
                 />
-                <span className="cfg-strip-card-body">
-                  <span className="cfg-strip-card-name">{row.label}</span>
-                  <span className="cfg-strip-card-price">
-                    {t.from} <strong>{euro(row.standard.total, locale)}</strong>
-                  </span>
-                  <span className="cfg-strip-card-cta">{t.cta} →</span>
+                <span className="hp-model-body">
+                  <span className="hp-model-size">{row.label}</span>
+                  <span className="hp-model-price"><small>{content.from}</small> {euro(row.standard.total, locale)}</span>
+                  <span className="hp-model-incl">{content.incl}</span>
+                  <span className="hp-model-go">{content.cta}</span>
                 </span>
               </Link>
             )
           })}
         </div>
 
-        <p className="cfg-strip-planner">
-          <Link to={plannerPath}>{t.planner} →</Link>
+        <p className="hp-paper">
+          <span>{content.paperPrefix}</span>
+          <a href={brochureUrl('modular-builds', 1, locale)} target="_blank" rel="noopener noreferrer"><Doc />{content.paperLink}</a>
+          <span>{content.paperOr} <a href="#catalogues">{content.paperAll}</a>.</span>
         </p>
       </div>
     </section>

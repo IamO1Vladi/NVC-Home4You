@@ -1,12 +1,43 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
 import { m, AnimatePresence } from 'framer-motion'
-import { useTheme } from '../context/ThemeContext.jsx'
 import { paths, getLocaleFromPath } from '../routes/paths.js'
 
-export default function Header({ locale = 'en', content, onLanguageChange, onOpenOffer }) {
+// The site-wide bar and the phone drawer. The number is the one thing here that is not
+// copy: it is dialled, so it lives as a tel: href and is printed the same way in the bar,
+// the drawer and the contact dock. App.jsx passes it from home.localBusiness.telephone /
+// home.finalCta.phone so the content files stay the one place to edit; the constants below
+// are only the fallback for a render without those props. The theme select used to sit in
+// the bar; it is a setting, not navigation, and now lives in the footer.
+const PHONE_TEL = 'tel:+359879355269'
+const PHONE_DISPLAY = '+359 87 935 5269'
+
+// Copy the header needs before the content files carry it; the content key wins when set.
+const FALLBACK = {
+  call: { en: 'Call us', bg: 'Обадете ни се', el: 'Καλέστε μας' },
+  catalogues: { en: 'Catalogues (PDF)', bg: 'Каталози (PDF)', el: 'Κατάλογοι (PDF)' },
+}
+
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z" />
+    </svg>
+  )
+}
+
+function DrawerChevron() {
+  return (
+    <svg className="drawer-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export default function Header({ locale = 'en', content, telephone, phone, onLanguageChange, onOpenOffer }) {
+  const phoneTel = telephone ? `tel:${String(telephone).replace(/\s+/g, '')}` : PHONE_TEL
+  const phoneDisplay = phone || PHONE_DISPLAY
   const location = useLocation()
-  const { theme, setTheme } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -21,9 +52,18 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
 
   const currentLocale = getLocaleFromPath(location.pathname) || locale
   const pathFor = (key) => paths[key]?.[currentLocale] || '/'
+  const callLabel = content?.nav?.call || FALLBACK.call[currentLocale] || FALLBACK.call.en
+  const cataloguesLabel = content?.nav?.catalogues || FALLBACK.catalogues[currentLocale] || FALLBACK.catalogues.en
 
   const plannerPath = paths.planner?.[currentLocale] || null
   const boxConfiguratorPath = paths.boxConfigurator?.[currentLocale] || null
+  const configuratorItem = boxConfiguratorPath
+    ? {
+        key: 'boxConfigurator',
+        label: content?.nav?.boxConfigurator || (currentLocale === 'bg' ? 'Конфигуратор' : 'Configurator'),
+        to: boxConfiguratorPath,
+      }
+    : null
   const planningItems = [
     plannerPath
       ? {
@@ -32,13 +72,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
           to: plannerPath,
         }
       : null,
-    boxConfiguratorPath
-      ? {
-          key: 'boxConfigurator',
-          label: content?.nav?.boxConfigurator || (currentLocale === 'bg' ? 'Конфигуратор' : 'Configurator'),
-          to: boxConfiguratorPath,
-        }
-      : null,
+    configuratorItem,
   ].filter(Boolean)
   // From content alone: the old bg-or-English fallback is what put "Planning" on every
   // Greek page, because no locale had the key. All three do now.
@@ -57,15 +91,16 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
   ]
   const isAboutActive = aboutItems.some((item) => item.to === location.pathname)
 
-  // The drawer mirrors the desktop nav, but flattened: on a phone a link you can
-  // see beats a link hidden one dropdown deep.
+  // The drawer (owner's rule): the four rows a phone visitor acts on, then the homes and
+  // services as one collapsible group, then About. No planner on phones: the floor
+  // planner is a desktop tool.
   const mobileItems = [
+    configuratorItem,
     { key: 'gallery', label: content?.nav?.gallery, to: pathFor('gallery') },
     { key: 'prices', label: content?.nav?.prices, to: pathFor('prices') },
-    ...aboutItems,
     { key: 'partner', label: content?.nav?.partner, to: pathFor('partner') },
-    ...planningItems,
-  ].filter((item) => item.label && item.to)
+  ].filter((item) => item && item.label && item.to)
+  const servicesItems = (content?.servicesMenu?.columns || []).flatMap((column) => column.items)
 
   useEffect(() => {
     function onDoc(e) {
@@ -95,7 +130,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
     const onKey = (e) => {
       if (e.key === 'Escape') setMobileOpen(false)
     }
-    const mq = window.matchMedia('(min-width: 768px)')
+    const mq = window.matchMedia('(min-width: 980px)')
     // Re-measure and re-check the breakpoint from one handler, so a plain resize is
     // enough on browsers where the media-query listener is unreliable.
     const onViewportChange = () => {
@@ -121,10 +156,12 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
 
   if (!content) return null
 
+  const closeDrawer = () => setMobileOpen(false)
+
   return (
     <>
-      {/* The scrim lives outside <header> on purpose: the header's backdrop-filter
-          makes it a containing block, which would clip a position:fixed child. */}
+      {/* The scrim lives outside <header> on purpose: a sticky header that paints its own
+          surface must not become the containing block of a position:fixed child. */}
       <AnimatePresence>
         {mobileOpen && (
           <m.div
@@ -134,7 +171,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            onClick={() => setMobileOpen(false)}
+            onClick={closeDrawer}
           />
         )}
       </AnimatePresence>
@@ -293,21 +330,14 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
         </nav>
 
         <div className="row header-actions" style={{ gap: 8 }} data-nosnippet>
-          <div className="card p-4" style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 12 }}>
-            <label className="visually-hidden" htmlFor="themeSelect">{content.theme.label}</label>
-            <select
-              id="themeSelect"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              className="header-select theme-toggle"
-              aria-label={content.theme.ariaLabel}
-            >
-              <option value="light">{content.theme.light}</option>
-              <option value="dark">{content.theme.dark}</option>
-              <option value="system">{content.theme.system}</option>
-            </select>
-
-            <label className="visually-hidden" htmlFor="langSelect">{content.language.label}</label>
+          {/* Icon only until 1280px, where the number fits; hidden on phones (CSS), where the
+              drawer carries the Call button instead. */}
+          <a className="call" href={phoneTel} aria-label={`${callLabel}, ${phoneDisplay}`}>
+            <PhoneIcon />
+            <span className="num">{phoneDisplay}</span>
+          </a>
+          <label className="visually-hidden" htmlFor="langSelect">{content.language.label}</label>
+          <span className="select-wrap">
             <select
               id="langSelect"
               value={currentLocale}
@@ -319,7 +349,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
-          </div>
+          </span>
         </div>
 
         <button
@@ -357,7 +387,7 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
                       <NavLink
                         className={({ isActive }) => ['drawer-link', isActive && 'active'].filter(Boolean).join(' ')}
                         to={item.to}
-                        onClick={() => setMobileOpen(false)}
+                        onClick={closeDrawer}
                       >
                         {item.label}
                       </NavLink>
@@ -367,17 +397,44 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
                     <details className="drawer-group">
                       <summary className="drawer-link drawer-summary">
                         <span>{content.servicesSummary}</span>
-                        <svg className="drawer-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <DrawerChevron />
                       </summary>
                       <ul className="drawer-sublist">
-                        {content.servicesMenu.columns.flatMap((column) => column.items).map((item) => (
+                        {servicesItems.map((item) => (
                           <li key={`mobile-${item.pathKey}`}>
                             <NavLink
                               className={({ isActive }) => ['drawer-link', 'drawer-sublink', isActive && 'active'].filter(Boolean).join(' ')}
                               to={pathFor(item.pathKey)}
-                              onClick={() => setMobileOpen(false)}
+                              onClick={closeDrawer}
+                            >
+                              {item.label}
+                            </NavLink>
+                          </li>
+                        ))}
+                        <li>
+                          {/* A plain anchor: the browser handles the fragment itself on the home
+                              page and loads the home page from elsewhere; the router has no
+                              hash scrolling of its own. */}
+                          <a className="drawer-link drawer-sublink" href={`${pathFor('home')}#catalogues`} onClick={closeDrawer}>
+                            {cataloguesLabel}
+                          </a>
+                        </li>
+                      </ul>
+                    </details>
+                  </li>
+                  <li>
+                    <details className="drawer-group">
+                      <summary className="drawer-link drawer-summary">
+                        <span>{aboutLabel}</span>
+                        <DrawerChevron />
+                      </summary>
+                      <ul className="drawer-sublist">
+                        {aboutItems.filter((item) => item.label).map((item) => (
+                          <li key={`mobile-${item.key}`}>
+                            <NavLink
+                              className={({ isActive }) => ['drawer-link', 'drawer-sublink', isActive && 'active'].filter(Boolean).join(' ')}
+                              to={item.to}
+                              onClick={closeDrawer}
                             >
                               {item.label}
                             </NavLink>
@@ -387,7 +444,12 @@ export default function Header({ locale = 'en', content, onLanguageChange, onOpe
                     </details>
                   </li>
                 </ul>
-                <button className="btn drawer-cta" onClick={() => { setMobileOpen(false); onOpenOffer?.() }}>{content.nav.quote}</button>
+                {/* Sticky at the drawer's foot so both stay visible without scrolling. The quote
+                    stays a <button>: it opens the form, it does not navigate. */}
+                <div className="drawer-cta-row">
+                  <a className="btn ghost" href={phoneTel} onClick={closeDrawer}>{callLabel}</a>
+                  <button className="btn" onClick={() => { closeDrawer(); onOpenOffer?.() }}>{content.nav.quote}</button>
+                </div>
               </nav>
             </m.div>
         )}

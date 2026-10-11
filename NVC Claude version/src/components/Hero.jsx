@@ -1,77 +1,140 @@
-import React from 'react'
-import { m } from 'framer-motion'
+// The home page's first screen: the slogan, the price and the place, over one photograph.
+//
+// The copy is static content so it prerenders whole; only the price is computed, from the
+// same startingPrice() the strip and the prices page use, so the figure in the first
+// sentence is the figure on the cheapest card below it. The emphasised word in the slogan
+// arrives as <g>…</g> in the content and becomes the accent-coloured span.
+//
+// The numerals are role=tab buttons that pick a slide and stop the crossfade for good;
+// focus inside them pauses it while it lasts. The caption beside them links to the product
+// page of the photo on screen. No framer-motion: nothing here moves unless the visitor
+// moves it, bar the one slow crossfade in HeroShowcase.
+import React, { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import HeroShowcase from './HeroShowcase.jsx'
 import { paths } from '../routes/paths.js'
+import { startingPrice } from '../content/shared/prices.js'
+import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 
-export default function Hero({ locale = 'en', content, onOpenOffer, onOpenQuestion }) {
+const fill = (pattern, values) => Object.entries(values).reduce(
+  (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+  String(pattern || ''),
+)
+
+// The lead with its {price} wrapped in <strong>, as React nodes rather than HTML.
+function Lead({ pattern, price }) {
+  const parts = String(pattern || '').split('{price}')
+  return (
+    <p className="hp-lead">
+      {parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {part}
+          {i < parts.length - 1 ? <strong>{price}</strong> : null}
+        </React.Fragment>
+      ))}
+    </p>
+  )
+}
+
+function Tick() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+}
+
+export default function Hero({ locale = 'en', content, slides, onOpenOffer }) {
+  const [idx, setIdx] = useState(0)
+  const [stopped, setStopped] = useState(false)
+  const [focused, setFocused] = useState(false)
+
+  const list = Array.isArray(slides) && slides.length ? slides : (content?.showcase?.slides || [])
+  const total = list.length
+
+  // A shorter deck from the API must not leave the index past its end.
+  useEffect(() => {
+    if (idx >= total) setIdx(0)
+  }, [idx, total])
+
+  const advance = useCallback(() => {
+    setIdx((i) => (total ? (i + 1) % total : 0))
+  }, [total])
+
   if (!content) return null
 
-  const slides = (content.showcase?.slides || []).map((slide) => ({
-    ...slide,
-    to: slide.pathKey ? (paths[slide.pathKey]?.[locale] || '/') : slide.to,
-  }))
+  const price = euro(startingPrice(locale), locale)
+  const current = list[idx] || list[0]
+  const currentLabel = current?.label || current?.alt || ''
+  const currentTo = current?.pathKey ? (paths[current.pathKey]?.[locale] || paths[current.pathKey]?.en) : null
 
   return (
-    <section className="hero">
-      <div className="container">
-        <div className="hero-grid">
-          <div>
-            <m.h1
-              style={{ fontSize: 'clamp(32px,5vw,70px)', lineHeight: 1.05, margin: 0 }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: String(content.title || '')
-                    .replace('<g>', '<span class="grad-text">')
-                    .replace('</g>', '</span>'),
-                }}
-              />
-            </m.h1>
+    <section className="hp-hero" aria-labelledby="hp-slogan">
+      <HeroShowcase
+        slides={list}
+        index={idx}
+        onAdvance={advance}
+        intervalMs={7000}
+        paused={stopped || focused}
+      />
 
-            <m.p
-              className="mt-5"
-              style={{ maxWidth: 640, color: 'var(--muted)' }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, duration: 0.5 }}
-            >
-              {content.lead}
-            </m.p>
+      <div className="hp-container hp-hero-inner">
+        <div className="hp-hero-copy">
+          {content.eyebrow ? <span className="hp-hero-eyebrow">{content.eyebrow}</span> : null}
 
-            <div className="row mt-6">
-              <m.button className="btn" onClick={onOpenOffer} whileTap={{ scale: 0.98 }}>
-                {content.primaryCta}
-              </m.button>
-              <m.button className="btn ghost" onClick={onOpenQuestion} whileTap={{ scale: 0.98 }}>
-                {content.secondaryCta}
-              </m.button>
-            </div>
+          <h1
+            id="hp-slogan"
+            className="hp-slogan"
+            dangerouslySetInnerHTML={{
+              __html: String(content.title || '')
+                .replace('<g>', '<span class="hp-em">')
+                .replace('</g>', '</span>'),
+            }}
+          />
 
-            {Array.isArray(content.badges) && content.badges.length ? (
-              <ul className="hero-trust" aria-label={content.motto || ''}>
-                {content.badges.map((b) => (
-                  <li key={b} className="hero-trust-chip"><span aria-hidden="true">✓</span>{b}</li>
+          <Lead pattern={content.lead} price={price} />
+
+          <div className="hp-cta-row">
+            <button type="button" className="hp-btn" onClick={onOpenOffer}>{content.primaryCta}</button>
+            <a className="hp-btn ghost" href="#prices">{content.pricesCta}</a>
+          </div>
+
+          {Array.isArray(content.facts) && content.facts.length ? (
+            <ul className="hp-facts">
+              {content.facts.map((fact) => (
+                <li key={fact}><Tick />{fact}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          {total > 1 ? (
+            <div className="hp-nums-row">
+              <div
+                className="hp-nums"
+                role="tablist"
+                aria-label={content.slidesLabel || content.showcase?.slidesLabel || ''}
+                onFocus={() => setFocused(true)}
+                onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false) }}
+              >
+                {list.map((s, i) => (
+                  <button
+                    key={`${s.src}-${i}`}
+                    type="button"
+                    role="tab"
+                    className="hp-num"
+                    aria-selected={i === idx}
+                    aria-label={fill(content.photoLabelPattern || 'Photo {n} of {total}: {label}', {
+                      n: i + 1,
+                      total,
+                      label: s.label || s.alt || '',
+                    })}
+                    onClick={() => { setStopped(true); setIdx(i) }}
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </button>
                 ))}
-              </ul>
-            ) : content.motto ? (
-              <div className="mt-4" style={{ opacity: 0.7 }}>{content.motto}</div>
-            ) : null}
-          </div>
-
-          <div>
-            <div className="hero-visual">
-              <HeroShowcase
-                slides={slides}
-                durationMs={5600}
-                size={560}
-                openLabel={content.showcase?.openLabel}
-                slidesLabel={content.showcase?.slidesLabel}
-              />
+              </div>
+              {currentTo && currentLabel ? (
+                <Link className="hp-now" to={currentTo}>{currentLabel} →</Link>
+              ) : null}
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </section>

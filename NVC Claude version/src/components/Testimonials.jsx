@@ -36,6 +36,22 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback
 }
 
+const fill = (pattern, values) => Object.entries(values).reduce(
+  (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+  String(pattern || ''),
+)
+
+// Reviews are shown in the language they were written in, so the quote and the name carry
+// a lang attribute read off their script: a screen reader then switches voice, and a
+// visitor on /en gets a cue that the Cyrillic quote is a Bulgarian review, not a glitch.
+export function detectLang(text) {
+  const s = String(text || '')
+  if (/\p{Script=Cyrillic}/u.test(s)) return 'bg'
+  if (/\p{Script=Greek}/u.test(s)) return 'el'
+  if (/\p{Script=Latin}/u.test(s)) return 'en'
+  return null
+}
+
 function Stars({ value = 0 }) {
   const rounded = clamp(Math.round(value), 0, 5)
   return (
@@ -45,6 +61,10 @@ function Stars({ value = 0 }) {
       ))}
     </div>
   )
+}
+
+function Tick() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
 }
 
 export default function Testimonials({ locale = 'en', content }) {
@@ -81,10 +101,12 @@ export default function Testimonials({ locale = 'en', content }) {
     }
   }, [content, locale])
 
-  const countLabel = useMemo(() => {
-    const template = content?.countLabel || '{count} reviews'
-    return template.replace('{count}', String(state.total))
-  }, [content, state.total])
+  // One sentence under the heading: "4.8 from 12 verified reviews".
+  const aggregate = useMemo(() => {
+    const score = state.average ? state.average.toFixed(1) : '—'
+    const pattern = content?.aggregatePattern || `{score} · ${content?.countLabel || '{count} reviews'}`
+    return fill(pattern, { score, count: state.total })
+  }, [content, state.average, state.total])
 
   // Nothing approved yet (or the API is unreachable): hide the section entirely rather
   // than render an empty widget that would weaken the page instead of adding proof.
@@ -94,48 +116,49 @@ export default function Testimonials({ locale = 'en', content }) {
 
   return (
     <section className="testimonials" aria-label={content.heading}>
-      <div className="container">
+      <div className="hp-container">
         <div className="testimonials-head">
           <div>
-            <h2 className="cs-h2" style={{ margin: 0 }}>{content.heading}</h2>
+            <h2 className="cs-h2">{content.heading}</h2>
             {content.subheading ? <p className="cs-muted mt-2">{content.subheading}</p> : null}
-          </div>
-
-          <div className="testimonials-aggregate" aria-label={content.aggregateAria || content.heading}>
-            <div className="testimonials-score">{state.average ? state.average.toFixed(1) : '—'}</div>
-            <div>
-              <Stars value={state.average} />
-              <div className="cs-muted mt-2">{countLabel}</div>
-            </div>
+            <p className="hp-agg" aria-label={content.aggregateAria || content.heading}>
+              <span className="hp-agg-star" aria-hidden="true">★</span>
+              <span>{aggregate}</span>
+            </p>
           </div>
         </div>
 
-        <div className="testimonials-grid mt-6">
-          {state.items.map((review) => (
-            <article className="cs-review-card" key={review.id}>
-              <div className="cs-review-head">
-                <div>
-                  <div className="cs-review-name">{review.name || content.customerFallback || 'Customer'}</div>
-                  {review.company ? <div className="cs-muted">{review.company}</div> : null}
-                </div>
-                <div className="cs-review-rating">
-                  <Stars value={toNumber(review.rating, 0)} />
-                </div>
-              </div>
+        <div className="testimonials-grid">
+          {state.items.map((review) => {
+            const lang = detectLang(`${review.comment || ''} ${review.name || ''}`)
+            const foreign = lang && lang !== locale ? content.reviewIn?.[lang] : null
+            return (
+              <article className="cs-review-card" key={review.id}>
+                {review.comment ? <p className="cs-body-copy" lang={lang || undefined}>“{review.comment}”</p> : null}
 
-              {review.comment ? <p className="cs-body-copy mt-4">“{review.comment}”</p> : null}
+                <div className="cs-review-head">
+                  <div>
+                    <div className="cs-review-name" lang={lang || undefined}>{review.name || content.customerFallback || 'Customer'}</div>
+                    {review.company ? <div className="cs-muted">{review.company}</div> : null}
+                  </div>
+                  <div className="cs-review-rating">
+                    <Stars value={toNumber(review.rating, 0)} />
+                  </div>
+                </div>
 
-              <div className="testimonials-meta cs-muted mt-3">
-                <span className="cs-chip">{content.verified || 'Verified'}</span>
-                {[productLabel(state.productLabels, review.product), review.location].filter(Boolean).join(' · ')}
-              </div>
-            </article>
-          ))}
+                <div className="testimonials-meta cs-muted">
+                  <span className="cs-chip"><Tick />{content.verified || 'Verified'}</span>
+                  {[productLabel(state.productLabels, review.product), review.location].filter(Boolean).join(' · ')}
+                </div>
+                {foreign ? <div className="hp-review-lang">{foreign}</div> : null}
+              </article>
+            )
+          })}
         </div>
 
         {content.ctaLabel ? (
-          <div className="testimonials-cta mt-6">
-            <Link className="btn ghost" to={casesPath}>{content.ctaLabel}</Link>
+          <div className="testimonials-cta">
+            <Link className="hp-btn ghost" to={casesPath}>{content.ctaLabel}</Link>
           </div>
         ) : null}
       </div>

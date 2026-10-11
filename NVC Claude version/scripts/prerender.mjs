@@ -387,6 +387,9 @@ const results = []
 try {
   const page = await browser.newPage()
   await page.setViewport({ width: 1280, height: 900 })
+  // Pin the colour scheme: the snapshot bakes <html data-theme> and style="color-scheme", so
+  // without this it carried whatever the generating machine preferred (production shipped dark).
+  await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }])
 
   // A real UA string. Some code paths branch on mobile/bot detection, and we want the
   // snapshot to be the ordinary desktop page.

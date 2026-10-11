@@ -1,11 +1,20 @@
 import React from 'react'
 
-// A single floating "chat" launcher that expands to WhatsApp + Viber, so the corner
-// stays uncluttered (one bubble at rest instead of a stack). Mobile-only via CSS,
-// matching the previous single Viber bubble.
+// A single floating "Call or chat" pill that expands to Call, WhatsApp and Viber, so the
+// corner holds one labelled control at rest instead of a stack. Call comes first: on the
+// one device that can dial, it is the natural first move. Mobile-only via CSS.
 const PHONE = '359879355269' // +359 87 935 5269, digits only
+const CALL_HREF = `tel:+${PHONE}`
 const WHATSAPP_HREF = `https://wa.me/${PHONE}`
 const VIBER_HREF = `viber://chat?number=%2B${PHONE}`
+
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8 9.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z" />
+    </svg>
+  )
+}
 
 function WhatsAppIcon() {
   return (
@@ -25,11 +34,11 @@ function ViberIcon() {
 
 function LauncherIcon({ open }) {
   return open ? (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
       <path d="M6 6l12 12M18 6L6 18" />
     </svg>
   ) : (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z" />
     </svg>
   )
@@ -38,6 +47,7 @@ function LauncherIcon({ open }) {
 export default function ContactDock({ labels }) {
   const [open, setOpen] = React.useState(false)
   const ref = React.useRef(null)
+  const callLabel = labels.call || 'Call'
 
   React.useEffect(() => {
     if (!open) return undefined
@@ -57,6 +67,17 @@ export default function ContactDock({ labels }) {
 
   return (
     <div className={`contact-dock${open ? ' is-open' : ''}`} ref={ref}>
+      <a
+        className="contact-action contact-action--call"
+        href={CALL_HREF}
+        aria-label={callLabel}
+        aria-hidden={!open}
+        tabIndex={open ? 0 : -1}
+        onClick={() => setOpen(false)}
+      >
+        <PhoneIcon />
+        <span className="contact-action__label">{callLabel}</span>
+      </a>
       <a
         className="contact-action contact-action--whatsapp"
         href={WHATSAPP_HREF}
@@ -89,6 +110,7 @@ export default function ContactDock({ labels }) {
         onClick={() => setOpen((o) => !o)}
       >
         <LauncherIcon open={open} />
+        <span className="contact-launcher__label">{labels.contact}</span>
       </button>
     </div>
   )

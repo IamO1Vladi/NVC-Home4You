@@ -17,6 +17,14 @@ export function LocalBusinessJSONLD({
     addressCountry: 'BG',
   },
   sameAs = ['https://www.facebook.com/profile.php?id=61581135006737'],
+  // The home page passes both from its content file (home.localBusiness), so what the
+  // page prints and what the schema publishes come from one object. The defaults are the
+  // same values, for any caller that does not.
+  hours = {
+    dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    opens: '07:00',
+    closes: '19:00',
+  },
 }) {
   const data = {
     '@context': 'https://schema.org',
@@ -31,9 +39,9 @@ export function LocalBusinessJSONLD({
     openingHoursSpecification: [
       {
         '@type': 'OpeningHoursSpecification',
-        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-        opens: '07:00',
-        closes: '19:00',
+        dayOfWeek: hours?.dayOfWeek || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        opens: hours?.opens || '07:00',
+        closes: hours?.closes || '19:00',
       },
     ],
     sameAs,

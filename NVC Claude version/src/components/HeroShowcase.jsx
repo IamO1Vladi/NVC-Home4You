@@ -1,163 +1,95 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import './HeroShowcase.css'
+// The hero's photographs: one full-bleed frame, one slow crossfade, nothing else.
+//
+// A plain stack of figures; the active one is visible, the rest are visibility:hidden so
+// they take no click, no tab stop and no place in the reading order. The frame advances
+// every `intervalMs` unless the visitor is hovering it, has focus inside the numerals (the
+// parent passes `paused`), has clicked a numeral, the frame is off-screen, or the OS asks
+// for reduced motion. The numerals and the caption live in Hero.jsx, which owns the index;
+// this component only shows the photo for it and asks to move on.
+//
+// Images go through cdnImage/cdnSrcSet (the API resizer) with explicit sizes, and each one
+// falls back through imageFallback so a dead Blob store marks the snapshot rather than
+// looping requests. A per-slide `frame` from the content files sets the crop of a
+// photograph whose subject sits off-centre.
+import React, { useEffect, useRef, useState } from 'react'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
+
+const WIDTHS = [800, 1200, 1600, 2000]
+const SIZES = '(max-width: 767px) 100vw, 78vw'
+
+function frameStyle(frame) {
+  if (!frame) return undefined
+  const style = {}
+  if (frame.position) {
+    style.objectPosition = frame.position
+    style.transformOrigin = frame.position
+  }
+  if (frame.scale && frame.scale !== 1) style.transform = `scale(${frame.scale})`
+  return style
+}
 
 export default function HeroShowcase({
   slides = [],
-  images = [],
-  durationMs = 5600,
-  size = 560,
-  openLabel = 'Open',
-  slidesLabel = 'Hero slides',
+  index = 0,
+  onAdvance,
+  intervalMs = 7000,
+  paused = false,
 }) {
   const hostRef = useRef(null)
-  const [idx, setIdx] = useState(0)
+  const [hovered, setHovered] = useState(false)
+  const [visible, setVisible] = useState(true)
 
   const asset = (p) => `${import.meta.env.BASE_URL}${p}`
   const fallback = asset('modular-builds/card.svg')
 
-  const list = useMemo(() => {
-    const base = slides.length ? slides : (images.length ? images : [
-      { src: asset('home/hero/01.jpg'), alt: 'Showcase 1', to: '/modular-builds' },
-      { src: asset('home/hero/02.jpg'), alt: 'Showcase 2', to: '/modular-houses' },
-      { src: asset('home/hero/03.jpg'), alt: 'Showcase 3', to: '/steel-houses' },
-      { src: asset('home/hero/04.jpg'), alt: 'Showcase 4', to: '/interiors' },
-    ])
-    return base.map((s) => ({ src: s.src, alt: s.alt || '', to: s.to, href: s.href }))
-  }, [slides, images])
-
-  const addPreload = (url) => {
-    if (!url) return null
-    const link = document.createElement('link')
-    link.rel = 'preload'
-    link.as = 'image'
-    link.href = url
-    document.head.appendChild(link)
-    return link
-  }
-
-  useEffect(() => {
-    const links = list.slice(0, 3).map((s) => addPreload(cdnImage(s.src, { width: 800 }))).filter(Boolean)
-    return () => links.forEach((l) => { try { document.head.removeChild(l) } catch {} })
-  }, [list])
-
-  useEffect(() => {
-    const next = list[(idx + 1) % list.length]?.src
-    if (!next) return undefined
-    const link = addPreload(cdnImage(next, { width: 800 }))
-    const timer = setTimeout(() => { if (link) try { document.head.removeChild(link) } catch {} }, 8000)
-    return () => clearTimeout(timer)
-  }, [idx, list])
-
   const reduceMotion = typeof window !== 'undefined'
-    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)
 
   useEffect(() => {
-    if (reduceMotion || list.length < 2) return undefined
-    let playing = true
-    const io = 'IntersectionObserver' in window
-      ? new IntersectionObserver(([entry]) => { playing = entry.isIntersecting }, { threshold: 0.25 })
-      : null
-    if (io) io.observe(hostRef.current)
-
-    const id = setInterval(() => {
-      if (playing) setIdx((i) => (i + 1) % list.length)
-    }, durationMs)
-
-    return () => {
-      clearInterval(id)
-      io?.disconnect()
-    }
-  }, [list.length, durationMs, reduceMotion])
-
-  useEffect(() => {
-    if (reduceMotion) return undefined
     const el = hostRef.current
-    if (!el) return undefined
-    let raf = 0
-    const tilt = el.querySelector('.hs-tilt')
-    const onMove = (e) => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect()
-        const x = (e.clientX - r.left) / r.width - 0.5
-        const y = (e.clientY - r.top) / r.height - 0.5
-        tilt.style.transform = `rotateX(${(-y * 6).toFixed(2)}deg) rotateY(${(x * 8).toFixed(2)}deg)`
-      })
-    }
-    const onLeave = () => { tilt.style.transform = 'none' }
-    el.addEventListener('mousemove', onMove)
-    el.addEventListener('mouseleave', onLeave)
-    return () => {
-      el.removeEventListener('mousemove', onMove)
-      el.removeEventListener('mouseleave', onLeave)
-      cancelAnimationFrame(raf)
-    }
-  }, [reduceMotion])
+    if (!el || !('IntersectionObserver' in window)) return undefined
+    const io = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.25 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  const playing = !reduceMotion && !paused && !hovered && visible && slides.length > 1
+  useEffect(() => {
+    if (!playing || typeof onAdvance !== 'function') return undefined
+    const id = setInterval(() => onAdvance(), intervalMs)
+    return () => clearInterval(id)
+  }, [playing, intervalMs, onAdvance])
+
+  if (!slides.length) return null
 
   return (
-    <div className="hs" ref={hostRef} style={{ ['--hs-size']: `${size}px`, ['--hs-interval']: `${durationMs}ms` }}>
-      <div className="hs-frame">
-        <div className="hs-tilt">
-          <div className="hs-viewport">
-            {list.map((s, i) => {
-              const Img = (
-                <img
-                  src={cdnImage(s.src, { width: 800 })}
-                  srcSet={cdnSrcSet(s.src, [560, 800, 1120])}
-                  sizes="(max-width: 980px) 90vw, 560px"
-                  alt={s.alt}
-                  onError={imageFallback(fallback)}
-                  width="2200"
-                  height="1400"
-                  loading={i === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                  fetchpriority={i === idx ? 'high' : 'auto'}
-                />
-              )
-              const aria = s.alt ? `${openLabel}: ${s.alt}` : openLabel
-              // Only the visible slide is a link. Every slide's link fills the frame and the
-              // others sit underneath at opacity 0, so the LAST one in DOM order used to top
-              // the hit-testing stack and take every click: the hero always opened "Interiors"
-              // whatever photo was showing. The CSS turns their pointer events off; this keeps
-              // them out of the tab order (seven invisible stops) and the accessibility tree.
-              const isActive = i === idx
-
-              return (
-                <figure key={s.src || i} className={['hs-shot', isActive && 'is-active'].filter(Boolean).join(' ')} aria-hidden={!isActive}>
-                  {s.to ? (
-                    <Link to={s.to} aria-label={aria} tabIndex={isActive ? 0 : -1}>{Img}</Link>
-                  ) : s.href ? (
-                    <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={aria} tabIndex={isActive ? 0 : -1}>{Img}</a>
-                  ) : (
-                    Img
-                  )}
-                </figure>
-              )
-            })}
-
-            <div className="hs-sheen" aria-hidden="true" />
-            <div className="hs-ui">
-              <div className="hs-dots" role="tablist" aria-label={slidesLabel}>
-                {list.map((_, i) => (
-                  <button
-                    key={i}
-                    role="tab"
-                    aria-selected={i === idx}
-                    // Numeric, deliberately: it needs no translation and "3 / 5" is what a
-                    // dot IS. The strip itself carries the localized name.
-                    aria-label={`${i + 1} / ${list.length}`}
-                    className={['hs-dot', i === idx && 'is-active'].filter(Boolean).join(' ')}
-                    onClick={() => setIdx(i)}
-                  />
-                ))}
-              </div>
-              <div className="hs-progress"><span key={idx} /></div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div
+      className="hp-hero-media"
+      ref={hostRef}
+      aria-hidden="true"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+    >
+      {slides.map((s, i) => {
+        const active = i === index
+        return (
+          <figure key={`${s.src}-${i}`} className={active ? 'hp-slide is-active' : 'hp-slide'}>
+            <img
+              src={cdnImage(s.src, { width: 1600 })}
+              srcSet={cdnSrcSet(s.src, WIDTHS)}
+              sizes={SIZES}
+              alt=""
+              width="1600"
+              height="1000"
+              loading={i === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchpriority={i === 0 ? 'high' : 'auto'}
+              onError={imageFallback(fallback)}
+              style={frameStyle(s.frame)}
+            />
+          </figure>
+        )
+      })}
     </div>
   )
 }

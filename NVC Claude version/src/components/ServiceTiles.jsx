@@ -1,47 +1,11 @@
+// The four "what we build" tiles: a photograph seen whole, its title and one line in an
+// ink band along the bottom. No hover wipe, no instruction line, no icon: the text sits in
+// a solid band so it reads over any photo, and the only hover is a 2px lift. Styles in
+// src/style/HomePage.css (.hp-tile*).
 import React from 'react'
 import { Link } from 'react-router-dom'
-import './ServiceTiles.css'
 import { paths } from '../routes/paths.js'
-import { imageFallback } from '../lib/img.js'
-
-function IconHome() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M12 3 3 10v11h6v-6h6v6h6V10z" />
-    </svg>
-  )
-}
-function IconLayers() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M12 3 2 8l10 5 10-5-10-5Zm0 8L2 16l10 5 10-5-10-5Z" />
-    </svg>
-  )
-}
-function IconSteel() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
-    </svg>
-  )
-}
-function IconInterior() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M3 3h18v4H3zM3 9h8v12H3zM13 9h8v8h-8z" />
-    </svg>
-  )
-}
-
-function iconFor(key) {
-  switch (key) {
-    case 'home': return <IconHome />
-    case 'layers': return <IconLayers />
-    case 'steel': return <IconSteel />
-    case 'interior': return <IconInterior />
-    default: return <IconLayers />
-  }
-}
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 export default function ServiceTiles({ locale = 'en', content }) {
   const asset = (p) => `${import.meta.env.BASE_URL}${p}`
@@ -49,48 +13,39 @@ export default function ServiceTiles({ locale = 'en', content }) {
 
   if (!content) return null
 
-  const onMove = (e) => {
-    const card = e.currentTarget
-    const r = card.getBoundingClientRect()
-    const x = ((e.clientX - r.left) / r.width) * 100
-    const y = ((e.clientY - r.top) / r.height) * 100
-    card.style.setProperty('--mx', `${x}%`)
-    card.style.setProperty('--my', `${y}%`)
-  }
-
   return (
-    <section className="svx" aria-label={content.ariaLabel}>
-      <div className="container">
-        <div className="svx-head">
-          <h2 className="svx-title">{content.heading}</h2>
-          <p className="svx-sub">{content.subheading}</p>
+    <section className="hp-tiles-section" aria-labelledby="hp-tiles-title">
+      <div className="hp-container">
+        <div className="hp-head">
+          <div>
+            <h2 id="hp-tiles-title">{content.heading}</h2>
+            {content.subheading ? <p className="hp-sub">{content.subheading}</p> : null}
+          </div>
         </div>
 
-        <div className="svx-grid">
+        <div className="hp-tiles">
           {content.items.map((item) => (
             <Link
               key={item.key}
-              to={paths[item.pathKey]?.[locale] || '/'}
-              className="svx-card"
-              onMouseMove={onMove}
+              to={paths[item.pathKey]?.[locale] || paths[item.pathKey]?.en || '/'}
+              className="hp-tile"
               aria-label={item.title}
             >
               <img
-                className="svx-img"
-                src={item.img}
-                alt={item.title}
+                src={cdnImage(item.img, { width: 1200 })}
+                srcSet={cdnSrcSet(item.img, [640, 800, 1200, 1600])}
+                sizes="(max-width: 899px) 100vw, (max-width: 1239px) 50vw, 590px"
+                alt=""
                 onError={imageFallback(fallback)}
                 width="1600"
                 height="1000"
                 loading="lazy"
+                decoding="async"
               />
-              <div className="svx-bl-label">{item.title}</div>
-
-              <div className="svx-info">
-                <div className="svx-icon">{iconFor(item.icon)}</div>
-                <h3 className="svx-h">{item.title}</h3>
-                <p className="svx-p">{item.desc}</p>
-                <span className="svx-cta">{content.button}</span>
+              <div className="hp-tile-cap">
+                <h3>{item.title}</h3>
+                <p>{item.desc}</p>
+                <span className="hp-tile-go">{content.button}</span>
               </div>
             </Link>
           ))}

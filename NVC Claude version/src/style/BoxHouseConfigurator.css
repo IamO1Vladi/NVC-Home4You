@@ -2418,13 +2418,6 @@
    Scoped to the mobile shell so the desktop layout is untouched.
    ===================================================================== */
 
-/* On the configurator, the generic global quote dock is replaced by the
-   contextual in-page price/nav bar (added via body.bhc-config-active in JS). */
-body.bhc-config-active .mobile-dock { display: none !important; }
-@media (max-width: 767px) {
-  body.bhc-config-active { padding-bottom: 0 !important; }
-}
-
 /* Let the last decisions scroll clear of the fixed bottom nav bar. */
 .bhc-page--mobile .bhc-stage {
   padding-bottom: calc(104px + env(safe-area-inset-bottom));

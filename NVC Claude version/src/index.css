@@ -12,7 +12,7 @@
 html,body,#root{height:100%}
 html,body{margin:0}
 body{
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  font-family: "Commissioner", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
   background: var(--night);
   color: var(--text);
   -webkit-font-smoothing:antialiased;
@@ -44,25 +44,38 @@ img{max-width:100%;display:block}
   border-radius:20px;
 }
 
+/* One solid accent for anything pressable, in both themes (white on #2B63C9 is 5.6:1).
+   No gradient and no glow. Shared by every page and the admin panel, so keep it plain. */
 .btn{
-  position:relative;
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:.75rem 1.25rem;border-radius:14px;border:0;
-  color:#fff;font-weight:700;cursor:pointer;
-  background-image:linear-gradient(90deg,var(--brand-teal),var(--brand-blue));
-  box-shadow:0 10px 20px rgba(0,0,0,.25);
-  transition:transform .2s ease, box-shadow .2s ease;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:44px;padding:.6rem 1.25rem;border-radius:16px;border:1px solid transparent;
+  color:#fff;font:inherit;font-size:16px;font-weight:600;line-height:1.2;cursor:pointer;text-decoration:none;
+  background:var(--btn-bg, #2B63C9);
+  box-shadow:0 6px 14px rgba(43,99,201,.25);
+  transition:filter .2s ease, box-shadow .2s ease;
 }
 .btn:focus-visible{outline: none; box-shadow: var(--ring);}
-.btn:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(0,0,0,.35)}
-.btn:active{transform:translateY(0)}
-.btn::after{
-  content:"";position:absolute;inset:-2px;border-radius:16px;pointer-events:none;
-  background: conic-gradient(from 180deg at 50% 50%, transparent 0 30%, rgba(255,255,255,.25) 40%, transparent 60%);
-  filter: blur(12px);opacity:.0;transition:opacity .2s ease;
+.btn:hover{filter:brightness(1.06);text-decoration:none}
+.btn:active{filter:brightness(.98)}
+.btn.ghost{background:var(--anth);color:var(--text);border-color:color-mix(in srgb, var(--text) 14%, transparent);box-shadow:none}
+
+/* Cookie consent as a small card in the page's own tokens, bottom-right on desktop and
+   between the gutters on phones (margin-left:auto resolves left/right/max-width). It sits
+   above the offer modal and the drawer scrim. The contact dock hides while it is up, so
+   the two never share the phone's bottom band. */
+.consent-card{
+  position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px));
+  max-width:440px;margin-left:auto;padding:16px 18px;
+  border-radius:16px;background:var(--anth);color:var(--text);
+  border:1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  box-shadow:0 12px 32px rgba(15,23,42,.12);
+  font-size:14px;line-height:1.5;z-index:10000;
+  display:grid;gap:12px;
 }
-.btn:hover::after{opacity:.7}
-.btn.ghost{background:none;border:1px solid rgba(255,255,255,.2);color:#fff;font-weight:600;box-shadow:none}
+.consent-card a{color:var(--muted);text-decoration:underline}
+.consent-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.consent-card .btn{min-height:40px;padding:0 16px;font-size:14px;border-radius:10px}
+:root[data-consent-open] .contact-dock{display:none}
 
 .chip{
   display:inline-flex;align-items:center;justify-content:center;
@@ -73,8 +86,10 @@ img{max-width:100%;display:block}
 
 header{
   position:sticky;top:0;z-index:50;
-  backdrop-filter:blur(10px);
-  background:#141820b3;border-bottom:1px solid rgba(255,255,255,.1);
+  /* 97% opaque, no backdrop blur: the bar is a surface, not glass. */
+  background:color-mix(in srgb, var(--anth) 97%, transparent);
+  border-bottom:1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  box-shadow:0 1px 2px rgba(31,42,55,.06);
 }
 /* The rule above targets the bare `header` type, so in-page hero banners
    (e.g. <header class="arx-hero">) accidentally inherit z-index:50 + backdrop-filter
@@ -91,13 +106,13 @@ main header{
   backdrop-filter:none;
   -webkit-backdrop-filter:none;
 }
-.nav-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
-.brand{display:flex;align-items:center;gap:12px;font-weight:900}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;white-space:nowrap}
 .brand-logo{width:36px;height:36px;border-radius:8px;background:#ffffff12;display:flex;align-items:center;justify-content:center}
 .brand-logo svg{color:#fff;opacity:.9}
-.nav-links{display:none;align-items:center;gap:10px}
+.nav-links{display:none;align-items:center;gap:4px}
 nav .link-btn{
-  padding:8px 12px;border-radius:10px;border:0;background:none;color:#e5e7ebcc;font-weight:600;cursor:pointer;
+  padding:8px 10px;border-radius:10px;border:0;background:none;color:#e5e7ebcc;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;
 }
 nav .link-btn:hover, nav a:hover{color:#fff;background:#ffffff10}
 nav .active{color:#fff;background:#ffffff12}
@@ -157,7 +172,10 @@ nav .active{color:#fff;background:#ffffff12}
 .drawer-sublist{list-style:none;margin:4px 0 8px;padding:0 0 0 10px}
 .drawer-sublink{font-weight:500;color:var(--silver);font-size:15px}
 
-.drawer-cta{width:100%;margin:10px 0 4px}
+/* The drawer's bottom row stays visible while the rows above scroll: Call (the one
+   device that can dial) beside the quote button. */
+.drawer-cta-row{position:sticky;bottom:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0 4px;background:var(--anth)}
+.drawer-cta-row .btn{min-width:0;width:100%;padding-inline:12px}
 
 :root[data-theme='light'] .drawer-list > li + li,
 :root[data-theme='light'] .drawer-sublist > li + li{ border-top-color:#0000000f }
@@ -168,34 +186,6 @@ nav .active{color:#fff;background:#ffffff12}
 
 main{min-height:calc(100vh - 64px)}
 section{padding:48px 0}
-
-.hero{
-  background:
-    radial-gradient(1000px 600px at 10% -10%, rgba(76,141,245,.18), transparent),
-    radial-gradient(800px 500px at 90% -10%, rgba(57,181,213,.18), transparent);
-}
-.hero-grid{display:grid;gap:24px;grid-template-columns:1fr}
-.hero-visual{height:220px;border-radius:16px;border:1px solid #ffffff1a;padding:8px;background:linear-gradient(135deg,#ffffff0d,#ffffff00)}
-.hero-visual > div{
-  height:100%;border-radius:12px;overflow:hidden;position:relative;
-}
-.hero-orb{
-  position:absolute;inset:-20%;
-  background: radial-gradient(40% 40% at 50% 50%, rgba(255,255,255,.06), transparent 60%),
-              conic-gradient(from 0deg, rgba(76,141,245,.14), rgba(57,181,213,.18), rgba(255,255,255,.06), rgba(76,141,245,.14));
-  animation: spin 18s linear infinite;
-}
-@keyframes spin {to{transform:rotate(1turn)}}
-
-.progress{height:8px;border-radius:999px;background:#ffffff1a;overflow:hidden}
-.progress > div{height:100%;width:0%;background-image:linear-gradient(90deg,var(--brand-teal),var(--brand-blue))}
-
-.steps-grid{display:grid;grid-template-columns:1fr;gap:12px}
-.step{border:1px solid #ffffff1a;border-radius:16px;padding:16px;text-align:left;background:#00000008;transition:border-color .2s, background .2s}
-.step.active{border-color:#ffffff4d;background:#ffffff0d}
-.bubble{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;color:#fff;font-weight:800;background-image:linear-gradient(90deg,var(--brand-teal),var(--brand-blue));margin-right:10px;animation:float 1.8s ease-in-out infinite}
-.step:not(.active) .bubble{animation:none}
-@keyframes float {0%{transform:translateY(0)} 50%{transform:translateY(-5px)} 100%{transform:translateY(0)}}
 
 .tile{border-radius:16px;overflow:hidden;border:1px solid #ffffff1a; background:#0f11181a}
 .tile img{display:block;width:100%;height:170px;object-fit:cover}
@@ -250,14 +240,24 @@ section{padding:48px 0}
 .close-x{position:absolute;right:10px;top:8px;opacity:.7;cursor:pointer}
 
 footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18px 0}
+/* The site-wide footer (SiteFooter.jsx): row one is where and when, row two is legal. The
+   theme token for the text, not a hard-coded grey: this renders on both themes. */
+.site-footer{border-top:1px solid color-mix(in srgb, var(--text) 12%, transparent);color:var(--muted);text-align:left;padding:22px 0 28px;font-size:14px;line-height:1.5}
+.site-footer-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px}
+.site-footer-row + .site-footer-row{margin-top:10px}
+.site-footer-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
+.site-footer a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.site-footer-link{background:none;border:0;padding:0;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.site-footer .select-wrap{color:var(--text)}
+.site-footer .header-select{height:34px;font-size:13px}
 
-@media (min-width: 768px){
+/* The desktop bar needs ~1000px once nothing in it wraps; below that the drawer takes over. */
+@media (min-width: 980px){
   .nav-links{display:flex}
   .hamburger{display:none}
-  .hero-grid{grid-template-columns: 1fr 1fr}
-  .steps-grid{grid-template-columns: repeat(3,1fr)}
+}
+@media (min-width: 768px){
   .grid.md-cols-3{grid-template-columns:repeat(3,1fr)}
-  .hero-visual{height:380px}
 }
 
 /* Accessibility helpers */
@@ -279,7 +279,6 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 }
 :root[data-theme='light'] body{ background: var(--night); color: var(--text); }
 :root[data-theme='light'] .card{ background:#ffffff; border-color: #00000016; }
-:root[data-theme='light'] header{ background:#ffffffd6; border-bottom-color:#00000016 }
 /* Light mode: make the logo a solid brand pill so the house is visible */
 :root[data-theme='light'] .brand-logo{
   background-image: linear-gradient(135deg, var(--brand-teal), var(--brand-blue));
@@ -293,16 +292,9 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 :root[data-theme='light'] nav .link-btn{ color:#111827cc }
 :root[data-theme='light'] nav .link-btn:hover, :root[data-theme='light'] nav a:hover{ background:#00000008; color:#111827 }
 :root[data-theme='light'] nav .active{ background:#0000000d; color:#111827 }
-:root[data-theme='light'] .progress{ background:#00000010 }
 :root[data-theme='light'] .tile{ border-color:#00000016; background:#ffffff }
 :root[data-theme='light'] .faq-a{ color:#374151 }
 :root[data-theme='light'] .modal-card{ background:#ffffff; border-color:#00000016; color:#111827 }
-:root[data-theme='light'] .hero{ 
-  background:
-    radial-gradient(1000px 600px at 10% -10%, rgba(76,141,245,.10), transparent),
-    radial-gradient(800px 500px at 90% -10%, rgba(57,181,213,.10), transparent);
-}
-:root[data-theme='light'] .btn.ghost{ color:#111827; border-color:#00000026 }
 
 /* Let icons inherit a theme color */
 .nav-icon { color: inherit; }
@@ -314,19 +306,6 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 .theme-dark .nav-icon,
 .theme-dark .hamburger { color: #f1f5f9; }  /* slate-100-ish, light on dark */
 
-
-/* Feature cards */
-.feature-card{ position:relative; overflow:hidden }
-.feature-card::before{
-  content:""; position:absolute; inset:0; border-radius:18px; pointer-events:none;
-  background: conic-gradient(from 180deg at 50% 50%, #ffffff10, transparent 30%, #ffffff10 60%, transparent 80%);
-  opacity:.0; filter: blur(14px); transition: opacity .2s ease;
-}
-.feature-card:hover::before{ opacity:.7 }
-.feature-icon{
-  width:40px; height:40px; display:flex; align-items:center; justify-content:center;
-  border-radius:12px; background: linear-gradient(90deg, var(--brand-teal), var(--brand-blue)); color:#fff;
-}
 
 /* Stats */
 .stat-card{ text-align:center }
@@ -355,39 +334,6 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 :root[data-theme='light'] .faqp-item{ border-color:#00000016 }
 :root[data-theme='light'] .faqp-a-inner{ color:#374151 }
 
-/* Mobile sticky quote dock */
-.mobile-dock{
-  position:fixed; left:0; right:0; bottom:0; z-index:70;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  display:none;
-}
-@media (max-width: 767px){ .mobile-dock{ display:block } }
-/* Reserve space so page content (e.g. the configurator's Back button) clears the
-   fixed quote dock + Viber bubble on mobile instead of scrolling underneath them. */
-@media (max-width: 767px){
-  body{ padding-bottom: calc(132px + env(safe-area-inset-bottom)); }
-}
-
-/* Hero trust cues (replaces the bare "Trust & Security" label) */
-.hero-trust{ display:flex; flex-wrap:wrap; gap:8px; list-style:none; padding:0; margin-top:18px; }
-.hero-trust-chip{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600;
-  padding:6px 12px; border-radius:999px;
-  background: color-mix(in srgb, var(--text) 7%, transparent);
-  border:1px solid color-mix(in srgb, var(--text) 14%, transparent); }
-.hero-trust-chip > span{ color:#16a34a; font-weight:800; }
-.mobile-dock-inner{
-  display:flex; align-items:center; gap:12px;
-  padding: 10px 12px; border-radius: 16px;
-  background:#141820cc; border: 1px solid #ffffff1a; backdrop-filter: blur(8px) saturate(140%);
-  box-shadow: 0 -6px 20px rgba(0,0,0,.35);
-}
-:root[data-theme='light'] .mobile-dock-inner{ background:#ffffffcc; border-color:#00000016 }
-.dock-close{ background:none; border:0; color:inherit; opacity:.7; cursor:pointer }
-.dock-text{ flex:1; min-width: 0 }
-.dock-title{ font-weight: 800 }
-.dock-sub{ font-size:12px; opacity:.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-.dock-actions .btn{ white-space:nowrap; padding:.6rem 1rem; border-radius:12px }
-
 /* Lightbox product meta */
 .lb-meta{
   display:grid; gap:10px; margin-top:12px;
@@ -404,7 +350,6 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 
 
 /* Light theme fixes (colors only) */
-:root[data-theme='light'] header{ background:#ffffffd6; border-bottom-color:#00000016 }
 :root[data-theme='light'] .services-menu, 
 :root[data-theme='light'] .menu-panel{ background:#ffffff; border-color:#00000016; box-shadow:0 12px 24px rgba(0,0,0,.14) }
 :root[data-theme='light'] nav .link-btn{ color:#111827cc }
@@ -412,17 +357,32 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 :root[data-theme='light'] nav a:hover{ background:#00000008; color:#111827 }
 :root[data-theme='light'] nav .active{ background:#0000000d; color:#111827 }
 
-/* Theme/Language selects (dark default + light override) */
+/* The language select. The chevron is the wrapper's pseudo-element in currentColor, so it
+   follows the theme; a mask on the <select> itself would mask its text. */
+.select-wrap{position:relative;display:inline-flex}
+.select-wrap select{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:30px}
+.select-wrap::after{
+  content:"";position:absolute;right:10px;top:50%;width:12px;height:12px;translate:0 -50%;pointer-events:none;
+  background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+  mask:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+}
 .header-select{
-  appearance:none; -webkit-appearance:none; -moz-appearance:none;
-  padding: 6px 10px; border-radius: 10px;
-  border:1px solid #ffffff1a; background:transparent; color:inherit;
-  font: inherit; line-height:1.2; cursor:pointer;
+  height:36px;padding:0 30px 0 10px;border-radius:10px;
+  border:1px solid color-mix(in srgb, var(--text) 14%, transparent);background:var(--anth);color:var(--text);
+  font:inherit;font-size:14px;line-height:1.2;cursor:pointer;
 }
 .header-select:focus-visible{ outline:2px solid var(--brand-blue); outline-offset:2px }
-.header-select:hover{ background:#0f1319 }
-:root[data-theme='light'] .header-select{ background:#ffffff; color:#111827; border-color:#00000026 }
-:root[data-theme='light'] .header-select:hover{ background:#f9fafb }
+.header-select:hover{ border-color:color-mix(in srgb, var(--text) 30%, transparent) }
+
+/* The phone link in the bar: icon only until there is room for the number (>=1280px),
+   nothing at all on phones, where the drawer carries the Call button instead. */
+.header-actions .call{display:none;align-items:center;gap:8px;min-height:36px;padding:0 10px;border-radius:10px;color:var(--text);font-weight:600;font-size:14px;white-space:nowrap;text-decoration:none}
+.header-actions .call:hover{background:color-mix(in srgb, var(--text) 8%, transparent)}
+.header-actions .call svg{width:18px;height:18px;flex:none}
+.header-actions .call .num{display:none}
+@media (min-width:1200px){ .header-actions .call{display:inline-flex} }
+@media (min-width:1400px){ .header-actions .call .num{display:inline} }
 
 /* Modal forms in light theme (colors only) */
 :root[data-theme='light'] .modal-card{ background:#ffffff; border-color:#00000016; color:#111827 }
@@ -460,129 +420,35 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 
 
 
-/* ===== Header action sizing & spacing ===== */
-:root {
-  --header-gap: 8px;            /* spacing between controls */
-  --ctrl-h: 36px;                /* default control height (desktop/tablet) */
-  --ctrl-h-mobile: 40px;         /* unified control height on mobile */
-  --ctrl-px: 12px;               /* horizontal padding for pill buttons */
-  --ctrl-radius: 10px;           /* rounding to match your UI */
+/* ===== Header actions ===== */
+.header-actions{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}
+.nav-icon{color:inherit;stroke:currentColor;fill:none}
+.hamburger{
+  width:44px;height:44px;padding:0;
+  border:1px solid color-mix(in srgb, var(--text) 14%, transparent);border-radius:10px;background:transparent;color:inherit;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.hamburger[aria-expanded='true']{background:color-mix(in srgb, var(--text) 8%, transparent)}
+.hamburger .nav-icon{width:24px;height:24px}
+@media (min-width:980px){ .hamburger{display:none} }
+@media (max-width:640px){
+  .header-actions{gap:6px}
+  .header-select{height:40px;font-size:13px;padding:0 26px 0 8px}
+}
+.header-actions .btn, .nav-links .btn{min-width:0;min-height:40px;padding:0 16px;white-space:nowrap}
+/* 980-1199px: the bar is full once nothing wraps, so the wordmark steps aside for the logo square, links tighten, and the phone icon waits for a wider screen. */
+@media (min-width:980px) and (max-width:1199px){
+  .brand > div:not(.brand-logo){display:none}
+  nav .link-btn{font-size:14px;padding:8px 8px}
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--header-gap);
-}
-
-/* Let inline SVGs follow the element color */
-.nav-icon { color: inherit; stroke: currentColor; fill: none; }
-
-/* Baseline (desktop/tablet): bring controls to a consistent height */
-.header-actions .lang-toggle,
-.header-actions .theme-toggle {
-  height: var(--ctrl-h);
-  padding: 0 var(--ctrl-px);
-  border-radius: var(--ctrl-radius);
-  line-height: 1;
-}
-
-/* The menu button should be a square target (touch-friendly) */
-.menu-btn {
-  width: var(--ctrl-h);
-  height: var(--ctrl-h);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
-  line-height: 1;
-  /* Prevent being pushed away if a sibling has margin-left:auto */
-  margin-left: 0;
-}
-
-/* ===== Compact sizing for header controls (mobile) ===== */
-:root {
-  /* Set the mobile size you want for the hamburger & toggles */
-  --menu-sz: 40px;                 /* toggle height; the hamburger gets its own 44px below */
-  --hamburger-sz: 44px;            /* minimum comfortable touch target */
-  --toggle-fs-mobile: 12px;        /* compact font for lang chip */
-  --toggle-px-mobile: 8px;         /* compact horizontal padding */
-  --toggle-radius-mobile: 8px;     /* compact rounding */
-  --header-gap-mobile: 6px;        /* tighter spacing between controls */
-}
-
-/* Ensure icons inherit color and center correctly */
-.nav-icon { color: inherit; stroke: currentColor; fill: none; }
-.header-actions { display: flex; align-items: center; gap: 8px; }
-
-@media (max-width: 640px) {
-  .header-actions { gap: var(--header-gap-mobile); }
-
-  /* Language + Theme -> same height as menu, compact text/padding */
-  .header-actions .lang-toggle,
-  .header-actions .theme-toggle,
-  .header-actions .chip {             /* include chip if you use it for language */
-    height: var(--menu-sz);
-    padding: 0 var(--toggle-px-mobile);
-    font-size: var(--toggle-fs-mobile);
-    line-height: 1;
-    border-radius: var(--toggle-radius-mobile);
-    min-width: 0;                     /* allow smaller widths */
-  }
-
-  /* Theme toggle sometimes is an icon button: force square size */
-  .header-actions .theme-toggle.icon-btn {
-    width: var(--menu-sz);
-    height: var(--menu-sz);
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Hamburger -> square, and never below the 44px touch-target minimum */
-  .hamburger {
-    width: var(--hamburger-sz);
-    height: var(--hamburger-sz);
-    padding: 0;
-    border: none;
-    background: transparent;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    border-radius: 10px;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .hamburger[aria-expanded='true'] { background: #ffffff14; }
-  .theme-light .hamburger[aria-expanded='true'] { background: #0000000d; }
-
-  /* Scale the hamburger glyph nicely inside the square */
-  .hamburger .nav-icon {
-    width: 24px;
-    height: 24px;
-  }
-
-  /* Remove any faint borders in light mode */
-  .theme-light .lang-toggle,
-  .theme-light .theme-toggle,
-  .theme-light .hamburger {
-    border: none !important;
-    box-shadow: none !important;
-  }
-}
-
-/* Optional: Prevent generic .btn rules from forcing large min-widths in header */
-.header-actions .btn { min-width: 0; }
-
-/* Floating contact launcher in corner (mobile): one bubble that expands to
-   WhatsApp + Viber so the corner stays uncluttered. */
+/* Floating "Call or chat" pill in the corner (phones only): expands to Call, WhatsApp
+   and Viber so the corner holds one labelled control at rest. */
 .contact-dock{
   position: fixed;
   right: 16px;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 90;
   display: flex;
   flex-direction: column;
@@ -590,30 +456,35 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
   gap: 10px;
 }
 .contact-launcher{
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  border: none;
-  background: #1f2937;
-  color: #fff;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 20px rgba(0,0,0,.25);
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  background: var(--anth);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(15,23,42,.12);
   cursor: pointer;
 }
+.contact-launcher svg{ width: 20px; height: 20px; flex: none; }
+.contact-launcher__label{ white-space: nowrap; }
 .contact-action{
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 44px;
+  min-height: 44px;
   padding: 0 15px 0 13px;
   border-radius: 999px;
   color: #fff;
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
-  box-shadow: 0 6px 16px rgba(0,0,0,.22);
+  box-shadow: 0 1px 2px rgba(31,42,55,.06);
   /* Collapsed by default; revealed when the dock is open. */
   opacity: 0;
   transform: translateY(8px) scale(.96);
@@ -625,8 +496,10 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
   transform: translateY(0) scale(1);
   pointer-events: auto;
 }
-.contact-action--whatsapp{ background: #25d366; }
-.contact-action--viber{ background: #7360f2; }
+.contact-action--call{ background: var(--btn-bg, #2B63C9); }
+.contact-action--whatsapp{ background: #1f9d55; }
+.contact-action--viber{ background: #6a4fd0; }
+.contact-action svg{ width: 20px; height: 20px; flex: none; }
 .contact-action__label{ white-space: nowrap; }
 
 /* show only on mobile, like the previous single bubble */
@@ -1530,32 +1403,6 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 .prices-card-media { display: block; }
 .prices-card-title { margin: 0; font-size: 1.15rem; line-height: 1.3; }
 .prices-state { opacity: .75; margin: 0 0 2rem; }
-
-/* The configurator strip on the home page: three model cards that ARE the way in. */
-.cfg-strip .cfg-strip-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
-.cfg-strip-kicker{margin:0 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;opacity:.65}
-.cfg-strip-title{margin:0;font-size:clamp(22px,3.5vw,30px)}
-.cfg-strip-lead{margin:6px 0 0;opacity:.82;max-width:56ch;line-height:1.5}
-.cfg-strip-all{font-weight:600;opacity:.9;white-space:nowrap}
-.cfg-strip-all:hover{opacity:1;text-decoration:underline}
-.cfg-strip-cards{display:grid;grid-template-columns:1fr;gap:14px}
-@media(min-width:640px){.cfg-strip-cards{grid-template-columns:repeat(3,1fr)}}
-.cfg-strip-card{
-  display:grid;grid-template-rows:auto 1fr;
-  border:1px solid rgba(128,128,128,.28);border-radius:16px;overflow:hidden;
-  background:rgba(128,128,128,.04);
-  transition:transform .2s ease, box-shadow .2s ease;
-}
-@media(hover:hover) and (prefers-reduced-motion:no-preference){
-  .cfg-strip-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.18)}
-}
-.cfg-strip-card img{width:100%;aspect-ratio:16/10;object-fit:cover}
-.cfg-strip-card-body{display:grid;gap:4px;padding:12px 14px 14px}
-.cfg-strip-card-name{font-weight:700;font-size:1.05rem}
-.cfg-strip-card-price{opacity:.85;font-variant-numeric:tabular-nums}
-.cfg-strip-card-cta{margin-top:4px;font-weight:600;opacity:.9}
-.cfg-strip-planner{margin:14px 0 0;opacity:.85}
-.cfg-strip-planner a:hover{text-decoration:underline}
 
 /* The whole price card is a target for its catalogue page, driven by the single title
    link — an overlay rather than a second <a>, so assistive tech announces one link per
