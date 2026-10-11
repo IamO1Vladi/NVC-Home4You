@@ -72,4 +72,21 @@ describe('ConsentBanner', () => {
     renderAt('/r/dtodorov?lang=ro')
     expect(screen.getByRole('button', { name: EN_ACCEPT })).toBeInTheDocument()
   })
+  // The prerendered snapshot is captured with the card up, so <html data-consent-open> arrives
+  // baked in; the CSS hides the floating contact dock while it is there.
+  it('marks the page while the card is up, and lifts the mark when the visitor chooses', async () => {
+    renderAt('/en')
+    expect(document.documentElement.hasAttribute('data-consent-open')).toBe(true)
+    screen.getByRole('button', { name: EN_ACCEPT }).click()
+    await Promise.resolve()
+    expect(document.documentElement.hasAttribute('data-consent-open')).toBe(false)
+  })
+
+  it('clears a baked mark for a visitor who already chose, so the dock is not hidden for them', () => {
+    document.documentElement.dataset.consentOpen = ''
+    localStorage.setItem('consent.choice', 'accepted')
+    renderAt('/en')
+    expect(screen.queryByRole('region')).toBeNull()
+    expect(document.documentElement.hasAttribute('data-consent-open')).toBe(false)
+  })
 })

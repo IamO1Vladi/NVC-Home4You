@@ -106,11 +106,15 @@ export default function ConsentBanner() {
     return () => window.removeEventListener('nvc:open-consent', onOpen);
   }, []);
 
-  // Tell the page the card is up (CSS hides the contact dock on :root[data-consent-open]);
-  // the cleanup removes it on close and on unmount alike.
+  // Tell the page the card is up (CSS hides the contact dock on :root[data-consent-open]).
+  // Synced in BOTH directions on every change, not only set when open: the prerendered
+  // snapshot is taken with the card up, so the attribute arrives baked into <html>, and a
+  // visitor who already chose mounts with open=false — an effect that only ever set it would
+  // leave the dock hidden for them until they opened Cookie settings.
   useEffect(() => {
-    if (!open || typeof document === 'undefined') return undefined;
-    document.documentElement.dataset.consentOpen = '';
+    if (typeof document === 'undefined') return undefined;
+    if (open) document.documentElement.dataset.consentOpen = '';
+    else delete document.documentElement.dataset.consentOpen;
     return () => {
       delete document.documentElement.dataset.consentOpen;
     };
