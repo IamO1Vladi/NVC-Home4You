@@ -25,6 +25,10 @@
 /* Shots */
 .hs-shot{ position:absolute; inset:0; opacity:0; transition: opacity .7s ease; }
 .hs-shot.is-active{ opacity:1; }
+/* A hidden slide must not take the click: each slide's link fills the frame, and the last
+   one in the DOM used to sit on top of the stack, so the hero opened the same page
+   whatever photo was showing. */
+.hs-shot:not(.is-active){ pointer-events:none; }
 .hs-shot img{
   width:100%; height:100%; object-fit:cover; background:#e5e7eb;
   /* Ken Burns variants via nth-child */

@@ -117,13 +117,19 @@ export default function HeroShowcase({
                 />
               )
               const aria = s.alt ? `${openLabel}: ${s.alt}` : openLabel
+              // Only the visible slide is a link. Every slide's link fills the frame and the
+              // others sit underneath at opacity 0, so the LAST one in DOM order used to top
+              // the hit-testing stack and take every click: the hero always opened "Interiors"
+              // whatever photo was showing. The CSS turns their pointer events off; this keeps
+              // them out of the tab order (seven invisible stops) and the accessibility tree.
+              const isActive = i === idx
 
               return (
-                <figure key={s.src || i} className={['hs-shot', i === idx && 'is-active'].filter(Boolean).join(' ')}>
+                <figure key={s.src || i} className={['hs-shot', isActive && 'is-active'].filter(Boolean).join(' ')} aria-hidden={!isActive}>
                   {s.to ? (
-                    <Link to={s.to} aria-label={aria}>{Img}</Link>
+                    <Link to={s.to} aria-label={aria} tabIndex={isActive ? 0 : -1}>{Img}</Link>
                   ) : s.href ? (
-                    <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={aria}>{Img}</a>
+                    <a href={s.href} target="_blank" rel="noopener noreferrer" aria-label={aria} tabIndex={isActive ? 0 : -1}>{Img}</a>
                   ) : (
                     Img
                   )}
