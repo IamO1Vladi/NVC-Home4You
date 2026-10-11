@@ -41,8 +41,8 @@ was empty either way). Checking the live site settles such questions in a minute
    migration. The bundle hash moves, so the prerender is mandatory, and the API must be redeployed
    for the two new controllers.
    1. **Owner, before anything else — confirm the facts the page now prints** (all in
-      `src/content/{en,bg,el}/home.js`, one place to edit): phone `+359 87 935 5269` (index.html's
-      Organization JSON-LD still says `+359892456245` — fix whichever is wrong), hours
+      `src/content/{en,bg,el}/home.js`, one place to edit): phone `+359 87 935 5269` (confirmed by the
+      owner 2026-10-11; index.html's Organization JSON-LD now says the same), hours
       Mon–Fri 07:00–19:00, Marikostinovo 2850 Petrich as a visitable address, „87 homes delivered",
       „Building homes since 2022", „We answer within 24 hours", and the tile label
       „Container units · 14–30 m²".
