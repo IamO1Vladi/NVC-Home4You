@@ -629,6 +629,30 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
+- [x] **38. The home page redesign, and the panel's „Начална страница" photo slots** (built
+  2026-10-11 on branch `home-redesign`; **not yet published** — HANDOFF Do next 00 is the release).
+  The owner asked for the home page to feel as welcoming as possible; a ten-lens design review
+  (`NVC Claude version/HOMEPAGE-DESIGN-REVIEW.md`, 59 findings, none refuted) chose „Front Porch on
+  warm paper", the owner approved a working mock, and that mock is now the page in bg/en/el: a
+  full-bleed hero fading into paper (slogan unchanged in words, the emphasis moved to
+  home/домът/σπίτι, the price and the place in the lead), a contact band, the three model cards
+  second, four tiles with the photo always visible, a catalogues band over the six brochures,
+  reviews as neighbours, the steps as a static list, three reasons, a contact card with tel: and
+  mailto: links. The glide carousel and the phone quote dock are gone. Chrome: a header with a
+  phone link and native-name language select (theme control moved to the footer), the phone
+  drawer as the owner ruled it (Configurator, Gallery, Prices, Partner, two groups, a sticky
+  Call / Get a Quote row, no Planner), a cookie card, a labelled Call-or-chat pill, light-first
+  theme with an inline bootstrap and the prerender pinned to light, self-hosted Commissioner,
+  `MotionConfig reducedMotion="user"`. Home styles live in `src/style/HomePage.css` under `hp-`
+  with their own `--hp-*` tokens, so no other page changed look.
+  **Photos from the panel:** eight fixed slots (hero-1..5, model-37/58/73) in a new `HomeSlots`
+  table (migration `AddHomeSlots`), a new `home/` image scope, `GET /api/home/photos` (degrades to
+  empty when the table is missing) and `api/admin/home-photos` (file, pick from the gallery,
+  clear, swap, alt), the page `/admin/home-photos`. The SPA merges the API with its content
+  defaults, so nothing is seeded and a failed fetch never blanks the hero; a panel change reaches
+  the prerendered first paint only after the next prerender + publish. Tests 1104 → 1129 .NET,
+  847 → 878 frontend; a11y 0 on 104 page-loads. **Still the owner's:** the printed facts (phone,
+  hours, address, „87 homes", „since 2022") and the shot list in the review's section 6.
 - [x] **37. Gallery slug history: a renamed product keeps its old address** (built
   2026-10-03, **live since `deploy-2026-10-04`**; its one migration, `AddHouseSlugHistory`,
   applied by the owner on 2026-10-03, before the publish). A gallery URL is the title slugified per locale, so

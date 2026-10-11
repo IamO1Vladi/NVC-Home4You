@@ -533,6 +533,8 @@ The two image settings are independent on purpose, and the order matters:
    indistinguishable from success without that header.
 4. **Then flip `IMAGES_VIA_APP=true`**, which is what actually changes the URLs in the
    gallery and cases payloads.
+   Since the home-redesign release it also prints a fourth section, **home slots**, for the keys the
+   panel's „Начална страница" stores under `home/`; a missing table there is reported, not thrown.
 
 Rolling back is setting `IMAGES_VIA_APP` back to `false`; it takes effect on the next request
 rather than after the 10-minute payload cache, because the rewrite happens on the way out of

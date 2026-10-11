@@ -9,6 +9,10 @@ ships stale pages**.
 Tests at `deploy-2026-10-04`: **1104 .NET, 847 frontend**, all green. `npm run audit:a11y`:
 0 violations on 104 page-loads.
 
+**Branch `home-redesign` (built 2026-10-11, NOT yet published):** **1129 .NET, 878 frontend** (46
+files), `npm run audit:a11y` 0 violations on 104 page-loads against the Vite dev server. What it
+carries and how it ships: Do next 00.
+
 ---
 
 ## State of play
@@ -19,7 +23,7 @@ Tests at `deploy-2026-10-04`: **1104 .NET, 847 frontend**, all green. `npm run a
 | **`production` branch** | = live, `ac5286b`. |
 | **`master`** | = `production`, plus this record. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
-| **Migrations** | **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| **Migrations** | **`AddHomeSlots` (20261011183913) is NOT applied anywhere yet** — it belongs to the home-redesign release (Do next 00) and must be applied before that publish; a new table only. **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18.** Quickbase keeps one user-visible runtime path, plus two silent ones (the save-time code collision check, and `/api/img` falling back on a Blob miss; a dead token degrades both quietly). A `/c/{code}` link that was never imported still falls back to it (by design, see "Saved configurator links"). The product-page SEO tags and `sitemap-gallery.xml` read it too until deploy-2026-10-03 moved them to SQL. Otherwise the token's ~Feb 2027 expiry matters only for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -28,6 +32,43 @@ from a pre-squash working tree, so no commit mapped to the zip and `production..
 was empty either way). Checking the live site settles such questions in a minute.
 
 ## Do next
+
+00. **Publish the home page redesign (branch `home-redesign`, four commits on top of master).**
+   What ships: the approved home page in bg/en/el (ROADMAP #38, HOMEPAGE-DESIGN-REVIEW.md), the
+   site chrome that goes with it (header, phone drawer, footer, cookie card, Call-or-chat pill, no
+   quote dock), light-first theme with the prerender pinned to light, the self-hosted Commissioner
+   font, and the panel's „Начална страница" photo slots with their API and the **`AddHomeSlots`**
+   migration. The bundle hash moves, so the prerender is mandatory, and the API must be redeployed
+   for the two new controllers.
+   1. **Owner, before anything else — confirm the facts the page now prints** (all in
+      `src/content/{en,bg,el}/home.js`, one place to edit): phone `+359 87 935 5269` (index.html's
+      Organization JSON-LD still says `+359892456245` — fix whichever is wrong), hours
+      Mon–Fri 07:00–19:00, Marikostinovo 2850 Petrich as a visitable address, „87 homes delivered",
+      „Building homes since 2022", „We answer within 24 hours", and the tile label
+      „Container units · 14–30 m²".
+   2. Review and merge `home-redesign` into `master` (PR, squash or not — the four commits read on
+      their own). `npm test` = 878, `dotnet test` = 1129.
+   3. **Owner, main device:** `cd api-dotnet; dotnet ef migrations list` shows `AddHomeSlots` without
+      `(Applied)`; `dotnet ef database update` applies it. New table only; the live build ignores it
+      and the new build degrades to its built-in photos until the table exists.
+   4. `git checkout production; git merge --ff-only master; git push` (DEPLOY §4).
+   5. Back up the live snapshots (DEPLOY §6b, step 1) — no backup of the `deploy-2026-10-04` set
+      exists yet, and `npm run prerender` empties the folder.
+   6. Build → start → prerender (DEPLOY §6b): `npm run build`; owner starts the app with the
+      production flags; `npm run prerender`; expect `Done: 52/52` and `catalogue matches live`.
+      The new snapshots must start with `<html lang=… data-theme="light" style="color-scheme:
+      light;">` and hold the new `hp-` markup with the hero photos in it; diff them against the
+      backup route by route (text length, `/api/img` count, no loading strings).
+   7. Trial `dotnet publish -c Release -o <scratch>` with the app stopped (expect `Prerendered pages
+      staged for publish: 52 files.`), then the real publish from VS Code, tag `deploy-<date>`,
+      `git checkout master`.
+   8. **Verify live:** `/`, `/bg`, `/en`, `/el` show the new page in both themes; `GET
+      /api/home/photos` answers `{ hero: [], models: {…null} }` (nothing is seeded); `GET
+      /api/admin/home-photos` is 401 signed out; signed in, `/admin/home-photos` lists eight empty
+      slots — pick the gallery photos for the three models and the hero there, and they show on the
+      home page on the next load. **A photo changed in the panel reaches the prerendered first paint
+      only after the next prerender + publish**; visitors see it immediately once React hydrates.
+   9. Record it here (live sha, tag, bundle hash, migration applied-by/when) and close #38.
 
 0. **After `deploy-2026-10-04`: the Greek retitles, then Search Console.**
    1. **The history is seeded — DONE 2026-10-04** by the owner (`seed-slug-history`, dry
