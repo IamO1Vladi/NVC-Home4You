@@ -32,6 +32,7 @@ const TEXT = {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', orders: 'Поръчки',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти', documents: 'Брошури',
+      homePhotos: 'Начална страница',
       factorySheets: 'Фабрични поръчки', audit: 'Одит',
     },
     loading: 'Зареждане…',
@@ -53,6 +54,7 @@ const TEXT = {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', orders: 'Orders',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases', documents: 'Brochures',
+      homePhotos: 'Home page',
       factorySheets: 'Factory orders', audit: 'Audit',
     },
     loading: 'Loading…',
@@ -172,6 +174,16 @@ const Icon = {
       <path d="M12 6.2v14.2" />
     </>
   ),
+  // A browser window with a picture in it: the one section that is about what the FRONT
+  // of the site shows, as opposed to the gallery next to it, which is a catalogue of models.
+  homePhotos: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 8.4h18" />
+      <path d="m5.8 17.2 3.4-3.6 2.6 2.6 2.2-1.8 4.2 2.8" />
+      <circle cx="15.6" cy="11.8" r="1.1" />
+    </>
+  ),
   // A sheet of paper with a fold. It is a DOCUMENT we hand the factory, which is what
   // separates it from the factory directory sitting above it in the nav.
   factorySheets: (
@@ -226,6 +238,10 @@ const SECTIONS = [
   // With the other content sections: the brochures are marketing the public site serves,
   // not an operational record.
   { key: 'documents', to: '/admin/documents' },
+  // Last of the content sections: the photos the home page opens with and the three
+  // model cards under them. Not inside Gallery, because a gallery edit is a catalogue
+  // change and this is a change to the front of the shop.
+  { key: 'homePhotos', to: '/admin/home-photos' },
   // The order sheets sit with the other operational records, after the content
   // sections. Beside Factories would read nicely too, but the directory and the
   // documents are different kinds of thing.

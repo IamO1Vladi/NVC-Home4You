@@ -43,6 +43,7 @@ describe('AdminHomePage', () => {
     expect(hrefs).toContain('/admin/reviews')
     expect(hrefs).toContain('/admin/gallery')
     expect(hrefs).toContain('/admin/cases')
+    expect(hrefs).toContain('/admin/home-photos')
   })
 
   it('says how many reviews are waiting, so the queue is not something to remember to check', async () => {

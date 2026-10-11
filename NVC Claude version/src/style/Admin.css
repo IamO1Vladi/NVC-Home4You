@@ -2112,3 +2112,93 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
 .adm-old-addresses { margin: 0; padding-left: 1.1em; }
 .adm-old-addresses li { margin: 0.25em 0; }
 .adm-old-addresses code { word-break: break-all; }
+
+/* --- Home page photos ---------------------------------------------------------------- */
+/* Five hero slots in a row and three model slots under them, each a small card: the photo
+   (or a labelled empty box, because an empty slot is a true state — the site shows the
+   default — not an error), a row of verbs, and the optional description field. The hero
+   row stays five-across on desktop so left/right means what the site shows; on a phone
+   it folds to two columns, and the number in the label carries the order instead. */
+.adm-hp-section { margin-bottom: 24px; }
+.adm-hp-section h2 { font-size: 17px; margin: 0 0 2px; }
+.adm-hp-section > p { margin: 0 0 10px; }
+.adm-hp-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.adm-hp-row-hero { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.adm-hp-row-models { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 720px; }
+.adm-hp-slot { min-width: 0; display: grid; gap: 8px; align-content: start; padding: 12px; }
+.adm-hp-slot-head { display: grid; gap: 2px; }
+.adm-hp-slot-head strong { font-size: 14.5px; }
+.adm-hp-by { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-hp-img,
+.adm-hp-empty {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  background: var(--adm-line);
+  display: block;
+}
+.adm-hp-img { object-fit: cover; }
+.adm-hp-empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--adm-line-firm);
+  color: var(--adm-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.adm-hp-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.adm-hp-arrow { min-width: 36px; padding: 0 10px; }
+.adm-hp-alt { display: grid; gap: 4px; }
+.adm-hp-alt label { font-weight: 600; }
+.adm-hp-alt input {
+  font: inherit;
+  font-size: 13.5px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--adm-line-firm);
+  border-radius: 8px;
+  background: var(--adm-bg);
+  color: var(--adm-ink);
+}
+.adm-hp-alt input:focus-visible { outline: 2px solid var(--adm-accent); outline-offset: 1px; }
+
+/* The gallery picker dialog: one heading per model, its photos as pressable thumbnails. */
+.adm-hp-house { margin-bottom: 18px; }
+.adm-hp-house h3 { font-size: 15px; margin: 0 0 8px; }
+.adm-hp-pick-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+.adm-hp-pick {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--adm-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--adm-line);
+  cursor: pointer;
+}
+.adm-hp-pick img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.adm-hp-pick:hover { border-color: var(--adm-accent); }
+.adm-hp-pick:focus-visible { outline: 2px solid var(--adm-accent); outline-offset: 2px; }
+
+@media (max-width: 1100px) {
+  .adm-hp-row-hero { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .adm-hp-row-hero, .adm-hp-row-models { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 420px) {
+  .adm-hp-row-hero, .adm-hp-row-models { grid-template-columns: 1fr; }
+}

@@ -54,6 +54,10 @@ const TEXT = {
         name: 'Брошури',
         blurb: 'PDF каталозите на сайта. Замяната е веднага — адресът не се променя.',
       },
+      homePhotos: {
+        name: 'Начална страница',
+        blurb: 'Снимките в началото на сайта и на трите модела. Промяната се вижда веднага.',
+      },
     },
     stats: {
       pending: (n) => `${n} ${n === 1 ? 'чака' : 'чакат'} одобрение`,
@@ -115,6 +119,10 @@ const TEXT = {
       documents: {
         name: 'Brochures',
         blurb: 'The PDF catalogues the site serves. Replacing is instant — the address never changes.',
+      },
+      homePhotos: {
+        name: 'Home page',
+        blurb: 'The photos at the top of the site and on the three model cards. Changes show immediately.',
       },
     },
     stats: {
@@ -266,6 +274,13 @@ export default function AdminHomePage() {
           blurb={t.cards.documents.blurb}
           open={t.open}
         />
+        <HomeTile
+          to="/admin/home-photos"
+          icon="homePhotos"
+          name={t.cards.homePhotos.name}
+          blurb={t.cards.homePhotos.blurb}
+          open={t.open}
+        />
       </div>
 
       {/* The three things colleagues have asked about most. Cheaper to answer here, once,
@@ -334,6 +349,15 @@ const TILE_ICON = {
     <>
       <path d="M12 6.2c-1.5-1.3-3.6-2-6.2-2-1 0-1.9.1-2.6.3v14.2c.7-.2 1.6-.3 2.6-.3 2.6 0 4.7.7 6.2 2 1.5-1.3 3.6-2 6.2-2 1 0 1.9.1 2.6.3V4.5c-.7-.2-1.6-.3-2.6-.3-2.6 0-4.7.7-6.2 2z" />
       <path d="M12 6.2v14.2" />
+    </>
+  ),
+  // The same browser-window-with-a-picture as the nav, for the same reason as the booklet.
+  homePhotos: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 8.4h18" />
+      <path d="m5.8 17.2 3.4-3.6 2.6 2.6 2.2-1.8 4.2 2.8" />
+      <circle cx="15.6" cy="11.8" r="1.1" />
     </>
   ),
 }

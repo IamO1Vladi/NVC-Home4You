@@ -30,6 +30,7 @@ public class AppDbContext : DbContext
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<FactorySheet> FactorySheets => Set<FactorySheet>();
     public DbSet<PublicDocument> PublicDocuments => Set<PublicDocument>();
+    public DbSet<HomeSlot> HomeSlots => Set<HomeSlot>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -458,6 +459,15 @@ public class AppDbContext : DbContext
             // answering one address would serve a coin-flip of a catalogue. The importer's
             // idempotency also rides on this — a re-run updates rather than duplicates.
             e.HasIndex(d => new { d.Slug, d.Lang }).IsUnique();
+        });
+
+        b.Entity<HomeSlot>(e =>
+        {
+            // Every read and write is "the row for this slot name", and the allow-list is
+            // eight names long, so there must be at most one row per name: two rows for
+            // hero-1 would make the public read a coin-flip between photos. Unique rather
+            // than merely indexed for that reason; the service looks up by Name only.
+            e.HasIndex(s => s.Name).IsUnique();
         });
 
     }

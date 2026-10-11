@@ -47,6 +47,9 @@ public static class AuditedEntities
         // superseded blobs findable.
         nameof(PublicDocument),
 
+        // The home page's photo slots: "which photo was the hero in July?" is the log's.
+        nameof(HomeSlot),
+
         // Status, owner and the fields sales edits. NOT the conversation — see below.
         nameof(Lead),
 

@@ -52,6 +52,7 @@ public sealed class MigrationVerifier
         {
             await CheckAsync("gallery", await GalleryKeysAsync(ct), ct),
             await CheckAsync("cases", await CaseKeysAsync(ct), ct),
+            await HomeSectionAsync(ct),
         };
 
         if (!string.IsNullOrWhiteSpace(frontendSourceRoot) && Directory.Exists(frontendSourceRoot))
@@ -89,6 +90,30 @@ public sealed class MigrationVerifier
             .Select(k => k!)
             .Distinct(StringComparer.Ordinal)
             .ToList();
+    }
+
+    // The home-page slots (HomeSlot) hold keys from every scope — a model card usually
+    // copies a gallery/ key, which the gallery section already checks — so only the keys
+    // minted under home/ are this section's business. The table arrives by migration, and
+    // this verb may well run before it does, so a missing table is reported, not thrown.
+    private async Task<Section> HomeSectionAsync(CancellationToken ct)
+    {
+        List<string> keys;
+        try
+        {
+            keys = await _db.HomeSlots.AsNoTracking()
+                .Where(s => s.ImageKey != null && s.ImageKey.StartsWith(ImageKey.HomeScope + "/"))
+                .Select(s => s.ImageKey!)
+                .Distinct()
+                .ToListAsync(ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            return new Section("home slots", 0, 0,
+                new List<string> { $"HomeSlots could not be read ({ex.GetType().Name}) — is the AddHomeSlots migration applied? home/ keys NOT verified" });
+        }
+
+        return await CheckAsync("home slots", keys, ct);
     }
 
     private static List<string> ContentKeys(string root)

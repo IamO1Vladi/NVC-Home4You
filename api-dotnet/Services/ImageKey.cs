@@ -57,11 +57,21 @@ public static class ImageKey
     // traced back to the attachment it came from.
     public const string ContentScope = "content";
 
+    // Photos uploaded straight into a home-page slot (HomeSlot, 2026-10). The owner is the
+    // slot's 1-based position in HomeSlotNames.All rather than a row id, because the slots
+    // are a fixed allow-list and a row need not exist before the first upload:
+    //
+    //   home/{slotIndex}/{guid}.{ext}
+    //
+    // A slot that shows a gallery photo copies the gallery/ key instead; this scope is only
+    // for bytes that belong to the home page and nothing else.
+    public const string HomeScope = "home";
+
     private static readonly string[] OwnedRoots =
-        { GalleryScope + "/", CasesScope + "/", ContentScope + "/" };
+        { GalleryScope + "/", CasesScope + "/", ContentScope + "/", HomeScope + "/" };
 
     private static readonly string[] AllRoots =
-        { "files/", "up/", GalleryScope + "/", CasesScope + "/", ContentScope + "/" };
+        { "files/", "up/", GalleryScope + "/", CasesScope + "/", ContentScope + "/", HomeScope + "/" };
 
     /// <summary>
     /// Normalises a Quickbase image URL — absolute, host-relative, or already a bare key —
@@ -160,7 +170,7 @@ public static class ImageKey
     /// </param>
     public static string NewOwnedKey(string scope, long ownerId, string? originalFileName, string? overrideExtension = null)
     {
-        if (scope != GalleryScope && scope != CasesScope)
+        if (scope != GalleryScope && scope != CasesScope && scope != HomeScope)
             throw new ArgumentException($"Unknown image scope '{scope}'.", nameof(scope));
 
         if (ownerId <= 0)

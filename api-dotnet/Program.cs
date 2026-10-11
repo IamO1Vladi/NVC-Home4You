@@ -142,6 +142,11 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
     builder.Services.AddSingleton<Services.PublicDocumentStore>();
     builder.Services.AddScoped<Services.PublicDocumentService>();
     builder.Services.AddScoped<Services.PublicDocumentImportService>();
+
+    // The home page's photo slots (2026-10). SQL only: the read side is cached here and the
+    // upload's blob half is the admin controller's, which takes BlobImageSource as an
+    // optional dependency so the panel's list/pick/clear verbs work on SQL alone.
+    builder.Services.AddScoped<Services.HomePhotoService>();
 }
 
 // --- Admin sign-in (Microsoft Entra ID) -----------------------------------------------
@@ -394,6 +399,11 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString) && !string.IsNullOrWhiteSpa
     // the controllers cannot resolve and the admin routes stay absent rather than half-working.
     builder.Services.AddScoped<Services.GalleryAdminService>();
     builder.Services.AddScoped<Services.CasesAdminService>();
+
+    // AdminHomePhotosController needs nothing extra here: HomePhotoService is registered in
+    // the SQL block above, ImageProcessor is a singleton, and BlobImageSource (from the Blob
+    // block) is an optional constructor parameter, so the upload verb answers 503 rather
+    // than the whole controller going missing when only Blob is absent.
 
     // Reads image keys from SQL and checks them against Blob, so it needs both.
     builder.Services.AddScoped<Services.MigrationVerifier>();
