@@ -541,6 +541,25 @@ public class LeadServiceTests
         Assert.Equal(LeadStatuses.New, lead.Status);
     }
 
+    // --- Whose lead it is -------------------------------------------------------------
+
+    [Fact]
+    public async Task Owner_of_tells_a_missing_lead_from_an_unassigned_one()
+    {
+        // The representative's panel asks this in front of every action (#38), and the two
+        // answers must stay distinct: an unassigned lead is a real state, not a missing row,
+        // and a caller that confused them would be wrong about exactly the leads nobody is
+        // watching.
+        using var db = NewDb();
+        var svc = new LeadService(db);
+        var owned = await svc.CreateAsync(new Lead { Name = "Owned", OwnerUpn = "dtodorov@nvc-home4you.eu" });
+        var unassigned = await svc.CreateAsync(new Lead { Name = "Nobody's" });
+
+        Assert.Equal((true, "dtodorov@nvc-home4you.eu"), await svc.OwnerOfAsync(owned.Id));
+        Assert.Equal((true, (string?)null), await svc.OwnerOfAsync(unassigned.Id));
+        Assert.Equal((false, (string?)null), await svc.OwnerOfAsync(999));
+    }
+
     // --- The thread -------------------------------------------------------------------
 
     [Fact]

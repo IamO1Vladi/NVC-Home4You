@@ -49,22 +49,10 @@ public class AdminPipelineFilesController : ControllerBase
         if (!_files.IsConfigured)
             return StatusCode(503, new { errors = new[] { "File storage is not configured." } });
 
-        if (file is null || file.Length == 0)
-            return BadRequest(new { errors = new[] { "No file was uploaded." } });
-
-        if (file.Length > LeadFileStore.MaxBytes)
-            return BadRequest(new { errors = new[] { $"Files must be under {LeadFileStore.MaxBytes / (1024 * 1024)} MB." } });
-
-        // The browser's filename is the only thing we trust it for, and only as a label —
-        // strip any path it carries so a crafted name cannot influence anything downstream.
-        var fileName = System.IO.Path.GetFileName(file.FileName ?? "");
-        if (string.IsNullOrWhiteSpace(fileName))
-            return BadRequest(new { errors = new[] { "The file has no name." } });
-
-        // Allow-list by extension. The browser-supplied content type is ignored entirely:
-        // it is trivially spoofed and tells us nothing we should act on.
-        if (!LeadFileStore.IsAllowed(fileName, out var contentType))
-            return BadRequest(new { errors = new[] { $"'{System.IO.Path.GetExtension(fileName)}' files are not accepted." } });
+        // Size, name and allow-listed type, in that order; the rules are PipelineRules' so
+        // the representative's panel refuses the same files with the same sentences.
+        if (PipelineRules.UploadRefusal(file, out var fileName, out var contentType) is { } refusal)
+            return BadRequest(new { errors = new[] { refusal } });
 
         var lead = await _db.Leads.AsNoTracking().FirstOrDefaultAsync(l => l.Id == leadId, ct);
         if (lead is null) return NotFound();

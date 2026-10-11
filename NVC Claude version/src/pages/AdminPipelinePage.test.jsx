@@ -16,6 +16,11 @@ const json = (body) => Promise.resolve({
   ok: true, status: 200, json: () => Promise.resolve(body), text: () => Promise.resolve(JSON.stringify(body)),
 })
 
+// An empty refusal, the way ASP.NET answers a policy that said no.
+const refuse = (status) => Promise.resolve({
+  ok: false, status, json: () => Promise.resolve({}), text: () => Promise.resolve('{}'),
+})
+
 const BOARD = [
   { id: 1, name: 'Ivan Petrov', status: 'quoted', ownerUpn: '', modelLabel: 'Nova 60', nextStep: '', createdAt: '2026-07-01T09:00:00Z', lastActivityAt: '2026-08-01T09:00:00Z', activityCount: 2 },
   { id: 2, name: 'Maria Dimitrova', status: 'new', ownerUpn: 'maria@x.eu', modelLabel: '', nextStep: '', createdAt: '2026-08-10T09:00:00Z', lastActivityAt: '2026-08-11T09:00:00Z', activityCount: 1 },
@@ -49,12 +54,16 @@ let boardRows = BOARD
 // list the panel does not hold a copy of, which is the only way to tell "reads the server"
 // apart from "happens to agree with it".
 let withGalleryModels = ['wagon', 'modular']
+// Whether the signed-in account is on the allow-list. False is the 403 every admin route
+// answers anyone else with — a representative who opened /admin, say (#38).
+let allowed = true
 
 beforeEach(() => {
   calls = []
   detail = DETAIL
   boardRows = BOARD
   withGalleryModels = ['wagon', 'modular']
+  allowed = true
   _resetSubmissions()
   // Zero backoff. A save that fell back to the retries would otherwise still be firing
   // requests into the NEXT test's call log a second after this one ended.
@@ -65,6 +74,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
     calls.push({ url, method: options.method || 'GET', body: options.body })
     const u = String(url)
+    if (!allowed) return refuse(403)
     if (u.includes('/api/admin/me')) return json({ name: 'Sales', email: 'sales@x.eu' })
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
@@ -1842,5 +1852,19 @@ describe('AdminPipelinePage', () => {
       const sent = calls.find((c) => c.url.includes('/due/report') && c.method === 'POST')
       expect(JSON.parse(sent.body).owner).toBe('maria@x.eu')
     })
+  })
+
+  it('a 403 says there is no access and offers the way out — not a retry', async () => {
+    // A signed-in account the allow-list does not hold. Not the sign-in card, because the
+    // session is fine and would only loop; not the error card, because its Retry would be
+    // refused the same way for ever. The sign-out is the one thing on it that works.
+    allowed = false
+    render(<AdminPipelinePage />)
+
+    expect(await screen.findByText('Нямате достъп до този панел.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Опитай отново|Try again/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Необходим е вход' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Ivan Petrov')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Изход' })).toHaveAttribute('href', '/admin/signout')
   })
 })

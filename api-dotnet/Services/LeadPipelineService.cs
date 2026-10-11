@@ -234,9 +234,24 @@ public class LeadPipelineService
     }
 
     /// <summary>
+    /// Where the admin panel downloads an attachment from: the route the detail view links
+    /// to unless a caller says otherwise.
+    /// </summary>
+    public const string AdminAttachmentsPath = "/api/admin/pipeline/attachments";
+
+    /// <summary>
     /// One lead and its whole thread, oldest first. Null when there is no such lead.
     /// </summary>
-    public async Task<LeadDetailDto?> GetAsync(int id, CancellationToken ct)
+    public Task<LeadDetailDto?> GetAsync(int id, CancellationToken ct) =>
+        GetAsync(id, AdminAttachmentsPath, ct);
+
+    /// <summary>
+    /// The same, with the attachment links built on another route. The representative's
+    /// panel (#38) downloads through /api/rep/pipeline, whose ownership check the admin
+    /// route does not perform — and a link into the admin route would answer a
+    /// representative 403, which is a broken paperclip in a thread he is allowed to read.
+    /// </summary>
+    public async Task<LeadDetailDto?> GetAsync(int id, string attachmentsPath, CancellationToken ct)
     {
         var lead = await _db.Leads
             .AsNoTracking()
@@ -281,11 +296,11 @@ public class LeadPipelineService
             QuestionId = lead.QuestionId,
             CreatedAt = Iso(lead.CreatedAt),
             LastActivityAt = lead.LastActivityAt is null ? null : Iso(lead.LastActivityAt.Value),
-            Activities = activities.Select(ToDto).ToList(),
+            Activities = activities.Select(a => ToDto(a, attachmentsPath)).ToList(),
         };
     }
 
-    private static LeadActivityDto ToDto(LeadActivity a) => new()
+    private static LeadActivityDto ToDto(LeadActivity a, string attachmentsPath) => new()
     {
         Id = a.Id,
         Type = a.Type,
@@ -308,7 +323,7 @@ public class LeadPipelineService
             FileName = f.FileName,
             ContentType = f.ContentType ?? "",
             SizeBytes = f.SizeBytes,
-            DownloadUrl = $"/api/admin/pipeline/attachments/{f.Id}",
+            DownloadUrl = $"{attachmentsPath.TrimEnd('/')}/{f.Id}",
         }).ToList(),
     };
 

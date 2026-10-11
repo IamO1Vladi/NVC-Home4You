@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using Models;
 using Services;
@@ -10,6 +11,10 @@ namespace Controllers;
 
 [ApiController]
 [Route("api/config-email")]
+// Anonymous, and every call sends a mail to whatever address was typed in: the one public
+// route that could be pointed at somebody else's inbox. Same per-visitor budget as the
+// enquiry forms ("public-write", Program.cs).
+[EnableRateLimiting("public-write")]
 public class ConfigEmailController : ControllerBase
 {
     private readonly ISavedConfigStore _saved;

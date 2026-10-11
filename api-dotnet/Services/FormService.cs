@@ -31,7 +31,10 @@ public class FormService : ILeadStore
             [_env.F_OFFER_NAME.ToString()] = new { value = dto.Name },
             [_env.F_OFFER_EMAIL.ToString()] = new { value = dto.Email },
             [_env.F_OFFER_PHONE.ToString()] = new { value = dto.Phone },
-            [_env.F_OFFER_MESSAGE.ToString()] = new { value = dto.Project },
+            // The representative line (#38) goes into the Quickbase copy as it does into SQL
+            // (SqlLeadService), resolved against the registry here too so only a registered
+            // slug, in its registered spelling, ever reaches a record.
+            [_env.F_OFFER_MESSAGE.ToString()] = new { value = RepresentativeLine.Prepend(dto.Project, _env.FindRepresentativeBySlug(dto.Rep)?.Slug) },
         };
         if (!string.IsNullOrWhiteSpace(dto.ModelId))
             rec[_env.F_OFFER_MODEL_ID.ToString()] = new { value = dto.ModelId };
@@ -45,7 +48,7 @@ public class FormService : ILeadStore
         {
             [_env.F_Q_NAME.ToString()] = new { value = dto.Name },
             [_env.F_Q_EMAIL.ToString()] = new { value = dto.Email },
-            [_env.F_Q_MESSAGE.ToString()] = new { value = dto.Question },
+            [_env.F_Q_MESSAGE.ToString()] = new { value = RepresentativeLine.Prepend(dto.Question, _env.FindRepresentativeBySlug(dto.Rep)?.Slug) },
         };
 
         return await CreateAsync(_env.TableQuestion, rec, "question", ct);

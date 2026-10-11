@@ -5,6 +5,7 @@ import InternalDoorsPage from './InternalDoorsPage.jsx'
 import elContent from '../content/el/internalDoors.js'
 import bgContent from '../content/bg/internalDoors.js'
 import { submitInBackground } from '../lib/backgroundSubmit.js'
+import { clearRep, saveRep } from '../lib/repAttribution.js'
 
 vi.mock('../lib/backgroundSubmit.js', () => ({ submitInBackground: vi.fn() }))
 
@@ -43,5 +44,46 @@ describe('InternalDoorsPage enquiry', () => {
 
   it('a Bulgarian one as Bulgarian', () => {
     expect(sendEnquiry(bgContent, 'bg').payload.locale).toBe('bg')
+  })
+
+  // The doors page posts its own /api/offer, so the representative link (#38) has to reach
+  // it separately from the site-wide modal: the remembered slug, and the honeypot the
+  // server drops bots by, which a human never fills.
+  it('carries the representative the visitor arrived through, and an empty honeypot', () => {
+    saveRep('dtodorov')
+    try {
+      const { payload } = sendEnquiry(bgContent, 'bg')
+      expect(payload).toMatchObject({ rep: 'dtodorov', website: '' })
+    } finally {
+      clearRep()
+    }
+  })
+
+  it('sends no representative when there was none', () => {
+    expect(sendEnquiry(elContent, 'el').payload).toMatchObject({ rep: '', website: '' })
+  })
+
+  it('renders the honeypot where no visitor can reach it, and sends whatever a bot puts in it', () => {
+    render(<InternalDoorsPage content={bgContent} locale="bg" />)
+    fireEvent.click(screen.getByRole('button', { name: bgContent.review.cta }))
+    const form = screen.getByPlaceholderText(bgContent.forms.email).closest('form')
+
+    // Off-screen, out of the tab order and hidden from assistive tech — and never
+    // display:none, which the better bots skip (HoneypotField).
+    const trap = form.querySelector('input[name="website"]')
+    expect(trap).not.toBeNull()
+    expect(trap.tabIndex).toBe(-1)
+    expect(trap.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(trap.closest('[aria-hidden="true"]').style.display).not.toBe('none')
+    expect(screen.queryByRole('textbox', { name: /website/i })).toBeNull()
+
+    // A form-filler fills every field it finds.
+    fireEvent.change(trap, { target: { value: 'http://spam.example' } })
+    fireEvent.change(screen.getByPlaceholderText(bgContent.forms.name), { target: { value: 'Bot' } })
+    fireEvent.change(screen.getByPlaceholderText(bgContent.forms.email), { target: { value: 'bot@example.com' } })
+    fireEvent.submit(form)
+
+    expect(submitInBackground).toHaveBeenCalledTimes(1)
+    expect(submitInBackground.mock.calls[0][0].payload).toMatchObject({ website: 'http://spam.example' })
   })
 })

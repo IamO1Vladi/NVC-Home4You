@@ -71,6 +71,40 @@ public class SpaFallbackRouteTests
     }
 
     [Fact]
+    public void The_unlisted_page_branch_covers_the_representatives_panel_and_link()
+    {
+        // Two more shapes the manifest cannot know (#38): /rep/… is the representatives'
+        // panel, /r/{slug} a representative's landing page — the one that goes in a video,
+        // so a direct open is the ONLY way anyone ever reaches it. And bare /rep, which the
+        // SPA redirects to /rep/leads, the way bare /admin is already served.
+        var source = ProgramSource();
+
+        Assert.Contains("path.StartsWith(\"/rep/\"", source);
+        Assert.Contains("path.Equals(\"/rep\"", source);
+        Assert.Contains("path.StartsWith(\"/r/\"", source);
+    }
+
+    [Fact]
+    public void A_representatives_link_is_the_customers_page_and_the_panel_an_internal_one()
+    {
+        // Which shell each gets: /r/ is customer-facing like /order/, so it carries the
+        // brand title; /rep/ is a staff-side tool and says "NVC internal". Both noindex.
+        var source = ProgramSource();
+
+        var start = source.IndexOf("var unlistedTags =", StringComparison.Ordinal);
+        Assert.True(start >= 0, "the shell choice has moved or been renamed");
+        var expression = source[start..source.IndexOf(';', start)];
+
+        Assert.Contains("path.StartsWith(\"/r/\", StringComparison.OrdinalIgnoreCase) ? orderTags", expression);
+        // The /order/ half verbatim: SpaShellTests pins this exact text too.
+        Assert.Contains("path.StartsWith(\"/order/\", StringComparison.OrdinalIgnoreCase) ? orderTags : internalTags", expression);
+        Assert.DoesNotContain("/rep", expression);
+
+        var branch = source[source.IndexOf("path.StartsWith(\"/rep/\"", StringComparison.Ordinal)..];
+        Assert.Contains("noindex", branch[..Math.Min(900, branch.Length)]);
+    }
+
+    [Fact]
     public void An_unknown_url_still_answers_a_real_404()
     {
         // The other half of the bargain. Serving the shell with a 200 for everything is a

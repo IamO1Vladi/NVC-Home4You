@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { dictionaries } from './translations'
 const I18nContext = createContext(null)
-const STORAGE_KEY = 'lang'
+// Exported for the one reader outside the provider: ConsentBanner renders outside the
+// router and the provider, and needs the remembered language for paths without a locale.
+export const LANG_STORAGE_KEY = 'lang'
+const STORAGE_KEY = LANG_STORAGE_KEY
 export function I18nProvider({ children }){
   const [lang, setLang] = useState(()=> localStorage.getItem(STORAGE_KEY) || detect())
   function detect(){ const n=(navigator.language||'bg').toLowerCase(); if(n.startsWith('bg')) return 'bg'; if(n.startsWith('el')) return 'el'; return 'en' }

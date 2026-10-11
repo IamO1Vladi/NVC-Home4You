@@ -11,6 +11,23 @@ export class UnauthorizedError extends Error {
   }
 }
 
+// A 403 is the third answer, and it is neither of the other two. The session is fine, so a
+// sign-in prompt would send somebody round through Microsoft and straight back here; and
+// nothing is broken, so a Retry button would answer 403 all afternoon. It is a person in
+// the wrong panel — a member of staff who opened /rep/leads, or a representative who opened
+// /admin (ROADMAP #38) — and what they need is to be told which door is theirs.
+//
+// Unlike UnauthorizedError it still carries the status and the server's sentence, so a
+// caller that reads `.status` — adminSave's refused/transient split — treats a refused save
+// exactly as it did before this class existed.
+export class ForbiddenError extends Error {
+  constructor(message = 'forbidden') {
+    super(message)
+    this.name = 'ForbiddenError'
+    this.status = 403
+  }
+}
+
 async function handle(res) {
   if (res.status === 401) throw new UnauthorizedError()
 
@@ -39,7 +56,12 @@ async function handle(res) {
     // opposite answers — keep the dialog open on the first, hand the request to the retries
     // on the second (adminSave.js). A network failure never reaches this branch at all, and
     // the status it therefore does NOT carry is how the caller recognises one.
-    const error = new Error(detail || `Request failed (${res.status})`)
+    //
+    // 403 is tagged AFTER the body is read, where 401 is tagged before: the sign-in card
+    // has its own words, but a refused save still wants the server's reason in the dialog.
+    const message = detail || `Request failed (${res.status})`
+    if (res.status === 403) throw new ForbiddenError(message)
+    const error = new Error(message)
     error.status = res.status
     throw error
   }

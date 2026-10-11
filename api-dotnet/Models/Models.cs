@@ -8,10 +8,18 @@ namespace Models;
 // Bulgarian title and its Bulgarian page path, because the id alone is not unique on live
 // and staff read Bulgarian. Optional and trailing so every other caller, and every older
 // page still open in a browser, keeps working. Untrusted — see OfferModel.
+//
+// Rep and Website are on both forms (#38). Rep is the representative slug the browser
+// remembered from a /r/{slug} link — UNTRUSTED, resolved against EnvConfig.Representatives
+// by the controller, which replaces it with the registered spelling or null before anything
+// stores it. Website is the honeypot: a field no human ever sees, so a value in it means a
+// bot filled in every box it found. Both trailing and optional for the same reason as the
+// two above — the doors page and any older tab keep posting the old shape.
 public record OfferDto(
     string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null,
-    string? ModelTitle = null, string? ModelPath = null);
-public record QuestionDto(string Name, string Email, string Question, string? Locale = null);
+    string? ModelTitle = null, string? ModelPath = null, string? Rep = null, string? Website = null);
+public record QuestionDto(
+    string Name, string Email, string Question, string? Locale = null, string? Rep = null, string? Website = null);
 
 // Outcome of writing a lead. Deliberately not an int?: a null record id used to mean both
 // "Quickbase is not configured", "Quickbase rejected the record" and "it worked but told

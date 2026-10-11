@@ -199,3 +199,40 @@ public sealed record OfferModel(string? Id, string? Title, string? Url)
         return string.IsNullOrEmpty(text) ? line : line + "\n\n" + text;
     }
 }
+
+/// <summary>
+/// The representative an enquiry came through, written into the stored message the way the
+/// model line above is (#38).
+///
+/// This is the zero-migration provenance. The enquiry row, the Enquiries queue and its
+/// search, and the first message of the lead thread all show the message, so one line in
+/// it says "this came through dtodorov's link" everywhere staff look — including when the
+/// automatic promotion into a lead is skipped or fails, which is exactly when the line is
+/// the only record left. Only the stored copy carries it; the autoresponder echoes the
+/// customer's own text.
+///
+/// The slug has already passed EnvConfig's shape rule, so the line is plain, single-line
+/// text by construction. Bulgarian because only staff read the stored message.
+/// </summary>
+public static class RepresentativeLine
+{
+    private const string LinePrefix = "Представител: ";
+
+    /// <summary>
+    /// The customer's text with the representative line in front of it, blank line between,
+    /// mirroring OfferModel.WithModelLine. Null slug leaves the text untouched.
+    ///
+    /// Callers that also prepend the model line apply THIS one first, so the model line stays
+    /// the message's first line: LeadService.ResolveHouseIdAsync and OfferModel.HasModelLine
+    /// read the house off that first line, and a representative line above it would unlink
+    /// every gallery enquiry that came through a link.
+    /// </summary>
+    public static string? Prepend(string? message, string? slug)
+    {
+        if (string.IsNullOrWhiteSpace(slug)) return message;
+
+        var line = LinePrefix + slug.Trim();
+        var text = message?.Trim();
+        return string.IsNullOrEmpty(text) ? line : line + "\n\n" + text;
+    }
+}

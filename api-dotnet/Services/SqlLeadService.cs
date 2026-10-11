@@ -17,11 +17,13 @@ namespace Services;
 public class SqlLeadService : ILeadStore
 {
     private readonly AppDbContext _db;
+    private readonly EnvConfig _env;
     private readonly ILogger<SqlLeadService> _logger;
 
-    public SqlLeadService(AppDbContext db, ILogger<SqlLeadService> logger)
+    public SqlLeadService(AppDbContext db, EnvConfig env, ILogger<SqlLeadService> logger)
     {
         _db = db;
+        _env = env;
         _logger = logger;
     }
 
@@ -40,7 +42,11 @@ public class SqlLeadService : ILeadStore
                 // lead thread's first message, the drafted reply's context — without a
                 // column or a migration. Only the stored copy changes: the autoresponder
                 // still echoes dto.Project, the customer's own text.
-                Message = Trim(OfferModel.WithModelLine(OfferModel.From(dto), dto.Project), 4000),
+                //
+                // The representative line (#38) goes in the same place for the same reason,
+                // BELOW the model line: the house is resolved off the first line, so the
+                // model must keep it. See RepresentativeLine.
+                Message = Trim(OfferModel.WithModelLine(OfferModel.From(dto), WithRepresentative(dto.Rep, dto.Project)), 4000),
                 ModelId = Trim(dto.ModelId, 100),
                 Locale = Trim(dto.Locale, 10),
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -65,7 +71,7 @@ public class SqlLeadService : ILeadStore
             {
                 Name = Trim(dto.Name, 200) ?? "",
                 Email = Trim(dto.Email, 320),
-                Message = Trim(dto.Question, 4000),
+                Message = Trim(WithRepresentative(dto.Rep, dto.Question), 4000),
                 Locale = Trim(dto.Locale, 10),
                 CreatedAt = DateTimeOffset.UtcNow,
             };
@@ -80,6 +86,13 @@ public class SqlLeadService : ILeadStore
             return LeadWriteResult.Failed(ex.Message);
         }
     }
+
+    // Resolved against the registry here as well as in the controller, so that only a
+    // registered slug — in its registered spelling — ever reaches a row. The controller
+    // already does this for the public path; this is what makes it true for every other
+    // caller of the store, the dual-write shadow included.
+    private string? WithRepresentative(string? repSlug, string? message) =>
+        RepresentativeLine.Prepend(message, _env.FindRepresentativeBySlug(repSlug)?.Slug);
 
     // Truncate rather than let SqlException reject the row: a lead that is 20 characters
     // too long is still a lead, and losing it to a length constraint is the exact failure

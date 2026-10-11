@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Models;
 using Services;
 
@@ -35,7 +36,10 @@ public class ReviewsController : ControllerBase
         return Ok(dto);
     }
 
+    // The write side only: the homepage feed above is read by every visitor and must not
+    // share a budget with a form. Same policy as the enquiry forms ("public-write").
     [HttpPost]
+    [EnableRateLimiting("public-write")]
     public async Task<IActionResult> Post([FromBody] ReviewDto? dto, CancellationToken ct)
     {
         if (dto is null) return BadRequest(new { error = "Missing body." });

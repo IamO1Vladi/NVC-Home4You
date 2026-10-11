@@ -93,6 +93,20 @@ describe('adminSave', () => {
     expect(outcome.message).toBe('Must be at least 1.')
   })
 
+  it('a 403 is a refusal like any other, wearing the server’s sentence', async () => {
+    // adminApi tags a 403 as ForbiddenError so a page LOAD can show the right card — the
+    // wrong panel, not a broken one (#38). A refused SAVE must not change with it: still
+    // one attempt, still the dialog open with the reason, still nothing on the banner.
+    const fetchImpl = vi.fn(() => answer(403, { errors: ['Not your lead.'] }))
+    vi.stubGlobal('fetch', fetchImpl)
+
+    const outcome = await adminSave({ url: '/x/7', method: 'PUT', body: {}, lang: 'bg' })
+
+    expect(outcome).toEqual({ outcome: 'invalid', message: 'Not your lead.' })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(banner).toHaveLength(0)
+  })
+
   it('hands a 5xx to the retries and keeps the failure on screen once they run out', async () => {
     const fetchImpl = vi.fn(() => answer(503, { errors: ['Later.'] }))
     vi.stubGlobal('fetch', fetchImpl)

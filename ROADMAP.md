@@ -629,8 +629,9 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 
 ## DONE — newest first
 
-- [x] **38. The home page redesign, and the panel's „Начална страница" photo slots** (built
-  2026-10-11 on branch `home-redesign`; **not yet published** — HANDOFF Do next 00 is the release).
+- [x] **39. The home page redesign, and the panel's „Начална страница" photo slots** (built
+  2026-10-11; merged into `master` on top of `deploy-2026-10-09`; **not yet published** — HANDOFF
+  Do next 00 is the release; its migration `AddHomeSlots` is already applied).
   The owner asked for the home page to feel as welcoming as possible; a ten-lens design review
   (`NVC Claude version/HOMEPAGE-DESIGN-REVIEW.md`, 59 findings, none refuted) chose „Front Porch on
   warm paper", the owner approved a working mock, and that mock is now the page in bg/en/el: a
@@ -646,13 +647,60 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
   `MotionConfig reducedMotion="user"`. Home styles live in `src/style/HomePage.css` under `hp-`
   with their own `--hp-*` tokens, so no other page changed look.
   **Photos from the panel:** eight fixed slots (hero-1..5, model-37/58/73) in a new `HomeSlots`
-  table (migration `AddHomeSlots`), a new `home/` image scope, `GET /api/home/photos` (degrades to
-  empty when the table is missing) and `api/admin/home-photos` (file, pick from the gallery,
-  clear, swap, alt), the page `/admin/home-photos`. The SPA merges the API with its content
-  defaults, so nothing is seeded and a failed fetch never blanks the hero; a panel change reaches
-  the prerendered first paint only after the next prerender + publish. Tests 1104 → 1129 .NET,
-  847 → 878 frontend; a11y 0 on 104 page-loads. **Still the owner's:** the printed facts (phone,
-  hours, address, „87 homes", „since 2022") and the shot list in the review's section 6.
+  table, a new `home/` image scope, `GET /api/home/photos` (degrades to empty when the table is
+  missing) and `api/admin/home-photos` (file, pick from the gallery, clear, swap, alt), the page
+  `/admin/home-photos`. The SPA merges the API with its content defaults, so nothing is seeded and
+  a failed fetch never blanks the hero; a panel change reaches the prerendered first paint only
+  after the next prerender + publish. **Still the owner's:** the printed facts (hours, address,
+  „87 homes", „since 2022") and the shot list in the review's section 6.
+- [x] **38. Representative links: one link per representative, and the enquiry becomes that
+  representative's lead** (built 2026-10-08, **live since `deploy-2026-10-09`**; no
+  migration). A representative puts `https://nvc-home4you.eu/r/dtodorov` in a video. The
+  page behind it (unlisted, noindex, trilingual, inside the site's own header and footer)
+  offers the offer form and the configurator; the browser remembers the slug for 30 days
+  (`repAttribution.js`, last touch wins), and every enquiry from the modal, the configurator
+  or the doors page then carries `rep`. The server resolves the slug ONLY through the
+  `REPRESENTATIVES` App Service setting (`slug=upn,…`, DEPLOY.md), stamps
+  „Представител: dtodorov" into the stored message below the model line (zero-migration
+  provenance, the `WithModelLine` precedent, so the queue, its search and the thread's first
+  message all show it even when promotion is skipped) and — when SQL is the lead store and
+  the address is well-formed — promotes the enquiry at once through the same
+  `LeadService.PromoteAsync` the panel's button uses: `OwnerUpn` = the rep,
+  `Source` = „Представител: dtodorov", `Offer.LeadCreated` ticked, the thread opened with
+  the customer's words. A customer who already has an OPEN lead (same normalised email or
+  last-nine-digits phone) still gets the rep's lead, plus a thread line and an email line
+  naming the older one — the owner's call (2026-10-08): an edge case, report it, never merge.
+  The internal notification copies the rep (Reply-To stays the customer) and says what became
+  of the lead, with a link into the panel.
+  - **The representatives' panel.** `/rep/leads` is the pipeline page in `scope="rep"` over
+    `api/rep/pipeline` (policy `RepresentativeOnly`: Entra sign-in + a UPN in
+    `REPRESENTATIVES`). It lists only leads the caller owns; every per-lead route answers
+    404 for anyone else's (never 403, so ids cannot be enumerated); there is no users,
+    promote, create, convert, owner or due-report route. Admins are not representatives and
+    representatives are not admins: `AdminEndpointAuthTests` is untouched and
+    `RepEndpointAuthTests` sweeps the new routes the same way. A signed-in person the API
+    refuses (403) gets a „Няма достъп" card naming the right door, not a Retry button —
+    on the pipeline page in both areas; the other admin pages still show the generic error.
+  - **Anti-abuse on the public forms**, because the link turns each enquiry into a lead
+    the moment it arrives: a honeypot field (`website`, off-screen, answered with the real
+    success shape while storing and sending nothing); a per-IP budget of 10 writes per 10
+    minutes on every anonymous write route (`public-write`, answered 429; the two enquiry
+    forms retry it with backoff, the rest report or fall back at once); and auto-promotion
+    only for a well-formed address. AdminOnly refuses a registered representative even
+    when the allow-list is empty, so the two roles cannot blur through a missing setting.
+  - **Not done, by decision:** no migration or table (the registry is a setting; a table
+    with an admin page is the upgrade path once there are more than a handful of reps); no
+    captcha (Cloudflare Turnstile is the next layer if the honeypot and the budget are not
+    enough); no cross-device attribution (localStorage only, so per-rep numbers undercount);
+    no per-owner email digest.
+  - Tests: **1247 .NET** (143 new: intake, registry, notification on the wire, honeypot,
+    rate-limit pins, rep endpoint sweep, rep scoping, both policies, the owner dropdown,
+    the Quickbase store) **and 890 frontend** (43 new: attribution, landing page, consent
+    banner, doors form, rep panel, the no-access card). Both green on 2026-10-09.
+  - **After the publish:** DEPLOY.md „Switching on representative links" — the owner's step,
+    still owed on 2026-10-09 (HANDOFF Do next 0); until then the pages serve and nothing
+    attributes.
+
 - [x] **37. Gallery slug history: a renamed product keeps its old address** (built
   2026-10-03, **live since `deploy-2026-10-04`**; its one migration, `AddHouseSlugHistory`,
   applied by the owner on 2026-10-03, before the publish). A gallery URL is the title slugified per locale, so

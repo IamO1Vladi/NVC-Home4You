@@ -357,8 +357,10 @@ public class OfferNotificationModelTests
 
         var method = typeof(EmailService).GetMethod("BuildLeadNotification",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
+        // The trailing null is the representative intake note (#38); reflection does not
+        // fill in defaults, and RepresentativeNotificationTests covers that argument.
         var result = method.Invoke(service,
-            new object?[] { isOffer, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?", model })!;
+            new object?[] { isOffer, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?", model, null })!;
 
         var type = result.GetType();
         return (

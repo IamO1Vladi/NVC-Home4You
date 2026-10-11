@@ -12,5 +12,11 @@ Disallow: /internal/
 # crawler that never runs the JavaScript from queueing the URL in the first place.
 Disallow: /order/
 
+# Representative links (/r/{slug}) and the representatives' panel (/rep/). The link is
+# public by design — it goes in a video — but a crawler that indexed it would attribute
+# strangers to the representative; the panel is staff-only like /admin. Both noindex too.
+Disallow: /r/
+Disallow: /rep/
+
 Sitemap: https://nvc-home4you.eu/sitemap.xml
 Sitemap: https://nvc-home4you.eu/sitemap-gallery.xml
