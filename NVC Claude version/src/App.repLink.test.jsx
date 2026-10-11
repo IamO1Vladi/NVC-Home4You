@@ -195,7 +195,9 @@ describe('a representative link', () => {
       window.history.pushState(null, '', paths.home.bg)
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
-    await user.click((await screen.findAllByRole('button', { name: BG.home.hero.secondaryCta }, SLOW))[0])
+    // The hero's second button now jumps to the prices; the question form opens from the
+    // contact card at the foot of the page (the home page redesign, ROADMAP #39).
+    await user.click((await screen.findAllByRole('button', { name: BG.home.finalCta.secondaryCta }, SLOW))[0])
 
     const dialog = screen.getByRole('dialog', { name: BG.forms.question.title })
     await user.type(within(dialog).getByPlaceholderText(BG.forms.question.fields.name), 'Ivan Petrov')
@@ -228,7 +230,9 @@ describe('a representative link', () => {
     const user = userEvent.setup()
     renderAppAt(paths.home.bg)
 
-    await user.click((await screen.findAllByRole('button', { name: BG.home.hero.secondaryCta }, SLOW))[0])
+    // The hero's second button now jumps to the prices; the question form opens from the
+    // contact card at the foot of the page (the home page redesign, ROADMAP #39).
+    await user.click((await screen.findAllByRole('button', { name: BG.home.finalCta.secondaryCta }, SLOW))[0])
     const dialog = screen.getByRole('dialog', { name: BG.forms.question.title })
     const trap = honeypotOf(dialog)
 

@@ -9,8 +9,8 @@ ships stale pages**.
 Tests at `deploy-2026-10-09`: **1247 .NET, 890 frontend**, all green. `npm run audit:a11y`
 (last run at deploy-2026-10-04): 0 violations on 104 page-loads.
 
-**On `master` after merging the home redesign (2026-10-11, NOT yet published):  .NET,  frontend
-( files)**, all green; `npm run audit:a11y` against the Vite dev server: 0 violations on 104
+**On `master` after merging the home redesign (2026-10-11, NOT yet published): 1272 .NET, 921 frontend
+(50 files)**, all green; `npm run audit:a11y` against the Vite dev server: 0 violations on 104
 page-loads. What it carries and how it ships: Do next 00.
 
 ---
