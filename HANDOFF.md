@@ -1,4 +1,4 @@
-# Where things stand — 2026-10-09
+# Where things stand — 2026-10-12
 
 **Start here.** This is the one handoff file — consolidated 2026-08-18 from the dated
 handoffs (git history has them). `ROADMAP.md` owns what is worth doing next; `DEPLOY.md`
@@ -6,12 +6,8 @@ owns release mechanics, **including §6b, the prerender step**. Skipped when the
 the freshness guard stops the publish. Skipped when only data or copy changed, it **silently
 ships stale pages**.
 
-Tests at `deploy-2026-10-09`: **1247 .NET, 890 frontend**, all green. `npm run audit:a11y`
-(last run at deploy-2026-10-04): 0 violations on 104 page-loads.
-
-**On `master` after merging the home redesign (2026-10-11, NOT yet published): 1272 .NET, 921 frontend
-(50 files)**, all green; `npm run audit:a11y` against the Vite dev server: 0 violations on 104
-page-loads. What it carries and how it ships: Do next 00.
+Tests at `deploy-2026-10-12`: **1272 .NET, 923 frontend** (50 files), all green. `npm run audit:a11y`
+(2026-10-11, against the Vite dev server): 0 violations on 104 page-loads.
 
 ---
 
@@ -19,11 +15,11 @@ page-loads. What it carries and how it ships: Do next 00.
 
 | | |
 |---|---|
-| **Live** | `9727add`, tagged **`deploy-2026-10-09`** (published 2026-10-09 — from the SECONDARY device, for the first time: the owner started the API with production's SQL and Blob strings in his own terminal, Claude ran the prerender and `dotnet publish` to `D:\NVC Code\publish-2026-10-09`, the owner deployed from VS Code). It carries **#38, representative links**: `/r/{slug}` landing pages, the `REPRESENTATIVES` registry, the automatic lead with the rep as owner, the rep panel at `/rep/leads` behind `RepresentativeOnly`, the honeypot and the per-IP budget on the public write routes (ROADMAP #38 has the whole design). **No migration.** The bundle is `index-B78sWw4x.js` with 52/52 snapshots (the prerender exited 0, so the catalogue matched live and no image failed). **Verified live 2026-10-09:** the bundle serves; `/r/dtodorov` and `/r/does-not-exist` both 200 with the brand title and `noindex,nofollow`; `/rep` and `/rep/leads` 200 titled NVC internal, noindex; `/api/rep/me`, `/api/rep/pipeline` and `/api/admin/me` 401 signed out; `/en/prices` and `/bg/galeriq` serve their prerendered text; an unknown product 404; robots.txt disallows `/r/` and `/rep/`; a honeypot-filled POST to `/api/offer` answered the decoy 200 and stored nothing. `/api/gallery` now lists 16 items and `sitemap-gallery.xml` 48 URLs (one house was added by staff since deploy-2026-10-04; not this release). **Switched on the same day** (`REPRESENTATIVES` set, test enquiry landed as dtodorov's lead); his first sign-in is Do next 0. Before it: `deploy-2026-10-04` (`ac5286b`, #33, #37, A1's fifth kitchen position); its record is in git history at `4bdce10`. Rollback: the deploy-2026-10-04 snapshot set is on the main device's `api-dotnet/prerendered/`, and the exact deployed artifact of this release is `D:\NVC Code\publish-2026-10-09.zip` on the secondary device. **What remains human:** Do next 0, 0a and 0b. |
-| **`production` branch** | = live, `9727add`. |
+| **Live** | `e595ce7`, tagged **`deploy-2026-10-12`** (published 2026-10-12 from the MAIN device: the owner applied `AddHomeSlots` on 2026-10-11, started the API in his own terminal with the three `DATA_SOURCE_*=sql` flags and `--urls http://localhost:5178` — this device has no valid dev certificate —, Claude ran the build, the prerender (`Done: 52/52`, catalogue matches live, 16 items), the route-by-route diff against `prerendered-backup-deploy-2026-10-04` and the trial publish; the owner published from VS Code). It carries **#39, the home page redesign and the panel's „Начална страница" photo slots**, merged on top of #38 (both suites green on the merged tree; the merge touched only HANDOFF/ROADMAP). Bundle `index-CaWbx6io.js`, 52 snapshots, every one baked `data-theme="light"`. The first prerender diff caught one bug before it shipped: the consent card never lifted its baked `data-consent-open` mark for a visitor who had already chosen, which would have hidden the Call-or-chat pill for them (`e595ce7`). **Verified live 2026-10-12:** `/`, `/bg`, `/en`, `/el` serve the new bundle, light, with five hero slides; `/api/home/photos` → `{ hero: [], models: {…null} }`; `/api/admin/home-photos` 401 signed out; `/fonts/commissioner.css` and the latin woff2 200; a hero image 200; `/r/dtodorov` 200; `/api/gallery` and `/api/reviews/featured` 200; a brochure 206; an old product address 301. **What remains human:** Do next 00. Previously `9727add`, tagged **`deploy-2026-10-09`** (published 2026-10-09 — from the SECONDARY device, for the first time: the owner started the API with production's SQL and Blob strings in his own terminal, Claude ran the prerender and `dotnet publish` to `D:\NVC Code\publish-2026-10-09`, the owner deployed from VS Code). It carries **#38, representative links**: `/r/{slug}` landing pages, the `REPRESENTATIVES` registry, the automatic lead with the rep as owner, the rep panel at `/rep/leads` behind `RepresentativeOnly`, the honeypot and the per-IP budget on the public write routes (ROADMAP #38 has the whole design). **No migration.** The bundle is `index-B78sWw4x.js` with 52/52 snapshots (the prerender exited 0, so the catalogue matched live and no image failed). **Verified live 2026-10-09:** the bundle serves; `/r/dtodorov` and `/r/does-not-exist` both 200 with the brand title and `noindex,nofollow`; `/rep` and `/rep/leads` 200 titled NVC internal, noindex; `/api/rep/me`, `/api/rep/pipeline` and `/api/admin/me` 401 signed out; `/en/prices` and `/bg/galeriq` serve their prerendered text; an unknown product 404; robots.txt disallows `/r/` and `/rep/`; a honeypot-filled POST to `/api/offer` answered the decoy 200 and stored nothing. `/api/gallery` now lists 16 items and `sitemap-gallery.xml` 48 URLs (one house was added by staff since deploy-2026-10-04; not this release). **Switched on the same day** (`REPRESENTATIVES` set, test enquiry landed as dtodorov's lead); his first sign-in is Do next 0. Before it: `deploy-2026-10-04` (`ac5286b`, #33, #37, A1's fifth kitchen position); its record is in git history at `4bdce10`. Rollback: the deploy-2026-10-04 snapshot set is on the main device's `api-dotnet/prerendered/`, and the exact deployed artifact of this release is `D:\NVC Code\publish-2026-10-09.zip` on the secondary device. **What remains human:** Do next 0, 0a and 0b. |
+| **`production` branch** | = live, `e595ce7`. |
 | **`master`** | = `production`, plus this record. |
 | **Data fix, 2026-09-03** | **The duplicate cleanup, by direct SQL** (owner-approved plan, reviewed-plan gate, one transaction): 21 duplicate leads → `lost`/`Дубликат` with `ClosedAt` backdated straight past the three-day linger, 17 duplicate offers archived — 38 rows, 0 skipped. Being direct SQL it is **absent from Одит** — the LostReason is the record. Per approved rule: in each phone-duplicate group the newest worked lead survives; the older #303–356 copies went. A customer reply to a lost duplicate's old thread will still revive it onto the board — known, by design. |
-| **Migrations** | **`AddHomeSlots` (20261011183913) is APPLIED to production** (owner, 2026-10-11, main device, ahead of its publish — the home-redesign release, Do next 00; a new table the live `9727add` build never reads). **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
+| **Migrations** | **`AddHomeSlots` (20261011183913) is APPLIED to production** (owner, 2026-10-11, main device, ahead of its publish, `deploy-2026-10-12`; a new table, read by nothing before that build). **`AddPurchaseSecondPayment` is APPLIED to production** (owner, 2026-09-30, ahead of the publish as §5b asks; the publish followed on 2026-10-03) — two nullable columns on `Purchases`; the then-live `69f9724` code read the table fine with them present, so the three-day gap was harmless. A panel tab still on the old bundle after the publish is harmless too: the server leaves an absent second payment alone. Before that: `AddActivityRecipients` applied to production 2026-09-02, before the publish — via `$env:` in the owner's terminal, because **the secondary device's user-secrets do NOT hold the SQL string**. The MAIN device's do (checked 2026-10-03): its user-secrets carry production's `SQL_CONNECTION_STRING` and `BLOB_CONNECTION_STRING`, so a bare `dotnet run`, EF command or CLI verb there talks to production. DEPLOY.md, "Check what this machine's secrets point at", has the mechanics. `AddPublicDocuments` applied to production 2026-08-28, before the publish. **`import-brochures` has been RUN against production** the same day: six imported, and an immediate re-run answered 0 imported / 6 skipped, which is the idempotency rule observed live. Do not expect a re-run to refresh anything — rows in SQL are the panel's now. Five applied to production over 2026-08-20/21: `AddOrderStatusHistory`, `RenamePrepaidInvoiceKind`, `BackfillPurchaseQuantityAndStatus`, `RenameLeadOwners` and `BackfillPurchaseModelLinks`. The last two are data-only and were applied BEFORE the publish, so the отговорник dropdown corrected itself without waiting for code. The six billing tables are still there, orphaned and unread — **no migration drops them**; see `_archive/billing-2026-08-19/README.md`. |
 | `DATA_SOURCE_SAVEDCONFIGS` | **=sql, set by the owner 2026-08-18.** Quickbase keeps one user-visible runtime path, plus two silent ones (the save-time code collision check, and `/api/img` falling back on a Blob miss; a dead token degrades both quietly). A `/c/{code}` link that was never imported still falls back to it (by design, see "Saved configurator links"). The product-page SEO tags and `sitemap-gallery.xml` read it too until deploy-2026-10-03 moved them to SQL. Otherwise the token's ~Feb 2027 expiry matters only for the import tooling (relevant to ROADMAP #21). |
 
 **Probe production before believing a deployment claim in this file.** This section has
@@ -33,44 +29,25 @@ was empty either way). Checking the live site settles such questions in a minute
 
 ## Do next
 
-00. **Publish the home page redesign (ROADMAP #39) — everything is on `master`, built on top of
-   `deploy-2026-10-09`.**
-   What ships: the approved home page in bg/en/el (HOMEPAGE-DESIGN-REVIEW.md), the site chrome that
-   goes with it (header, phone drawer, footer, cookie card, Call-or-chat pill, no quote dock),
-   light-first theme with the prerender pinned to light, the self-hosted Commissioner font, and the
-   panel's „Начална страница" photo slots with their API. **Its migration, `AddHomeSlots`, is
-   already applied** (owner, 2026-10-11, main device). The bundle hash moves, so the prerender is
-   mandatory, and the API must be redeployed for the two new controllers.
-   1. **Owner facts** (all in `src/content/{en,bg,el}/home.js`): phone `+359 87 935 5269` is
-      confirmed (index.html's schema now agrees); still to confirm — hours Mon–Fri 07:00–19:00,
-      Marikostinovo 2850 Petrich as a visitable address, „87 homes delivered", „Building homes
-      since 2022", „We answer within 24 hours", and the tile label „Container units · 14–30 m²".
-   2. `git checkout production; git merge --ff-only master; git push` (DEPLOY §4). The first
-      attempt on 2026-10-11 was refused because `production` had moved to `deploy-2026-10-09`
-      meanwhile — the redesign branch was then merged with `origin/master` (only HANDOFF and
-      ROADMAP conflicted; code merged clean) and both suites re-run on the merged tree.
-   3. The snapshot backup: this device's `api-dotnet/prerendered` held the `deploy-2026-10-04` set
-      (bundle `index-BXFgat5H.js`), now at `D:\NVCHome4Youfinalversion\prerendered-backup-deploy-2026-10-04`
-      (52 files). The live `deploy-2026-10-09` set was produced on the SECONDARY device
-      (`D:\NVC Code\publish-2026-10-09`); diff the new snapshots against whichever is at hand.
-   4. Build → start → prerender (DEPLOY §6b). On this device `dotnet run` needs
-      `--urls http://localhost:5178` (no valid dev certificate) and the three `DATA_SOURCE_*=sql`
-      env lines (user-secrets hold the connection strings, not the flags). Expect `Done: 52/52` and
-      `catalogue matches live (16 items)`; the home snapshots must start with `<html lang=…
-      data-theme="light" style="color-scheme: light;">` and carry the `hp` markup with 46 `/api/img`
-      references each (a first run on the pre-merge tree did exactly that; it is redone after the
-      merge because the bundle changed).
-   5. Stop the local app; trial `dotnet publish -c Release -o <scratch>` (expect `Prerendered pages
-      staged for publish: 52 files.`); real publish from VS Code; tag `deploy-<date>`; `git checkout
-      master`.
-   6. **Verify live:** `/`, `/bg`, `/en`, `/el` in both themes; `GET /api/home/photos` →
-      `{ hero: [], models: {…null} }` (nothing is seeded); `GET /api/admin/home-photos` 401 signed
-      out; signed in, `/admin/home-photos` shows eight empty slots — pick the gallery photos for the
-      three models and the hero there. **A photo changed in the panel reaches the prerendered first
-      paint only after the next prerender + publish**; visitors see it as soon as the page hydrates.
-      The representative links (#38) must still work: `/r/{slug}` lands, the enquiry becomes the
-      rep's lead.
-   7. Record it here (live sha, tag, bundle hash, snapshot count) and close #39.
+00. **After `deploy-2026-10-12`: the home page is live with its built-in photos; the panel is where it
+   gets its own.** All the owner's, all small:
+   1. **Pick the photos.** Signed in, `/admin/home-photos` („Начална страница") shows five hero slots
+      and three model slots, all on their defaults. „От галерията" on the 37 / 58 / 73 m² cards puts the
+      gallery's own photos of those models there (the mock used `gallery/8`, `/10`, `/11`); „Замени"
+      uploads a new file; „Изчисти" goes back to the default. Visitors see a change on their next
+      page load; **the prerendered first paint (what crawlers and the first flash show) keeps the
+      photos baked at publish time until the next `npm run prerender` + publish** — plan one after the
+      first round of picks.
+   2. **Confirm the printed facts**, all in `src/content/{en,bg,el}/home.js`: hours Mon–Fri 07:00–19:00,
+      Marikostinovo 2850 Petrich as a visitable address, „87 homes delivered", „Building homes since
+      2022", „We answer within 24 hours", and the tile label „Container units · 14–30 m²". The phone
+      number is confirmed. A copy change is a normal SPA release (build → prerender → publish).
+   3. **Photography** (HOMEPAGE-DESIGN-REVIEW.md §6): a daylight hero shot of a delivered home with the
+      house in the right two thirds of the frame is the one photo that changes the most; upload it to
+      hero-1 in the panel.
+   4. `npm run audit:a11y` against production once (it ran against the dev server before the publish).
+   5. Search Console: the home pages' snippets now carry the price and the place; watch the four
+      home URLs.
 
 0. **Representative links (#38) are LIVE and SWITCHED ON since 2026-10-09.** The owner set
    `REPRESENTATIVES` and sent the test enquiry the same day: it landed as dtodorov's lead and

@@ -630,8 +630,8 @@ which means QB is the authority on WHAT was recorded, never on HOW it should be 
 ## DONE — newest first
 
 - [x] **39. The home page redesign, and the panel's „Начална страница" photo slots** (built
-  2026-10-11; merged into `master` on top of `deploy-2026-10-09`; **not yet published** — HANDOFF
-  Do next 00 is the release; its migration `AddHomeSlots` is already applied).
+  2026-10-11, **live since `deploy-2026-10-12`**; its migration `AddHomeSlots` applied by the owner on
+  2026-10-11, before the publish; HANDOFF Do next 00 lists what the owner still does in the panel).
   The owner asked for the home page to feel as welcoming as possible; a ten-lens design review
   (`NVC Claude version/HOMEPAGE-DESIGN-REVIEW.md`, 59 findings, none refuted) chose „Front Porch on
   warm paper", the owner approved a working mock, and that mock is now the page in bg/en/el: a
