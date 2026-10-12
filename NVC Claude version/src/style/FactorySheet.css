@@ -13,6 +13,9 @@
   min-height: 100vh;
   background: var(--fs-bg);
   color: var(--fs-ink);
+  /* Light paper in every theme, so its inputs and date pickers must not take the dark
+     panel's color-scheme. */
+  color-scheme: light;
   font-family: Inter, system-ui, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -298,6 +301,9 @@
   border-radius: 12px;
   padding-bottom: 16px;
 }
+/* The back link is an admin control sitting on the sheet's paper: the dark panel's
+   --adm-accent-ink is a light teal, about 1.8:1 on white. The sheet's own accent reads. */
+.fs-root.fs-embedded .fs-topbar .adm-linkbtn { color: var(--fs-accent); }
 .fs-root.fs-embedded .fs-topbar { border-radius: 12px 12px 0 0; }
 .fs-dirty {
   font-size: 12px;

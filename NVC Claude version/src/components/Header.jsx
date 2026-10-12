@@ -176,7 +176,7 @@ export default function Header({ locale = 'en', content, telephone, phone, onLan
         )}
       </AnimatePresence>
 
-      <header>
+      <header className="site-header">
       <div className="container nav-inner" ref={barRef}>
         <Link className="brand" to={pathFor('home')}>
           <div className="brand-logo" aria-hidden="true">

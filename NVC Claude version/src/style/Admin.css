@@ -35,6 +35,10 @@
   --adm-accent-soft: #e6f6f8;
   --adm-shadow: 0 6px 20px rgba(16, 22, 30, .06);
   --adm-shadow-lift: 0 12px 28px rgba(16, 22, 30, .12);
+  /* The browser's own parts -- scrollbars, select popups, date pickers, checkboxes -- follow
+     color-scheme, and <html> carries the PUBLIC site's, which is light by default. Without
+     this the dark panel drew them light. Each dark block below flips it. */
+  color-scheme: light;
 }
 
 /* --adm-tabbar-h is deliberately NOT declared here. It is set on .adm-app alone so it
@@ -72,6 +76,7 @@
     --adm-accent-soft: #10323a;
     --adm-shadow: 0 6px 20px rgba(0, 0, 0, .3);
     --adm-shadow-lift: 0 12px 28px rgba(0, 0, 0, .45);
+    color-scheme: dark;
   }
 }
 
@@ -98,6 +103,7 @@
     --adm-accent-soft: #10323a;
     --adm-shadow: 0 6px 20px rgba(0, 0, 0, .3);
     --adm-shadow-lift: 0 12px 28px rgba(0, 0, 0, .45);
+    color-scheme: dark;
 }
 
 .adm-app {
@@ -272,6 +278,16 @@
 }
 
 .adm-center { display: grid; place-items: center; text-align: center; }
+/* The signed-out and forbidden screens render .adm-page with no .adm-app around it, so
+   nothing painted the panel's surface: they showed the public body's colours, and in the
+   dark theme the dark sign-in card's heading came out near-black on it. Compound, because
+   .adm-center also sits on the error cards inside the panel. */
+.adm-page.adm-center {
+  max-width: none;
+  min-height: 100vh;
+  background: var(--adm-bg);
+  color: var(--adm-ink);
+}
 
 .adm-head {
   display: flex;
@@ -907,14 +923,20 @@ label.btn { cursor: pointer; }
 /* --- Buttons -------------------------------------------------------------------------- */
 
 .btn-sm { padding: 7px 13px; font-size: 13px; }
-.btn-ghost {
+/* `btn ghost` -- two classes -- is the public site's ghost button, and index.css paints it
+   with the public --anth/--text, which are white and near-black while the site is light.
+   Most of the panel's Cancel, Close and History buttons are spelled that way, so in the dark
+   panel they came out as solid white blocks. Inside the panel both spellings mean this. */
+.btn-ghost,
+:is(.adm-app, .adm-page, .adm-modal-portal) .btn.ghost {
   background: transparent;
   background-image: none;
   border: 1px solid var(--adm-line-firm);
   color: var(--adm-ink);
   box-shadow: none;
 }
-.btn-ghost:hover { border-color: var(--adm-ink); box-shadow: none; }
+.btn-ghost:hover,
+:is(.adm-app, .adm-page, .adm-modal-portal) .btn.ghost:hover { border-color: var(--adm-ink); box-shadow: none; }
 .btn-danger {
   background: var(--adm-stop-bg);
   background-image: none;

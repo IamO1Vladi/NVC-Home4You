@@ -84,38 +84,31 @@ img{max-width:100%;display:block}
   color:#fff;font-weight:800;padding:0 10px;
 }
 
-header{
+/* The site nav bar, and only that: a class, not the bare `header` type. The type rule
+   reached every <header> in the app. In-page heroes went sticky at z-index 50 and painted
+   over the nav's dropdown, and once the bar became a paper surface the admin panel's page
+   title and every dialog head turned into a white band in its dark theme. A `main header`
+   reset patched the heroes and missed the dialogs, which portal out of <main>. */
+.site-header{
   position:sticky;top:0;z-index:50;
   /* 97% opaque, no backdrop blur: the bar is a surface, not glass. */
   background:color-mix(in srgb, var(--anth) 97%, transparent);
   border-bottom:1px solid color-mix(in srgb, var(--text) 12%, transparent);
   box-shadow:0 1px 2px rgba(31,42,55,.06);
 }
-/* The rule above targets the bare `header` type, so in-page hero banners
-   (e.g. <header class="arx-hero">) accidentally inherit z-index:50 + backdrop-filter
-   and become a stacking context equal to the real nav header. Being later in the DOM,
-   they then paint over the nav's dropdown menu. Only the site nav header lives outside
-   <main>; neutralize the inheritance for every hero header inside it. */
-main header{
-  /* position first, and it was the omission that mattered: the bare `header` rule above
-     also sets position:sticky/top:0, so every in-page <header> quietly stuck itself to the
-     top of the viewport and rode down the page as you scrolled. Resetting only z-index and
-     backdrop-filter fixed the painting bug and left the sticking one. */
-  position:static;
-  z-index:auto;
-  backdrop-filter:none;
-  -webkit-backdrop-filter:none;
-}
 .nav-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px}
 .brand{display:flex;align-items:center;gap:12px;font-weight:700;white-space:nowrap}
 .brand-logo{width:36px;height:36px;border-radius:8px;background:#ffffff12;display:flex;align-items:center;justify-content:center}
 .brand-logo svg{color:#fff;opacity:.9}
 .nav-links{display:none;align-items:center;gap:4px}
-nav .link-btn{
+/* Scoped to the site header with :where(), which adds no specificity, so nothing in the bar
+   changes rank. The bare `nav` also reached the admin side nav, where the light-theme hover
+   below out-ranked the panel's own: hovered labels went near-black on the dark sidebar. */
+:where(.site-header) nav .link-btn{
   padding:8px 10px;border-radius:10px;border:0;background:none;color:#e5e7ebcc;font-weight:600;font-size:15px;white-space:nowrap;cursor:pointer;
 }
-nav .link-btn:hover, nav a:hover{color:#fff;background:#ffffff10}
-nav .active{color:#fff;background:#ffffff12}
+:where(.site-header) nav .link-btn:hover, :where(.site-header) nav a:hover{color:#fff;background:#ffffff10}
+:where(.site-header) nav .active{color:#fff;background:#ffffff12}
 
 
 .menu{position:relative}
@@ -289,9 +282,9 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 :root[data-theme='light'] .brand-logo svg{
   opacity: 1;
 }
-:root[data-theme='light'] nav .link-btn{ color:#111827cc }
-:root[data-theme='light'] nav .link-btn:hover, :root[data-theme='light'] nav a:hover{ background:#00000008; color:#111827 }
-:root[data-theme='light'] nav .active{ background:#0000000d; color:#111827 }
+:root[data-theme='light'] :where(.site-header) nav .link-btn{ color:#111827cc }
+:root[data-theme='light'] :where(.site-header) nav .link-btn:hover, :root[data-theme='light'] :where(.site-header) nav a:hover{ background:#00000008; color:#111827 }
+:root[data-theme='light'] :where(.site-header) nav .active{ background:#0000000d; color:#111827 }
 :root[data-theme='light'] .tile{ border-color:#00000016; background:#ffffff }
 :root[data-theme='light'] .faq-a{ color:#374151 }
 :root[data-theme='light'] .modal-card{ background:#ffffff; border-color:#00000016; color:#111827 }
@@ -352,10 +345,10 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 /* Light theme fixes (colors only) */
 :root[data-theme='light'] .services-menu, 
 :root[data-theme='light'] .menu-panel{ background:#ffffff; border-color:#00000016; box-shadow:0 12px 24px rgba(0,0,0,.14) }
-:root[data-theme='light'] nav .link-btn{ color:#111827cc }
-:root[data-theme='light'] nav .link-btn:hover, 
-:root[data-theme='light'] nav a:hover{ background:#00000008; color:#111827 }
-:root[data-theme='light'] nav .active{ background:#0000000d; color:#111827 }
+:root[data-theme='light'] :where(.site-header) nav .link-btn{ color:#111827cc }
+:root[data-theme='light'] :where(.site-header) nav .link-btn:hover, 
+:root[data-theme='light'] :where(.site-header) nav a:hover{ background:#00000008; color:#111827 }
+:root[data-theme='light'] :where(.site-header) nav .active{ background:#0000000d; color:#111827 }
 
 /* The language select. The chevron is the wrapper's pseudo-element in currentColor, so it
    follows the theme; a mask on the <select> itself would mask its text. */
@@ -440,7 +433,7 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 /* 980-1199px: the bar is full once nothing wraps, so the wordmark steps aside for the logo square, links tighten, and the phone icon waits for a wider screen. */
 @media (min-width:980px) and (max-width:1199px){
   .brand > div:not(.brand-logo){display:none}
-  nav .link-btn{font-size:14px;padding:8px 8px}
+  :where(.site-header) nav .link-btn{font-size:14px;padding:8px 8px}
 }
 
 /* Floating "Call or chat" pill in the corner (phones only): expands to Call, WhatsApp

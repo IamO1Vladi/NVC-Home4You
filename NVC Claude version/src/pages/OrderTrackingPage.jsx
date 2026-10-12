@@ -340,10 +340,6 @@ export default function OrderTrackingPage() {
       <SEO title={t.title} locale={key} noindex />
 
       <div className="ot-wrap">
-        {/* A <section>, not a <header>: index.css styles the bare `header` type for the
-            site nav — sticky, z-index 50, backdrop-filtered — so an in-page banner using
-            that tag becomes a stacking context equal to the nav and paints over its
-            dropdown. The comment under that rule records the last hero this caught. */}
         <section className={`ot-hero${order.imageUrl ? ' has-photo' : ''}${cancelled ? ' is-cancelled' : ''}`}>
           {order.imageUrl ? (
             <div className="ot-hero-photo">
