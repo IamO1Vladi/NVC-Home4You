@@ -92,7 +92,10 @@ commits, notes and conversations still resolve.
 ### Content & trust (the compounding bets)
 
 - [ ] **6. Content engine** *(in progress)*. Technical SEO is done; what is left is
-  genuinely content: product pages are ~135 words, `/en/modular-houses` is 278, and the
+  genuinely content. **Stage 1 done 2026-10-12 (deploy-2026-10-12c):** the three product
+  pages were rebuilt with real products, live prices and the owner's facts (98–278 words before,
+  2.2k–4.8k more characters after). Next for them: per-page FAQs in the owner's words and photos
+  of delivered units (Stage 2). Was: product pages ~135 words, `/en/modular-houses` 278; and the
   two comparison articles („сглобяема къща или тухла", „колко струва сглобяема къща") are
   low-difficulty, high-intent, and both feed the prices page internally.
 - [ ] **7. Trust & proof.** Case studies with real timelines/photos, a "homes delivered"
