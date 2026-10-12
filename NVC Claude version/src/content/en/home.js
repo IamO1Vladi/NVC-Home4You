@@ -28,9 +28,9 @@ export default {
         {
           title: 'Container & Prefab Homes',
           items: [
-            { pathKey: 'modularBuilds', label: 'Modular builds' },
+            { pathKey: 'modularBuilds', label: 'Container units' },
             { pathKey: 'modularHouses', label: 'Modular houses' },
-            { pathKey: 'steelHouses', label: 'Steel houses' },
+            { pathKey: 'steelHouses', label: 'Steel-frame prefab houses to your plan' },
           ],
         },
         {
@@ -71,8 +71,11 @@ export default {
     hero: {
       eyebrow: 'Prefab & container homes',
       title: 'Because a <g>home</g> shouldn\'t be an expense',
-      // {price} is filled from startingHousePrice(locale) through euro(), never typed here.
+      // {price} is the gallery's cheapest container (VAT and assembly in), read from
+      // /api/home/photos through euro(), never typed here. Until it is known the hero prints
+      // leadNoPrice, the same sentence without a figure.
       lead: 'Prefab and container homes from {price}, VAT included. Based in Petrich, Bulgaria — delivered across the EU.',
+      leadNoPrice: 'Prefab and container homes with clear prices. Based in Petrich, Bulgaria — delivered across the EU.',
       primaryCta: 'Get a Quote',
       pricesCta: 'See models & prices',
       facts: ['87 homes delivered', 'Prices include VAT', 'Building homes since 2022'],
@@ -83,10 +86,10 @@ export default {
         slidesLabel: 'Hero photos',
         // The five default slides; the admin's hero slots replace them when set.
         slides: [
-          { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Modular builds', pathKey: 'modularBuilds', frame: { position: '30% 50%', scale: 1.22 } },
+          { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Container units', pathKey: 'modularBuilds', frame: { position: '30% 50%', scale: 1.22 } },
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Modular houses', pathKey: 'modularHouses' },
-          { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Modular builds', pathKey: 'modularBuilds' },
-          { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Steel houses', pathKey: 'steelHouses' },
+          { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Container units', pathKey: 'modularBuilds' },
+          { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Steel-frame prefab houses to your plan', pathKey: 'steelHouses' },
           { src: '/api/img/content/bvk4n834b-rcz-eg-vb.webp', alt: 'Interiors', pathKey: 'interiors' },
         ],
       },
@@ -132,16 +135,16 @@ export default {
         {
           key: 'modularHouses',
           pathKey: 'modularHouses',
-          title: 'Modular houses · from 37 m²',
-          desc: 'Permanent homes from 37 m²: expandable Box houses and Space capsules, with your layout and finishes.',
+          title: 'Modular houses · 18–74 m²',
+          desc: 'Homes from 18 to 74 m²: expandable Box houses and Space capsules, with your layout and finishes.',
           icon: 'home',
           img: '/api/img/content/bvk4n834b-rdb-eg-vd.webp',
         },
         {
           key: 'steelHouses',
           pathKey: 'steelHouses',
-          title: 'Steel houses',
-          desc: 'Light, strong steel-frame houses — smart on timelines and cost.',
+          title: 'Steel-frame prefab houses to your plan',
+          desc: 'Steel-frame houses built to your own project — or we prepare the project for you.',
           icon: 'steel',
           img: '/api/img/content/bvk4n834b-rdc-eg-vb.webp',
         },

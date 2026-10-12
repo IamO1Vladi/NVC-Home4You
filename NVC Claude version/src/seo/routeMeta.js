@@ -24,55 +24,74 @@ const META = {
         'Δομικά και προκατασκευασμένα σπίτια — σχεδιασμός, κατασκευή και παράδοση σε Βουλγαρία και ΕΕ. Σπίτια-κοντέινερ, μεταλλικά σπίτια, εσωτερικοί χώροι και logistics έως την πόρτα σας.',
     },
   },
+  // The three product pages. Each URL has one job and one head query, and the title names
+  // that query rather than the menu label: "контейнери за живеене" for the containers,
+  // "модулни къщи" for the ready houses, "сглобяеми къщи със стоманена конструкция" for the
+  // steel-frame line, which finally makes the /sglobqemi-kyshti slug, the query and the page
+  // agree. The route files read these through getRouteSeo() and no longer carry their own,
+  // so the two can never disagree again (they did, and the content files' versions won).
+  // Each H1 carries the same head term, and the description the secondary ones
+  // ("жилищни контейнери", "разгъваеми Бокс къщи", "по проект"). The houses' title also
+  // names Bulgaria, as the old page's did in all three languages: "модулни къщи България" is
+  // a query of its own, and the page's arrival copy says where the houses are delivered.
+  //
+  // No price in any of them. The pages print live prices from /api/gallery and publish
+  // them as Product markup; a price typed here goes stale the day an admin edits one, which
+  // is exactly what happened to the prices title below. The sizes they name (6×3 to 8×3 m,
+  // 18 to 74 m², 38 m²) are the ones the pages' own leads state. The steel description names
+  // no figure at all: the owner (2026-10-12) has every steel-frame house as its own project,
+  // with no standard area, floors or profile. The descriptions promise only what the pages
+  // show: priced units and the sizes on order, the sizes and the configurator, a house built
+  // to your project or one we design for you, and the five steps from one to the other.
   modularBuilds: {
     en: {
-      title: 'Modular Builds | NVC Home4You',
+      title: 'Residential Containers for Living and Office | NVC Home4You',
       description:
-        'Custom modular and container building solutions — fast, durable and delivered across the EU by NVC Home4You.',
+        'Residential and office containers, 6×3, 7×3 and 8×3 m, with a bathroom, electrics and plumbing. Every model priced with VAT and assembly; other sizes to order.',
     },
     bg: {
-      title: 'Модулни постройки | NVC Home4You',
+      title: 'Контейнери за живеене и модулни постройки | NVC Home4You',
       description:
-        'Модулни и контейнерни решения за строителство — бързо, надеждно и с доставка в целия ЕС от NVC Home4You.',
+        'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м с баня, ел. и ВиК инсталация. Всеки модел е с цена с ДДС и монтаж, а други размери изработваме по поръчка.',
     },
     el: {
-      title: 'Δομικές Κατασκευές | NVC Home4You',
+      title: 'Οικίσκοι κοντέινερ για κατοικία και γραφείο | NVC Home4You',
       description:
-        'Εξατομικευμένες δομικές και container λύσεις κατασκευής — γρήγορα, ανθεκτικά και με παράδοση σε όλη την ΕΕ από την NVC Home4You.',
+        'Κοντέινερ κατοικίας και γραφείου 6×3, 7×3 και 8×3 m με μπάνιο, ηλεκτρολογικά και υδραυλικά. Τιμές με ΦΠΑ και συναρμολόγηση· άλλα μεγέθη κατόπιν παραγγελίας.',
     },
   },
   modularHouses: {
     en: {
-      title: 'Modular Houses | NVC Home4You',
+      title: 'Expandable Modular Houses in Bulgaria | NVC Home4You',
       description:
-        'Turn-key modular houses built to order and delivered across Bulgaria and the EU. Explore designs, sizes and finishes.',
+        'Modular houses that arrive folded: expandable Box houses from 18 to 74 m² and a 38 m² capsule, priced with VAT. Pick a size and build it in our configurator.',
     },
     bg: {
-      title: 'Модулни къщи | NVC Home4You',
+      title: 'Модулни къщи в България: разгъваеми Бокс къщи | NVC Home4You',
       description:
-        'Модулни къщи до ключ, изработени по поръчка и доставени в България и ЕС. Разгледайте проекти, размери и довършителни решения.',
+        'Модулни къщи, които пристигат сгънати: разгъваеми Бокс къщи от 18 до 74 м² и капсула от 38 м², всяка с цена с ДДС. Изберете размер и я сглобете онлайн.',
     },
     el: {
-      title: 'Δομικά Σπίτια | NVC Home4You',
+      title: 'Αναπτυσσόμενα δομικά σπίτια στη Βουλγαρία | NVC Home4You',
       description:
-        'Δομικά σπίτια «με το κλειδί στο χέρι», κατασκευασμένα κατά παραγγελία και παραδοτέα σε Βουλγαρία και ΕΕ. Δείτε σχέδια, μεγέθη και φινιρίσματα.',
+        'Δομικά προκάτ σπίτια που φτάνουν διπλωμένα: αναπτυσσόμενα σπίτια Box από 18 έως 74 m² και κάψουλα 38 m², με τιμή με ΦΠΑ. Διαμορφώστε το δικό σας online.',
     },
   },
   steelHouses: {
     en: {
-      title: 'Steel Houses | NVC Home4You',
+      title: 'Steel-Frame Prefab Houses Built to Your Plan | NVC Home4You',
       description:
-        'Strong, energy-efficient steel-frame houses designed and delivered by NVC Home4You across the EU.',
+        'Prefab houses on a galvanised steel frame, built to your plan, or we draw up the project for you. See the five steps from design to handover and get a quote.',
     },
     bg: {
-      title: 'Стоманени къщи | NVC Home4You',
+      title: 'Сглобяеми къщи със стоманена конструкция | NVC Home4You',
       description:
-        'Здрави и енергийно ефективни къщи със стоманена конструкция, проектирани и доставяни от NVC Home4You в ЕС.',
+        'Сглобяеми къщи със стоманена конструкция по вашия проект, а ако нямате проект, ще го изготвим ние. Вижте петте стъпки до готовата къща и поискайте оферта.',
     },
     el: {
-      title: 'Μεταλλικά Σπίτια | NVC Home4You',
+      title: 'Προκατασκευασμένα σπίτια με μεταλλικό σκελετό | NVC Home4You',
       description:
-        'Ανθεκτικά και ενεργειακά αποδοτικά σπίτια με μεταλλικό σκελετό, σχεδιασμένα και παραδοτέα από την NVC Home4You σε όλη την ΕΕ.',
+        'Προκατασκευασμένα σπίτια με γαλβανισμένο μεταλλικό σκελετό, με βάση τη μελέτη σας ή μια μελέτη που εκπονούμε εμείς. Δείτε τα πέντε βήματα, ζητήστε προσφορά.',
     },
   },
   faq: {
@@ -267,6 +286,12 @@ const META = {
   // The one page that targets a transactional query head-on. Competitors all rank for
   // "цени" with a price list; the title leads with the number because a search result
   // showing a real starting price is what earns the click.
+  //
+  // The one figure typed into this file, and only because it has to be: the SEO manifest
+  // generator runs this module in plain Node, which cannot load the configurator catalogue
+  // that startingPrice() reads. So the number is pinned instead — PricesPage.test.jsx fails
+  // the moment it stops equalling euro(startingPrice(locale), locale), which is also the
+  // figure the page itself prints under its H1.
   prices: {
     en: {
       title: 'Prefab House Prices 2026 | From €14,840 incl. VAT | NVC Home4You',
@@ -301,6 +326,73 @@ const META = {
         'Πώς η NVC Home4You συλλέγει, χρησιμοποιεί και προστατεύει τα προσωπικά σας δεδομένα, συμπεριλαμβανομένων όσων τηρούμε για τη δημιουργία προσφοράς, και πώς να διαχειρίζεστε τα cookies — σύμφωνα με τον GDPR.',
     },
   },
+}
+
+// The picture a shared link to each product page shows (og:image and twitter:image), in place
+// of the site-wide /og/default.jpg: the photo the page itself opens on, so the preview is
+// something the visitor then finds on the page. The containers' and the houses' are their
+// content files' default hero photos; the steel page has no hero photo of its own (NVC has
+// no photograph of a steel build yet), so it is the render of its first process step, which
+// the page shows and labels a render. Not one of the old example visualisations: the owner
+// (2026-10-12) wants none of those seven on the steel page. The alts are the content files'
+// alts for the same pictures.
+// routeMeta.test.js fails the moment either drifts from its content file.
+//
+// The URLs are the plain /api/img originals, not ?w=1200: the resizer only narrows and
+// never crops, and all three originals are under 1200px, so the width and height below are
+// the files' own (measured 2026-10-12). /api/img serves WebP, hence the type. The houses'
+// photo is portrait; Facebook and LinkedIn crop it to the middle band, where the house is.
+//
+// An admin photo set for a page's hero does not change this: the admin panel stores no
+// size for it, and this module runs in plain Node at build time (the SEO manifest), where
+// the live slot cannot be read.
+const PAGE_IMAGES = {
+  modularBuilds: {
+    url: `${SITE_URL}/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp`,
+    width: 1024,
+    height: 1024,
+    type: 'image/webp',
+    alt: {
+      bg: 'Контейнер 8 × 3 м с двускатен покрив, отвътре',
+      en: 'Inside an 8 × 3 m container with a gable roof',
+      el: 'Εσωτερικό κοντέινερ 8 × 3 m με δίρριχτη στέγη',
+    },
+  },
+  modularHouses: {
+    url: `${SITE_URL}/api/img/cases/1/0ed68fb76fbe4876a9905da7d043216d.webp`,
+    width: 1086,
+    height: 1448,
+    type: 'image/webp',
+    alt: {
+      bg: 'Разгъваема къща от 58 м² с веранда, доставена в Паралия Кариани, Гърция',
+      en: 'A 58 m² expandable house with a veranda, delivered to Paralia Kariani, Greece',
+      el: 'Αναπτυσσόμενο σπίτι 58 m² με βεράντα, παραδομένο στην Παραλία Καριανής, Ελλάδα',
+    },
+  },
+  steelHouses: {
+    url: `${SITE_URL}/api/img/content/bvk4n834b-rcn-eg-vb.webp`,
+    width: 940,
+    height: 788,
+    type: 'image/webp',
+    alt: {
+      bg: 'Визуализация на двуетажна къща с триъгълен покрив, остъклен фронтон и дървена тераса',
+      en: 'Render of a two-storey house with a triangular roof, a glazed gable and a timber deck',
+      el: 'Απεικόνιση διώροφου σπιτιού με τριγωνική στέγη, τζαμαρία στο αέτωμα και ξύλινη βεράντα',
+    },
+  },
+}
+
+/** The share picture for a page in a locale, as SEO.jsx's props, or {} for the default. */
+export function pageImage(pageKey, locale = 'en') {
+  const image = PAGE_IMAGES[pageKey]
+  if (!image) return {}
+  return {
+    image: image.url,
+    imageWidth: image.width,
+    imageHeight: image.height,
+    imageType: image.type,
+    imageAlt: image.alt[locale] || image.alt.en,
+  }
 }
 
 function absolute(path) {
@@ -342,5 +434,6 @@ export function getRouteSeo(pathname, fallbackLocale = 'en') {
     canonical: url,
     locale,
     hreflangs: buildHreflangs(pageKey),
+    ...pageImage(pageKey, locale),
   }
 }

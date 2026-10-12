@@ -1,25 +1,31 @@
 // src/routes/el/ElModularHousesRoute.jsx
+import React from 'react'
 import SEO from '../../components/SEO.jsx'
+import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import ModularHousesPage from '../../pages/ModularHousesPage.jsx'
-import elContent from '../../content/el/modularHouses.js'
+import content from '../../content/el/modularHouses.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs all come from routeMeta.js, the way the prices
+// routes already do it. This page used to carry two sets — one here or in the content file's
+// seo block, one in routeMeta.js — that disagreed with each other, and the hand-typed
+// hreflang lists on the bg and en routes left out the Greek page.
 export default function ElModularHousesRoute() {
+  const seo = getRouteSeo(paths.modularHouses.el, 'el')
+
   return (
     <>
-      <SEO
-        title="Δομικά σπίτια στη Βουλγαρία | NVC Home4You"
-        description="Δομικά σπίτια στη Βουλγαρία με διάφορες διαμορφώσεις, μεγέθη και επιλογές παράδοσης. Δείτε τα μοντέλα και στείλτε αίτημα."
-        url="https://nvc-home4you.eu/el/domika-spitia"
-        canonical="https://nvc-home4you.eu/el/domika-spitia"
-        locale="el"
-        hreflangs={[
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/modular-houses' },
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/modulni-kysthi' },
-          { hrefLang: 'el', href: 'https://nvc-home4you.eu/el/domika-spitia' },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/modular-houses' },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: 'Αρχική', url: 'https://nvc-home4you.eu/el' },
+          { name: 'Δομικά σπίτια', url: seo.url },
         ]}
       />
-      <ModularHousesPage locale="el" content={elContent} />
+
+      <ModularHousesPage locale="el" content={content} />
     </>
   )
 }

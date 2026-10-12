@@ -67,25 +67,39 @@ function Tick() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
 }
 
-export default function Testimonials({ locale = 'en', content }) {
+// The address of the feed. A product page asks the API for that product's reviews, so the
+// rating and count above them are that product's too; filtering the home feed here would
+// have put the site-wide "4.8 from 12" over a list of some other number of reviews.
+function featuredUrl({ take, product }) {
+  const query = new URLSearchParams({ take: String(take) })
+  if (product) query.set('product', product)
+  return `${API_BASE}/api/reviews/featured?${query}`
+}
+
+// A product page passes `product` (the key the review form saves, e.g. "modularBuilds") and
+// sees only reviews of that product, at most `limit` of them; with neither, this is the home
+// page's section exactly as it was. Either way it renders nothing when no review is left.
+export default function Testimonials({ locale = 'en', content, product, limit }) {
   const [state, setState] = useState({ loading: true, items: [], average: 0, total: 0, productLabels: {} })
+  const take = content?.take || 3
 
   useEffect(() => {
     let active = true
 
     async function load() {
       try {
-        const take = content?.take || 3
         const [response, productLabels] = await Promise.all([
-          fetch(`${API_BASE}/api/reviews/featured?take=${take}`),
+          fetch(featuredUrl({ take: product ? limit || take : take, product })),
           loadProductLabels(locale),
         ])
         if (!response.ok) throw new Error('Reviews API unavailable')
         const json = await response.json()
         if (!active) return
+        let items = Array.isArray(json.items) ? json.items : []
+        if (limit) items = items.slice(0, limit)
         setState({
           loading: false,
-          items: Array.isArray(json.items) ? json.items : [],
+          items,
           average: toNumber(json.averageRating, 0),
           total: toNumber(json.totalCount, 0),
           productLabels,
@@ -99,7 +113,7 @@ export default function Testimonials({ locale = 'en', content }) {
     return () => {
       active = false
     }
-  }, [content, locale])
+  }, [take, locale, product, limit])
 
   // One sentence under the heading: "4.8 from 12 verified reviews".
   const aggregate = useMemo(() => {
@@ -121,7 +135,11 @@ export default function Testimonials({ locale = 'en', content }) {
           <div>
             <h2 className="cs-h2">{content.heading}</h2>
             {content.subheading ? <p className="cs-muted mt-2">{content.subheading}</p> : null}
-            <p className="hp-agg" aria-label={content.aggregateAria || content.heading}>
+            {/* The label is read before the figures, not instead of them: an aria-label on
+                the paragraph would have replaced "4.8 from 12 verified reviews" for a screen
+                reader with the label alone. */}
+            <p className="hp-agg">
+              {content.aggregateAria ? <span className="visually-hidden">{content.aggregateAria}: </span> : null}
               <span className="hp-agg-star" aria-hidden="true">★</span>
               <span>{aggregate}</span>
             </p>

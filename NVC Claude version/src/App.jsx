@@ -383,7 +383,7 @@ function AppShell() {
 
   return (
     <div>
-      <ModalActionsProvider onOpenOffer={openOfferModal} onOpenQuestion={openQuestionModal}>
+      <ModalActionsProvider onOpenOffer={openOfferModal} onOpenQuestion={openQuestionModal} onRequestModel={requestModel}>
         <LocalePathGate>
           {(() => {
             const routeSeo = getRouteSeo(location.pathname, currentLocale)

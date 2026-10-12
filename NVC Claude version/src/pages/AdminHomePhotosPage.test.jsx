@@ -5,9 +5,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminHomePhotosPage from './AdminHomePhotosPage.jsx'
 
-// The home page photos screen. What is pinned here: all eight slots render with their
-// labels BEFORE anything has been uploaded (a screen that only lists what exists cannot
-// show where a photo belongs); each verb hits the address and body the API binds —
+// The home page photos screen. What is pinned here: all eleven slots — the home page's
+// eight and the three product pages' — render with their labels BEFORE anything has been
+// uploaded (a screen that only lists what exists cannot show where a photo belongs), and
+// each product page says what it shows while empty; each verb hits the address and body the API binds —
 // FormData with `file`, `{ imageKey }` for a gallery pick, `{ a, b }` for a swap, DELETE
 // to clear; a refused upload shows the server's sentence without taking the slots away;
 // and an expired session asks for sign-in instead of looking broken.
@@ -22,12 +23,23 @@ const json = (body, status = 200) => Promise.resolve({
   text: () => Promise.resolve(JSON.stringify(body)),
 })
 
-const NAMES = ['hero-1', 'hero-2', 'hero-3', 'hero-4', 'hero-5', 'model-37', 'model-58', 'model-73']
+const NAMES = [
+  'hero-1', 'hero-2', 'hero-3', 'hero-4', 'hero-5', 'model-37', 'model-58', 'model-73',
+  'page-modular-builds', 'page-modular-houses', 'page-steel-houses',
+]
+
+const PAGE_KEYS = {
+  'page-modular-builds': 'modularBuilds',
+  'page-modular-houses': 'modularHouses',
+  'page-steel-houses': 'steelHouses',
+}
+
+const kindOf = (name) => (name.startsWith('hero') ? 'hero' : name.startsWith('page') ? 'page' : 'model')
 
 const emptySlot = (name) => ({
   name,
-  kind: name.startsWith('hero') ? 'hero' : 'model',
-  index: name.startsWith('hero') ? Number(name.slice(5)) : name.slice(6),
+  kind: kindOf(name),
+  index: kindOf(name) === 'hero' ? String(name.slice(5)) : kindOf(name) === 'page' ? PAGE_KEYS[name] : name.slice(6),
   imageKey: null, url: null, alt: null, updatedAt: null, updatedByUpn: null,
 })
 
@@ -88,18 +100,23 @@ afterEach(() => {
 const card = (label) => screen.getByText(label, { selector: 'strong' }).closest('li')
 
 describe('AdminHomePhotosPage', () => {
-  it('renders all eight slots with their labels before any photo has been uploaded', async () => {
+  it('renders all eleven slots with their labels before any photo has been uploaded', async () => {
     listAnswer = () => json(EMPTY)
     render(<AdminHomePhotosPage />)
 
     expect(await screen.findByText('Снимка 1', { selector: 'strong' })).toBeInTheDocument()
     for (const n of [2, 3, 4, 5]) expect(screen.getByText(`Снимка ${n}`, { selector: 'strong' })).toBeInTheDocument()
     for (const label of ['37 m²', '58 m²', '73 m²']) expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
+    for (const label of ['Контейнерни модули', 'Модулни къщи', 'Сглобяеми къщи по проект']) {
+      expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
+    }
 
-    // Every slot says what the site shows while it is empty, and offers the two ways to fill it.
-    expect(screen.getAllByText('По подразбиране')).toHaveLength(8)
-    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(8)
-    expect(screen.getAllByRole('button', { name: 'От галерията' })).toHaveLength(8)
+    // Every slot says what the site shows while it is empty, and offers the two ways to fill
+    // it. The steel page's default is no photo, so its box says so instead of "Default".
+    expect(screen.getAllByText('По подразбиране')).toHaveLength(10)
+    expect(within(card('Сглобяеми къщи по проект')).getByText('Без снимка')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(11)
+    expect(screen.getAllByRole('button', { name: 'От галерията' })).toHaveLength(11)
     // Nothing to clear yet.
     expect(screen.queryByRole('button', { name: /Изчисти/ })).not.toBeInTheDocument()
   })
@@ -157,10 +174,10 @@ describe('AdminHomePhotosPage', () => {
     await userEvent.upload(screen.getByLabelText('Замени — 58 m²'), file)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('That file could not be read as an image.')
-    // Still eight slots behind the alert — a refused upload is not a broken page.
+    // Still every slot behind the alert — a refused upload is not a broken page.
     expect(screen.getByText('Снимка 5', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('73 m²', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(8)
+    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(11)
   })
 
   it('moving a hero photo left swaps it with its left neighbour', async () => {
@@ -194,6 +211,65 @@ describe('AdminHomePhotosPage', () => {
       expect(del.url).toMatch(/\/api\/admin\/home-photos\/hero-1$/)
     })
     expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(1)
+  })
+
+  it('says under each description box where the description is used', async () => {
+    render(<AdminHomePhotosPage />)
+    await screen.findByText('Снимка 1', { selector: 'strong' })
+
+    // The hint is tied to the box, so a screen reader reads it with the label: on the product
+    // pages the description reaches the Bulgarian site only.
+    const input = within(card('Снимка 1')).getByLabelText('Описание на снимката (по избор)')
+    const hint = document.getElementById(input.getAttribute('aria-describedby'))
+    expect(hint).toBeInTheDocument()
+    expect(hint).toHaveTextContent('На трите продуктови страници се използва само в българския сайт')
+  })
+
+  it('lists the product pages in their own group, each saying what it shows while empty', async () => {
+    listAnswer = () => json(EMPTY)
+    render(<AdminHomePhotosPage />)
+
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Продуктови страници' })
+    const section = heading.closest('section')
+    expect(within(section).getAllByRole('listitem')).toHaveLength(3)
+
+    expect(within(card('Контейнерни модули')).getByText('Празно: снимка на контейнер от галерията.')).toBeInTheDocument()
+    expect(within(card('Модулни къщи')).getByText(/Паралия Кариани \(58 м²\)/)).toBeInTheDocument()
+    expect(within(card('Сглобяеми къщи по проект')).getByText('Празно: страницата е без снимка.')).toBeInTheDocument()
+
+    // A page photo belongs to its page: no reordering arrows.
+    expect(within(section).queryByRole('button', { name: /Наляво|Надясно/ })).not.toBeInTheDocument()
+  })
+
+  it('uploading into a product page posts to that page slot and names the photo, not the page', async () => {
+    render(<AdminHomePhotosPage />)
+    await screen.findByText('Модулни къщи', { selector: 'strong' })
+
+    const file = new File(['RIFF'], 'kariani.webp', { type: 'image/webp' })
+    await userEvent.upload(screen.getByLabelText('Замени — Модулни къщи'), file)
+
+    await waitFor(() => {
+      const post = calls.find((c) => c.method === 'POST')
+      expect(post).toBeTruthy()
+      expect(post.url).toContain('/api/admin/home-photos/page-modular-houses/file')
+      expect(post.body.get('file')).toBe(file)
+    })
+    expect(await screen.findByText('Готово — снимката на „Модулни къщи“ е на сайта.')).toBeInTheDocument()
+  })
+
+  it('shows the English labels when the panel is in English', async () => {
+    window.localStorage.setItem('nvc_admin_lang_v1', 'en')
+    try {
+      listAnswer = () => json(EMPTY)
+      render(<AdminHomePhotosPage />)
+      expect(await screen.findByRole('heading', { level: 2, name: 'Product pages' })).toBeInTheDocument()
+      for (const label of ['Container units', 'Modular houses', 'Steel-frame prefab houses to your plan']) {
+        expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
+      }
+      expect(within(card('Steel-frame prefab houses to your plan')).getByText('No photo')).toBeInTheDocument()
+    } finally {
+      window.localStorage.removeItem('nvc_admin_lang_v1')
+    }
   })
 
   it('asks for sign-in rather than looking broken when the session has expired', async () => {

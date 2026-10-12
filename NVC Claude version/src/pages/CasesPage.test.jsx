@@ -26,14 +26,14 @@ describe('CasesPage reviews', () => {
   it('names the product in Greek on the Greek page', async () => {
     render(<CasesPage content={elContent} />)
 
-    expect(await screen.findByText('Αγοράστηκε: Δομικές κατασκευές')).toBeInTheDocument()
+    expect(await screen.findByText('Αγοράστηκε: Μονάδες-κοντέινερ')).toBeInTheDocument()
     expect(screen.queryByText(/modularBuilds/)).not.toBeInTheDocument()
   })
 
   it('names it in English on the English page', async () => {
     render(<CasesPage content={enContent} />)
 
-    expect(await screen.findByText(`${enContent.copy.labels.purchased}: Modular builds`)).toBeInTheDocument()
+    expect(await screen.findByText(`${enContent.copy.labels.purchased}: Container units`)).toBeInTheDocument()
   })
 
   it('prints an older free-text product as it was typed', async () => {

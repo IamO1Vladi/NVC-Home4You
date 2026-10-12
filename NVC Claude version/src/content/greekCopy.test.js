@@ -14,6 +14,7 @@ import * as elModularBuilds from './el/modularBuilds.js'
 import * as elModularHouses from './el/modularHouses.js'
 import * as elPartner from './el/partner.js'
 import * as elPrivacy from './el/privacy.js'
+import * as elSteelHouses from './el/steelHouses.js'
 
 import bgHome from './bg/home.js'
 import enHome from './en/home.js'
@@ -42,6 +43,7 @@ const EL_FILES = {
   'el/modularHouses.js': elModularHouses,
   'el/partner.js': elPartner,
   'el/privacy.js': elPrivacy,
+  'el/steelHouses.js': elSteelHouses,
 }
 
 // Keys whose values are identifiers, paths or URLs, never shown as words.
@@ -149,11 +151,19 @@ describe('route map destinations', () => {
 })
 
 describe('modular houses comparison table', () => {
-  it('reads the expandable sizes from content, with a Latin m, in every locale', () => {
-    // The cell was hardcoded "37м2 / 58м2 / 78м2" with a Cyrillic м on all three sites.
-    // 78 (not 73) is deliberate until the owner says otherwise.
+  // The old cell was hardcoded "37м2 / 58м2 / 78м2", with a Cyrillic м on all three sites
+  // and a 78 m² model that does not exist. The rebuilt table states the gallery's range: Box
+  // houses from 18 to 74 m² (the two-storey one) and the 38 m² capsule.
+  it('states the gallery sizes, with a Latin m in English and Greek', () => {
+    for (const content of [elModularHouses.default, enModularHouses]) {
+      expect(content.compare.rows[0].values).toEqual(['18–74 m²', '38 m²'])
+    }
+    expect(bgModularHouses.compare.rows[0].values).toEqual(['18–74 м²', '38 м²'])
+  })
+
+  it('never names a 78 m² house in any language', () => {
     for (const content of [elModularHouses.default, enModularHouses, bgModularHouses]) {
-      expect(content.table.sizeExpandable).toBe('37 m² / 58 m² / 78 m²')
+      expect(JSON.stringify(content)).not.toMatch(/78\s*[mм]/)
     }
   })
 })

@@ -26,9 +26,9 @@ export default {
         {
           title: 'Контейнерни и сглобяеми къщи',
           items: [
-            { pathKey: 'modularBuilds', label: 'Модулни постройки' },
+            { pathKey: 'modularBuilds', label: 'Контейнерни модули' },
             { pathKey: 'modularHouses', label: 'Модулни къщи' },
-            { pathKey: 'steelHouses', label: 'Стоманени къщи' },
+            { pathKey: 'steelHouses', label: 'Сглобяеми къщи по проект' },
           ],
         },
         {
@@ -69,8 +69,11 @@ export default {
     hero: {
       eyebrow: 'Сглобяеми и контейнерни домове',
       title: 'Защото <g>домът</g> не трябва да е лукс',
-      // {price} идва от startingHousePrice(locale) през euro(); никога не се изписва тук.
+      // {price} е най-евтиният контейнер в галерията (с ДДС и монтаж), който идва от
+      // /api/home/photos през euro(); никога не се изписва тук. Докато не е известен, героят
+      // показва leadNoPrice — същото изречение без сума.
       lead: 'Сглобяеми и контейнерни домове от {price} с ДДС. Базирани в Петрич, доставяме в целия ЕС.',
+      leadNoPrice: 'Сглобяеми и контейнерни домове с ясни цени. Базирани в Петрич, доставяме в целия ЕС.',
       primaryCta: 'Заяви оферта',
       pricesCta: 'Виж моделите и цените',
       facts: ['87 доставени дома', 'Цените са с ДДС', 'Строим домове от 2022 г.'],
@@ -80,10 +83,10 @@ export default {
         openLabel: 'Отвори',
         slidesLabel: 'Снимки в началото',
         slides: [
-          { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Модулни постройки', pathKey: 'modularBuilds', frame: { position: '30% 50%', scale: 1.22 } },
+          { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Контейнерни модули', pathKey: 'modularBuilds', frame: { position: '30% 50%', scale: 1.22 } },
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Модулни къщи', pathKey: 'modularHouses' },
-          { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Модулни постройки', pathKey: 'modularBuilds' },
-          { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Стоманени къщи', pathKey: 'steelHouses' },
+          { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Контейнерни модули', pathKey: 'modularBuilds' },
+          { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Сглобяеми къщи по проект', pathKey: 'steelHouses' },
           { src: '/api/img/content/bvk4n834b-rcz-eg-vb.webp', alt: 'Вътрешни ремонти', pathKey: 'interiors' },
         ],
       },
@@ -129,16 +132,16 @@ export default {
         {
           key: 'modularHouses',
           pathKey: 'modularHouses',
-          title: 'Модулни къщи · от 37 м²',
-          desc: 'Домове за постоянно обитаване от 37 м²: разгъваеми Box къщи и Space капсули с вашето разпределение и довършване.',
+          title: 'Модулни къщи · 18–74 м²',
+          desc: 'Домове от 18 до 74 м²: разгъваеми Box къщи и Space капсули с вашето разпределение и довършване.',
           icon: 'home',
           img: '/api/img/content/bvk4n834b-rdb-eg-vd.webp',
         },
         {
           key: 'steelHouses',
           pathKey: 'steelHouses',
-          title: 'Стоманени къщи',
-          desc: 'Леки и здрави къщи с метална конструкция — добър баланс между срок и цена.',
+          title: 'Сглобяеми къщи по проект',
+          desc: 'Къщи със стоманена конструкция по вашия проект — или ние изготвяме проекта вместо вас.',
           icon: 'steel',
           img: '/api/img/content/bvk4n834b-rdc-eg-vb.webp',
         },

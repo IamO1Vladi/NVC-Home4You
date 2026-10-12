@@ -58,8 +58,12 @@ export const PRICES_COPY = {
     ],
     foundationNote: 'За основа препоръчваме Siana Burgas, ако изберете наземни винтове.',
 
-    customTitle: 'Модулни къщи по проект',
-    customBody: 'Модулните къщи се изработват по индивидуален проект, затова нямат каталожна цена. Опишете какво търсите и ще Ви изпратим оферта.',
+    // The steel-frame line, in the words its own page uses (steelHouses.price.body). It said
+    // "modular houses" until 2026-10, which the modular houses page, priced from the gallery,
+    // now contradicts.
+    customTitle: 'Сглобяеми къщи по проект',
+    customBody: 'Сглобяемите къщи със стоманена конструкция се изработват по индивидуален проект, затова нямат каталожна цена. Опишете какво търсите и ще ви изпратим оферта.',
+    customLink: 'Как работим по проект →',
 
     configuratorTitle: 'Изчислете своята конфигурация',
     configuratorBody: 'Конфигураторът пресмята цената според плана, дограмата, банята и кухнята, които изберете.',
@@ -109,8 +113,9 @@ export const PRICES_COPY = {
     ],
     foundationNote: 'For the foundation we recommend Siana Burgas, if you go with ground screws.',
 
-    customTitle: 'Modular houses to your own design',
-    customBody: 'Modular houses are built to an individual design, so they have no catalogue price. Tell us what you need and we will send a quote.',
+    customTitle: 'Steel-frame prefab houses to your plan',
+    customBody: 'Steel-frame houses are built to an individual design, so they have no catalogue price. Tell us what you need and we will send a quote.',
+    customLink: 'How we work to your plan →',
 
     configuratorTitle: 'Price your own configuration',
     configuratorBody: 'The configurator works out the price from the plan, windows, bathroom and kitchen you choose.',
@@ -160,8 +165,9 @@ export const PRICES_COPY = {
     ],
     foundationNote: 'Για τη βάση προτείνουμε τη Siana Burgas, αν επιλέξετε βίδες εδάφους.',
 
-    customTitle: 'Δομικά σπίτια κατά παραγγελία',
-    customBody: 'Τα δομικά σπίτια κατασκευάζονται σε ατομικό σχέδιο, οπότε δεν έχουν τιμή καταλόγου. Πείτε μας τι χρειάζεστε και θα σας στείλουμε προσφορά.',
+    customTitle: 'Μεταλλικά σπίτια σε δικό σας σχέδιο',
+    customBody: 'Τα σπίτια με μεταλλικό σκελετό κατασκευάζονται σε ατομικό σχέδιο, οπότε δεν έχουν τιμή καταλόγου. Πείτε μας τι χρειάζεστε και θα σας στείλουμε προσφορά.',
+    customLink: 'Πώς δουλεύουμε με το δικό σας σχέδιο →',
 
     configuratorTitle: 'Υπολογίστε τη δική σας διαμόρφωση',
     configuratorBody: 'Ο διαμορφωτής υπολογίζει την τιμή από την κάτοψη, τα κουφώματα, το μπάνιο και την κουζίνα που επιλέγετε.',

@@ -1,89 +1,163 @@
+// /bg/sglobqemi-kyshti — „Сглобяеми къщи по проект“: custom houses on a steel frame, priced
+// per project. The page's one job is to get a project or a sketch from the visitor, or to
+// offer to draw the project up when they have none (the owner, 2026-10-12: "We can quote it
+// based on their project, or we can make the project for them").
+//
+// WHERE THE FACTS COME FROM. The owner, 2026-10-12: every steel-frame house is a custom
+// project, so there are NO standard figures — no area range, no number of floors or
+// bedrooms, no profile thickness, no fixed facade, roof or insulation. The only constant is
+// the galvanised steel frame, which the site has always said. So the hero lists
+// what is decided per project instead of a spec. The two ways of working are the owner's
+// answer above. The five process steps are the owner's five stages from the old page
+// („Проектиране и разпределение“ … „Монтаж на място и предаване“), each paired with the one
+// of the five stage pictures that actually shows it; the pictures are renders of a single
+// example house, which the section says. There is no price here and no lead time: these
+// houses have no catalogue price, and the sibling cards' figures are computed by the page
+// from the gallery rows, so this file holds only the words around them ("от", "с ДДС и
+// монтаж").
+//
+// NO EXAMPLE GALLERY. The owner (2026-10-12) asked for the process steps with their pictures
+// back, and said explicitly not to bring back the old seven example visualisations, as a
+// gallery, a carousel or at all. The five stage renders below are the only pictures here.
+//
+// What this file no longer has, on purpose: the seo block (the route reads routeMeta.js),
+// the process ticker whose pictures did not match its captions, the disabled
+// import-logistics block, and the brochure button.
 export default {
-  seo: {
-    title: 'Стоманени къщи и къщи от стоманена конструкция | NVC Home4You',
-    description:
-      'Къщи от стоманена конструкция с гъвкаво разпределение, бърз монтаж и съдействие за доставка до адрес. Разгледайте процеса, основните характеристики и галерията.',
-    url: 'https://nvc-home4you.eu/bg/sglobqemi-kyshti',
+  hero: {
+    eyebrow: 'По ваш проект',
+    h1: 'Сглобяеми къщи със стоманена конструкция',
+    lead:
+      'Къщи върху поцинкована стоманена рамка, всяка по отделен проект. Изпратете ни своя проект и ще ви направим оферта по него, а ако нямате проект, ще го изготвим за вас.',
+    // The offer form takes words, not files, so the button asks for a quote; the plan itself
+    // goes by email (how.filesLead).
+    cta: 'Поискайте оферта по проект',
+    call: 'Обадете се',
+    // Read only when the admin set a photo but left its description empty.
+    photoAlt: 'Сглобяема къща със стоманена конструкция',
   },
-  breadcrumbs: [
-    { name: 'Начало', url: 'https://nvc-home4you.eu/bg' },
-    { name: 'Стоманени къщи', url: 'https://nvc-home4you.eu/bg/sglobqemi-kyshti' },
-  ],
-  getOffer: 'Получи оферта',
-  askQuestion: 'Задай въпрос',
-  title: 'Къщи от стоманена конструкция',
-  lead:
-    'Леки, здрави и гъвкави. Изграждаме вашия дом върху галванизирана стоманена рамка — разпределение по избор, оптимизирани срокове и цена.',
-  brochureSlug: 'modular-builds',
-  brochurePage: 3,
-  brochureLabel: 'Виж брошурата (стр. 3)',
-  specs: [
-    { label: 'Площ', value: '20–90 m²' },
-    { label: 'Етажи', value: '1–2' },
-    { label: 'Спални', value: 'До 3' },
-    { label: 'Конструкция', value: '2.1 мм стомана' },
-  ],
-  quick: {
-    h: 'Накратко',
-    items: [
-      'Фасада: метални/PVC панели, дървесен или композитен обков',
-      'Покрив: двускатен; покривен панел или битумни керемиди',
-      'Изолация: 100 мм каменна вата (опция за допълнителен термослой)',
-      'Интериор: стенни панели с готов финиш',
+
+  // What a project decides, in place of the old "technical data", and nothing with a figure.
+  // It was a seven-row table whose six answers all said "по проект" or "по ваш избор", which
+  // on a phone filled the first screen with the same words; now the six are one list with
+  // one sentence for all of them, and the frame, the one thing every house shares, has its
+  // own line.
+  decide: {
+    title: 'Какво решаваме по проект',
+    items: ['Площ и етажи', 'Разпределение', 'Фасада', 'Покрив', 'Изолация', 'Вътрешни довършителни работи'],
+    note: 'Всичко това се решава по вашия проект и по ваш избор: всяка къща е отделен проект.',
+    frameLabel: 'Конструкция',
+    frame: 'поцинкована стоманена рамка, оразмерена по проекта',
+  },
+
+  // The owner's two routes, and nothing about how long either takes or what permits it
+  // needs: neither has been stated, so neither is written.
+  how: {
+    h2: 'Как работим по вашия проект',
+    sub: 'Два начина да започнем — според това дали вече имате проект.',
+    routes: [
+      {
+        h: 'Имате проект или скица',
+        p: 'Изпратете ни го — архитектурен проект, разпределение или скица. Ще ви направим оферта по него.',
+      },
+      {
+        h: 'Нямате проект',
+        p: 'Ще го изготвим ние. Кажете ни каква площ, колко етажа и колко спални търсите — ще подготвим проекта и ще ви изпратим оферта по него.',
+      },
     ],
+    // The offer form takes words, not files, so a project on paper or in a drawing file
+    // goes by email; the address itself comes from home.localBusiness.
+    filesLead: 'Ако проектът ви е във файл, можете да го изпратите и на',
   },
+
+  // The five stages, in order. The pictures are one example house drawn at each stage: the
+  // finished render is what a project produces first, the bare frame is the structural
+  // model, the flat panels are what is made, the frame closed with boards is the house going
+  // up on its platform, and the clad house with its windows is the finishing. No step names
+  // a duration, a permit or a guarantee.
   process: {
-    title: 'Процес',
-    intervalMs: 2400,
+    h2: 'Как протича проектът',
+    sub: 'Пет стъпки от идеята до готовата къща. Картините показват една примерна къща на всеки етап.',
     steps: [
-      'Проектиране и разпределение',
-      'Конструктивни чертежи и детайли',
-      'Производство и довършителни работи',
-      'Доставка и митница',
-      'Монтаж на място и предаване',
+      {
+        title: 'Проектиране и разпределение',
+        text: 'Започваме от вашия проект или скица, а ако нямате — изготвяме проекта с вас: площ, етажи, стаи и как ще изглежда къщата.',
+        image: {
+          src: '/api/img/content/bvk4n834b-rcn-eg-vb.webp',
+          alt: 'Визуализация на двуетажна къща с триъгълен покрив, остъклен фронтон и дървена тераса',
+          caption: 'Визуализация на къщата от проекта',
+        },
+      },
+      {
+        title: 'Конструктивни чертежи и детайли',
+        text: 'По разпределението изчисляваме стоманената рамка и чертаем всяка греда, връзка и отвор, така че къщата да се сглоби точно по проекта.',
+        image: {
+          src: '/api/img/content/bvk4n834b-rcj-eg-vb.webp',
+          alt: 'Визуализация на стоманената рамка на двуетажна къща с триъгълен покрив върху дървена платформа',
+          caption: 'Стоманената рамка по конструктивните чертежи',
+        },
+      },
+      {
+        title: 'Производство и довършителни работи',
+        text: 'Изработваме стоманените елементи по чертежите и подготвяме материалите за фасадата, покрива и интериора, които сте избрали.',
+        image: {
+          src: '/api/img/content/bvk4n834b-rw-eg-vb.jpg',
+          alt: 'Визуализация на стоманени панели за пода и стените, подредени преди сглобяване',
+          caption: 'Стоманените панели на пода и стените',
+        },
+      },
+      {
+        title: 'Доставка и митница',
+        text: 'Доставяме елементите до вашия парцел и поемаме митническото оформяне. Рамката се сглобява на място и се затваря с плоскости.',
+        image: {
+          src: '/api/img/content/bvk4n834b-rck-eg-vb.webp',
+          alt: 'Визуализация на сглобената стоманена рамка, затворена с плоскости по стените и покрива',
+          caption: 'Рамката, затворена с плоскости',
+        },
+      },
+      {
+        title: 'Монтаж на място и предаване',
+        text: 'Поставяме облицовката, дограмата и покрива, довършваме детайлите и ви предаваме къщата.',
+        image: {
+          src: '/api/img/content/bvk4n834b-rcm-eg-vb.webp',
+          alt: 'Визуализация на къщата с облицовка, големи прозорци и козирки над терасите',
+          caption: 'Облицовка, дограма и козирки',
+        },
+      },
     ],
-    media: [
-      { src: '/api/img/content/bvk4n834b-rw-eg-vb.jpg', alt: 'Проектиране и разпределение' },
-      { src: '/api/img/content/bvk4n834b-rcj-eg-vb.webp', alt: 'Конструктивни чертежи и детайли' },
-      { src: '/api/img/content/bvk4n834b-rck-eg-vb.webp', alt: 'Производство и довършителни работи' },
-      { src: '/api/img/content/bvk4n834b-rcm-eg-vb.webp', alt: 'Доставка и митница' },
-      { src: '/api/img/content/bvk4n834b-rcn-eg-vb.webp', alt: 'Монтаж на място и предаване' },
-    ],
-    labels: {
-      playText: 'Пусни',
-      pauseText: 'Пауза',
-      playAriaLabel: 'Пусни анимацията',
-      pauseAriaLabel: 'Спри анимацията',
-      progressAriaLabel: 'Напредък на процеса',
-      stepsAriaLabel: 'Стъпки в процеса',
-      illustrationAriaLabel: 'Илюстрация на процеса',
+  },
+
+
+  // The paragraph under this heading is the prices page's card for this line (pricesCopy.js
+  // customBody), which the page reads itself so the two say the same thing.
+  price: {
+    h2: 'Цена на къща по проект',
+    link: 'Цени на готовите модели →',
+    // The gallery has the containers and the Box houses, not steel-frame houses, and the
+    // words say so.
+    galleryLink: 'Снимки на готовите модели в галерията →',
+  },
+
+  // The two priced lines, for a visitor who wants a figure today. The names are the other
+  // two pages' breadcrumb names; the prices are filled in by the page from the gallery.
+  ready: {
+    h2: 'Търсите готов модел с ясна цена?',
+    go: 'Разгледайте →',
+    from: 'от',
+    containers: {
+      label: 'Контейнерни модули',
+      desc: 'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м, доставени и сглобени от нас.',
+      basis: 'с ДДС и монтаж',
+    },
+    houses: {
+      label: 'Модулни къщи',
+      desc: 'Разгъваеми Бокс къщи от 18 до 74 м², които пристигат сгънати и се разгъват на място.',
+      basis: 'с ДДС, без монтаж',
     },
   },
-  logistics: {
-    enabled: false,
-    h: 'Международна логистика',
-    p: 'Доставка до вратата от Китай, Виетнам и Тайланд към Европа и Америките.',
-    items: [
-      'Морски (LCL/FCL), въздушен, жп и комбиниран транспорт',
-      'Търговски условия: EXW/FOB → DAP/DDP',
-      'Включено митническо оформяне',
-    ],
-    cta: 'Поискай оферта с доставка',
-  },
-  gallery: {
-    h: 'Галерия',
-    alt: 'Снимка на стоманена къща {idx}',
-    prev: 'Предишно изображение',
-    next: 'Следващо изображение',
-    goto: 'Към изображение {idx}',
-    slides: [
-      '/api/img/content/bvk4n834b-rr-eg-vb.webp',
-      '/api/img/content/bvk4n834b-r4-eg-vb.webp',
-      '/api/img/content/bvk4n834b-r7-eg-vb.webp',
-      '/api/img/content/bvk4n834b-ri-eg-vb.webp',
-      '/api/img/content/bvk4n834b-rbt-eg-vb.webp',
-      '/api/img/content/bvk4n834b-rbw-eg-vb.webp',
-      '/api/img/content/bvk4n834b-rb3-eg-vb.webp',
-    ],
+
+  final: {
+    title: 'Имате проект или скица?',
+    desc: 'Изпратете ни го или ни опишете какво търсите — ако нямате проект, ще го изготвим ние. Отговаряме до 24 часа.',
   },
 }

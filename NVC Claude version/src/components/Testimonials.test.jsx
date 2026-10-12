@@ -67,7 +67,32 @@ describe('Testimonials', () => {
     renderTestimonials()
 
     await screen.findByText('Alice')
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/reviews/featured?take=3'))
+    // The home page asks for the whole set: no product, so its rating is the site's.
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/api\/reviews\/featured\?take=3$/))
+  })
+
+  // An aria-label on the paragraph replaced its text for a screen reader, so the figures
+  // were never read. The label is now hidden text in front of them.
+  it('reads the label and then the figures, rather than the label instead of them', async () => {
+    vi.stubGlobal('fetch', mockFetch({ averageRating: 4.7, totalCount: 12, items: [{ id: '1', name: 'Alice', rating: 5 }] }))
+
+    const { container } = renderTestimonials()
+
+    await screen.findByText('Alice')
+    const agg = container.querySelector('.hp-agg')
+    expect(agg).not.toHaveAttribute('aria-label')
+    expect(agg.querySelector('.visually-hidden')).toHaveTextContent('Average customer rating:')
+    expect(agg).toHaveTextContent('Average customer rating: ★4.7 from 12 verified reviews')
+  })
+
+  it('leaves out the hidden label when the content has none', async () => {
+    vi.stubGlobal('fetch', mockFetch({ averageRating: 4.7, totalCount: 12, items: [{ id: '1', name: 'Alice', rating: 5 }] }))
+
+    const { container } = renderTestimonials({ content: { ...content, aggregateAria: undefined } })
+
+    await screen.findByText('Alice')
+    expect(container.querySelector('.hp-agg .visually-hidden')).toBeNull()
+    expect(container.querySelector('.hp-agg')).toHaveTextContent('4.7 from 12 verified reviews')
   })
 
   it('falls back to the customer label when a review has no name', async () => {
@@ -114,7 +139,7 @@ describe('Testimonials', () => {
 
     await screen.findByText('Νίκος')
     const meta = container.querySelector('.testimonials-meta')
-    expect(meta).toHaveTextContent('Δομικές κατασκευές · Θεσσαλονίκη')
+    expect(meta).toHaveTextContent('Μονάδες-κοντέινερ · Θεσσαλονίκη')
     expect(meta).not.toHaveTextContent('modularBuilds')
   })
 
@@ -124,12 +149,12 @@ describe('Testimonials', () => {
 
     const { container, unmount } = renderTestimonials({ locale: 'en' })
     await screen.findByText('Alice')
-    expect(container.querySelector('.testimonials-meta')).toHaveTextContent('Modular builds')
+    expect(container.querySelector('.testimonials-meta')).toHaveTextContent('Container units')
     unmount()
 
     const bg = renderTestimonials({ locale: 'bg' })
     await screen.findByText('Alice')
-    expect(bg.container.querySelector('.testimonials-meta')).toHaveTextContent('Модулни постройки')
+    expect(bg.container.querySelector('.testimonials-meta')).toHaveTextContent('Контейнерни модули')
   })
 
   it('prints an older free-text product exactly as it was typed', async () => {

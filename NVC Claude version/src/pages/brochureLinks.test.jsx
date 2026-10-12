@@ -1,6 +1,6 @@
 import React from 'react'
-import { describe, expect, it } from 'vitest'
-import { render } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ModalActionsProvider } from '../context/ModalActions.jsx'
 
@@ -22,13 +22,19 @@ import bgSteelHouses from '../content/bg/steelHouses.js'
 import elSteelHouses from '../content/el/steelHouses.js'
 import enSteelHouses from '../content/en/steelHouses.js'
 
-// The eight brochure links a visitor can actually click, rendered.
+// The six brochure links a visitor can actually click on the product and interiors pages,
+// rendered.
 //
 // brochure.test.js proves the content files hold the right slugs and that the helper
 // addresses the API; this proves each page hands the helper the right TRIPLE — slug, page,
 // and its own locale. The failures are different: a page reading the wrong node passes
 // every data test and opens the wrong catalogue, and a page dropping the locale renders a
 // working link that serves Bulgarian to a Greek visitor forever.
+//
+// Since the 2026-10 rebuild the two product pages list their brochures as Catalogues cards
+// (the home page's band), and the steel houses page links none. The gallery, the reviews and
+// the page photos are not needed for any of this, so every API call answers 404 and the
+// pages render without them.
 
 const PAGES = {
   bg: { modularHouses: bgModularHouses, modularBuilds: bgModularBuilds, steelHouses: bgSteelHouses, interiors: bgInteriors },
@@ -37,6 +43,15 @@ const PAGES = {
 }
 
 const dir = '/api/brochures/'
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })))
+})
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 function renderPage(element) {
   const { container } = render(
@@ -60,13 +75,12 @@ const hrefsOf = (container) => brochureLinks(container).map((a) => a.getAttribut
 describe.each(Object.keys(PAGES))('%s', (locale) => {
   const content = PAGES[locale]
 
-  it('the modular houses page opens the two capsule catalogues and the summary brochure', () => {
+  it('the modular houses page opens the Box house and the capsule catalogues', () => {
     const container = renderPage(<ModularHousesPage locale={locale} content={content.modularHouses} />)
 
     expect(hrefsOf(container)).toEqual([
-      `${dir}modular-builds.pdf?lang=${locale}#page=2`,
-      `${dir}space-capsules.pdf?lang=${locale}#page=1`,
       `${dir}box-house.pdf?lang=${locale}#page=1`,
+      `${dir}space-capsules.pdf?lang=${locale}#page=1`,
     ])
   })
 
@@ -80,10 +94,12 @@ describe.each(Object.keys(PAGES))('%s', (locale) => {
     ])
   })
 
-  it('the steel houses page opens the summary brochure at page 3', () => {
+  it('the steel houses page links no brochure', () => {
+    // Its one brochure page was the summary catalogue's p.3; the rebuilt page asks for the
+    // visitor's project instead, and a link to it would be a brochure nobody tests.
     const container = renderPage(<SteelHousesPage locale={locale} content={content.steelHouses} />)
 
-    expect(hrefsOf(container)).toEqual([`${dir}modular-builds.pdf?lang=${locale}#page=3`])
+    expect(hrefsOf(container)).toEqual([])
   })
 
   it('the interiors page opens the summary brochure at page 4', () => {
@@ -93,27 +109,28 @@ describe.each(Object.keys(PAGES))('%s', (locale) => {
   })
 
   it('keeps the wording a visitor reads on each brochure link', () => {
-    // The refactor was meant to be invisible. Reading the label back off the rendered link
-    // is what makes "invisible" checkable, in a language nobody on the team reads fluently.
-    const houses = renderPage(<ModularHousesPage locale={locale} content={content.modularHouses} />)
-    expect(brochureLinks(houses)[0].textContent.trim()).toBe(content.modularHouses.quick.viewPdf)
-
-    const steel = renderPage(<SteelHousesPage locale={locale} content={content.steelHouses} />)
-    expect(brochureLinks(steel)[0].textContent.trim()).toBe(content.steelHouses.brochureLabel)
-
+    // Reading the label back off the rendered link is what makes the wording checkable, in a
+    // language nobody on the team reads fluently.
     const interiors = renderPage(<InteriorsPage locale={locale} content={content.interiors} />)
     expect(brochureLinks(interiors)[0].textContent.trim())
       .toBe(content.interiors.hero.quick.brochureLabel)
   })
 
-  it('labels each product card link for a screen reader', () => {
-    // The cards are images, so the aria-label is the only wording there is.
-    const builds = renderPage(<ModularBuildsPage locale={locale} content={content.modularBuilds} />)
-    expect(brochureLinks(builds).map((a) => a.getAttribute('aria-label')))
-      .toEqual(content.modularBuilds.products.map((p) => p.aria))
+  it.each(['modularBuilds', 'modularHouses'])('names each %s catalogue card by its visible label', (key) => {
+    // The cards carry no aria-label any more: the label and the note are real text inside the
+    // link, so a screen reader reads what a sighted visitor reads, and no hidden wording can
+    // drift away from it.
+    const Page = key === 'modularBuilds' ? ModularBuildsPage : ModularHousesPage
+    const container = renderPage(<Page locale={locale} content={content[key]} />)
+    const links = brochureLinks(container)
 
-    const houses = renderPage(<ModularHousesPage locale={locale} content={content.modularHouses} />)
-    expect(brochureLinks(houses).slice(1).map((a) => a.getAttribute('aria-label')))
-      .toEqual([content.modularHouses.models.house.aria, content.modularHouses.models.expandable.aria])
+    expect(links.map((a) => a.querySelector('strong')?.textContent))
+      .toEqual(content[key].catalogues.items.map((item) => item.label))
+    for (const a of links) {
+      expect(a).not.toHaveAttribute('aria-label')
+      // A PDF opens in a new tab, never in place of the page.
+      expect(a).toHaveAttribute('target', '_blank')
+      expect(a.getAttribute('rel')).toContain('noopener')
+    }
   })
 })

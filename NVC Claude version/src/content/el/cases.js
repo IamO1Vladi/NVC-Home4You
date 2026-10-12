@@ -42,9 +42,9 @@ export default {
       'Δείξτε τι πουλήσατε, σε ποιον, πού παραδόθηκε και ποιο ήταν το αποτέλεσμα.',
     filters: {
       all: 'Όλα',
-      modularBuilds: 'Δομικές κατασκευές',
+      modularBuilds: 'Μονάδες-κοντέινερ',
       modularHouses: 'Δομικά σπίτια',
-      steelHouses: 'Μεταλλικά σπίτια',
+      steelHouses: 'Μεταλλικά σπίτια σε δικό σας σχέδιο',
       interiors: 'Εσωτερικοί χώροι',
       delivery: 'Παράδοση',
       logistics: 'Εφοδιαστική',

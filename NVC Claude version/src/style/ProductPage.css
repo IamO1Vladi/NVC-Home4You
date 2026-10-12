@@ -1,0 +1,228 @@
+/* The three product pages' layer over the home page's system. A product page imports
+   HomePage.css first and this second, and wraps itself in <main class="hp pp">: the --hp-*
+   tokens, the .hp-container gutter (20px, 16px on a phone), the buttons, cards, eyebrow and
+   lead all come from home, so these pages cannot drift into a look of their own again.
+
+   Only what a product page has and home does not lives here, every class pp-: a two-column
+   hero that stacks on a phone, a grid of priced unit cards, a spec table that turns into
+   stacked rows under 768px instead of scrolling sideways, a row of sibling-page cards, and a
+   few section helpers. Anything that must win over a home rule of the same weight
+   (.hp :where(a), .hp :where(section)) is written under .pp, so it does not depend on which
+   stylesheet a lazy chunk happens to insert last.
+
+   PHONES FIRST. Most visitors arrive on a phone from a search result, so every block below
+   is laid out for a 360-390px screen and then widened: one column, full-width photos and
+   buttons, nothing squeezed beside anything else, every link at least 44px tall. The shared
+   home components (reviews, catalogues, the closing card) get their phone adjustments here,
+   under .pp, so the home page itself looks exactly as it did. */
+
+.pp [id^="item-"]{ scroll-margin-top:96px }
+
+/* Buttons in a row share it evenly on a phone, two side by side rather than one wide and
+   one wrapped under it at a different width; a longer Greek label wraps inside its button. */
+@media (max-width:767px){
+  .pp .hp-cta-row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(136px, 1fr)); gap:10px }
+  .pp .hp-cta-row .hp-btn{ min-width:0; padding:8px 12px; white-space:normal; text-align:center; line-height:1.2 }
+}
+
+/* Hero: copy on the left, the photo (and anything passed with it) on the right */
+.pp .pp-hero{ padding:40px 0 56px }
+.pp-hero-grid{ display:grid; gap:24px 48px; grid-template-columns:minmax(0,1fr); align-items:center }
+@media (min-width:900px){
+  .pp-hero-grid{ grid-template-columns:minmax(0,1fr) minmax(0,1.05fr) }
+  .pp-hero-copy{ grid-column:1; grid-row:1 }
+  .pp-hero--stacked .pp-hero-copy{ grid-row:1 / span 2 }
+  .pp-hero-media,.pp-hero-aside{ grid-column:2 }
+  .pp-hero--solo .pp-hero-grid{ grid-template-columns:minmax(0,1fr) }
+}
+.pp-hero--solo .pp-hero-copy{ max-width:760px }
+.pp-title{ font-size:clamp(28px, 1.2rem + 2.3vw, 48px); line-height:1.1; font-weight:600; letter-spacing:-.015em; text-wrap:balance }
+.pp-hero .hp-lead{ max-width:52ch }
+.pp-price{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; margin-top:20px; font-variant-numeric:tabular-nums }
+.pp-price small{ font-size:16px; font-weight:500; color:var(--hp-muted) }
+.pp-price strong{ font-size:clamp(30px, 1.2rem + 1.4vw, 36px); font-weight:600; line-height:1.1 }
+.pp-price-caption{ flex-basis:100%; font-size:14px; color:var(--hp-muted) }
+.pp-hero-media{ position:relative; margin:0; overflow:hidden; border:1px solid var(--hp-line); border-radius:var(--hp-r-l); background:var(--hp-surface-2) }
+.pp-hero-media img{ width:100%; height:auto; aspect-ratio:4/3; object-fit:cover }
+.pp-hero-chip{
+  position:absolute; left:12px; bottom:12px; max-width:calc(100% - 24px); padding:6px 12px; border-radius:999px;
+  background:color-mix(in srgb, var(--hp-surface) 92%, transparent); color:var(--hp-text);
+  font-size:13px; font-weight:600; line-height:1.35; box-shadow:var(--hp-shadow-1);
+}
+.pp-hero-aside{ min-width:0 }
+@media (max-width:899px){
+  /* The photo above the words, as on home; a spec table stays after them. A wide, low
+     crop, so the heading, the price and the buttons still reach the first screen. */
+  .pp-hero-media{ order:-1 }
+  .pp-hero-media img{ aspect-ratio:2/1 }
+}
+@media (max-width:599px){
+  .pp-hero-media{ border-radius:var(--hp-r-m) }
+  .pp-hero-media img{ aspect-ratio:16/10 }
+  .pp-hero-chip{ left:8px; bottom:8px; max-width:calc(100% - 16px); padding:4px 10px; border-radius:10px; font-size:12px }
+}
+@media (max-width:767px){
+  .pp .pp-hero{ padding:12px 0 36px }
+  .pp-hero-grid{ gap:18px }
+  .pp-hero .hp-eyebrow{ margin-bottom:6px; font-size:12px }
+  .pp-hero .hp-lead{ margin-top:12px; font-size:17px }
+  .pp-price{ margin-top:16px }
+  .pp-hero .hp-cta-row{ margin-top:16px }
+  /* One fact per line, the tick at the first line of a fact that wraps. */
+  .pp-hero .hp-facts{ flex-direction:column; gap:6px; margin-top:18px; font-size:14px; line-height:1.45 }
+  .pp-hero .hp-facts li{ align-items:flex-start }
+  .pp-hero .hp-facts svg{ margin-top:2px }
+}
+
+/* Unit cards: the home strip's card, with a price that is always shown and two actions.
+   One column on a phone with the photo across the top: a small photo beside the words left
+   titles such as "Жилищен фургон - 6000мм*3000мм" wrapping over four lines. */
+.pp-units{ display:grid; gap:16px; grid-template-columns:minmax(0,1fr); margin:0; padding:0; list-style:none }
+@media (min-width:640px){ .pp-units{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+@media (min-width:980px){ .pp-units{ grid-template-columns:repeat(3,minmax(0,1fr)) } }
+.pp-units > li{ display:flex; min-width:0 }
+.pp-units > li > .pp-unit{ flex:1 }
+.pp-unit{ display:flex; flex-direction:column; overflow:hidden; min-width:0 }
+.pp-unit-photo{ width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; object-position:50% 58%; background:var(--hp-surface-2); border-bottom:1px solid var(--hp-line) }
+.pp-unit-body{ flex:1; display:grid; gap:6px; align-content:start; padding:16px 18px 4px; min-width:0 }
+.pp .pp-unit-title{ font-size:18px; line-height:1.3; font-weight:600; text-wrap:pretty }
+/* The figure and what it includes on one line when they fit ("4 300 € с ДДС и монтаж"). */
+.pp-unit-cost{ display:flex; flex-wrap:wrap; align-items:baseline; gap:0 8px; margin-top:2px }
+.pp-unit-price{ font-size:28px; font-weight:600; line-height:1.15; font-variant-numeric:tabular-nums }
+.pp-unit-price small{ font-size:15px; font-weight:500; color:var(--hp-muted) }
+.pp-unit-caption{ font-size:14px; color:var(--hp-muted) }
+.pp-unit-diff{ margin-top:2px; font-size:15px; line-height:1.5 }
+/* list-style is set because the card sits in a list item, where a nested list would get
+   hollow circles; the variant line's link stays inline so its bullet sits on line one. */
+.pp-unit-lines{ display:grid; gap:4px; margin:4px 0 0; padding:0 0 0 18px; list-style:disc; color:var(--hp-muted); font-size:14px; line-height:1.55 }
+/* A link in those lines (the veranda variant's gallery page) has to look like one and be a
+   thumb's height: coloured words alone read as text, and the line was 39px tall. */
+.pp .pp-unit-lines a{
+  display:inline-flex; align-items:center; min-height:44px;
+  text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1px;
+}
+/* The solid button across the card, the details link under it as a full-width row, so
+   both are easy to hit with a thumb and every card in a row ends the same way. */
+.pp-unit-actions{ display:grid; gap:4px; padding:14px 18px 10px }
+.pp-unit-actions .hp-btn{ width:100%; min-width:0; white-space:normal; text-align:center; line-height:1.25; padding:10px 16px }
+.pp .pp-unit-more{ display:flex; align-items:center; justify-content:center; min-height:44px; font-weight:600; color:var(--hp-accent-text) }
+@media (max-width:639px){
+  .pp-unit-photo{ aspect-ratio:16/10 }
+  .pp-units{ gap:14px }
+}
+/* The wide card: one product that is not one of a series (the capsule) */
+@media (min-width:640px){ .pp-unit--wide,.pp-units > .pp-units-full{ grid-column:1 / -1 } }
+@media (min-width:720px){
+  .pp-unit--wide{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:1fr auto }
+  .pp-unit--wide .pp-unit-photo{ grid-column:1; grid-row:1 / span 2; height:100%; border-bottom:0; border-right:1px solid var(--hp-line) }
+  .pp-unit--wide .pp-unit-body{ grid-column:2; padding:24px 24px 4px }
+  .pp-unit--wide .pp-unit-actions{ grid-column:2; padding:14px 24px 18px; justify-items:start }
+  .pp-unit--wide .pp-unit-actions .hp-btn{ width:auto; min-width:240px }
+}
+@media (min-width:980px){ .pp-unit--wide .pp-unit-lines{ display:block; columns:2; column-gap:28px } }
+@media (min-width:980px){ .pp-unit--wide .pp-unit-lines li{ break-inside:avoid; margin-bottom:4px } }
+
+/* Spec table: a real table on a wide screen, stacked rows on a phone, never sideways */
+.pp-spec{
+  width:100%; border-collapse:separate; border-spacing:0; overflow:hidden;
+  background:var(--hp-surface); border:1px solid var(--hp-line); border-radius:var(--hp-r-m);
+  font-size:15px; line-height:1.5;
+}
+.pp-spec caption{ caption-side:top; padding:0 0 10px; text-align:left; font-size:17px; font-weight:600; color:var(--hp-text) }
+.pp-spec th,.pp-spec td{ padding:12px 16px; text-align:left; vertical-align:top; border-top:1px solid var(--hp-line); overflow-wrap:anywhere }
+.pp-spec tr:first-child > *{ border-top:0 }
+.pp-spec thead th{ background:var(--hp-surface-2); border-bottom:1px solid var(--hp-line); font-size:14px; font-weight:600 }
+.pp-spec tbody th{ width:38%; font-weight:600 }
+.pp-spec--compare tbody th{ width:28% }
+.pp-spec-col{ display:none }
+@media (max-width:767px){
+  .pp-spec,.pp-spec caption,.pp-spec tbody,.pp-spec tr,.pp-spec th,.pp-spec td{ display:block; width:auto }
+  .pp-spec caption{ padding:14px 16px 2px }
+  .pp-spec thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap }
+  .pp-spec tr{ padding:12px 16px; border-top:1px solid var(--hp-line) }
+  .pp-spec tbody tr:first-child{ border-top:0 }
+  .pp-spec th,.pp-spec td{ padding:0; border:0 }
+  .pp-spec tbody th,.pp-spec--compare tbody th{ width:auto; margin-bottom:2px; color:var(--hp-muted); font-size:13px; letter-spacing:.02em }
+  .pp-spec--compare td + td{ margin-top:10px }
+  .pp-spec-col{ display:block; margin-bottom:2px; font-size:13px; font-weight:600; line-height:1.35; color:var(--hp-brand) }
+  /* Two products compared: the property across the top, the two values side by side
+     under it, so the eye compares across a row instead of reading one stacked list. */
+  .pp-spec--two tbody tr{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); padding:14px 16px }
+  .pp-spec--two tbody th{ grid-column:1 / -1; margin-bottom:8px; color:var(--hp-text); font-size:15px; letter-spacing:0 }
+  .pp-spec--two td{ padding-right:12px; font-size:14px; line-height:1.45 }
+  .pp-spec--two td + td{ margin-top:0; padding:0 0 0 12px; border-left:1px solid var(--hp-line) }
+}
+/* Under 480px two columns are 140-160px each, and a 25-word cell ran six lines with its
+   units orphaned. There the two values stack, each under its short column label, with a
+   hairline between them; side by side again from 480px, where they have room. */
+@media (max-width:479px){
+  .pp-spec--two tbody tr{ display:block }
+  .pp-spec--two td{ padding-right:0 }
+  .pp-spec--two td + td{ margin-top:10px; padding:10px 0 0; border-left:0; border-top:1px solid var(--hp-line) }
+}
+
+/* Sibling pages: the other two product lines, one link card each */
+.pp-siblings{ background:var(--hp-surface-2); border-top:1px solid var(--hp-line); border-bottom:1px solid var(--hp-line) }
+.pp-sibs{ display:grid; gap:12px; grid-template-columns:minmax(0,1fr); margin:0; padding:0; list-style:none }
+@media (min-width:720px){ .pp-sibs{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+.pp .pp-sib{ display:grid; gap:4px; align-content:start; height:100%; padding:18px 20px; color:var(--hp-text); text-decoration:none; transition:transform .2s ease }
+.pp .pp-sib:hover{ text-decoration:none; border-color:var(--hp-muted); transform:translateY(-2px) }
+.pp-sib-label{ font-size:18px; font-weight:600 }
+.pp-sib-desc{ color:var(--hp-muted); font-size:15px; line-height:1.5 }
+.pp-sib-price{ margin-top:4px; font-weight:600; font-variant-numeric:tabular-nums }
+.pp-sib-go{ margin-top:4px; color:var(--hp-accent-text); font-weight:600 }
+@media (max-width:767px){ .pp .pp-sib{ padding:16px 18px } }
+
+/* Section helpers */
+.pp-pair{ display:grid; gap:12px; grid-template-columns:minmax(0,1fr); margin:0; padding:0; list-style:none }
+@media (min-width:720px){ .pp-pair{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+.pp-band{ background:var(--hp-surface-2); border-top:1px solid var(--hp-line); border-bottom:1px solid var(--hp-line) }
+.pp-split{ display:grid; gap:24px; grid-template-columns:minmax(0,1fr) }
+@media (min-width:900px){ .pp-split{ grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); align-items:start } }
+.pp-photos{ display:grid; gap:12px; grid-template-columns:repeat(2,minmax(0,1fr)); margin:0 }
+.pp-photos img{ width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; border:1px solid var(--hp-line); border-radius:var(--hp-r-m); background:var(--hp-surface-2) }
+.pp-prose{ display:grid; gap:14px; max-width:68ch }
+.pp-prose h2{ margin-bottom:4px }
+.pp-links{ display:flex; flex-wrap:wrap; gap:4px 24px; margin-top:16px; font-weight:600 }
+.pp-prose .pp-links{ margin-top:0 }
+.pp-note{ margin-top:12px; color:var(--hp-muted); font-size:14px; line-height:1.5 }
+/* A short list of terms, each a label and its sentence (the containers' assembly and
+   delivery): a hairline between them, the label beside the text where there is room. */
+.pp-terms{ display:grid; margin:0; max-width:820px; border-top:1px solid var(--hp-line) }
+.pp-terms > div{ display:grid; gap:2px 24px; padding:14px 0; border-bottom:1px solid var(--hp-line) }
+.pp-terms dt{ font-weight:600 }
+.pp-terms dd{ margin:0; color:var(--hp-text); line-height:1.55 }
+@media (min-width:720px){ .pp-terms > div{ grid-template-columns:200px minmax(0,1fr) } }
+
+/* Phone tap targets for the text links a section carries under or beside its heading. */
+@media (max-width:767px){
+  .pp .pp-links a,.pp .hp-head-links a{ display:inline-flex; align-items:center; min-height:44px }
+  .pp .hp-head{ margin-bottom:20px; gap:4px 20px }
+  .pp .hp-head-links{ gap:0 18px; font-size:15px }
+  .pp .hp-sub{ font-size:16px; line-height:1.5 }
+}
+
+/* The shared home components, on a product page only.
+   Reviews: name and stars on one line and a little less air, so six reviews read as a
+   column of short quotes rather than a long scroll. */
+/* CasesPage.css turns this head into a column under 760px when it is loaded; a row here. */
+.pp .cs-review-head{ display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 12px }
+@media (max-width:767px){
+  .pp .testimonials-grid{ gap:12px }
+  .pp .cs-review-card{ padding:16px 18px; gap:8px }
+  .pp .cs-review-card .cs-body-copy{ font-size:17px }
+  .pp .testimonials-cta .hp-btn{ width:100% }
+}
+/* The delivered house's card on the houses page reuses the review card; its quote is an
+   hp-lead, whose own top margin doubled the card's gap. */
+.pp .cs-review-card .hp-lead{ margin-top:0 }
+/* Catalogues: a little less padding, the same rows. */
+@media (max-width:767px){ .pp .hp-cat{ padding:12px 14px } }
+/* The closing card: its two buttons side by side and the phone and email as full-width
+   rows, rather than four centred pills of four different widths. */
+@media (max-width:767px){
+  .pp .hp-contact{ padding:28px 18px; gap:14px }
+  .pp .hp-contact .hp-cta-row{ width:100% }
+  .pp .hp-contact .hp-pills{ display:grid; grid-template-columns:minmax(0,1fr); justify-content:stretch; width:100%; gap:8px }
+  .pp .hp-contact .hp-pill{ justify-content:center; min-height:48px; overflow-wrap:anywhere }
+}

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
@@ -27,30 +27,57 @@ import { useLocalizedGalleryItems } from '../gallery/galleryUtils.js'
 export default function PricesPage({ locale = 'en' }) {
   const t = getPricesCopy(locale)
   const { openOffer } = useModalActions()
+  const location = useLocation()
 
   const galleryBase = paths.gallery[locale] || paths.gallery.en
   const { items, loading, error } = useLocalizedGalleryItems(locale, galleryBase)
   const { box, wagon } = React.useMemo(() => buildPriceSections(items), [items])
 
   const money = (value) => euro(value, locale)
-  const from = box.length ? Math.min(...box.map((r) => r.total)) : startingPrice(locale)
+
+  // "Finished house from" counts only the houses whose assembly we know. A row with no
+  // assembly mapped still lists, but its total IS its bare price — so the 18 m² house, whose
+  // assembly is quoted on request, made the headline read "finished from €10,500" for a
+  // house that cannot be finished for that. Until its assembly is known it stays out of the
+  // figure, and with no such row at all the catalogue's own starting price stands in.
+  const finished = box.filter((r) => r.assemblyGross != null)
+  const from = finished.length ? Math.min(...finished.map((r) => r.total)) : startingPrice(locale)
 
   const pageUrl = `https://nvc-home4you.eu${paths.prices[locale] || paths.prices.en}`
 
   // Offer markup from the same rows the sections render — this is where price snippets
   // under a search result come from. Each product's url is its own anchor on this page,
   // matched by the card ids below.
+  //
+  // A row whose assembly is on request has no total yet, only the house's own price. That
+  // price is real and VAT-inclusive, so it stays the offer's price, but the description
+  // calls it the house's price and says the assembly is on request, rather than "total".
   const products = React.useMemo(() => (
     [...box, ...wagon].map((row) => ({
       id: `gal-${row.id}`,
       url: `${pageUrl}#item-${row.id}`,
       name: row.item.title,
-      description: `${row.item.title}. ${t.colTotal}: ${money(row.total)}.`,
+      description: row.assemblyGross == null
+        ? `${row.item.title}. ${t.colHouse}: ${money(row.house)}. ${t.colAssemblyGross}: ${t.assemblyOnRequest}.`
+        : `${row.item.title}. ${t.colTotal}: ${money(row.total)}.`,
       image: row.item.coverUrl,
-      price: row.total,
+      price: row.assemblyGross == null ? row.house : row.total,
       currency: row.item.currency || 'EUR',
     }))
-  ), [box, wagon, pageUrl, t.colTotal, locale])
+  ), [box, wagon, pageUrl, t.colTotal, t.colHouse, t.colAssemblyGross, t.assemblyOnRequest, locale])
+
+  // Links into a card (the containers page sends visitors to #item-13) land on that card.
+  // The router does no hash scrolling of its own, and on a direct load the cards are not
+  // there yet: the page renders empty until /api/gallery answers, so the browser's own jump
+  // to the anchor finds nothing. Hence this runs again once the rows arrive. Only an
+  // #item-<id> that is actually on the page counts. No smooth scrolling: a plain jump is
+  // what the browser would have done, and it does not animate for visitors who asked for
+  // reduced motion.
+  React.useEffect(() => {
+    const match = /^#(item-\d+)$/.exec(location.hash || '')
+    if (!match) return
+    document.getElementById(match[1])?.scrollIntoView({ block: 'start' })
+  }, [location.hash, box, wagon])
 
   return (
     <main className="arx prices-page">
@@ -120,6 +147,7 @@ export default function PricesPage({ locale = 'en' }) {
         <div className="prices-card">
           <h2>{t.customTitle}</h2>
           <p>{t.customBody}</p>
+          <p><Link to={paths.steelHouses[locale] || paths.steelHouses.en}>{t.customLink}</Link></p>
           <button type="button" className="btn ghost" onClick={openOffer}>{t.quoteCta}</button>
         </div>
 
@@ -193,7 +221,11 @@ function PriceSection({ rows, t, money, title, intro, columns }) {
 
               <p className="prices-card-total">
                 <span className="prices-card-total-label">{t.colTotal}</span>
-                <strong className="num">{money(row.total)}</strong>
+                {/* No assembly known means no total yet: the bare house price under
+                    "total" would read as a finished house for less than one costs. */}
+                <strong className="num">
+                  {row.assemblyGross == null ? t.assemblyOnRequest : money(row.total)}
+                </strong>
               </p>
             </div>
           </article>
@@ -240,7 +272,9 @@ function PriceSection({ rows, t, money, title, intro, columns }) {
                 <td className="num" data-label={full ? t.colAssemblyGross : t.wagonColAssembly}>
                   {row.assemblyGross == null ? t.assemblyOnRequest : money(row.assemblyGross)}
                 </td>
-                <td className="num is-total" data-label={t.colTotal}>{money(row.total)}</td>
+                <td className="num is-total" data-label={t.colTotal}>
+                  {row.assemblyGross == null ? t.assemblyOnRequest : money(row.total)}
+                </td>
               </tr>
             ))}
           </tbody>

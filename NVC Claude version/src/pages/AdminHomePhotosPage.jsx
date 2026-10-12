@@ -3,11 +3,15 @@ import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminUpload, adminSend, adminDelete, UnauthorizedError } from '../admin/adminApi.js'
 
-// The home page photos screen: five hero slides and the three model cards, each a fixed
-// slot the owner can fill, swap or empty. The slots are fixed rather than a free list for
-// the same reason the brochures are (AdminDocumentsPage): the public page always shows
-// something in every position — an empty slot falls back to the photo the site shipped
-// with — so this screen has to show where a photo BELONGS, not only what has been uploaded.
+// The home page photos screen: five hero slides, the three model cards, and (since
+// 2026-10-12, at the owner's request) the main photo of each product page — each a fixed
+// slot the owner can fill or empty, and the hero slides also reorder. The slots are fixed
+// rather than a free list for the same reason the brochures are (AdminDocumentsPage): the
+// public page shows its default in every empty position — the photo the site shipped with,
+// or for the steel page deliberately no photo at all — so this screen has to show where a
+// photo BELONGS, and what the site shows while it is empty, not only what has been
+// uploaded. The product pages live here rather than on a screen of their own because they
+// are the same table, the same verbs and the same public read.
 //
 // A slot can be filled two ways: a new upload (re-encoded to WebP like every gallery
 // image) or a picture already in the gallery, picked from a dialog. The second one copies
@@ -21,21 +25,32 @@ const MODELS = [
   { name: 'model-58', label: '58 m²' },
   { name: 'model-73', label: '73 m²' },
 ]
+// In menu order. Their labels and their empty-slot defaults are words, so they live in TEXT.
+const PAGES = ['page-modular-builds', 'page-modular-houses', 'page-steel-houses']
 
 const TEXT = {
   bg: {
     title: 'Начална страница',
-    subtitle: 'Снимките в началото на сайта и на трите модела. Промяната се вижда на сайта веднага.',
+    subtitle: 'Снимките в началото на сайта, на трите модела и на продуктовите страници. Промяната се вижда на сайта веднага.',
     heroHeading: 'Снимки в началото',
     heroHint: 'Показват се една след друга в реда отляво надясно. Празно място показва снимката по подразбиране.',
     modelsHeading: 'Снимки на трите модела',
     modelsHint: 'Снимката на картата на модела в началната страница. Празно място показва снимката от каталога.',
+    pagesHeading: 'Продуктови страници',
+    pagesHint: 'Главната снимка на всяка продуктова страница. Под всяко място пише какво показва страницата, докато то е празно.',
+    pages: {
+      'page-modular-builds': { label: 'Контейнерни модули', empty: 'Празно: снимка на контейнер от галерията.' },
+      'page-modular-houses': { label: 'Модулни къщи', empty: 'Празно: снимката на къщата в Паралия Кариани (58 м²) от „Казуси и отзиви“.' },
+      'page-steel-houses': { label: 'Сглобяеми къщи по проект', empty: 'Празно: страницата е без снимка.', thumb: 'Без снимка' },
+    },
+    pageSaved: (label) => `Готово — снимката на „${label}“ е на сайта.`,
+    pageCleared: (label) => `Снимката на „${label}“ е премахната — страницата се връща към вида по подразбиране.`,
     defaultThumb: 'По подразбиране',
     photo: (n) => `Снимка ${n}`,
     replace: 'Замени', fromGallery: 'От галерията', moveLeft: 'Наляво', moveRight: 'Надясно',
     clear: 'Изчисти', uploading: 'Качване…', working: 'Момент…',
     alt: 'Описание на снимката (по избор)',
-    altHint: 'Чете се от екранните четци и се показва, ако снимката не се зареди.',
+    altHint: 'Чете се от екранните четци и се показва, ако снимката не се зареди. На трите продуктови страници се използва само в българския сайт; английският и гръцкият имат свое общо описание.',
     pickTitle: 'Избери снимка от галерията',
     pickSubtitle: 'Натиснете снимка, за да я сложите в избраното място.',
     pickFor: (label) => `За: ${label}`,
@@ -52,17 +67,26 @@ const TEXT = {
   },
   en: {
     title: 'Home page',
-    subtitle: 'The photos at the top of the site and on the three model cards. Changes show on the site immediately.',
+    subtitle: 'The photos at the top of the site, on the three model cards and on the product pages. Changes show on the site immediately.',
     heroHeading: 'Photos at the top',
     heroHint: 'Shown one after another, left to right. An empty slot shows the default photo.',
     modelsHeading: 'Photos of the three models',
     modelsHint: 'The photo on the model card on the home page. An empty slot shows the catalogue photo.',
+    pagesHeading: 'Product pages',
+    pagesHint: 'The main photo of each product page. Under each slot: what the page shows while it is empty.',
+    pages: {
+      'page-modular-builds': { label: 'Container units', empty: 'Empty: a container photo from the gallery.' },
+      'page-modular-houses': { label: 'Modular houses', empty: 'Empty: the Paralia Kariani house (58 m²) from Cases & Reviews.' },
+      'page-steel-houses': { label: 'Steel-frame prefab houses to your plan', empty: 'Empty: the page has no photo.', thumb: 'No photo' },
+    },
+    pageSaved: (label) => `Done — the photo for “${label}” is live.`,
+    pageCleared: (label) => `The photo for “${label}” is removed — the page is back to its default.`,
     defaultThumb: 'Default',
     photo: (n) => `Photo ${n}`,
     replace: 'Replace', fromGallery: 'From the gallery', moveLeft: 'Move left', moveRight: 'Move right',
     clear: 'Clear', uploading: 'Uploading…', working: 'One moment…',
     alt: 'Photo description (optional)',
-    altHint: 'Read by screen readers and shown if the photo fails to load.',
+    altHint: 'Read by screen readers and shown if the photo fails to load. On the three product pages it is used on the Bulgarian site only; the English and Greek sites use a general description of their own.',
     pickTitle: 'Pick a photo from the gallery',
     pickSubtitle: 'Press a photo to put it in the chosen slot.',
     pickFor: (label) => `For: ${label}`,
@@ -152,8 +176,14 @@ export default function AdminHomePhotosPage() {
   const labelOf = (name) => {
     const model = MODELS.find((m) => m.name === name)
     if (model) return model.label
+    if (t.pages[name]) return t.pages[name].label
     return t.photo(HERO.indexOf(name) + 1)
   }
+
+  // A page slot is named after its page, so "„Модулни къщи“ е на сайта" would announce the
+  // page, not the photo; its notices say "the photo for …" instead.
+  const savedNotice = (name) => (t.pages[name] ? t.pageSaved(labelOf(name)) : t.saved(labelOf(name)))
+  const clearedNotice = (name) => (t.pages[name] ? t.pageCleared(labelOf(name)) : t.cleared(labelOf(name)))
 
   // Every write goes through here: one busy key, the server's sentence on refusal, a
   // re-read on success, and an expired session turned into the sign-in card.
@@ -175,11 +205,11 @@ export default function AdminHomePhotosPage() {
 
   function replace(name, file) {
     if (!file) return
-    write(name, () => adminUpload(`/api/admin/home-photos/${name}/file`, file), t.saved(labelOf(name)))
+    write(name, () => adminUpload(`/api/admin/home-photos/${name}/file`, file), savedNotice(name))
   }
 
   function clear(name) {
-    write(name, () => adminDelete(`/api/admin/home-photos/${name}`), t.cleared(labelOf(name)))
+    write(name, () => adminDelete(`/api/admin/home-photos/${name}`), clearedNotice(name))
   }
 
   function swap(name, delta) {
@@ -213,10 +243,13 @@ export default function AdminHomePhotosPage() {
     const name = pickFor
     setPickFor(null)
     if (!name) return
-    write(name, () => adminSend(`/api/admin/home-photos/${name}/pick`, 'POST', { imageKey }), t.saved(labelOf(name)))
+    write(name, () => adminSend(`/api/admin/home-photos/${name}/pick`, 'POST', { imageKey }), savedNotice(name))
   }
 
-  const renderSlot = (name, label, { index = null, total = 0 } = {}) => {
+  // `empty` says what the site shows while the slot is empty, for the slots where the
+  // section's hint cannot say it once for all of them; `thumb` replaces "Default" in the
+  // empty box where the default is no photo at all.
+  const renderSlot = (name, label, { index = null, total = 0, empty = null, thumb = null } = {}) => {
     const slot = bySlot.get(name)
     const isBusy = busy === name
     const altId = `adm-hp-alt-${name}`
@@ -232,8 +265,9 @@ export default function AdminHomePhotosPage() {
         {slot?.url ? (
           <img className="adm-hp-img" src={slot.url} alt={slot.alt || ''} loading="lazy" />
         ) : (
-          <div className="adm-hp-empty"><span>{t.defaultThumb}</span></div>
+          <div className="adm-hp-empty"><span>{thumb || t.defaultThumb}</span></div>
         )}
+        {empty ? <span className="adm-small adm-muted">{empty}</span> : null}
 
         <div className="adm-hp-actions">
           <ReplaceButton
@@ -300,7 +334,9 @@ export default function AdminHomePhotosPage() {
               disabled={busy !== null}
               onChange={(e) => setAlts((prev) => ({ ...prev, [name]: e.target.value }))}
               onBlur={() => saveAlt(name)}
+              aria-describedby={`${altId}-hint`}
             />
+            <span id={`${altId}-hint`} className="adm-small adm-muted">{t.altHint}</span>
           </div>
         ) : null}
       </li>
@@ -336,6 +372,14 @@ export default function AdminHomePhotosPage() {
         <p className="adm-small adm-muted">{t.modelsHint}</p>
         <ul className="adm-hp-row adm-hp-row-models">
           {MODELS.map((m) => renderSlot(m.name, m.label))}
+        </ul>
+      </section>
+
+      <section className="adm-hp-section">
+        <h2>{t.pagesHeading}</h2>
+        <p className="adm-small adm-muted">{t.pagesHint}</p>
+        <ul className="adm-hp-row adm-hp-row-models">
+          {PAGES.map((name) => renderSlot(name, labelOf(name), { empty: t.pages[name].empty, thumb: t.pages[name].thumb }))}
         </ul>
       </section>
 

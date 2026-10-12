@@ -12,12 +12,11 @@ import enModularBuilds from '../content/en/modularBuilds.js'
 import bgModularHouses from '../content/bg/modularHouses.js'
 import elModularHouses from '../content/el/modularHouses.js'
 import enModularHouses from '../content/en/modularHouses.js'
-import bgSteelHouses from '../content/bg/steelHouses.js'
-import elSteelHouses from '../content/el/steelHouses.js'
-import enSteelHouses from '../content/en/steelHouses.js'
 
 // Guards the six product brochures — served from Blob behind /api/brochures/{slug}.pdf
-// since stage 4 of #16, linked by four pages in three languages.
+// since stage 4 of #16, linked by three pages in three languages. The steel houses page
+// stopped linking one in the 2026-10 rebuild: the summary brochure's page 3 was the only
+// thing it had to show, and the page now asks for the visitor's project instead.
 //
 // Nothing here is about rendering. It is about the brochures being FINDABLE and correctly
 // ADDRESSED: named as slugs in the content files, spelled one way, reachable through one
@@ -26,9 +25,9 @@ import enSteelHouses from '../content/en/steelHouses.js'
 // without one error anywhere.
 
 const CONTENT = {
-  bg: { interiors: bgInteriors, modularBuilds: bgModularBuilds, modularHouses: bgModularHouses, steelHouses: bgSteelHouses },
-  el: { interiors: elInteriors, modularBuilds: elModularBuilds, modularHouses: elModularHouses, steelHouses: elSteelHouses },
-  en: { interiors: enInteriors, modularBuilds: enModularBuilds, modularHouses: enModularHouses, steelHouses: enSteelHouses },
+  bg: { interiors: bgInteriors, modularBuilds: bgModularBuilds, modularHouses: bgModularHouses },
+  el: { interiors: elInteriors, modularBuilds: elModularBuilds, modularHouses: elModularHouses },
+  en: { interiors: enInteriors, modularBuilds: enModularBuilds, modularHouses: enModularHouses },
 }
 const LOCALES = Object.keys(CONTENT)
 
@@ -61,27 +60,26 @@ function jsFilesIn(dir) {
  * fewer.
  */
 function referencesFor(locale) {
-  const { interiors, modularBuilds, modularHouses, steelHouses } = CONTENT[locale]
+  const { interiors, modularBuilds, modularHouses } = CONTENT[locale]
   const at = (where, node) => ({ where, slug: node.brochureSlug, page: node.brochurePage })
+  // The two product pages list their brochures as Catalogues cards, which always open a
+  // brochure at its first page (Catalogues.jsx calls brochureUrl(slug, 1, locale)), so the
+  // content names only the slug and the page is the component's.
+  const card = (page) => (item) => at(`${page}.catalogues.${item.brochureSlug}`, { brochureSlug: item.brochureSlug, brochurePage: 1 })
   return [
-    at('modularHouses.quick', modularHouses.quick),
-    at('modularHouses.models.house', modularHouses.models.house),
-    at('modularHouses.models.expandable', modularHouses.models.expandable),
-    ...modularBuilds.products.map((product) => at(`modularBuilds.products.${product.key}`, product)),
-    at('steelHouses', steelHouses),
+    ...modularHouses.catalogues.items.map(card('modularHouses')),
+    ...modularBuilds.catalogues.items.map(card('modularBuilds')),
     at('interiors.hero.quick', interiors.hero.quick),
   ]
 }
 
 /** Where each reference must land — the slug and page are locale-invariant, ?lang= is not. */
 const EXPECTED = {
-  'modularHouses.quick': ['modular-builds', 2],
-  'modularHouses.models.house': ['space-capsules', 1],
-  'modularHouses.models.expandable': ['box-house', 1],
-  'modularBuilds.products.standard': ['standard-containers', 1],
-  'modularBuilds.products.villa': ['villa-office', 1],
-  'modularBuilds.products.retail': ['sloped-roof', 1],
-  steelHouses: ['modular-builds', 3],
+  'modularHouses.catalogues.box-house': ['box-house', 1],
+  'modularHouses.catalogues.space-capsules': ['space-capsules', 1],
+  'modularBuilds.catalogues.standard-containers': ['standard-containers', 1],
+  'modularBuilds.catalogues.villa-office': ['villa-office', 1],
+  'modularBuilds.catalogues.sloped-roof': ['sloped-roof', 1],
   'interiors.hero.quick': ['modular-builds', 4],
 }
 
@@ -116,7 +114,7 @@ describe('brochureUrl', () => {
 })
 
 describe('the brochures the content files name', () => {
-  it('is the same set of eight references in every language', () => {
+  it('is the same set of six references in every language', () => {
     const bg = referencesFor('bg')
     for (const locale of LOCALES) {
       const refs = referencesFor(locale)
@@ -127,7 +125,7 @@ describe('the brochures the content files name', () => {
     }
   })
 
-  it('lands every reference on the slug and page the old static links carried', () => {
+  it('lands every reference on the slug and page it should open', () => {
     for (const locale of LOCALES) {
       for (const ref of referencesFor(locale)) {
         expect([ref.slug, ref.page], `${locale} ${ref.where}`).toEqual(EXPECTED[ref.where])

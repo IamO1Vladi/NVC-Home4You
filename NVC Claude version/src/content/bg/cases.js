@@ -42,9 +42,9 @@ export default {
       'Покажете какво сте продали, на кого, къде е доставено и какъв е резултатът.',
     filters: {
       all: 'Всички',
-      modularBuilds: 'Модулни постройки',
+      modularBuilds: 'Контейнерни модули',
       modularHouses: 'Модулни къщи',
-      steelHouses: 'Стоманени къщи',
+      steelHouses: 'Сглобяеми къщи по проект',
       interiors: 'Интериори',
       delivery: 'Доставка',
       logistics: 'Логистика',

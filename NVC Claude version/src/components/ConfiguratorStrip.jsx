@@ -96,9 +96,12 @@ export default function ConfiguratorStrip({ locale = 'en', content, photos = {} 
           })}
         </div>
 
+        {/* The box-house brochure, not the general catalogue: this line sits under the
+            box-house prices, and the general catalogue's page 3 still prints the template
+            placeholder "Link or button". The other five are one tap away in #catalogues. */}
         <p className="hp-paper">
           <span>{content.paperPrefix}</span>
-          <a href={brochureUrl('modular-builds', 1, locale)} target="_blank" rel="noopener noreferrer"><Doc />{content.paperLink}</a>
+          <a href={brochureUrl('box-house', 1, locale)} target="_blank" rel="noopener noreferrer"><Doc />{content.paperLink}</a>
           <span>{content.paperOr} <a href="#catalogues">{content.paperAll}</a>.</span>
         </p>
       </div>

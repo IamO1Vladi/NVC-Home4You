@@ -1,10 +1,14 @@
 // The home page's first screen: the slogan, the price and the place, over one photograph.
 //
-// The copy is static content so it prerenders whole; only the price is computed, from
-// startingHousePrice() — the house alone, without its assembly, as the strip's cards quote
-// it — so the figure in the first sentence is the figure on the cheapest card below it. The
-// prices page adds the assembly and says so. The emphasised word in the slogan
-// arrives as <g>…</g> in the content and becomes the accent-coloured span.
+// The copy is static content so it prerenders whole; only the price is live. The owner's
+// rule (2026-10-12): the first sentence quotes the cheapest thing sold, which is the
+// cheapest container, VAT and assembly in. That figure is the gallery's own, read off the
+// "from" of /api/home/photos (useHomeFrom), the call the page makes for its photos anyway,
+// so it is the figure on that container's gallery card and moves when staff change it. Until
+// it is known — first visit with nothing seeded, an older API, a failure — the hero prints
+// leadNoPrice, the same sentence without a figure, rather than a number typed into the copy
+// or €0. The strip below keeps quoting the Box models from its own helpers. The emphasised
+// word in the slogan arrives as <g>…</g> in the content and becomes the accent-coloured span.
 //
 // The numerals are role=tab buttons that pick a slide and stop the crossfade for good;
 // focus inside them pauses it while it lasts. The caption beside them links to the product
@@ -14,17 +18,20 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import HeroShowcase from './HeroShowcase.jsx'
 import { paths } from '../routes/paths.js'
-import { startingHousePrice } from '../content/shared/prices.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
+import { useHomeFrom } from '../lib/homePhotos.js'
 
 const fill = (pattern, values) => Object.entries(values).reduce(
   (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
   String(pattern || ''),
 )
 
-// The lead with its {price} wrapped in <strong>, as React nodes rather than HTML.
-function Lead({ pattern, price }) {
-  const parts = String(pattern || '').split('{price}')
+// The lead with its {price} wrapped in <strong>, as React nodes rather than HTML. Without a
+// price it prints the fallback, which has no {price} in it; with no fallback either, nothing.
+function Lead({ pattern, fallback, price }) {
+  const text = price ? pattern : fallback
+  if (!text) return null
+  const parts = String(text).split('{price}')
   return (
     <p className="hp-lead">
       {parts.map((part, i) => (
@@ -45,6 +52,7 @@ export default function Hero({ locale = 'en', content, slides, onOpenOffer }) {
   const [idx, setIdx] = useState(0)
   const [stopped, setStopped] = useState(false)
   const [focused, setFocused] = useState(false)
+  const from = useHomeFrom()
 
   const list = Array.isArray(slides) && slides.length ? slides : (content?.showcase?.slides || [])
   const total = list.length
@@ -60,7 +68,7 @@ export default function Hero({ locale = 'en', content, slides, onOpenOffer }) {
 
   if (!content) return null
 
-  const price = euro(startingHousePrice(locale), locale)
+  const price = from.wagon == null ? null : euro(from.wagon, locale)
   const current = list[idx] || list[0]
   const currentLabel = current?.label || current?.alt || ''
   const currentTo = current?.pathKey ? (paths[current.pathKey]?.[locale] || paths[current.pathKey]?.en) : null
@@ -89,7 +97,7 @@ export default function Hero({ locale = 'en', content, slides, onOpenOffer }) {
             }}
           />
 
-          <Lead pattern={content.lead} price={price} />
+          <Lead pattern={content.lead} fallback={content.leadNoPrice} price={price} />
 
           <div className="hp-cta-row">
             <button type="button" className="hp-btn" onClick={onOpenOffer}>{content.primaryCta}</button>

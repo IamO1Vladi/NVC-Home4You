@@ -1,184 +1,183 @@
-import React, { useEffect, useRef, useState } from 'react'
+// /bg/sglobqemi-kyshti — „Сглобяеми къщи по проект“: houses on a steel frame, built to a
+// plan and priced per project. The page has one job: get a project or a sketch from the
+// visitor, or offer to draw the project up when they have none, and send anyone who wants a
+// figure today to the two lines that have one.
+//
+// Built on the home page's system like the other two product pages (HomePage.css, then
+// ProductPage.css, inside <main class="hp pp">), plus ProductSteel.css for the two parts
+// only this page has. In this order: the hero with the "decided per project" card beside
+// it, the two ways of working, the five steps of a project with a picture each, the price
+// (there is none, and the block says why), the two priced lines, and the contact card.
+//
+// NO FIGURES. The owner (2026-10-12): every steel-frame house is its own project, so the page
+// states no area, floors, bedrooms, profile thickness or fixed finish; the hero's card says
+// what the project decides instead (DecideCard below).
+//
+// NO HERO PHOTO UNLESS THE ADMIN SETS ONE. NVC has no photograph of a steel build of its own
+// yet, so the hero's photo is the admin's page-steel-houses slot (usePagePhoto) and nothing
+// otherwise; the card then takes the right-hand column on its own. The five stage pictures
+// (white-background renders of one example house) were looked at for the hero and left in
+// the steps, where they explain something; as a hero they would present one A-frame as the
+// product of a line where every house is different.
+//
+// THE PICTURES BELOW THE FOLD. The steps (ProcessSteps) pair each of the owner's five stages
+// with the render that shows it, all in the DOM, as a timeline on a phone and a sticky
+// picture beside the list on a wide screen. There is NO example gallery: the owner
+// (2026-10-12) wanted the steps and their pictures back but said explicitly not to bring back
+// the old seven example visualisations, so none of them is on this page, not even as its
+// share picture (routeMeta.js uses the first step's render).
+//
+// NO PRICE IS TYPED HERE. The sibling cards' "from" figures are computed from the gallery
+// rows (useProductRows), the same rows the container and house pages render, so they cannot
+// quote a figure those pages do not show. The containers' figure is a total with assembly;
+// the houses' is the house alone, which is how the houses page states it.
+//
+// No Product markup: a line priced per project has no offer to give. The route publishes
+// breadcrumbs and a Service (ServiceJSONLD) instead, with no price in it.
+// No reviews section either — none of the published reviews is about a steel-frame house,
+// and Testimonials would render nothing.
+import React from 'react'
+import { Link } from 'react-router-dom'
+import '../style/HomePage.css'
+import '../style/ProductPage.css'
+import '../style/ProductSteel.css'
+import ProductHero from '../components/product/ProductHero.jsx'
+import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import ProcessSteps from '../components/product/ProcessSteps.jsx'
+import FinalCta from '../components/FinalCta.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
-import ProcessTicker from '../components/ProcessTicker.jsx'
-import '../style/SteelHouses.css'
-import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
-import { brochureUrl } from '../lib/brochure.js'
 import { getHomeContent } from '../content/home/index.js'
+import { getPricesCopy } from '../content/shared/pricesCopy.js'
+import { euro } from '../content/shared/boxConfiguratorCatalog.js'
+import { useProductRows, lowest } from '../lib/productRows.js'
+import { usePagePhoto } from '../lib/homePhotos.js'
+import { paths } from '../routes/paths.js'
 
-function asset(path) {
-  return `${import.meta.env.BASE_URL}${path}`
+/**
+ * What a project decides, beside the hero's words: the six things every project settles as
+ * one list of short items, one sentence that answers all six, and the frame on its own line.
+ * It replaced a seven-row table whose six answers were all "по проект" or "по ваш избор",
+ * which on a phone was the first screen's worth of the same words in a ragged right column.
+ * A real list and a real heading, all in the markup, so a crawler and a screen reader read
+ * it as they read the rest of the page.
+ */
+function DecideCard({ decide }) {
+  if (!decide) return null
+  return (
+    <div className="hp-card pp-decide" role="group" aria-labelledby="pp-decide-title">
+      <h2 id="pp-decide-title" className="pp-decide-title">{decide.title}</h2>
+      <ul className="pp-chips">
+        {decide.items.map((item) => <li key={item}>{item}</li>)}
+      </ul>
+      <p className="pp-decide-note">{decide.note}</p>
+      <p className="pp-decide-frame">
+        <strong>{decide.frameLabel}:</strong> {decide.frame}
+      </p>
+    </div>
+  )
 }
 
-function fillTemplate(template, value) {
-  return String(template || '').replace('{idx}', value)
-}
+export default function SteelHousesPage({ locale = 'en', content }) {
+  const { openOffer } = useModalActions()
+  const { box, wagon } = useProductRows(locale)
+  const adminPhoto = usePagePhoto('steelHouses')
 
-export default function SteelHousesPage({ locale, content }) {
-  const { openOffer, openQuestion } = useModalActions()
-  const slides = Array.isArray(content?.gallery?.slides) ? content.gallery.slides : []
-  const [active, setActive] = useState(0)
-  const stripRef = useRef(null)
-  const fallback = asset('modular-builds/card.svg')
-  // The slider's kind as a screen reader announces it, shared with the home page carousel.
-  const carouselRole = getHomeContent(locale)?.common?.carouselRoleDescription || 'carousel'
+  if (!content) return null
+  const c = content
 
-  const toIndex = (i) => {
-    const el = stripRef.current
-    if (!el) return
-    const idx = Math.max(0, Math.min(slides.length - 1, i))
-    const x = idx * el.clientWidth
-    el.scrollTo({ left: x, behavior: 'smooth' })
-    setActive(idx)
-  }
+  // The phone and email the contact card and the header print, from the object
+  // LocalBusinessJSONLD publishes, so this page cannot dial a different number.
+  const business = getHomeContent(locale)?.home?.localBusiness || {}
 
-  const onPrev = () => toIndex(active - 1)
-  const onNext = () => toIndex(active + 1)
+  const pathOf = (key) => paths[key]?.[locale] || paths[key]?.en
 
-  useEffect(() => {
-    const el = stripRef.current
-    if (!el) return undefined
-    const onScroll = () => {
-      const i = Math.round(el.scrollLeft / el.clientWidth)
-      setActive(i)
-    }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [])
+  // A finished figure for the containers (assembly is part of their price), the house alone
+  // for the Box houses (assembly is added per model, and the 18 m² one has none yet).
+  const priceLine = (value, basis) => (value == null ? null : `${c.ready.from} ${euro(value, locale)} ${basis}`)
+  const containersFrom = lowest(wagon)
+  const housesFrom = lowest(box, (row) => row.house)
+
+  // Nothing while the answer is on its way (undefined), not only for an empty slot: a photo
+  // that arrived after the first paint would push the heading down on a phone. The answer
+  // is usually there at once, read from the snapshot (see homePhotos.js). The admin's alt is
+  // typed in Bulgarian, so only the Bulgarian page uses it; the rest get the generic photoAlt.
+  const photo = adminPhoto ? { url: adminPhoto.url, alt: (locale === 'bg' && adminPhoto.alt) || c.hero.photoAlt } : null
 
   return (
-    <main className="sh-page">
-      <section className="sh-hero">
-        <div className="container sh-hero-grid">
-          <div className="sh-hero-left">
-            <h1 className="sh-title">{content.title}</h1>
-            <p className="sh-lead">{content.lead}</p>
+    <main className="hp pp pp-steel">
+      <ProductHero
+        eyebrow={c.hero.eyebrow}
+        title={c.hero.h1}
+        lead={c.hero.lead}
+        primary={{ label: c.hero.cta, onClick: openOffer }}
+        secondary={business.telephone ? { label: c.hero.call, href: `tel:${business.telephone}` } : null}
+        photo={photo}
+      >
+        <DecideCard decide={c.decide} />
+      </ProductHero>
 
-            <div className="sh-spec-band">
-              {content.specs.map((spec) => (
-                <div className="sh-spec" key={spec.label}>
-                  <div className="sh-spec-h">{spec.label}</div>
-                  <div className="sh-spec-v">{spec.value}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="row mt-6">
-              <button className="btn" onClick={openOffer}>{content.getOffer}</button>
-              <a
-                className="btn ghost"
-                href={brochureUrl(content.brochureSlug, content.brochurePage, locale)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {content.brochureLabel}
-              </a>
-            </div>
-          </div>
-
-          <aside className="sh-card">
-            <div className="sh-card-h">{content.quick.h}</div>
-            <ul className="sh-card-list">
-              {content.quick.items.map((item) => <li key={item}>{item}</li>)}
-            </ul>
-            <button className="btn small" onClick={openQuestion}>{content.askQuestion}</button>
-          </aside>
-        </div>
-      </section>
-
-      <section>
-        <div className="container">
-          <ProcessTicker
-            title={content.process.title}
-            steps={content.process.steps}
-            media={content.process.media}
-            intervalMs={content.process.intervalMs || 2400}
-            labels={content.process.labels}
-          />
-        </div>
-      </section>
-
-      {content.logistics?.enabled ? (
-        <section className="sh-logi">
-          <div className="container sh-logi-grid">
+      <section className="pp-band" aria-labelledby="pp-how-title">
+        <div className="hp-container">
+          <div className="hp-head">
             <div>
-              <div className="sh-logi-h">{content.logistics.h}</div>
-              <p className="sh-logi-p">{content.logistics.p}</p>
-              <ul className="sh-logi-list">
-                {content.logistics.items.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            </div>
-            <div className="sh-logi-cta">
-              <button className="btn" onClick={openOffer}>{content.logistics.cta}</button>
+              <h2 id="pp-how-title">{c.how.h2}</h2>
+              {c.how.sub ? <p className="hp-sub">{c.how.sub}</p> : null}
             </div>
           </div>
-        </section>
-      ) : null}
-
-      <section>
-        <div className="container">
-          <div className="sh-gallery-h">{content.gallery.h}</div>
-
-          <div className="sh-slider" aria-roledescription={carouselRole} aria-label={content.gallery.h}>
-            <div className="sh-strip" ref={stripRef} tabIndex={0} role="group" aria-label={content.gallery.h}>
-              {slides.map((src, i) => (
-                <figure className="sh-slide" key={src || i}>
-                  <img
-                    src={cdnImage(src, { width: 1200 })}
-                    srcSet={cdnSrcSet(src, [600, 900, 1200, 1600])}
-                    sizes="(max-width: 900px) 100vw, 900px"
-                    alt={fillTemplate(content.gallery.alt, i + 1)}
-                    onError={imageFallback(fallback)}
-                    width="1600"
-                    height="1000"
-                    loading="lazy"
-                  />
-                </figure>
-              ))}
-            </div>
-
-            <div className="sh-slider-ctrls">
-              <button
-                className="sh-arrow"
-                onClick={onPrev}
-                aria-label={content.gallery.prev}
-                disabled={active === 0}
-              >
-                ‹
-              </button>
-
-              <div className="sh-dots" role="tablist">
-                {slides.map((_, i) => (
-                  <button
-                    key={i}
-                    role="tab"
-                    aria-selected={i === active}
-                    aria-label={fillTemplate(content.gallery.goto, i + 1)}
-                    className={['sh-dot', i === active && 'is-active'].filter(Boolean).join(' ')}
-                    onClick={() => toIndex(i)}
-                  />
-                ))}
-              </div>
-
-              <button
-                className="sh-arrow"
-                onClick={onNext}
-                aria-label={content.gallery.next}
-                disabled={active === slides.length - 1}
-              >
-                ›
-              </button>
-            </div>
-
-            <div className="sh-count" aria-live="polite">{active + 1}/{slides.length}</div>
-          </div>
-
-          <div className="row mt-6" style={{ justifyContent: 'center' }}>
-            <button className="btn" onClick={openOffer}>{content.getOffer}</button>
-            <button className="btn ghost" onClick={openQuestion}>{content.askQuestion}</button>
-          </div>
+          {/* Two alternatives, not steps in a row, so an unordered list. */}
+          <ul className="pp-pair">
+            {c.how.routes.map((route) => (
+              <li key={route.h} className="hp-card hp-why-card">
+                <h3>{route.h}</h3>
+                <p>{route.p}</p>
+              </li>
+            ))}
+          </ul>
+          {business.email ? (
+            <p className="pp-note">
+              {c.how.filesLead} <a href={`mailto:${business.email}`}>{business.email}</a>.
+            </p>
+          ) : null}
         </div>
       </section>
+
+      <ProcessSteps id="pp-process" heading={c.process.h2} sub={c.process.sub} steps={c.process.steps} />
+
+      <section aria-labelledby="pp-price-title">
+        <div className="hp-container">
+          <div className="pp-prose">
+            <h2 id="pp-price-title">{c.price.h2}</h2>
+            {/* The prices page's card for this line, word for word, so the two cannot drift. */}
+            <p>{getPricesCopy(locale).customBody}</p>
+          </div>
+          <p className="pp-links">
+            <Link to={pathOf('prices')}>{c.price.link}</Link>
+            <Link to={pathOf('gallery')}>{c.price.galleryLink}</Link>
+          </p>
+        </div>
+      </section>
+
+      <SiblingLinks
+        id="pp-ready"
+        heading={c.ready.h2}
+        go={c.ready.go}
+        items={[
+          {
+            to: pathOf('modularBuilds'),
+            label: c.ready.containers.label,
+            desc: c.ready.containers.desc,
+            price: priceLine(containersFrom, c.ready.containers.basis),
+          },
+          {
+            to: pathOf('modularHouses'),
+            label: c.ready.houses.label,
+            desc: c.ready.houses.desc,
+            price: priceLine(housesFrom, c.ready.houses.basis),
+          },
+        ]}
+      />
+
+      <FinalCta locale={locale} title={c.final.title} desc={c.final.desc} />
     </main>
   )
 }

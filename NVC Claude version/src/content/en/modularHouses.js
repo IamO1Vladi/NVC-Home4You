@@ -1,76 +1,158 @@
-// src/content/bg/modularHouses.js
+// src/content/en/modularHouses.js
+//
+// The words of the modular houses page (/en/modular-houses). No price is written here: every
+// figure on the page is computed from the gallery rows (src/lib/productRows.js) and printed
+// with euro(); a pattern below marks where one goes with {price}, {house} or {assembly}.
+// The title, description and breadcrumb come from routeMeta.js through the route, so this
+// file has no seo block any more.
+//
+// Every fact is one the gallery, the configurator catalogue or the published case already
+// states, or one the owner gave us (2026-10-12): the Box house sizes, frame, walls and glazing
+// are the gallery descriptions'; the capsule lines are gallery item 100015's and nothing more;
+// the hero photo and the proof card are the Paralia Kariani case on /api/cases-page. Do not
+// add a lead time, a permit or a foundation recommendation here; there is none we can stand
+// behind yet. The "not included" list is NOT here either: the page reads it from pricesCopy so
+// this page and /en/prices say it in the same words.
 export default {
-
-  getOffer: "Get an Offer",
-  askQuestion: "Ask a Question",
-
- title: 'Modular Houses',
-  lead: 'Two flexible product lines for permanent living: Expandable "Box" house and Space capsules',
-  sizes: 'Typical size range: 40–100 m²',
-  quick: {
-    h: 'Quick facts',
-    bath: 'Bathroom & kitchenette included',
-    facade: 'Facade options: metal / composite / wood (model‑dependent)',
-    floor: 'Flooring: SPC or PVC laminate',
-    assembly: 'Isolation: 100mm Rock Wool / PU / EPS',
-    viewPdf: 'Open brochure (page 2)',
-    brochureSlug: 'modular-builds',
-    brochurePage: 2,
-  },
-  models: {
-    house: {
-      kicker: 'Capsules with panoramic views',
-      title: 'Space capsule',
-      desc: '100/150/200 mm wall panels (Rock wool / PU / SPC), interior wall panels with finished surface. Bathroom, kitchen, AC and boiler included. Fully furnished!',
-      alt: 'Modular house exterior',
-      aria: 'Open brochure section: Modular house',
-      brochureSlug: 'space-capsules',
-      brochurePage: 1,
-      walls: '100/150/200 mm — Rock wool / PU / SPC',
-      facade: 'Metal / composite / wood',
-      flooring: 'SPC / PVC laminate' 
+  hero: {
+    eyebrow: 'Expandable houses and capsules',
+    h1: 'Modular houses for permanent living',
+    lead: 'Expandable (Box) houses from 18 to 74 m² that arrive folded and unfold on site, and a 38 m² capsule. Choose a size and build your house online.',
+    from: 'from',
+    basis: 'the house incl. VAT, assembly extra',
+    build: 'Build it online',
+    offer: 'Request a quote',
+    facts: [
+      'Fully equipped bathroom',
+      'Electrics and plumbing installed at the factory',
+      'Galvanised steel frame',
+    ],
+    // The default photo: the delivered 58 m² house from the published case. An admin photo
+    // (/admin/home-photos, the page-modular-houses slot) replaces it and drops the chip,
+    // since the chip names this house and the admin's photo may show another.
+    photo: {
+      url: '/api/img/cases/1/0ed68fb76fbe4876a9905da7d043216d.webp',
+      alt: 'A 58 m² expandable house with a veranda, delivered to Paralia Kariani, Greece',
+      position: '50% 45%',
     },
-    expandable: {
-      kicker: 'Modular house',
-      title: 'Expandable “Box” house',
-      desc: '50/75/100 mm wall panels (Rock wool / PU / SPC). Bathroom and kitchenette included. 3mm thickness of the strucutre. ',
-      alt: 'Expandable house extended',
-      aria: 'Open brochure section: Expandable modular house',
-      brochureSlug: 'box-house',
-      brochurePage: 1,
-      walls: '50/75/100 mm — Rock wool / PU / SPC',
-      facade: 'PU panels or metal facade',
-      flooring: 'SPC / PVC laminate'
-    }
+    adminAlt: 'An NVC Home4You expandable modular house',
   },
-  mats: {
-    h: 'Materials & components',
-    note: 'Shown materials reflect the standard specs; custom options available.',
-    mat1: 'Rock wool',
-    mat2: 'PU',
-    mat3: 'SPC',
-    mat4: 'PVC glazing',
-    mat5: 'Steel frame'
+
+  // The published case (/api/cases-page, id "2"). The API's text is Bulgarian only, so the
+  // line, the result and the buyer's name are written here once per language; the photos,
+  // the quote and the rating are read from the API, and the card is not drawn if the case is
+  // ever unpublished.
+  case: {
+    id: '2',
+    line: '58 m² with veranda · Paralia Kariani, Greece · 2026',
+    result: 'Delivered and assembled, ready to move into.',
+    name: 'Vangelis',
   },
-  table: {
-    caption: 'Comparison of modular house vs expandable modular house',
-    feature: 'Feature',
-    size: 'Size range',
-    // 78 here against the 73 m² model everywhere else is an open question for the owner;
-    // the figure is carried over unchanged until it is answered.
-    sizeExpandable: '37 m² / 58 m² / 78 m²',
-    walls: 'Walls',
-    facade: 'Facade options',
-    floor: 'Flooring',
-    interior: 'Interior walls',
-    bath: 'Bathroom & kitchenette',
-    assembly: 'Metal frame',
-    included: 'Included',
-    depends: 'Project‑dependent',
-    days: '3мм galvanized frame ',
-    facadeHouse: 'Metal / composite / wood',
-    facadeExp: 'PU panels or metal facade',
-    interiorHouse: 'Wall panels with finished surface',
-    interiorExp: 'Panels with decorative coating'
-  }
+
+  sizes: {
+    heading: 'Choose your expandable house size',
+    sub: 'The house price includes VAT; assembly is extra and shown beneath it. The 37, 58 and 73 m² models can be built in the configurator.',
+    allPrices: 'The full price table →',
+    allPhotos: 'Photos of every modular house →',
+    basis: 'incl. VAT, assembly extra',
+    assembly: '+ assembly {price} incl. VAT',
+    assemblyOnRequest: 'Assembly on request',
+    variant: 'With veranda and double roof: {house} + assembly {assembly}',
+    variantOnRequest: 'With veranda and double roof: {house}, assembly on request',
+    build: 'Build it online',
+    ask: 'Request a quote for this model',
+    more: 'Details →',
+    // One line per card, keyed by gallery id: what this size has that the others do not.
+    diff: {
+      100016: 'The smallest model, with a fully equipped bathroom and kitchen',
+      10: '3.0 mm frame, 2.2 × 1.25 m bathroom',
+      5: '3.5 mm frame, 2.4 × 1.25 m bathroom',
+      9: '4.0 mm frame, 2.8 × 1.25 m bathroom',
+      16: 'A roof over the whole house and a 2 m wide balcony',
+      17: 'Two floors with an inside staircase and a 2 m balcony',
+    },
+  },
+
+  capsule: {
+    basis: 'incl. VAT, assembly on request',
+    lines: [
+      '38 m², 11.5 × 3.3 m',
+      '3.5 mm galvanised steel frame',
+      '100 mm walls with polyurethane insulation and aluminium cladding',
+      'Thermally broken aluminium frames with tempered double glazing',
+      'Entrance door with a smart lock',
+    ],
+  },
+
+  compare: {
+    heading: 'Box house or capsule',
+    columns: ['Feature', 'Box house', 'Capsule'],
+    rows: [
+      { label: 'Floor area', values: ['18–74 m²', '38 m²'] },
+      { label: 'Frame', values: ['Galvanised steel, 3.0 / 3.5 / 4.0 mm for 37 / 58 / 73 m²', 'Galvanised steel, 3.5 mm'] },
+      { label: 'Walls', values: ['100 mm rock wool at 80 kg/m³, fire class A, and a 16 mm polyurethane facade', '100 mm with polyurethane insulation, aluminium cladding'] },
+      { label: 'Windows', values: ['Thermally broken aluminium or PVC, double glazed', 'Thermally broken aluminium, tempered double glazing'] },
+    ],
+    priceLabel: 'Price from',
+    boxPrice: '{price}, assembly extra',
+    capsulePrice: '{price}, assembly on request',
+  },
+
+  // {folded} and {open} are the 37 m² model's widths from the configurator catalogue.
+  arrival: {
+    heading: 'How an expandable house arrives',
+    paragraphs: [
+      'An expandable house is made in the factory together with the bathroom, kitchen, windows and installations you chose. It travels folded and only opens out where it will stand, which is why some call it a folding house, some an extendable house and some simply a box house. We deliver it in Bulgaria and to other EU countries.',
+      'In transit the 37 m² model is {folded} m wide; unfolded it is {open} m. On site the house is lifted by crane onto the prepared foundation and unfolded. The installations inside are already built in at the factory.',
+    ],
+    pricesLink: 'Prices with assembly →',
+    includedHeading: 'What assembly covers',
+    excludedHeading: 'What is not included',
+    foundationAsk: 'The foundation you need depends on the site. Call us or ask us.',
+  },
+
+  proof: {
+    heading: 'Delivered to a customer',
+    sub: 'One of our expandable houses, already in its place.',
+    // Two of the case's own photos, shown only while the case still lists them.
+    photos: [
+      { url: '/api/img/cases/1/5f6e02eabc11410c89ab824cb2496488.webp', alt: 'The living room and kitchen of the house in Paralia Kariani' },
+      { url: '/api/img/cases/1/268f1b6801134d16ab11f700ac46faf5.webp', alt: 'The bathroom and its shower cabin in the house in Paralia Kariani' },
+    ],
+    more: 'See the project →',
+    stars: '{rating} out of 5',
+  },
+
+  catalogues: {
+    heading: 'Catalogues (PDF)',
+    subheading: 'The expandable houses and the capsule on paper, to print or to send to whoever you are deciding with.',
+    // The sizes and languages are what /api/brochures served on 2026-10-12: the box-house
+    // catalogue has an English edition, the capsule one is Bulgarian only. Update both when
+    // the admin uploads a new edition.
+    items: [
+      { brochureSlug: 'box-house', label: 'Expandable (Box) houses', note: '37 / 58 / 73 m² · 5.4 MB' },
+      { brochureSlug: 'space-capsules', label: 'Capsules', note: 'In Bulgarian · 3.4 MB' },
+    ],
+  },
+
+  siblings: {
+    heading: 'Looking for something else?',
+    go: 'Have a look →',
+    from: 'from',
+    withAssembly: 'incl. VAT and assembly',
+    containers: {
+      label: 'Container units',
+      desc: 'Living and office containers of 6×3, 7×3 and 8×3 m, assembled by us.',
+    },
+    steel: {
+      label: 'Steel-frame prefab houses to your plan',
+      desc: 'A steel-frame house built to your own design, or we prepare the design for you.',
+    },
+  },
+
+  finalTitle: 'Shall we talk about your house?',
+
+  // Product markup only, never shown.
+  listName: 'Modular houses',
+  schemaCategory: 'Modular house',
 }

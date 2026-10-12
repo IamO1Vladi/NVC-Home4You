@@ -7,6 +7,7 @@ import HomePage from './HomePage.jsx'
 import enHome from '../content/en/home.js'
 import { getPriceRows } from '../content/shared/prices.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
+import { forgetHomePhotos } from '../lib/homePhotos.js'
 
 // The home page as the redesign left it: the section order, the figures that must come
 // from the price helpers rather than the copy, the links that must carry the real model
@@ -49,6 +50,8 @@ describe('HomePage', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    // The photo body is kept for the visit (and its figure with it); each test is a first visit.
+    forgetHomePhotos()
   })
 
   it('renders the sections in the approved order', async () => {
@@ -80,13 +83,49 @@ describe('HomePage', () => {
     expect(container.querySelector('section.gl')).toBeNull()
   })
 
-  it('fills the hero lead from the price helpers', () => {
+  it('quotes the cheapest container in the hero lead, from the figure the photos call brings', async () => {
+    vi.stubGlobal('fetch', stubFetch({
+      photos: { hero: [], models: { 37: null, 58: null, 73: null }, from: { wagon: 4300, modular: 10500 } },
+    }))
+    const { container } = renderHome()
+
+    // The cheapest thing sold, VAT and assembly in (owner, 2026-10-12), not the Box house the
+    // strip below quotes; and the figure is the API's, not one typed into the copy.
+    await waitFor(() => expect(container.querySelector('.hp-lead')).toHaveTextContent('€4,300'))
+    expect(container.querySelector('.hp-lead strong')).toHaveTextContent('€4,300')
+    expect(container.querySelector('.hp-lead')).toHaveTextContent(enHome.home.hero.lead.replace('{price}', '€4,300'))
+    expect(container.querySelector('.hp-lead')).not.toHaveTextContent('€14,000')
+    // One request for photos and figure together.
+    expect(global.fetch.mock.calls.filter(([url]) => String(url).includes(PHOTOS_URL))).toHaveLength(1)
+    // The strip keeps quoting its Box models from its own helpers.
+    expect(screen.getByRole('heading', { level: 2, name: '3 models from €14,000 — build yours online' })).toBeInTheDocument()
+  })
+
+  it('prints the lead without any figure until the API gives one', async () => {
     vi.stubGlobal('fetch', stubFetch())
     const { container } = renderHome()
 
-    // The house alone: the home page quotes it without the assembly the prices page adds.
-    expect(container.querySelector('.hp-lead')).toHaveTextContent('€14,000')
-    expect(container.querySelector('.hp-lead')).not.toHaveTextContent('assembly')
+    // While the call is out and after it fails (a 404 here), the lead has no figure at all.
+    expect(container.querySelector('.hp-lead')).toHaveTextContent(enHome.home.hero.leadNoPrice)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining(PHOTOS_URL), expect.anything()))
+    expect(container.querySelector('.hp-lead')).toHaveTextContent(enHome.home.hero.leadNoPrice)
+    expect(container.querySelector('.hp-lead')).not.toHaveTextContent('€')
+    expect(container.querySelector('.hp-lead strong')).toBeNull()
+  })
+
+  it('prints the lead without a figure when an older API sends photos but no from', async () => {
+    vi.stubGlobal('fetch', stubFetch({ photos: { hero: [], models: { 37: null, 58: null, 73: null } } }))
+    const { container } = renderHome()
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining(PHOTOS_URL), expect.anything()))
+    expect(container.querySelector('.hp-lead')).toHaveTextContent(enHome.home.hero.leadNoPrice)
+    expect(container.querySelector('.hp-lead')).not.toHaveTextContent('€')
+  })
+
+  it('accents the slogan and points the second hero button at the prices strip', () => {
+    vi.stubGlobal('fetch', stubFetch())
+    const { container } = renderHome()
+
     expect(container.querySelector('.hp-slogan .hp-em')).toHaveTextContent('home')
     // The second hero button jumps to the prices strip, whose id is the anchor.
     expect(screen.getByRole('link', { name: enHome.home.hero.pricesCta })).toHaveAttribute('href', '#prices')
@@ -136,9 +175,10 @@ describe('HomePage', () => {
       expect(a.getAttribute('rel')).toContain('noopener')
     })
 
-    // The strip's "Prefer paper?" line points at the general catalogue, in English too.
+    // The strip's "Prefer paper?" line sits under the box-house prices, so it opens the
+    // box-house brochure rather than the general catalogue, in English too.
     const paper = container.querySelector('.hp-paper a[target="_blank"]')
-    expect(paper.getAttribute('href')).toBe('/api/brochures/modular-builds.pdf?lang=en#page=1')
+    expect(paper.getAttribute('href')).toBe('/api/brochures/box-house.pdf?lang=en#page=1')
   })
 
   it('prints the phone and the email as links, from the content file', () => {
@@ -178,7 +218,7 @@ describe('HomePage', () => {
     const tabs = screen.getAllByRole('tab')
     expect(tabs).toHaveLength(5)
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
-    expect(tabs[0]).toHaveAttribute('aria-label', 'Photo 1 of 5: Modular builds')
+    expect(tabs[0]).toHaveAttribute('aria-label', 'Photo 1 of 5: Container units')
   })
 
   it('uses the admin slots for the hero and the model cards when the API has them', async () => {

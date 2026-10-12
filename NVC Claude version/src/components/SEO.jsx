@@ -29,6 +29,9 @@ export default function SEO({
   imageWidth = 1200,
   imageHeight = 630,
   imageAlt,
+  // The default share picture is a JPEG; a page that passes its own /api/img photo passes
+  // image/webp with it (routeMeta.js pageImage), since that is what the resizer serves.
+  imageType = 'image/jpeg',
 }) {
   const ogLocale = OG_LOCALE[locale] || locale
   const ogImage = toAbsolute(image) || DEFAULT_OG_IMAGE
@@ -59,7 +62,7 @@ export default function SEO({
       <meta property="og:url" content={pageUrl} />
       <meta property="og:image" content={ogImage} />
       <meta property="og:image:secure_url" content={ogImage} />
-      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:type" content={imageType} />
       <meta property="og:image:width" content={String(imageWidth)} />
       <meta property="og:image:height" content={String(imageHeight)} />
       <meta property="og:image:alt" content={imageAlt || title || 'NVC Home4You'} />
@@ -69,6 +72,7 @@ export default function SEO({
       {title && <meta name="twitter:title" content={title} />}
       {description && <meta name="twitter:description" content={description} />}
       <meta name="twitter:image" content={ogImage} />
+      <meta name="twitter:image:alt" content={imageAlt || title || 'NVC Home4You'} />
 
       {/* Canonical + hreflang. Skip canonical on noindex pages (e.g. 404) so we don't
           assert a canonical URL for a page we're telling crawlers to drop. */}

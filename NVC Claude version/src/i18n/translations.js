@@ -3,9 +3,9 @@ export const dictionaries = {
     brand: { name: 'NVC HOME4YOU', motto: 'Trust & Security' },
     nav: {
       services: 'Our Products & Services',
-  modularBuilds: 'Мodular builds',
+  modularBuilds: 'Container units',
   modularHouses: 'Modular houses',
-  steelHouses: 'Steel houses',
+  steelHouses: 'Steel-frame prefab houses to your plan',
   interiors: 'Interiors',
   delivery: 'Door-to-door delivery',
   gallery: 'Gallery',
@@ -204,56 +204,6 @@ export const dictionaries = {
       }
     },
 
-
-steel: {
-  title: 'Metal construction houses',
-  lead: 'Light, strong, and flexible. We build your home on a galvanized steel frame with a customized layout, designed for efficiency and durability.',
-
-  viewBrochure: 'View brochure (page 3)',
-
-  spec: {
-    areaH: 'Size',
-    floorsH: 'Floors',
-    bedroomsH: 'Bedrooms',
-    frameH: 'Construction',
-    bedroomsNumber:'Up to 5',
-    frameTick:'2.1 mm steel'
-  },
-
-  quick: {
-    h: 'Quick facts',
-    facade: 'Facade: 16mm PU metal panels with wood or composite cladding.',
-    roof: 'Roof: gable; sandwich roof panel or bitumen shingles',
-    insul: 'Insulation: 100mm / 150mm / 200mm stone wool / PU / EPS.',
-    interiors: 'Interior: Wall panels of any kind.',
-  },
-
-  steps: {
-    h: 'Process',
-    s1: 'Laying the groundwork for a stable structure.',
-    s2: 'Assembling the steel frame.',
-    s3: 'Applying insulation, OSB, and hydro cloth.',
-    s4: 'Installing cladding, roof, and windows.',
-    s5: 'Installing kitchen, bathroom, and overall interior decoration.',
-  },
-
-  logi: {
-    h: 'International logistics',
-    p: 'Door‑to‑door flows from China, Vietnam and Thailand to Europe and the Americas.',
-    modes: 'Sea (LCL/FCL), air, rail and combined transport',
-    terms: 'Terms: EXW/FOB → DAP/DDP',
-    customs: 'Customs clearance included',
-    cta: 'Request a delivered quote',
-  },
-
-  gallery: {
-    h: 'Gallery',
-    alt: 'Steel house photo {idx}',
-    prev: 'Previous image',
-    next: 'Next image',
-    goto: 'Go to image {idx}',
-  }
-},
 
 interiors: {
   title: 'Interior renovations',
@@ -751,9 +701,9 @@ internalDoors: {
     brand: { name: 'NVC HOME4YOU', motto: 'Доверие и Сигурност' },
     nav: {
       services: 'Нашите услуги',
-  modularBuilds: 'Модулни постройки',
+  modularBuilds: 'Контейнерни модули',
   modularHouses: 'Модулни къщи',
-  steelHouses: 'Къщи от метална констркуция',
+  steelHouses: 'Сглобяеми къщи по проект',
   interiors: 'Вътрешни ремонти',
   delivery: 'Доставка до вратата',
   gallery: 'Каталог',
@@ -988,56 +938,6 @@ internalDoors: {
     desc: 'Сервизен прозорец. SPC настилка, издръжлива и лесна за почистване. Санитарен възел и кухня.',
     alt: 'Търговски модул — изображение',
     aria: 'Отвори брошура: Търговски',
-  }
-},
-
-steel: {
-  title: 'Къщи от стоманена конструкция',
-  lead: 'Леки, здрави и гъвкави. Изграждаме вашия дом върху галванизирана стоманена рамка — разпределение по избор. Леки, здрави и гъвкави. Изграждаме вашия дом върху галванизирана стоманена рамка с разпределение по избор.',
-
-  viewBrochure: 'Виж брошурата (стр. 3)',
-
-  spec: {
-    areaH: 'Площ',
-    floorsH: 'Етажи',
-    bedroomsH: 'Спални',
-    frameH: 'Конструкция',
-    bedroomsNumber:'До 5',
-    frameTick:'2.1мм дебелина'
-  },
-
-  quick: {
-    h: 'Накратко',
-    facade: 'Фасада: 16мм PU метални панели с дървесем или композитен обков.',
-    roof: 'Покрив: двускатен; покривен панел или битумни керемиди',
-    insul: 'Изолация: 100мм / 150мм / 200мм от Каменна вата / PU / EPS',
-    interiors: 'Интериор: стенни панели от всякакъв вид',
-  },
-
-  steps: {
-    h: 'Процес',
-    s1: 'Проектиране и изграждане на основа.',
-    s2: 'Сглобяване на стоманената конструкция.',
-    s3: 'Поставяне на изолация, OSB и хидрофилм.',
-    s4: 'Монтаж на обшивка, покрив и прозорци.',
-    s5: 'Монтаж на кухня, баня и цялостния интериор.',
-  },
-
-  logi: {
-    h: 'Международна логистика',
-    p: 'Доставка до вратата от Китай, Виетнам и Тайланд към Европа и Америките.',
-    modes: 'Морски (LCL/FCL), въздушен, жп и комбиниран транспорт',
-    terms: 'Търговски условия: EXW/FOB → DAP/DDP',
-    customs: 'Включено митническо оформяне',
-    cta: 'Поискай оферта с доставка',
-  },
-
-  gallery: {
-    h: 'Галерия',
-    alt: 'Снимка на стоманена къща {idx}',
-    prev: 'Предишно изображение',
-    next: 'Следващо изображение',
-    goto: 'Към изображение {idx}',
   }
 },
 

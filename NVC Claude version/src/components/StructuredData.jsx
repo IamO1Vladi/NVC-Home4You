@@ -79,13 +79,24 @@ function oneYearFromNowISO() {
   return toISODate(oneYear)
 }
 
+// Structured data is read out of context, by crawlers that have no page to resolve a
+// site-relative path against, so every URL it publishes is absolute. Gallery covers arrive
+// as /api/img/... and used to go out exactly so.
+const SITE_ORIGIN = 'https://nvc-home4you.eu'
+
+function toAbsoluteUrl(value) {
+  if (!value || typeof value !== 'string') return value
+  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return value
+  return `${SITE_ORIGIN}${value.startsWith('/') ? '' : '/'}${value}`
+}
+
 function asImageArray(image) {
   if (!image) return undefined
   if (Array.isArray(image)) {
-    const arr = image.filter(Boolean)
+    const arr = image.filter(Boolean).map(toAbsoluteUrl)
     return arr.length ? arr : undefined
   }
-  return [image]
+  return [toAbsoluteUrl(image)]
 }
 
 function makeDefaultReturnPolicy({ applicableCountry = 'BG' } = {}) {
@@ -191,14 +202,68 @@ export function BreadcrumbsJSONLD({ items = [] }) {
   return <JsonLD data={data} />
 }
 
+// The @id of the Organization that index.html publishes on every page, in raw HTML (outside
+// the SEO markers, so no route replaces it). Markup that names NVC Home4You as a provider or
+// seller points at it by this id, and a crawler joins the two into one entity rather than
+// reading a second, thinner company. Keep it equal to the "@id" in index.html.
+export const ORGANIZATION_ID = 'https://nvc-home4you.eu/#organization'
+
+/**
+ * A service NVC Home4You provides, for a page that sells one with no fixed price: the
+ * steel-frame houses, each its own project. No offers and no price, because the page has
+ * none to show; no FAQ, rating or review either, since none has been approved for it.
+ *
+ * `provider` is the site's Organization by ORGANIZATION_ID, with its name and url so the
+ * node still reads on its own. `areaServed` defaults to the Organization's own ["BG", "EU"].
+ */
+export function ServiceJSONLD({
+  name,
+  serviceType,
+  description,
+  url,
+  image,
+  areaServed = ['BG', 'EU'],
+}) {
+  if (!name || !url) return null
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    '@id': `${toAbsoluteUrl(url)}#service`,
+    name,
+    serviceType: serviceType || name,
+    description,
+    url: toAbsoluteUrl(url),
+    image: asImageArray(image),
+    areaServed,
+    provider: {
+      '@type': 'Organization',
+      '@id': ORGANIZATION_ID,
+      name: 'NVC Home4You',
+      url: 'https://nvc-home4you.eu/',
+    },
+  }
+  return <JsonLD data={data} />
+}
+
 /**
  * Product list JSON-LD (Merchant listings / Product structured data).
  *
- * Compatibility additions in this migrated version:
- * - accepts `currency` or `priceCurrency`
- * - accepts `image`, `imageUrl`, `coverUrl`, `coverURL`
- * - accepts `name` or `title`
- * - accepts `description` or `desc`
+ * Emit it only beside the prices it publishes: the product pages and /bg/ceni build `items`
+ * from the same gallery rows their cards render (src/lib/productRows.js productJsonLdItems,
+ * PricesPage), so search engines are told the figure the visitor reads.
+ *
+ * - Currency defaults to EUR, the currency every price on the site is in. The old container
+ *   page passed BGN beside euro figures and told Google a €4,300 unit cost 4,240 leva.
+ * - url and image are made absolute here, whatever the caller passes.
+ * - No return policy unless the caller passes one. The default used to declare
+ *   MerchantReturnNotPermitted for every product, a legal claim nobody had made; the field
+ *   is recommended, not required, so absent is better than invented.
+ * - Each product's @id is its url with "#product", or, when the url already points at an
+ *   anchor (the prices page's #item-13), that anchor's page with "#product-<sku>", so no
+ *   @id carries two fragments.
+ *
+ * Compatibility: accepts `currency` or `priceCurrency`; `image`, `imageUrl`, `coverUrl` or
+ * `coverURL`; `name` or `title`; `description` or `desc`.
  */
 export function ProductsJSONLD({
   items = [],
@@ -210,7 +275,7 @@ export function ProductsJSONLD({
   defaultCurrency = 'EUR',
   defaultAvailability = 'https://schema.org/InStock',
   defaultItemCondition = 'https://schema.org/NewCondition',
-  defaultReturnPolicy = makeDefaultReturnPolicy({ applicableCountry: 'BG' }),
+  defaultReturnPolicy,
   defaultShippingDetails,
   defaultAggregateRating,
 }) {
@@ -227,6 +292,7 @@ export function ProductsJSONLD({
 
       return {
         ...p,
+        url: toAbsoluteUrl(p.url),
         price,
         image,
         name,
@@ -246,17 +312,27 @@ export function ProductsJSONLD({
 
   if (!eligible.length) return null
 
+  // The site's Organization (ORGANIZATION_ID), so each offer's seller is the same entity
+  // index.html describes.
   const seller = {
     '@type': 'Organization',
+    '@id': ORGANIZATION_ID,
     name: sellerName,
     url: sellerUrl,
+  }
+
+  const productId = (p) => {
+    if (p['@id']) return p['@id']
+    const [page, anchor] = String(p.url).split('#')
+    const sku = p.sku || p.id
+    return anchor && sku ? `${page}#product-${sku}` : `${page}#product`
   }
 
   const data = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     name: listName,
-    url: listUrl,
+    url: toAbsoluteUrl(listUrl),
     itemListElement: eligible.map((p, idx) => {
       const offerCurrency = p.currency || p.priceCurrency || defaultCurrency
       const returnPolicy = p.returnPolicy || defaultReturnPolicy
@@ -265,10 +341,10 @@ export function ProductsJSONLD({
       return {
         '@type': 'ListItem',
         position: idx + 1,
-        url: p.url,
         item: {
           '@type': 'Product',
-          '@id': p['@id'] || `${p.url}#product`,
+          '@id': productId(p),
+          url: p.url,
           name: p.name,
           description: p.description,
           image: asImageArray(p.image),

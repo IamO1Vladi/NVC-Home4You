@@ -26,6 +26,13 @@ const escText = (s = '') =>
 
 function headTags(seo) {
   const { title, description, url, canonical, locale, hreflangs = [] } = seo
+  // A page with a share picture of its own (routeMeta.js pageImage: the product pages)
+  // carries it here too, so a scraper that reads only these tags sees what the page shows.
+  const image = seo.image || OG_IMAGE
+  const imageType = seo.image ? seo.imageType || 'image/jpeg' : 'image/jpeg'
+  const imageWidth = seo.image ? seo.imageWidth || 1200 : 1200
+  const imageHeight = seo.image ? seo.imageHeight || 630 : 630
+  const imageAlt = seo.imageAlt || title
   const ogLocale = OG_LOCALE[locale] || locale
   const ogAlternates = hreflangs
     .filter((h) => h.hrefLang !== 'x-default' && OG_LOCALE[h.hrefLang] && OG_LOCALE[h.hrefLang] !== ogLocale)
@@ -45,16 +52,17 @@ function headTags(seo) {
     `<meta property="og:title" content="${escAttr(title)}" />`,
     `<meta property="og:description" content="${escAttr(description)}" />`,
     `<meta property="og:url" content="${escAttr(url)}" />`,
-    `<meta property="og:image" content="${OG_IMAGE}" />`,
-    `<meta property="og:image:secure_url" content="${OG_IMAGE}" />`,
-    `<meta property="og:image:type" content="image/jpeg" />`,
-    `<meta property="og:image:width" content="1200" />`,
-    `<meta property="og:image:height" content="630" />`,
-    `<meta property="og:image:alt" content="${escAttr(title)}" />`,
+    `<meta property="og:image" content="${escAttr(image)}" />`,
+    `<meta property="og:image:secure_url" content="${escAttr(image)}" />`,
+    `<meta property="og:image:type" content="${escAttr(imageType)}" />`,
+    `<meta property="og:image:width" content="${imageWidth}" />`,
+    `<meta property="og:image:height" content="${imageHeight}" />`,
+    `<meta property="og:image:alt" content="${escAttr(imageAlt)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${escAttr(title)}" />`,
     `<meta name="twitter:description" content="${escAttr(description)}" />`,
-    `<meta name="twitter:image" content="${OG_IMAGE}" />`,
+    `<meta name="twitter:image" content="${escAttr(image)}" />`,
+    `<meta name="twitter:image:alt" content="${escAttr(imageAlt)}" />`,
     `<link rel="canonical" href="${escAttr(canonical || url)}" />`,
     ...alternates,
   ].join('\n    ')

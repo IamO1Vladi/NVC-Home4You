@@ -56,7 +56,7 @@ const TEXT = {
       },
       homePhotos: {
         name: 'Начална страница',
-        blurb: 'Снимките в началото на сайта и на трите модела. Промяната се вижда веднага.',
+        blurb: 'Снимките в началото на сайта, на трите модела и на продуктовите страници. Промяната се вижда веднага.',
       },
     },
     stats: {
@@ -122,7 +122,7 @@ const TEXT = {
       },
       homePhotos: {
         name: 'Home page',
-        blurb: 'The photos at the top of the site and on the three model cards. Changes show immediately.',
+        blurb: 'The photos at the top of the site, on the three model cards and on the product pages. Changes show immediately.',
       },
     },
     stats: {

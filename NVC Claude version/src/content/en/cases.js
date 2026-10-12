@@ -42,9 +42,9 @@ export default {
       'Show what you sold, to whom, where it was delivered, and what the outcome was.',
     filters: {
       all: 'All',
-      modularBuilds: 'Modular builds',
+      modularBuilds: 'Container units',
       modularHouses: 'Modular houses',
-      steelHouses: 'Steel houses',
+      steelHouses: 'Steel-frame prefab houses to your plan',
       interiors: 'Interiors',
       delivery: 'Delivery',
       logistics: 'Logistics',

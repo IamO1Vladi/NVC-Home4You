@@ -1,66 +1,127 @@
 // src/content/en/modularBuilds.js
+//
+// The words on the "Container units" page (/en/modular-builds). No price lives here: the
+// prices, the "from" figure, the assembly share of a price and the delivery rate come from
+// the gallery (/api/gallery), prices.js and delivery.js, and are filled into {amount},
+// {rate} and {price}. The title and description search engines read are in
+// src/seo/routeMeta.js.
+//
+// The table states only what the six gallery descriptions state. The kitchen, the crane,
+// the accommodation, the foundation and the made-to-order sizes are the owner's words
+// (2026-10-12).
 export default {
-  seo: {
-    title: 'Modular Builds for Living, Office and Retail | NVC Home4You',
-    description:
-      'Ready-to-install modular builds for living, office and retail. Explore standard, villa/office and retail modules from NVC Home4You.',
-    url: 'https://nvc-home4you.eu/en/modular-builds',
+  hero: {
+    eyebrow: 'Container units',
+    h1: 'Containers for living, office and site use',
+    lead: 'Residential and office containers of 6×3, 7×3 and 8×3 m with a bathroom, electrics and plumbing — delivered and assembled by us.',
+    from: 'from',
+    basis: 'incl. VAT and assembly',
+    cta: 'Get a Quote',
+    call: 'Call us',
+    facts: [
+      'Bathroom, electrics and plumbing fitted',
+      'Assembled on site by two of our workers, or by crane at your cost',
+      'Other sizes from 14 to 30 m² can be ordered',
+    ],
+    // A real daylight photo from the gallery (the 8 × 3 m model) until the owner uploads one
+    // of a delivered container in the admin panel. Not the night render.
+    photo: {
+      url: '/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp',
+      alt: 'Inside an 8 × 3 m container with a gable roof',
+      position: '50% 55%',
+    },
+    // Read only when the admin set a photo but left its description empty: the default
+    // photo's alt describes a different picture.
+    adminAlt: 'A container unit by NVC Home4You',
   },
-  listName: 'Modular Builds',
-  schemaCategory: 'Modular builds',
-  currency: 'BGN',
-  title: 'Modular Builds',
-  heroLead:
-    'Ready-to-install modules for living, office or retail. Built to your design or a standard model. Engineered for quick assembly and long-term use.',
-  sizes: 'Standard sizes: 14 m²; 18 m²; 21 m²; 25 m²; 28 m²; 30 m²',
-  heroAlt: 'Modular building visualization',
-  heroImage: '/api/img/content/bvk4n834b-rc7-eg-vb.webp',
-  pdfNote: 'Brochures open in a new tab.',
-  products: [
-    {
-      key: 'standard',
-      kicker: 'Standard',
-      title: 'Villa / Office / Site',
-      desc: '7000×3000 mm, sandwich-panel walls 50/75/100 mm (rock wool/PU/SPC), PVC double glazing.',
-      alt: 'Standard module — image',
-      aria: 'Open brochure: Standard',
-      image: '/api/img/content/bvk4n834b-rcu-eg-vb.webp',
-      brochureSlug: 'standard-containers',
-      brochurePage: 1,
-      price: 4240,
-      schemaName: 'Standard modular unit',
-      schemaDescription:
-        'Standard modular unit for living, office or temporary site use with 50/75/100 mm sandwich panels and PVC double glazing.',
+
+  units: {
+    heading: 'Choose a residential or office container',
+    lead: 'Six standard models. Every price includes VAT and assembly.',
+    basis: 'incl. VAT and assembly',
+    ask: 'Request a quote for this model',
+    more: 'Details →',
+    // By gallery id: what sets the model apart from the one beside it. A new model with no
+    // line here is simply shown without one.
+    diff: {
+      13: 'The base model, 6 × 3 m',
+      6: 'The base model, one metre longer: 7 × 3 m',
+      12: 'A fully glazed wall in an aluminium frame and a PU facade; bathroom with toilet and basin, no shower',
+      14: 'Decorative 16 mm PU facade panels',
+      7: 'Decorative 16 mm PU facade panels',
+      8: 'Gable roof and a 1500 × 1600 mm window',
     },
-    {
-      key: 'villa',
-      kicker: 'Villa / Office',
-      title: 'Comfort & Panorama',
-      desc: 'PVC double glazing, 2.3 mm galvanized steel frame, client-defined layout.',
-      alt: 'Villa / Office — image',
-      aria: 'Open brochure: Villa / Office',
-      image: '/api/img/content/bvk4n834b-rcv-eg-vb.webp',
-      brochureSlug: 'villa-office',
-      brochurePage: 1,
-      price: 4950,
-      schemaName: 'Villa / Office module',
-      schemaDescription:
-        'Higher-comfort modular unit with panoramic glazing for office, villa or client-specific layouts.',
+    madeToOrder: 'Other sizes from the catalogue, 14 to 30 m², are not in stock, but we can order them for you. Just ask.',
+    loadError: 'We could not load the prices.',
+    pricesLink: 'Full price table →',
+    galleryLink: 'Photos of every container →',
+  },
+
+  specs: {
+    heading: 'What every container has',
+    lead: 'The same in all six models, except where noted.',
+    rows: [
+      { label: 'Structure', value: 'Galvanised steel frame, 2.3 mm' },
+      { label: 'Walls and insulation', value: '50 mm panels with 100 kg/m³ rock wool' },
+      { label: 'Windows', value: 'PVC, double glazed, 950 × 1200 mm; 1500 × 1600 mm on the 8 × 3 m model' },
+      { label: 'Floor', value: 'PVC; SPC or tiles in the bathroom, your choice' },
+      { label: 'Electrics and plumbing', value: 'Fully installed' },
+      { label: 'Bathroom', value: 'Toilet, basin with cabinet and shower tray; no shower in the panoramic office' },
+      { label: 'Kitchen', value: 'Not included. There is a room that can be used as one.' },
+    ],
+    // Two photos of the models themselves, from the gallery: the item's id and the photo's place in it.
+    photos: [
+      { id: 13, index: 1, alt: 'The bathroom of a 6 × 3 m container: shower tray, basin with cabinet and toilet' },
+      { id: 6, index: 1, alt: 'Inside a 7 × 3 m container: PVC floor and a double-glazed window' },
+    ],
+  },
+
+  assembly: {
+    heading: 'Assembly and delivery',
+    includedLabel: 'Assembly',
+    included: 'Included in the price of every model: {amount} of it is the assembly.',
+    craneLabel: 'With a crane',
+    crane: 'If you prefer, the container is set in place by crane, which you pay for.',
+    noCraneLabel: 'Without a crane',
+    noCrane: 'If you do not want a crane, two of our workers build the container on site at your place. You then arrange their accommodation for three nights.',
+    foundationLabel: 'Foundation',
+    foundation: 'The foundation it needs depends on the location. Call us or ask us about your plot.',
+    deliveryLabel: 'Delivery',
+    delivery: 'We deliver from Marikostinovo, Bulgaria: {rate} per kilometre, counted both ways.',
+    deliveryLink: 'Estimate delivery to your address →',
+    ask: 'Ask a Question',
+    call: 'Call us',
+  },
+
+  reviewsHeading: 'What buyers say',
+
+  catalogues: {
+    heading: 'Catalogues (PDF)',
+    subheading: 'The catalogues are in Bulgarian for now. The current prices are the ones on this page.',
+    items: [
+      { brochureSlug: 'standard-containers', label: 'Standard containers', note: '14–30 m² units' },
+      { brochureSlug: 'villa-office', label: 'Villa / Office', note: 'Living and working modules' },
+      { brochureSlug: 'sloped-roof', label: 'Sloped roof', note: 'Sloped-roof units' },
+    ],
+  },
+
+  siblings: {
+    heading: 'Looking for something else?',
+    go: 'See them →',
+    houses: {
+      label: 'Modular houses',
+      desc: 'Expandable Box houses and capsules for living in all year round.',
+      price: 'from {price} incl. VAT, without assembly',
     },
-    {
-      key: 'retail',
-      kicker: 'Retail',
-      title: 'Ready for Business',
-      desc: 'Bathroom and kitchenette included; SPC wood-texture floor / PVC laminated parquet.',
-      alt: 'Retail module — image',
-      aria: 'Open brochure: Retail',
-      image: '/api/img/content/bvk4n834b-rcw-eg-vb.webp',
-      brochureSlug: 'sloped-roof',
-      brochurePage: 1,
-      price: 5370,
-      schemaName: 'Retail module',
-      schemaDescription:
-        'Retail-ready modular unit with bathroom and kitchenette included for commercial use.',
+    steel: {
+      label: 'Steel-frame prefab houses to your plan',
+      desc: 'Send us your plan for a quote, or we prepare the plan for you.',
     },
-  ],
+  },
+
+  finalTitle: 'Shall we talk about your container?',
+
+  // Product markup: the list's name and each model's category.
+  listName: 'Container units',
+  schemaCategory: 'Living containers',
 }

@@ -26,9 +26,9 @@ export default {
         {
           title: 'Σπίτια Κοντέινερ & Προκατασκευασμένα',
           items: [
-            { pathKey: 'modularBuilds', label: 'Δομικές κατασκευές' },
+            { pathKey: 'modularBuilds', label: 'Μονάδες-κοντέινερ' },
             { pathKey: 'modularHouses', label: 'Δομικά σπίτια' },
-            { pathKey: 'steelHouses', label: 'Μεταλλικά σπίτια' },
+            { pathKey: 'steelHouses', label: 'Μεταλλικά σπίτια σε δικό σας σχέδιο' },
           ],
         },
         {
@@ -69,8 +69,11 @@ export default {
     hero: {
       eyebrow: 'Προκατασκευασμένα σπίτια και σπίτια-κοντέινερ',
       title: 'Γιατί ένα <g>σπίτι</g> δεν πρέπει να είναι έξοδο',
-      // Το {price} έρχεται από το startingHousePrice(locale) μέσω του euro(), ποτέ γραμμένο εδώ.
+      // Το {price} είναι το φθηνότερο κοντέινερ της γκαλερί (με ΦΠΑ και συναρμολόγηση), από το
+      // /api/home/photos μέσω του euro(), ποτέ γραμμένο εδώ. Μέχρι να είναι γνωστό, η αρχή
+      // δείχνει το leadNoPrice, την ίδια πρόταση χωρίς ποσό.
       lead: 'Προκατασκευασμένα σπίτια και σπίτια-κοντέινερ από {price} με ΦΠΑ. Με έδρα το Πέτριτς Βουλγαρίας, παραδίδουμε σε όλη την ΕΕ.',
+      leadNoPrice: 'Προκατασκευασμένα σπίτια και σπίτια-κοντέινερ με σαφείς τιμές. Με έδρα το Πέτριτς Βουλγαρίας, παραδίδουμε σε όλη την ΕΕ.',
       primaryCta: 'Ζητήστε προσφορά',
       pricesCta: 'Δείτε μοντέλα & τιμές',
       facts: ['87 σπίτια παραδόθηκαν', 'Τιμές με ΦΠΑ', 'Σπίτια από το 2022'],
@@ -80,10 +83,10 @@ export default {
         openLabel: 'Άνοιγμα',
         slidesLabel: 'Φωτογραφίες',
         slides: [
-          { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Δομικές κατασκευές', pathKey: 'modularBuilds', frame: { position: '30% 50%', scale: 1.22 } },
+          { src: '/api/img/content/bukcsfwf9-rdg-eg-vb.webp', alt: 'Μονάδες-κοντέινερ', pathKey: 'modularBuilds', frame: { position: '30% 50%', scale: 1.22 } },
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Δομικά σπίτια', pathKey: 'modularHouses' },
-          { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Δομικές κατασκευές', pathKey: 'modularBuilds' },
-          { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Μεταλλικά σπίτια', pathKey: 'steelHouses' },
+          { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Μονάδες-κοντέινερ', pathKey: 'modularBuilds' },
+          { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Μεταλλικά σπίτια σε δικό σας σχέδιο', pathKey: 'steelHouses' },
           { src: '/api/img/content/bvk4n834b-rcz-eg-vb.webp', alt: 'Εσωτερικοί χώροι', pathKey: 'interiors' },
         ],
       },
@@ -129,16 +132,16 @@ export default {
         {
           key: 'modularHouses',
           pathKey: 'modularHouses',
-          title: 'Προκάτ σπίτια · από 37 m²',
-          desc: 'Μόνιμα σπίτια από 37 m²: επεκτάσιμα σπίτια Box και κάψουλες χώρου, με τη δική σας κάτοψη και φινιρίσματα.',
+          title: 'Προκάτ σπίτια · 18–74 m²',
+          desc: 'Σπίτια από 18 έως 74 m²: επεκτάσιμα σπίτια Box και κάψουλες χώρου, με τη δική σας κάτοψη και φινιρίσματα.',
           icon: 'home',
           img: '/api/img/content/bvk4n834b-rdb-eg-vd.webp',
         },
         {
           key: 'steelHouses',
           pathKey: 'steelHouses',
-          title: 'Μεταλλικά σπίτια',
-          desc: 'Ελαφριά και ανθεκτικά σπίτια με μεταλλικό σκελετό — έξυπνη λύση σε χρόνο και κόστος.',
+          title: 'Μεταλλικά σπίτια σε δικό σας σχέδιο',
+          desc: 'Σπίτια με μεταλλικό σκελετό με βάση τη δική σας μελέτη — ή εκπονούμε εμείς τη μελέτη για εσάς.',
           icon: 'steel',
           img: '/api/img/content/bvk4n834b-rdc-eg-vb.webp',
         },
