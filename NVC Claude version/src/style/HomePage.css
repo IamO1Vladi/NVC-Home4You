@@ -170,12 +170,22 @@
 @media (min-width:980px){ .hp-cats{ grid-template-columns:repeat(3,1fr) } }
 .hp-cat{ display:flex; align-items:center; gap:12px; padding:14px 16px; color:var(--hp-text); text-decoration:none; min-width:0 }
 .hp-cat:hover{ text-decoration:none; border-color:var(--hp-muted) }
-.hp-doc{
-  flex:none; width:40px; height:48px; border-radius:6px; border:1px solid var(--hp-line); background:var(--hp-surface-2);
-  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:var(--hp-brand); letter-spacing:.04em;
-}
-.hp-cat strong{ display:block; font-weight:600 }
+.hp-cat strong{ display:block; font-weight:600; color:var(--hp-text) }
 .hp-cat span{ display:block; color:var(--hp-muted); font-size:13px }
+/* Two classes deep on purpose: `.hp-cat span` above is (0,1,1) and would otherwise take the
+   tile's display, colour and size, the way it quietly did to the old "PDF" box. The tag
+   keeps the "this opens a document" cue the box used to carry. */
+.hp-cat .hp-cat-ico{
+  position:relative; flex:none; width:44px; height:44px; border-radius:12px;
+  border:1px solid var(--hp-line); background:var(--hp-surface-2); color:var(--hp-brand);
+  display:grid; place-items:center;
+}
+.hp-cat .hp-cat-ico .hp-ico{ width:26px; height:26px }
+.hp-cat .hp-cat-tag{
+  position:absolute; right:-6px; bottom:-6px; padding:2px 4px; border-radius:5px;
+  border:1px solid var(--hp-line); background:var(--hp-surface); color:var(--hp-muted);
+  font-size:9px; font-weight:600; line-height:1; letter-spacing:.04em;
+}
 
 /* Reviews. The shared .cs-review-card look is overridden here, under .hp only, so the
    cases page keeps its own. */
