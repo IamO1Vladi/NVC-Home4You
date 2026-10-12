@@ -84,26 +84,23 @@ public class ReviewService : IReviewStore
     }
 
     /// <summary>
-    /// The top <paramref name="take"/> approved reviews plus an aggregate (average rating and
-    /// total approved count) computed across the full approved set — used for social proof
-    /// near the homepage CTAs.
-    /// </summary>
-    public async Task<FeaturedReviewsResponse> GetFeaturedAsync(int take, CancellationToken ct)
-    {
-        var approved = await GetApprovedReviewsAsync(ct);
-        return BuildFeatured(approved, take);
-    }
-
-    /// <summary>
-    /// Pure projection of the approved set into the homepage feed: the aggregate average
+    /// Pure projection of the approved set into the featured feed: the aggregate average
     /// (rounded to one decimal, ignoring unrated entries), the total approved count, and the
     /// top <paramref name="take"/> items. Kept side-effect free so it can be unit tested
-    /// without Quickbase.
+    /// without Quickbase. Both stores reach it through IReviewStore.GetFeaturedAsync.
     /// </summary>
-    public static FeaturedReviewsResponse BuildFeatured(IReadOnlyList<PublicReviewDto> approved, int take)
+    /// <remarks>
+    /// With a <paramref name="product"/>, the set is narrowed to that product's reviews
+    /// first, so a product page's "4.8 from 12 reviews" counts only that product rather than
+    /// quoting the site-wide figure under a filtered list. The match is exact: the review form
+    /// saves a key such as "modularBuilds", and an older free-text product never matches one.
+    /// </remarks>
+    public static FeaturedReviewsResponse BuildFeatured(IReadOnlyList<PublicReviewDto> approved, int take, string? product = null)
     {
         if (approved is null) approved = Array.Empty<PublicReviewDto>();
         if (take <= 0) take = 3;
+        if (!string.IsNullOrEmpty(product))
+            approved = approved.Where(r => string.Equals(r.Product, product, StringComparison.Ordinal)).ToList();
 
         var rated = approved
             .Where(r => r.Rating > 0)

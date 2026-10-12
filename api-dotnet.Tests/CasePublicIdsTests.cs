@@ -43,7 +43,6 @@ public class CasePublicIdsTests
     private sealed class NoReviews : IReviewStore
     {
         public Task<List<PublicReviewDto>> GetApprovedReviewsAsync(CancellationToken ct) => Task.FromResult(new List<PublicReviewDto>());
-        public Task<FeaturedReviewsResponse> GetFeaturedAsync(int take, CancellationToken ct) => throw new NotSupportedException();
         public Task<long> CreatePendingReviewAsync(ReviewDto dto, CancellationToken ct) => throw new NotSupportedException();
     }
 

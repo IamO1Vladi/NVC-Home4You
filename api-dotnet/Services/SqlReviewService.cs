@@ -68,13 +68,6 @@ public class SqlReviewService : IReviewStore
             .ToList();
     }
 
-    public async Task<FeaturedReviewsResponse> GetFeaturedAsync(int take, CancellationToken ct)
-    {
-        var approved = await GetApprovedReviewsAsync(ct);
-        // Reuse the Quickbase reader's aggregation so both paths round and count identically.
-        return ReviewService.BuildFeatured(approved, take);
-    }
-
     public async Task<long> CreatePendingReviewAsync(ReviewDto dto, CancellationToken ct)
     {
         var review = new Data.Entities.Review

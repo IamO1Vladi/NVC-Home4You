@@ -15,7 +15,11 @@ public interface IReviewStore
 {
     Task<List<PublicReviewDto>> GetApprovedReviewsAsync(CancellationToken ct);
 
-    Task<FeaturedReviewsResponse> GetFeaturedAsync(int take, CancellationToken ct);
+    // The featured feed is the same projection of the approved list whichever store holds
+    // it, so it is written once here rather than in each store, where the two copies could
+    // drift. A null or empty product is the home page's feed over every approved review.
+    async Task<FeaturedReviewsResponse> GetFeaturedAsync(int take, string? product, CancellationToken ct)
+        => ReviewService.BuildFeatured(await GetApprovedReviewsAsync(ct), take, product);
 
     // Creates a review in the pending state, awaiting moderation. Returns its id.
     Task<long> CreatePendingReviewAsync(ReviewDto dto, CancellationToken ct);

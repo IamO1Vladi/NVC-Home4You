@@ -9,8 +9,9 @@ using Services;
 
 namespace Controllers;
 
-// The home-page photo screen's API (2026-10): eight fixed slots, and for each one upload,
-// pick from the gallery, clear, swap with a neighbour, or caption. The allow-list of names
+// The home-page photo screen's API (2026-10): eleven fixed slots — the home page's eight and
+// the three product pages' main photos — and for each one upload, pick from the gallery,
+// clear, swap with a neighbour (hero and model slots only), or caption. The allow-list of names
 // lives in HomeSlotNames and every verb refuses anything outside it HERE, not merely in the
 // panel, because a rule that lives only in the panel is one rebuild away from disappearing.
 //
@@ -43,7 +44,7 @@ public class AdminHomePhotosController : ControllerBase
     private string? Actor() =>
         User.FindFirst("preferred_username")?.Value ?? User.Identity?.Name;
 
-    // The allow-list rides along so the panel can draw all eight slots BEFORE any row
+    // The allow-list rides along so the panel can draw every slot BEFORE any row
     // exists — a screen that only shows what has been uploaded cannot show where an upload
     // belongs. The list itself already carries one entry per name for the same reason.
     [HttpGet]

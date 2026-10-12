@@ -13,8 +13,9 @@ using Xunit;
 
 namespace ApiDotnet.Tests;
 
-// The home page's photo slots (2026-10 redesign). Two things carry the design and both live
-// here: the eight slot names are an allow-list the write paths enforce, and the public read
+// The home page's photo slots (2026-10 redesign), and the product pages' main photos that
+// joined them on 2026-10-12. Two things carry the design and both live here: the eleven slot
+// names are an allow-list the write paths enforce, and the public read
 // of the busiest page on the site must keep answering — an empty answer — when the table
 // behind it is not there yet, because migrations are applied by hand before a publish and
 // nothing stops the order being reversed once.
@@ -44,11 +45,24 @@ public class HomeSlotTests
     // --- The allow-list -----------------------------------------------------------------
 
     [Fact]
-    public void The_eight_slots_are_the_five_hero_slides_then_the_three_models_in_page_order()
+    public void The_slots_are_the_hero_slides_then_the_models_then_the_product_pages_appended()
     {
+        // The product pages come LAST, not grouped elsewhere: the position is the upload
+        // key's owner id, so the eight home slots that may already hold uploads keep theirs.
         Assert.Equal(
-            new[] { "hero-1", "hero-2", "hero-3", "hero-4", "hero-5", "model-37", "model-58", "model-73" },
+            new[]
+            {
+                "hero-1", "hero-2", "hero-3", "hero-4", "hero-5", "model-37", "model-58", "model-73",
+                "page-modular-builds", "page-modular-houses", "page-steel-houses",
+            },
             HomeSlotNames.All);
+    }
+
+    [Fact]
+    public void Every_slot_name_fits_the_name_column()
+    {
+        // HomeSlot.Name is MaxLength(40); a longer name would need a migration, not a row.
+        Assert.All(HomeSlotNames.All, n => Assert.True(n.Length <= 40, n));
     }
 
     [Fact]
@@ -60,6 +74,9 @@ public class HomeSlotTests
         Assert.Equal(5, HomeSlotNames.IndexOf("hero-5"));
         Assert.Equal(6, HomeSlotNames.IndexOf("model-37"));
         Assert.Equal(8, HomeSlotNames.IndexOf("model-73"));
+        Assert.Equal(9, HomeSlotNames.IndexOf("page-modular-builds"));
+        Assert.Equal(10, HomeSlotNames.IndexOf("page-modular-houses"));
+        Assert.Equal(11, HomeSlotNames.IndexOf("page-steel-houses"));
         Assert.Equal(0, HomeSlotNames.IndexOf("hero-6"));
         Assert.Equal(0, HomeSlotNames.IndexOf(null));
     }
@@ -77,6 +94,34 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public void A_product_page_slot_is_its_own_kind_and_maps_to_the_spa_route_key()
+    {
+        Assert.Equal("page", HomeSlotNames.KindOf("page-modular-builds"));
+        Assert.Equal("page", HomeSlotNames.KindOf("page-steel-houses"));
+        // Not a model, whatever the old "not a hero means a model" rule would have said.
+        Assert.Null(HomeSlotNames.ModelKeyOf("page-modular-houses"));
+        Assert.Equal(0, HomeSlotNames.HeroNumberOf("page-modular-houses"));
+
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses" }, HomeSlotNames.PageKeys);
+        Assert.Equal("modularBuilds", HomeSlotNames.PageKeyOf("page-modular-builds"));
+        Assert.Equal("modularHouses", HomeSlotNames.PageKeyOf("page-modular-houses"));
+        Assert.Equal("steelHouses", HomeSlotNames.PageKeyOf("page-steel-houses"));
+        Assert.Null(HomeSlotNames.PageKeyOf("hero-1"));
+        Assert.Null(HomeSlotNames.PageKeyOf("page-gallery"));
+
+        Assert.Equal("page-steel-houses", HomeSlotNames.SlotOfPage("steelHouses"));
+        Assert.Null(HomeSlotNames.SlotOfPage("gallery"));
+        Assert.Null(HomeSlotNames.SlotOfPage(null));
+
+        Assert.Equal(
+            new[] { "page-modular-builds", "page-modular-houses", "page-steel-houses" },
+            HomeSlotNames.OfKind(HomeSlotNames.PageKind));
+        // The other kinds did not grow by accident.
+        Assert.Equal(5, HomeSlotNames.OfKind(HomeSlotNames.HeroKind).Count());
+        Assert.Equal(3, HomeSlotNames.OfKind(HomeSlotNames.ModelKind).Count());
+    }
+
+    [Fact]
     public void Names_outside_the_list_are_not_valid_whatever_they_look_like()
     {
         Assert.True(HomeSlotNames.IsValid("hero-1"));
@@ -86,6 +131,8 @@ public class HomeSlotTests
         Assert.False(HomeSlotNames.IsValid("hero-0"));
         Assert.False(HomeSlotNames.IsValid("hero-6"));
         Assert.False(HomeSlotNames.IsValid("model-box37"));
+        Assert.False(HomeSlotNames.IsValid("page-gallery"));
+        Assert.False(HomeSlotNames.IsValid("page-modularHouses"));
         Assert.False(HomeSlotNames.IsValid(""));
         Assert.False(HomeSlotNames.IsValid(null));
     }
@@ -115,6 +162,13 @@ public class HomeSlotTests
         Assert.EndsWith(".webp", key);
         Assert.Matches("^home/3/[0-9a-f]{32}\\.webp$", key);
         Assert.True(ImageKey.IsValid(key));
+    }
+
+    [Fact]
+    public void An_uploaded_product_page_photo_is_minted_after_the_home_slots()
+    {
+        var key = ImageKey.NewOwnedKey(ImageKey.HomeScope, HomeSlotNames.IndexOf("page-modular-houses"), "porch.jpg", ".webp");
+        Assert.Matches("^home/10/[0-9a-f]{32}\\.webp$", key);
     }
 
     [Fact]
@@ -153,6 +207,33 @@ public class HomeSlotTests
         Assert.Null(empty.ImageKey);
         Assert.Null(empty.Url);
         Assert.Null(empty.UpdatedAt);
+
+        // The product pages are listed too, untouched, indexed by the SPA's route key.
+        var steel = slots.Single(s => s.Name == "page-steel-houses");
+        Assert.Equal("page", steel.Kind);
+        Assert.Equal("steelHouses", steel.Index);
+        Assert.Null(steel.Url);
+    }
+
+    [Fact]
+    public async Task A_product_page_slot_takes_a_case_photo_like_any_other_slot()
+    {
+        // The houses page's default is the Paralia Kariani case photo; the owner may pin it,
+        // or another case photo, explicitly.
+        using var db = NewDb();
+        db.Cases.Add(new Case
+        {
+            Id = 3, CompanyName = "Paralia Kariani",
+            Images = { new CaseImage { ImageKey = CaseKey } },
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Svc(db).PickAsync("page-modular-houses", CaseKey, "owner@nvc.eu", CancellationToken.None);
+
+        Assert.True(result.Ok);
+        Assert.Equal("page", result.Slot!.Kind);
+        Assert.Equal("modularHouses", result.Slot.Index);
+        Assert.Equal("/api/img/" + CaseKey, result.Slot.Url);
     }
 
     // --- Pick: only photos the site already serves ------------------------------------
@@ -304,6 +385,32 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public async Task A_product_page_photo_is_never_swapped_not_even_with_another_page()
+    {
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "page-modular-builds", ImageKey = ContentKey, Alt = "containers" },
+            new HomeSlot { Name = "hero-1", ImageKey = GalleryKey });
+        await db.SaveChangesAsync();
+        var svc = Svc(db);
+
+        foreach (var (a, b) in new[]
+        {
+            ("page-modular-builds", "page-modular-houses"),
+            ("page-modular-builds", "hero-1"),
+            ("model-37", "page-steel-houses"),
+        })
+        {
+            var result = await svc.SwapAsync(a, b, null, CancellationToken.None);
+            Assert.Equal(HomePhotoService.Outcome.Refused, result.Outcome);
+        }
+
+        Assert.Equal(ContentKey, (await db.HomeSlots.SingleAsync(s => s.Name == "page-modular-builds")).ImageKey);
+        Assert.Equal(GalleryKey, (await db.HomeSlots.SingleAsync(s => s.Name == "hero-1")).ImageKey);
+        Assert.Equal(2, await db.HomeSlots.CountAsync());
+    }
+
+    [Fact]
     public async Task Swapping_a_slot_with_itself_is_refused()
     {
         using var db = NewDb();
@@ -378,6 +485,34 @@ public class HomeSlotTests
         Assert.Null(dto.Models["73"]);
         Assert.Equal("/api/img/" + GalleryKey, dto.Models["58"]!.Url);
         Assert.Equal("Box 58", dto.Models["58"]!.Alt);
+
+        // No page slot was touched: all three keys, all null.
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses" }, dto.Pages.Keys);
+        Assert.All(dto.Pages.Values, v => Assert.Null(v));
+    }
+
+    [Fact]
+    public async Task The_public_read_keys_the_product_page_photos_by_route_key()
+    {
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "page-modular-houses", ImageKey = CaseKey, Alt = "Paralia Kariani, 58 m²" },
+            new HomeSlot { Name = "page-steel-houses", ImageKey = "home/11/abc.webp" },
+            new HomeSlot { Name = "page-modular-builds", ImageKey = null, Alt = "cleared" });
+        await db.SaveChangesAsync();
+
+        var dto = await Svc(db).ReadPublicAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses" }, dto.Pages.Keys);
+        Assert.Null(dto.Pages["modularBuilds"]);
+        Assert.Equal("/api/img/" + CaseKey, dto.Pages["modularHouses"]!.Url);
+        Assert.Equal("Paralia Kariani, 58 m²", dto.Pages["modularHouses"]!.Alt);
+        Assert.Equal("/api/img/home/11/abc.webp", dto.Pages["steelHouses"]!.Url);
+        Assert.Equal("", dto.Pages["steelHouses"]!.Alt);
+
+        // A page photo is not a hero slide and not a model card.
+        Assert.Empty(dto.Hero);
+        Assert.All(dto.Models.Values, v => Assert.Null(v));
     }
 
     [Fact]
@@ -389,6 +524,17 @@ public class HomeSlotTests
         Assert.Empty(dto.Hero);
         Assert.Equal(new[] { "37", "58", "73" }, dto.Models.Keys);
         Assert.All(dto.Models.Values, v => Assert.Null(v));
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses" }, dto.Pages.Keys);
+        Assert.All(dto.Pages.Values, v => Assert.Null(v));
+    }
+
+    [Fact]
+    public void The_empty_shape_carries_every_page_key_too()
+    {
+        // What the public route answers on a machine with no database at all.
+        var dto = HomePhotosDto.Empty();
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses" }, dto.Pages.Keys);
+        Assert.All(dto.Pages.Values, v => Assert.Null(v));
     }
 
     [Fact]
@@ -407,6 +553,10 @@ public class HomeSlotTests
 
         await svc.ClearAsync("hero-1", null, default);
         Assert.Empty((await svc.ReadPublicAsync(default)).Hero);
+
+        // A product page's photo goes through the same eviction.
+        await svc.PickAsync("page-modular-builds", ContentKey, null, default);
+        Assert.NotNull((await svc.ReadPublicAsync(default)).Pages["modularBuilds"]);
     }
 
     // The migration is applied before the publish (DEPLOY §5b). If that order is ever
@@ -435,6 +585,7 @@ public class HomeSlotTests
         Assert.Empty(dto.Hero);
         Assert.Equal(new[] { "37", "58", "73" }, dto.Models.Keys);
         Assert.All(dto.Models.Values, v => Assert.Null(v));
+        Assert.All(dto.Pages.Values, v => Assert.Null(v));
 
         // Cached — the database is not asked again per request — but for the short TTL,
         // which is the part a test can only see as "an entry exists".

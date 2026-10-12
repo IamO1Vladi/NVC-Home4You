@@ -9,12 +9,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Models;
 
 namespace Services;
 
 /// <summary>
-/// The rows behind the home page's photo slots (HomeSlot, 2026-10): what the panel lists,
-/// what the public page reads, and the rules that keep a slot pointing at a real photo.
+/// The rows behind the home page's photo slots and the product pages' main photos
+/// (HomeSlot, 2026-10): what the panel lists, what the public pages read, and the rules that
+/// keep a slot pointing at a real photo.
 /// Blob bytes are the controller's business, through BlobImageSource — this class never
 /// touches storage, which is what keeps every rule here testable against an in-memory
 /// database, the same split as PublicDocumentService.
@@ -25,11 +27,16 @@ public sealed class HomePhotoService
     private readonly ImageUrls _imageUrls;
     private readonly IMemoryCache _cache;
     private readonly ILogger<HomePhotoService> _log;
+    private readonly IGalleryStore? _gallery;
 
-    // The public read is one eight-row query, but the home page is the busiest page on the
-    // site and the prerenderer hits it three times per run, so it is cached like the
-    // gallery is. Every write path below evicts by this name.
-    public const string CacheKey = "home:photos:v1";
+    // The public read is one eleven-row query, but the home page is the busiest page on the
+    // site and the prerenderer hits it once per locale for the home page and again for each
+    // product page, so it is cached like the gallery is. Every write path below evicts by
+    // this name. The version moves whenever the body's shape does (v2 added "pages", v3
+    // added "from", both 2026-10-12): the cache is in-process today and dies with a publish
+    // anyway, but a key that names its shape is what keeps an entry of the old shape from
+    // ever being read back as the new one.
+    public const string CacheKey = "home:photos:v3";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     // When the table cannot be read, the empty answer is kept for a minute, not ten: long
@@ -39,13 +46,21 @@ public sealed class HomePhotoService
 
     public const int MaxAltLength = 400;
 
+    // The gallery is optional so the tests that only care about slots need not build one,
+    // and so a host without a gallery store answers "from" as unknown rather than failing
+    // to activate. Program.cs always registers IGalleryStore, so on the site it is there.
     public HomePhotoService(
-        AppDbContext db, ImageUrls imageUrls, IMemoryCache cache, ILogger<HomePhotoService>? log = null)
+        AppDbContext db,
+        ImageUrls imageUrls,
+        IMemoryCache cache,
+        ILogger<HomePhotoService>? log = null,
+        IGalleryStore? gallery = null)
     {
         _db = db;
         _imageUrls = imageUrls;
         _cache = cache;
         _log = log ?? NullLogger<HomePhotoService>.Instance;
+        _gallery = gallery;
     }
 
     public enum Outcome { Ok, NotFound, Refused }
@@ -146,12 +161,15 @@ public sealed class HomePhotoService
     /// Exchanges two slots' photo and alt — how the owner reorders the hero without
     /// re-uploading. Same kind only: a model card is a 4:3 crop keyed to a configurator
     /// model, a hero slide is neither, so moving one into the other is never what anyone
-    /// meant.
+    /// meant. A product page's photo is not swapped at all, not even with another page's:
+    /// it shows THAT product, so a container on the houses page is a mistake, not an order.
     /// </summary>
     public async Task<Result> SwapAsync(string a, string b, string? actorUpn, CancellationToken ct)
     {
         if (!HomeSlotNames.IsValid(a) || !HomeSlotNames.IsValid(b)) return Result.NotFound();
         if (a == b) return Result.Refuse("Choose two different slots to swap.");
+        if (HomeSlotNames.KindOf(a) == HomeSlotNames.PageKind || HomeSlotNames.KindOf(b) == HomeSlotNames.PageKind)
+            return Result.Refuse("A product page's photo belongs to that page and cannot be swapped.");
         if (HomeSlotNames.KindOf(a) != HomeSlotNames.KindOf(b))
             return Result.Refuse("Hero slides and model photos cannot be swapped with each other.");
 
@@ -188,22 +206,61 @@ public sealed class HomePhotoService
     // --- The public page --------------------------------------------------------------
 
     /// <summary>
-    /// What the home page fetches: the hero slides that have a photo, in slot order, and
-    /// the three model cards keyed by configurator model, null where the slot is empty.
+    /// What the home page and the product pages fetch: the hero slides that have a photo,
+    /// in slot order; the three model cards keyed by configurator model; the three product
+    /// pages' main photos keyed by the SPA's route key — null where a slot is empty; and the
+    /// cheapest published price per category, which the home hero's "from" figure quotes.
     /// The SPA merges this over its content defaults, so an empty answer is a working page.
     /// </summary>
     public async Task<HomePhotosDto> ReadPublicAsync(CancellationToken ct)
     {
-        if (_cache.TryGetValue(CacheKey, out HomePhotosDto? cached) && cached is not null)
-            return cached;
-
-        var (dto, read) = await LoadPublicAsync(ct);
-
-        _cache.Set(CacheKey, dto, new MemoryCacheEntryOptions
+        if (!_cache.TryGetValue(CacheKey, out HomePhotosDto? photos) || photos is null)
         {
-            AbsoluteExpirationRelativeToNow = read ? CacheTtl : DegradedTtl,
-        });
-        return dto;
+            var (dto, read) = await LoadPublicAsync(ct);
+            photos = dto;
+            _cache.Set(CacheKey, photos, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = read ? CacheTtl : DegradedTtl,
+            });
+        }
+
+        // The figures ride on the gallery's cache, not this one: the gallery store keeps its
+        // own ten-minute entry, which GalleryAdminService evicts after every edit. Kept in this
+        // entry instead, a price staff just lowered would show in the gallery at once and on
+        // the home hero up to ten minutes later, and the hero would quote a figure the gallery
+        // no longer does. Read off the gallery's entry the two cannot disagree, and the cost is
+        // one pass over a list already in memory. The cached entry itself goes out when the
+        // figures are unknown, since there is nothing to copy in.
+        var from = await LowestPricesAsync(ct);
+        return from == photos.From ? photos : photos with { From = from };
+    }
+
+    /// <summary>
+    /// The cheapest published price in each category the home page quotes, from the rows
+    /// /api/gallery serves — SQL or Quickbase, whichever DATA_SOURCE_GALLERY picks. Gallery
+    /// prices include VAT, and a wagon's already contains its assembly (WAGON_ASSEMBLY_GROSS
+    /// in the SPA's prices.js), so the wagon figure is the finished price of the cheapest
+    /// container and nothing is added to it.
+    ///
+    /// Unknown, never zero, when there is nothing to read: no store, no priced row in the
+    /// category, or a store that failed. The SPA prints its lead without a figure then, which
+    /// is honest; "from €0", or a figure typed into the copy, would not be.
+    /// </summary>
+    private async Task<HomeFromDto> LowestPricesAsync(CancellationToken ct)
+    {
+        if (_gallery is null) return HomeFromDto.Unknown;
+        try
+        {
+            return HomeFromDto.Of(await _gallery.GetAsync(ct));
+        }
+        // Same rule as the slots: an abandoned request is not a fault and is not logged as one.
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _log.LogWarning(ex,
+                "Home photos: could not read the gallery, so the home hero prints its lead without a " +
+                "\"from\" figure until it can.");
+            return HomeFromDto.Unknown;
+        }
     }
 
     /// <summary>
@@ -237,14 +294,22 @@ public sealed class HomePhotoService
                 models[key] = url is null ? null : new HomePhotoDto(url, r!.Alt ?? "");
             }
 
-            return (new HomePhotosDto(hero, models), true);
+            var pages = new Dictionary<string, HomePhotoDto?>(StringComparer.Ordinal);
+            foreach (var key in HomeSlotNames.PageKeys)
+            {
+                var r = byName.GetValueOrDefault(HomeSlotNames.SlotOfPage(key)!);
+                var url = r is null ? null : _imageUrls.ForKey(r.ImageKey);
+                pages[key] = url is null ? null : new HomePhotoDto(url, r!.Alt ?? "");
+            }
+
+            return (new HomePhotosDto(hero, models, pages, HomeFromDto.Unknown), true);
         }
         // Keyed on the token, not the exception type: a request the client abandoned
         // mid-query must not be logged as a fault or cached as "no photos" for everyone.
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _log.LogWarning(ex,
-                "Home photos: could not read HomeSlots, so the home page shows its default photos " +
+                "Home photos: could not read HomeSlots, so the home and product pages show their default photos " +
                 "until it can. Is the AddHomeSlots migration applied?");
             return (HomePhotosDto.Empty(), false);
         }
@@ -290,7 +355,7 @@ public sealed class HomePhotoService
     private HomeSlotAdminDto ToDto(string name, HomeSlot? row) => new(
         name,
         HomeSlotNames.KindOf(name)!,
-        HomeSlotNames.ModelKeyOf(name) ?? HomeSlotNames.HeroNumberOf(name).ToString(),
+        HomeSlotNames.ModelKeyOf(name) ?? HomeSlotNames.PageKeyOf(name) ?? HomeSlotNames.HeroNumberOf(name).ToString(),
         row?.ImageKey,
         row?.ImageKey is null ? null : _imageUrls.ForKey(row.ImageKey),
         row?.Alt,
@@ -299,9 +364,9 @@ public sealed class HomePhotoService
 }
 
 /// <summary>
-/// One slot as the panel sees it. Index is "1".."5" for a hero slide and the model key
-/// ("37") for a model card — a string either way, so the panel does not have to know which
-/// kind it is holding to print it.
+/// One slot as the panel sees it. Index is "1".."5" for a hero slide, the model key ("37")
+/// for a model card and the SPA route key ("modularHouses") for a product page — a string
+/// every way, so the panel does not have to know which kind it is holding to print it.
 /// </summary>
 public sealed record HomeSlotAdminDto(
     string Name,
@@ -316,13 +381,62 @@ public sealed record HomeSlotAdminDto(
 /// <summary>A hero slide that has a photo. Slot is the name ("hero-2"), kept so the SPA can key its merge.</summary>
 public sealed record HomeHeroPhotoDto(string Slot, string Url, string Alt);
 
-/// <summary>A model card's photo.</summary>
+/// <summary>A model card's photo, or a product page's main photo.</summary>
 public sealed record HomePhotoDto(string Url, string Alt);
 
-/// <summary>The body of GET /api/home/photos. Models always carries all three keys, null when empty.</summary>
-public sealed record HomePhotosDto(List<HomeHeroPhotoDto> Hero, Dictionary<string, HomePhotoDto?> Models)
+/// <summary>
+/// The body of GET /api/home/photos. Models always carries all three model keys and Pages
+/// all three page keys (modularBuilds, modularHouses, steelHouses), null when empty, so the
+/// SPA never has to tell "no photo" from "an older API that did not know the key". From is
+/// always there too, with null figures when they are unknown.
+/// </summary>
+public sealed record HomePhotosDto(
+    List<HomeHeroPhotoDto> Hero,
+    Dictionary<string, HomePhotoDto?> Models,
+    Dictionary<string, HomePhotoDto?> Pages,
+    HomeFromDto From)
 {
     public static HomePhotosDto Empty() => new(
         new List<HomeHeroPhotoDto>(),
-        HomeSlotNames.ModelKeys.ToDictionary(k => k, _ => (HomePhotoDto?)null, StringComparer.Ordinal));
+        HomeSlotNames.ModelKeys.ToDictionary(k => k, _ => (HomePhotoDto?)null, StringComparer.Ordinal),
+        HomeSlotNames.PageKeys.ToDictionary(k => k, _ => (HomePhotoDto?)null, StringComparer.Ordinal),
+        HomeFromDto.Unknown);
+}
+
+/// <summary>
+/// The cheapest published gallery price in euro, VAT included, per category. Wagon is the
+/// cheapest container with its assembly already in the price; Modular the cheapest Box house,
+/// the house alone. Null where the gallery has no priced row in that category.
+/// </summary>
+public sealed record HomeFromDto(decimal? Wagon, decimal? Modular)
+{
+    public static readonly HomeFromDto Unknown = new(null, null);
+
+    /// <summary>
+    /// The minimum per category over the gallery items either store serves. The category goes
+    /// through HouseCategories.FromQuickbaseLabel because the SQL store sends the key ("wagon")
+    /// and the Quickbase store the label ("Фургон"), and that function reads both. A price that
+    /// is missing, zero or negative is skipped rather than quoted, and so is one in another
+    /// currency: the hero prints euro, and every gallery row is in euro today.
+    /// </summary>
+    public static HomeFromDto Of(IEnumerable<GalleryItem>? items)
+    {
+        decimal? wagon = null, modular = null;
+        foreach (var item in items ?? Enumerable.Empty<GalleryItem>())
+        {
+            if (item?.Price is not decimal price || price <= 0) continue;
+            if (!string.Equals(item.Currency ?? "EUR", "EUR", StringComparison.OrdinalIgnoreCase)) continue;
+
+            switch (HouseCategories.FromQuickbaseLabel(item.Category))
+            {
+                case HouseCategories.Wagon:
+                    if (wagon is null || price < wagon) wagon = price;
+                    break;
+                case HouseCategories.Modular:
+                    if (modular is null || price < modular) modular = price;
+                    break;
+            }
+        }
+        return new HomeFromDto(wagon, modular);
+    }
 }

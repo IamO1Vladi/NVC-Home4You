@@ -9,12 +9,13 @@ namespace ApiDotnet.Tests;
 // total count, and the "take N" slice. No Quickbase / HTTP involved.
 public class BuildFeaturedTests
 {
-    private static PublicReviewDto Review(double rating, string? comment = "Great service") => new()
+    private static PublicReviewDto Review(double rating, string? comment = "Great service", string? product = null) => new()
     {
         Id = System.Guid.NewGuid().ToString("N"),
         Name = "Test Customer",
         Rating = rating,
         Comment = comment,
+        Product = product,
     };
 
     [Fact]
@@ -106,5 +107,78 @@ public class BuildFeaturedTests
         var result = ReviewService.BuildFeatured(reviews, 50);
 
         Assert.Equal(2, result.Items.Count);
+    }
+
+    // A product page quotes that product's rating and count, not the site's: the filter runs
+    // before the aggregate, not after it.
+    [Fact]
+    public void Product_narrows_the_items_and_the_aggregate()
+    {
+        var reviews = new List<PublicReviewDto>
+        {
+            Review(5, product: "modularBuilds"),
+            Review(1, product: "modularHouses"),
+            Review(4, product: "modularBuilds"),
+            Review(2, product: "steelHouses"),
+        };
+
+        var result = ReviewService.BuildFeatured(reviews, 10, "modularBuilds");
+
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(4.5, result.AverageRating);
+        Assert.All(result.Items, r => Assert.Equal("modularBuilds", r.Product));
+    }
+
+    [Fact]
+    public void Product_filter_happens_before_take()
+    {
+        // Three newer reviews of another product would fill a "take 2" slice taken first.
+        var reviews = new List<PublicReviewDto>
+        {
+            Review(5, product: "modularHouses"),
+            Review(5, product: "modularHouses"),
+            Review(5, product: "modularHouses"),
+            Review(4, product: "modularBuilds"),
+            Review(3, product: "modularBuilds"),
+        };
+
+        var result = ReviewService.BuildFeatured(reviews, 2, "modularBuilds");
+
+        Assert.Equal(2, result.Items.Count);
+        Assert.All(result.Items, r => Assert.Equal("modularBuilds", r.Product));
+    }
+
+    [Fact]
+    public void Product_match_is_exact()
+    {
+        // An older review holds free text, and a key differing only in case is another key.
+        var reviews = new List<PublicReviewDto>
+        {
+            Review(5, product: "Modular house"),
+            Review(5, product: "modularbuilds"),
+            Review(5, product: null),
+        };
+
+        var result = ReviewService.BuildFeatured(reviews, 10, "modularBuilds");
+
+        Assert.Equal(0, result.TotalCount);
+        Assert.Empty(result.Items);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void No_product_keeps_the_whole_set(string? product)
+    {
+        var reviews = new List<PublicReviewDto>
+        {
+            Review(5, product: "modularBuilds"),
+            Review(3, product: "modularHouses"),
+        };
+
+        var result = ReviewService.BuildFeatured(reviews, 10, product);
+
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(4.0, result.AverageRating);
     }
 }
