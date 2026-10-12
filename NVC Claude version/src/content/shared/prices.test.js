@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getPriceRows, startingPrice, VAT_RATE, buildPriceSections } from './prices.js'
+import { getPriceRows, startingPrice, startingHousePrice, VAT_RATE, buildPriceSections } from './prices.js'
 import { getBoxConfiguratorCatalog } from './boxConfiguratorCatalog.js'
 
 // The published price table.
@@ -92,6 +92,13 @@ describe('price rows', () => {
 
   it('quotes the cheapest finished house as the starting price', () => {
     expect(startingPrice('en')).toBe(14840)
+  })
+
+  it('quotes the home page the same house without its assembly', () => {
+    // 14,840 less the 37 m² assembly (700 net, 840 with VAT): the catalogue's house price,
+    // which is also what the configurator opens on.
+    expect(startingHousePrice('en')).toBe(14000)
+    expect(startingHousePrice('en')).toBe(startingPrice('en') - 840)
   })
 
   it('is the Bulgarian standard rate', () => {

@@ -76,6 +76,16 @@ export function startingPrice(locale = 'en') {
   return Math.min(...getPriceRows(locale).map((row) => row.standard.total))
 }
 
+/**
+ * The cheapest house WITHOUT its assembly, VAT included — the home page's "from" figure.
+ * The owner wants the home page to quote the house alone (2026-10-12); it is also the base
+ * price the configurator opens on, so a visitor who taps a card sees the same number twice.
+ * The prices page keeps the finished total above.
+ */
+export function startingHousePrice(locale = 'en') {
+  return Math.min(...getPriceRows(locale).map((row) => row.standard.house))
+}
+
 // --- The full catalogue, priced -------------------------------------------------------
 //
 // Everything below drives the sectioned prices page off /api/gallery rather than a second

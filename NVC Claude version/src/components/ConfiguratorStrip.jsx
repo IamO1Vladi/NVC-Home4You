@@ -5,10 +5,11 @@
 // chosen (?model=<key>, read by BoxHouseConfiguratorPage). The first decision is made
 // before the tool even loads.
 //
-// Prices come from the same getPriceRows() the prices page renders — house price inc VAT
-// plus assembly grossed up — so the number a visitor taps on here is exactly the number
-// the prices page and the configurator will show them next; the title's "from" figure is
-// the lowest card beneath it. The photo is the admin's model slot when one is set (served
+// Prices come from the same getPriceRows() the prices page renders, but the cards quote the
+// house alone, VAT included and assembly NOT added (the owner's call, 2026-10-12), and the
+// caption under each figure says so. That is the base price the configurator opens on, so
+// the number a visitor taps here is the number they land on; the prices page then adds the
+// assembly in its own column. The title's "from" figure is the lowest card beneath it. The photo is the admin's model slot when one is set (served
 // by /api/img, so it gets the resizer), else the static catalogue render under /public.
 //
 // Copy lives in home.strip of the three content files so the Greek audit scans it.
@@ -42,7 +43,7 @@ export default function ConfiguratorStrip({ locale = 'en', content, photos = {} 
   const base = import.meta.env.BASE_URL || '/'
   const cardFallback = `${base}modular-builds/card.svg`
 
-  const minPrice = Math.min(...rows.map((row) => row.standard.total))
+  const minPrice = Math.min(...rows.map((row) => row.standard.house))
   const title = fill(content.titlePattern, { count: rows.length, price: euro(minPrice, locale) })
 
   return (
@@ -86,7 +87,7 @@ export default function ConfiguratorStrip({ locale = 'en', content, photos = {} 
                 />
                 <span className="hp-model-body">
                   <span className="hp-model-size">{row.label}</span>
-                  <span className="hp-model-price"><small>{content.from}</small> {euro(row.standard.total, locale)}</span>
+                  <span className="hp-model-price"><small>{content.from}</small> {euro(row.standard.house, locale)}</span>
                   <span className="hp-model-incl">{content.incl}</span>
                   <span className="hp-model-go">{content.cta}</span>
                 </span>

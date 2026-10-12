@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { ModalActionsProvider } from '../context/ModalActions.jsx'
 import HomePage from './HomePage.jsx'
 import enHome from '../content/en/home.js'
+import { getPriceRows } from '../content/shared/prices.js'
+import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 
 // The home page as the redesign left it: the section order, the figures that must come
 // from the price helpers rather than the copy, the links that must carry the real model
@@ -60,7 +62,7 @@ describe('HomePage', () => {
 
     const h2s = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
     expect(h2s).toEqual([
-      '3 models from €14,840 — build yours online',
+      '3 models from €14,000 — build yours online',
       enHome.home.serviceTiles.heading,
       enHome.home.catalogues.heading,
       enHome.home.steps.heading,
@@ -82,7 +84,9 @@ describe('HomePage', () => {
     vi.stubGlobal('fetch', stubFetch())
     const { container } = renderHome()
 
-    expect(container.querySelector('.hp-lead')).toHaveTextContent('€14,840')
+    // The house alone: the home page quotes it without the assembly the prices page adds.
+    expect(container.querySelector('.hp-lead')).toHaveTextContent('€14,000')
+    expect(container.querySelector('.hp-lead')).not.toHaveTextContent('assembly')
     expect(container.querySelector('.hp-slogan .hp-em')).toHaveTextContent('home')
     // The second hero button jumps to the prices strip, whose id is the anchor.
     expect(screen.getByRole('link', { name: enHome.home.hero.pricesCta })).toHaveAttribute('href', '#prices')
@@ -99,6 +103,17 @@ describe('HomePage', () => {
     expect(hrefs[1]).toMatch(/\?model=58$/)
     expect(hrefs[2]).toMatch(/\?model=73$/)
     expect(hrefs.every((h) => h.startsWith('/en/'))).toBe(true)
+
+    // Each card quotes the house without its assembly and says so under the figure; that is
+    // the base price the configurator opens on.
+    const rows = getPriceRows('en')
+    const prices = [...container.querySelectorAll('a.hp-model .hp-model-price')].map((el) => el.textContent)
+    rows.forEach((row, i) => {
+      expect(prices[i]).toContain(euro(row.standard.house, 'en'))
+      expect(prices[i]).not.toContain(euro(row.standard.total, 'en'))
+    })
+    container.querySelectorAll('a.hp-model .hp-model-incl').forEach((el) =>
+      expect(el).toHaveTextContent(enHome.home.strip.incl))
 
     // Without an admin slot the cards show the static catalogue renders.
     const srcs = [...container.querySelectorAll('a.hp-model img')].map((img) => img.getAttribute('src'))

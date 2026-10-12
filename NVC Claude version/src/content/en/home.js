@@ -71,8 +71,8 @@ export default {
     hero: {
       eyebrow: 'Prefab & container homes',
       title: 'Because a <g>home</g> shouldn\'t be an expense',
-      // {price} is filled from startingPrice(locale) through euro(), never typed here.
-      lead: 'Prefab and container homes from {price}, VAT and assembly included. Based in Petrich, Bulgaria — delivered across the EU.',
+      // {price} is filled from startingHousePrice(locale) through euro(), never typed here.
+      lead: 'Prefab and container homes from {price}, VAT included. Based in Petrich, Bulgaria — delivered across the EU.',
       primaryCta: 'Get a Quote',
       pricesCta: 'See models & prices',
       facts: ['87 homes delivered', 'Prices include VAT', 'Building homes since 2022'],
@@ -106,7 +106,7 @@ export default {
       titlePattern: '{count} models from {price} — build yours online',
       lead: 'Pick a model and see the price at every step: plan, windows, bathroom, kitchen.',
       from: 'from',
-      incl: 'incl. VAT and assembly',
+      incl: 'incl. VAT, assembly extra',
       cta: 'Start with this one →',
       all: 'All prices →',
       planner: 'Plan the layout →',

@@ -1,8 +1,9 @@
 // The home page's first screen: the slogan, the price and the place, over one photograph.
 //
-// The copy is static content so it prerenders whole; only the price is computed, from the
-// same startingPrice() the strip and the prices page use, so the figure in the first
-// sentence is the figure on the cheapest card below it. The emphasised word in the slogan
+// The copy is static content so it prerenders whole; only the price is computed, from
+// startingHousePrice() — the house alone, without its assembly, as the strip's cards quote
+// it — so the figure in the first sentence is the figure on the cheapest card below it. The
+// prices page adds the assembly and says so. The emphasised word in the slogan
 // arrives as <g>…</g> in the content and becomes the accent-coloured span.
 //
 // The numerals are role=tab buttons that pick a slide and stop the crossfade for good;
@@ -13,7 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import HeroShowcase from './HeroShowcase.jsx'
 import { paths } from '../routes/paths.js'
-import { startingPrice } from '../content/shared/prices.js'
+import { startingHousePrice } from '../content/shared/prices.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 
 const fill = (pattern, values) => Object.entries(values).reduce(
@@ -59,7 +60,7 @@ export default function Hero({ locale = 'en', content, slides, onOpenOffer }) {
 
   if (!content) return null
 
-  const price = euro(startingPrice(locale), locale)
+  const price = euro(startingHousePrice(locale), locale)
   const current = list[idx] || list[0]
   const currentLabel = current?.label || current?.alt || ''
   const currentTo = current?.pathKey ? (paths[current.pathKey]?.[locale] || paths[current.pathKey]?.en) : null
