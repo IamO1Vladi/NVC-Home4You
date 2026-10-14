@@ -1854,6 +1854,126 @@ describe('AdminPipelinePage', () => {
     })
   })
 
+  // --- "Sent, but not in the thread" -------------------------------------------------
+  //
+  // The one success the panel has to shout about: the customer HAS the email, so sending it
+  // again mails them twice. It was one page-wide string, so it stayed up over every lead
+  // opened after it, and one failure read to the team as one on every customer.
+
+  const SENT_NOT_RECORDED = /НЕ го изпращайте повторно/
+  // A second lead with its own conversation, so the pane can be told apart from Ivan's.
+  const MARIA = {
+    ...DETAIL,
+    id: 2, name: 'Maria Dimitrova', email: 'maria@example.com', status: 'new',
+    activities: [
+      { id: 20, type: 'email_in', subject: 'Plot', body: 'Can the 80 go on a slope?', actorUpn: '', fromCustomer: true, occurredAt: '2026-08-10T09:00:00Z', attachments: [] },
+    ],
+  }
+
+  // Serves Maria by id, and answers lead 1's reply with `replyAnswer` — a promise, so a
+  // test can hold the send open while somebody clicks elsewhere.
+  const serveSentNotRecorded = (replyAnswer = json({ ok: true, sentNotRecorded: true })) => {
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => {
+      const u = String(url)
+      calls.push({ url: u, method: options.method || 'GET', body: options.body })
+      if (u.includes('/api/admin/pipeline/1/reply')) return replyAnswer
+      if (u.match(/\/api\/admin\/pipeline\/2$/)) return json(MARIA)
+      return passthrough(url, options)
+    })
+  }
+
+  const openLead = async (user, name) => {
+    await user.click(within(list()).getByText(name))
+    await waitFor(() => expect(screen.getByRole('heading', { name })).toBeInTheDocument())
+  }
+
+  it('a reply the server sent but could not record says so, loudly', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    serveSentNotRecorded()
+
+    typeReply('<p>Офертата е приложена.</p>')
+    await user.click(screen.getByRole('button', { name: /^Изпрати$|^Send$/ }))
+
+    expect(await screen.findByText(SENT_NOT_RECORDED)).toBeInTheDocument()
+  })
+
+  it('the warning stays with its lead: another lead opens without it, and going back does not bring it back', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    serveSentNotRecorded()
+
+    typeReply('<p>Офертата е приложена.</p>')
+    await user.click(screen.getByRole('button', { name: /^Изпрати$|^Send$/ }))
+    expect(await screen.findByText(SENT_NOT_RECORDED)).toBeInTheDocument()
+
+    // Maria has had nothing sent to her. A warning over her conversation says she has.
+    await openLead(user, 'Maria Dimitrova')
+    expect(screen.queryByText(SENT_NOT_RECORDED)).not.toBeInTheDocument()
+
+    // Read once, on Ivan, it is done with. Shown again it reads as a SECOND failure.
+    await openLead(user, 'Ivan Petrov')
+    expect(screen.queryByText(SENT_NOT_RECORDED)).not.toBeInTheDocument()
+  })
+
+  it('a send that answers after the person moved on lands on its own lead, not the one on screen', async () => {
+    // The board stays clickable while a reply is in flight, and a Graph send takes seconds.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    let answer
+    serveSentNotRecorded(new Promise((resolve) => { answer = resolve }))
+
+    typeReply('<p>Офертата е приложена.</p>')
+    await user.click(screen.getByRole('button', { name: /^Изпрати$|^Send$/ }))
+    await waitFor(() => expect(calls.some((c) => c.url.includes('/1/reply'))).toBe(true))
+
+    await openLead(user, 'Maria Dimitrova')
+    answer(json({ ok: true, sentNotRecorded: true }))
+    // Settled: the button stops saying "Изпращане…" only once the whole handler has run,
+    // the warning included.
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Изпрати$|^Send$/ })).toBeInTheDocument())
+
+    // Maria's conversation is still the one on screen — the reload after the send did not
+    // drag Ivan's back under her — and it carries no warning about Ivan's email.
+    expect(screen.getByRole('heading', { name: 'Maria Dimitrova' })).toBeInTheDocument()
+    expect(screen.getByText('Can the 80 go on a slope?')).toBeInTheDocument()
+    expect(screen.queryByText(SENT_NOT_RECORDED)).not.toBeInTheDocument()
+
+    // Nobody has seen it yet, so it is waiting on Ivan — not lost. Losing it is how he gets
+    // the same quotation twice.
+    await openLead(user, 'Ivan Petrov')
+    expect(screen.getByText(SENT_NOT_RECORDED)).toBeInTheDocument()
+
+    // And once seen, it goes the way the warning in the test above does.
+    await openLead(user, 'Maria Dimitrova')
+    await openLead(user, 'Ivan Petrov')
+    expect(screen.queryByText(SENT_NOT_RECORDED)).not.toBeInTheDocument()
+  })
+
+  it('a failed send on one lead is not reported over the next one', async () => {
+    // Every page-level alert, not just the warning: they share the one slot.
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    serveSentNotRecorded(Promise.resolve({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ errors: ['Mail server is down.'] }),
+      text: () => Promise.resolve(''),
+    }))
+
+    typeReply('<p>Ще се видим в петък.</p>')
+    await user.click(screen.getByRole('button', { name: /^Изпрати$|^Send$/ }))
+    expect(await screen.findByText('Mail server is down.')).toBeInTheDocument()
+
+    await openLead(user, 'Maria Dimitrova')
+    expect(screen.queryByText('Mail server is down.')).not.toBeInTheDocument()
+  })
+
   it('a 403 says there is no access and offers the way out — not a retry', async () => {
     // A signed-in account the allow-list does not hold. Not the sign-in card, because the
     // session is fine and would only loop; not the error card, because its Retry would be

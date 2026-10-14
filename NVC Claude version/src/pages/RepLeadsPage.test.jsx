@@ -265,6 +265,35 @@ describe('RepLeadsPage', () => {
     expect(screen.getByRole('link', { name: 'Изход' })).toHaveAttribute('href', '/admin/signout')
   })
 
+  it('the "sent but not recorded" warning stays with the lead it is about', async () => {
+    // The same page, so the same fault: the warning was page-wide and followed the
+    // representative from one customer to every other he opened. Pinned here too because
+    // this is the panel where it is his own customers being told, wrongly, about a send.
+    const user = userEvent.setup()
+    render(<RepLeadsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    const passthrough = global.fetch
+    vi.stubGlobal('fetch', (url, options = {}) => (String(url).includes('/api/rep/pipeline/1/reply')
+      ? json({ ok: true, sentNotRecorded: true })
+      : passthrough(url, options)))
+
+    const box = screen.getByRole('textbox', { name: /Отговор|Reply/ })
+    box.innerHTML = '<p>Офертата е приложена.</p>'
+    fireEvent.input(box)
+    await user.click(screen.getByRole('button', { name: /^Изпрати$|^Send$/ }))
+    const warning = /НЕ го изпращайте повторно/
+    expect(await screen.findByText(warning)).toBeInTheDocument()
+
+    const list = document.querySelector('.adm-pipeline-list')
+    await user.click(within(list).getByText('Maria Dimitrova'))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Maria Dimitrova' })).toBeInTheDocument())
+    expect(screen.queryByText(warning)).not.toBeInTheDocument()
+
+    await user.click(within(list).getByText('Ivan Petrov'))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+    expect(screen.queryByText(warning)).not.toBeInTheDocument()
+  })
+
   it('a ?lead= link opens that lead, not the first row', async () => {
     // The notification mail links the representative straight to his new lead
     // (LeadFollowUpService: /rep/leads?lead=N). It is rarely the quietest row, so the page

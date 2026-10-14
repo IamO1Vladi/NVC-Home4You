@@ -156,10 +156,12 @@ public class LeadMailService
                 "This lead has no email address — reply by phone, and log the call.");
 
         // Reuse the existing subject so the customer's mail client threads it, rather than
-        // starting a new conversation on every reply.
-        var resolvedSubject = string.IsNullOrWhiteSpace(subject)
+        // starting a new conversation on every reply. Fitted to the column BEFORE the send,
+        // so the subject that goes out is exactly the one the thread records — "Re: " on a
+        // 400-character subject would otherwise send fine and then fail the record.
+        var resolvedSubject = LeadActivity.FitSubject(string.IsNullOrWhiteSpace(subject)
             ? await DefaultSubjectAsync(leadId, lead, ct)
-            : subject!.Trim();
+            : subject!.Trim())!;
 
         // Set the moment the send itself is asked for. Before it, nothing can have reached the
         // customer and "not sent, try again" is the truth; after it, any answer short of a
@@ -265,14 +267,18 @@ public class LeadMailService
             // file copy gets its own clock (a slow one loses only that copy), and the thread
             // entry gets a fresh one after them, so the copies can never spend its time.
 
+            // Outside the try below so its catch can record the same reply a second time
+            // (see RecordWithoutMessageIdAsync).
+            var now = DateTimeOffset.UtcNow;
+            LeadActivity? activity = null;
+
             // Everything from here on is bookkeeping about an email THE CUSTOMER ALREADY
             // HAS. Its own catch, because a failure here must never wear the "not sent"
             // message — that message is an instruction to try again, and trying again
             // sends the customer a duplicate. This is not hypothetical: see SendOutcome.
             try
             {
-                var now = DateTimeOffset.UtcNow;
-                var activity = new LeadActivity
+                activity = new LeadActivity
                 {
                     LeadId = leadId,
                     Type = LeadActivityTypes.EmailOut,
@@ -328,16 +334,7 @@ public class LeadMailService
 
                 using var recording = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                 var recordCt = recording.Token;
-                var tracked = await _db.Leads.FirstAsync(l => l.Id == leadId, recordCt);
-                if (tracked.LastActivityAt is null || now > tracked.LastActivityAt) tracked.LastActivityAt = now;
-                tracked.UpdatedAt = now;
-
-                // A reply is a move like any other, so it schedules the next one. Here rather
-                // than only in LeadService.AddActivityAsync because this path writes its own
-                // activity — the send has to happen first, so it cannot go through that method —
-                // and a rule that held for a logged call but not for the email somebody actually
-                // sent would be the one people noticed.
-                tracked.NextContactAt = LeadService.FollowUpAfterOurMove(tracked.NextContactAt, now);
+                TouchAfterReply(await _db.Leads.FirstAsync(l => l.Id == leadId, recordCt), now);
 
                 await _db.SaveChangesAsync(recordCt);
 
@@ -347,6 +344,13 @@ public class LeadMailService
             // out, and the email is still with the customer either way.
             catch (Exception ex)
             {
+                // The one refusal with a known way round it. See RecordWithoutMessageIdAsync.
+                if (activity is not null && messageId is not null && IsDuplicateMessageId(ex))
+                {
+                    var recovered = await RecordWithoutMessageIdAsync(activity, leadId, messageId, now, ex);
+                    if (recovered is not null) return recovered;
+                }
+
                 // Logged loudly: the customer has a reply that the thread does not show,
                 // and this log line is the only place that says so — and the only place
                 // holding the actual reason recording failed.
@@ -420,6 +424,156 @@ public class LeadMailService
             return new SendResult(SendOutcome.Failed, null, message);
         }
     }
+
+    // Bumps the lead the way any move of ours does. Shared by the recording and its second
+    // attempt, which must leave the lead exactly as a first attempt that worked would have.
+    private static void TouchAfterReply(Lead tracked, DateTimeOffset now)
+    {
+        if (tracked.LastActivityAt is null || now > tracked.LastActivityAt) tracked.LastActivityAt = now;
+        tracked.UpdatedAt = now;
+
+        // A reply is a move like any other, so it schedules the next one. Here rather
+        // than only in LeadService.AddActivityAsync because this path writes its own
+        // activity — the send has to happen first, so it cannot go through that method —
+        // and a rule that held for a logged call but not for the email somebody actually
+        // sent would be the one people noticed.
+        tracked.NextContactAt = LeadService.FollowUpAfterOurMove(tracked.NextContactAt, now);
+    }
+
+    // The unique index that keeps one mailbox message to one thread entry (AppDbContext).
+    public const string ExternalMessageIdIndex = "IX_LeadActivities_ExternalMessageId";
+
+    /// <summary>
+    /// Whether a save was refused because another row already holds this Graph message id:
+    /// SQL Server's duplicate-key errors, 2601 (unique index) and 2627 (unique constraint),
+    /// naming IX_LeadActivities_ExternalMessageId. The poller asks the same question.
+    /// </summary>
+    /// <remarks>
+    /// By the index's name and not by the number alone: LeadAttachments.BlobKey is unique
+    /// too, and a collision there would mean something else entirely. Every error in the
+    /// batch is looked at, and every inner exception, because EF wraps the SqlException in
+    /// a DbUpdateException and the retry strategy can wrap that again.
+    /// </remarks>
+    public static bool IsDuplicateMessageId(Exception? ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (e is not Microsoft.Data.SqlClient.SqlException sql) continue;
+            if (IsDuplicateMessageIdError(sql.Number, sql.Message)) return true;
+            foreach (Microsoft.Data.SqlClient.SqlError error in sql.Errors)
+                if (IsDuplicateMessageIdError(error.Number, error.Message)) return true;
+        }
+        return false;
+    }
+
+    public static bool IsDuplicateMessageIdError(int number, string? message) =>
+        number is 2601 or 2627
+        && message is not null
+        && message.Contains(ExternalMessageIdIndex, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The second attempt at recording a reply whose message id the unique index refused.
+    /// Returns Sent when the reply ends up in the thread, null when it still is not (the
+    /// caller then reports SentNotRecorded as before).
+    /// </summary>
+    /// <remarks>
+    /// Two ways to get here, told apart by looking the id up EXACTLY:
+    ///
+    /// The row holding the id is this very reply: same lead, email_out. That is EF's retry
+    /// strategy re-running a save whose commit landed but whose answer was lost. The reply
+    /// is in the thread already, so it is reported as Sent and NOT written twice.
+    ///
+    /// Anything else — a different reply whose id the column took for ours (it ignored case
+    /// until MakeGraphIdsCaseSensitive), or the poller having filed our draft before it was
+    /// sent. The reply is recorded again, everything kept but the id. Nothing reads the id on
+    /// an outbound row: the draft it names stops existing once the mail moves to Sent Items,
+    /// and only the poller's de-duplication uses the column. Losing it costs nothing; failing
+    /// the record costs a worker a note and, before that, a scare.
+    /// </remarks>
+    private async Task<SendResult?> RecordWithoutMessageIdAsync(
+        LeadActivity failed, int leadId, string messageId, DateTimeOffset now, Exception refusal)
+    {
+        try
+        {
+            // The refused save left its rows tracked as Added (and the lead as Modified); the
+            // next save would send them all again and be refused the same way.
+            _db.ChangeTracker.Clear();
+
+            // A fresh clock: the first attempt may have spent most of its own.
+            using var recording = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var recordCt = recording.Token;
+
+            // Compared again here, in memory, because the query alone is only as exact as
+            // the column's collation — which on a database still waiting for the migration
+            // ignores case, and would hand back the other reply's row as if it were ours.
+            var holders = await _db.LeadActivities
+                .AsNoTracking()
+                .Where(a => a.ExternalMessageId == messageId)
+                .Select(a => new { a.Id, a.LeadId, a.Type, a.ExternalMessageId })
+                .ToListAsync(recordCt);
+            var exact = holders.FirstOrDefault(h => string.Equals(h.ExternalMessageId, messageId, StringComparison.Ordinal));
+
+            if (exact is not null && exact.LeadId == leadId && exact.Type == LeadActivityTypes.EmailOut)
+            {
+                _log.LogWarning(refusal,
+                    "Reply to lead {LeadId} was refused as a duplicate of activity {ActivityId}, which is " +
+                    "this reply: an earlier attempt at the save had landed. Not recording it twice.",
+                    leadId, exact.Id);
+                return new SendResult(SendOutcome.Sent, exact.Id, null);
+            }
+
+            var holder = exact ?? holders.FirstOrDefault();
+            var again = WithoutMessageId(failed);
+            _db.LeadActivities.Add(again);
+            TouchAfterReply(await _db.Leads.FirstAsync(l => l.Id == leadId, recordCt), now);
+            await _db.SaveChangesAsync(recordCt);
+
+            _log.LogWarning(refusal,
+                "Reply to lead {LeadId} has message id {MessageId}, which the database already holds as " +
+                "{HeldId} (activity {HeldActivityId}, lead {HeldLeadId}). Recorded as activity {ActivityId} " +
+                "without its message id.",
+                leadId, messageId, holder?.ExternalMessageId, holder?.Id, holder?.LeadId, again.Id);
+            return new SendResult(SendOutcome.Sent, again.Id, null);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex,
+                "Reply to lead {LeadId}: recording it again without its message id failed too", leadId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The same thread entry with no message id, built fresh rather than reused: the refused
+    /// instance and its attachments still carry whatever keys the failed save gave them.
+    /// The files keep their blob keys — those copies are already stored, and the refused
+    /// save wrote none of their rows, so the unique BlobKey index has nothing to object to.
+    /// </summary>
+    public static LeadActivity WithoutMessageId(LeadActivity failed) => new()
+    {
+        LeadId = failed.LeadId,
+        Type = failed.Type,
+        Subject = failed.Subject,
+        Body = failed.Body,
+        ActorUpn = failed.ActorUpn,
+        ConversationId = failed.ConversationId,
+        ExternalMessageId = null,
+        CcRecipients = failed.CcRecipients,
+        FromAddress = failed.FromAddress,
+        OccurredAt = failed.OccurredAt,
+        CreatedAt = failed.CreatedAt,
+        Attachments = failed.Attachments
+            .Select(f => new LeadAttachment
+            {
+                FileName = f.FileName,
+                BlobKey = f.BlobKey,
+                ContentType = f.ContentType,
+                SizeBytes = f.SizeBytes,
+                UploadedByUpn = f.UploadedByUpn,
+                CreatedAt = f.CreatedAt,
+            })
+            .ToList(),
+    };
 
     /// <summary>
     /// A Graph call that failed, carrying enough to decide what to do about it.

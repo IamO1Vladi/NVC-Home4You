@@ -706,7 +706,24 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
   const [dragOver, setDragOver] = React.useState(false)
   const dragDepth = React.useRef(0)
   const [busy, setBusy] = React.useState('')      // '' | 'send' | 'draft' | 'save' | 'report'
-  const [error, setError] = React.useState('')
+  // The page's alert, filed under the lead whose action raised it, and shown only while
+  // that lead is the one on screen. It used to be one string for the whole page, so a
+  // failure on one customer stayed up over every customer opened after it — and the alert
+  // that matters most here, "the email WAS sent, do not send it again", then sat above a
+  // conversation it had nothing to do with, where it reads as a fresh failure each time.
+  //
+  // Filed by lead rather than simply wiped when the selection moves, because the board
+  // stays clickable while a reply is in flight, and a send can answer after the person
+  // has moved on. Wiping on the move would let that answer land over the NEXT lead, or,
+  // timed the other way, lose it — and a lost "it was sent" is a customer mailed twice.
+  // Filed under the lead it was for, it waits there until they go back.
+  //
+  // setError writes under the lead of the render that created it. Every handler below is
+  // made in the same render as the selection it acts on, so an answer that arrives late
+  // still lands on the lead it is about rather than the one now showing.
+  const [alerts, setAlerts] = React.useState({})
+  const error = alerts[selectedId] ?? ''
+  const setError = (message) => setAlerts((all) => ({ ...all, [selectedId]: message }))
 
   // What the error screen's Retry moves, so the load runs again through the ONE path that
   // reports what happened. Retry used to be handed loadBoard directly, which reports
@@ -897,6 +914,19 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
   // for one customer's architect must not ride silently into the next conversation.
   React.useEffect(() => { setCc('') }, [selectedId])
 
+  // Leaving a lead retires what its alert said. It has been read, and going back to the
+  // customer later must not bring a warning about a send from an hour ago back up as if it
+  // were news — the same false alarm the filing above exists to stop. Only the lead being
+  // LEFT is cleared: an alert that came in for a lead while someone was elsewhere has not
+  // been seen yet, and stays until they go back and see it.
+  const leftLead = React.useRef(selectedId)
+  React.useEffect(() => {
+    const left = leftLead.current
+    leftLead.current = selectedId
+    if (left === selectedId) return
+    setAlerts(({ [left]: _seen, ...rest }) => rest)
+  }, [selectedId])
+
   // What the screen is showing RIGHT NOW, for the one caller that runs after a delay. A save
   // handed to the background retries lands up to half a minute later, by which time the
   // person has usually moved on — and loadLead sets the pane unconditionally, so refreshing
@@ -1009,18 +1039,27 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
     if (cc.trim()) form.append('cc', cc.trim())
     for (const file of files) form.append('files', file, file.name)
 
-    const answer = await adminSendForm(`${scope.api}/${selectedId}/reply`, form)
+    const leadId = selectedId
+    const answer = await adminSendForm(`${scope.api}/${leadId}/reply`, form)
     // Reset only after the server confirms — back to the bare signature, ready for the
     // next message. Resetting optimistically loses what someone typed if the send fails,
     // and retyping a reply is the least forgivable data loss in a tool like this.
     setReply(prefill.current)
     setCc('')
     setFiles([])
-    await Promise.all([loadLead(selectedId), loadBoard(tab)])
+    // A send through Graph takes seconds, and the board stays clickable meanwhile. If the
+    // person has moved to another lead by the time it answers, reloading the one the reply
+    // went to would put that conversation back on screen under the other lead's name —
+    // loadLead sets the pane whatever is selected. Same rule as a save's late success.
+    await Promise.all([
+      showing.current.leadId === leadId ? loadLead(leadId) : null,
+      loadBoard(showing.current.tab),
+    ])
     // The one success that still needs a loud sentence: the email IS with the customer,
     // but the thread could not record it. Shown AFTER the reload so nothing clears it —
     // without this warning, "not in the thread" reads as "not sent" and the customer
-    // gets the same quotation twice.
+    // gets the same quotation twice. Filed under the lead it was sent to (see `alerts`),
+    // so it neither follows the person to another lead nor gets lost if they left.
     if (answer?.sentNotRecorded) setError(t.sentNotRecorded)
   }, t.sendError)
 

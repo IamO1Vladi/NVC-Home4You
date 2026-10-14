@@ -159,13 +159,7 @@ public class LeadMailPoller : BackgroundService
 
         // Belt and braces alongside the unique index: checking first turns the common case
         // (nothing new since last tick) into one query instead of a batch of failed inserts.
-        var seenIds = messages.Select(m => m.Id).ToList();
-        var alreadyFiled = await db.LeadActivities
-            .AsNoTracking()
-            .Where(a => a.ExternalMessageId != null && seenIds.Contains(a.ExternalMessageId))
-            .Select(a => a.ExternalMessageId!)
-            .ToListAsync(ct);
-        var known = alreadyFiled.ToHashSet(StringComparer.Ordinal);
+        var known = await AlreadyFiledAsync(db, messages.Select(m => m.Id).ToList(), ct);
 
         // Every message placed before anything is written, so the leads they land on can be
         // loaded in one query instead of one per message.
@@ -260,11 +254,16 @@ public class LeadMailPoller : BackgroundService
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex)
+        catch (DbUpdateException ex) when (LeadMailService.IsDuplicateMessageId(ex))
         {
             // The unique index did its job — another instance filed the same message
             // between our check and our write. Expected under two app instances, and not
             // worth an error: the next tick sees it as already filed.
+            //
+            // Only that refusal, though. Any other failed save (a column too short for what
+            // a customer sent, say) used to be logged here too, as a harmless duplicate, at
+            // Information — and the tick was dropped every two minutes with nothing in the
+            // error log. It now reaches the loop's catch and is logged as the failure it is.
             _log.LogInformation(ex, "Inbound message already filed by another instance; skipping");
             return 0;
         }
@@ -466,7 +465,7 @@ public class LeadMailPoller : BackgroundService
         {
             LeadId = where.LeadId,
             Type = LeadActivityTypes.EmailIn,
-            Subject = subject,
+            Subject = LeadActivity.FitSubject(subject),
             Body = TrimQuotedHistory(body),
             ActorUpn = null,                    // null means the customer
             ConversationId = where.ByConversation ? conversationId : null,
@@ -548,9 +547,12 @@ public class LeadMailPoller : BackgroundService
 
         // Grouped in the database rather than here: a long thread is one row per message,
         // and the poller only ever needs the newest of them.
+        //
+        // The list goes in as constants, not as EF 8's JSON parameter: see the remarks on
+        // AlreadyFiledAsync, which has the same column problem.
         var candidates = await db.LeadActivities
             .AsNoTracking()
-            .Where(a => a.ConversationId != null && wanted.Contains(a.ConversationId))
+            .Where(a => a.ConversationId != null && EF.Constant(wanted).Contains(a.ConversationId))
             .GroupBy(a => new { a.ConversationId, a.LeadId })
             .Select(g => new { g.Key.ConversationId, g.Key.LeadId, Latest = g.Max(a => a.OccurredAt) })
             .ToListAsync(ct);
@@ -615,10 +617,49 @@ public class LeadMailPoller : BackgroundService
                 StringComparer.Ordinal);
     }
 
+    /// <summary>
+    /// Which of these Graph message ids already have a thread entry. Exact: an id that
+    /// differs from a filed one only in letter case is a different message and comes back
+    /// as NOT filed.
+    /// </summary>
+    /// <remarks>
+    /// Compared twice on purpose. The query narrows by the column's collation, which since
+    /// MakeGraphIdsCaseSensitive is binary — but on a database still waiting for that
+    /// migration it ignores case, and a customer's new email would come back as the
+    /// case-twin of one filed weeks ago. The ordinal set is what decides.
+    ///
+    /// The ids go into the SQL as constants (EF.Constant), not as the JSON parameter EF 8
+    /// sends a list as by default. That parameter is unpacked by OPENJSON into a column with
+    /// the DATABASE's collation (SQL_Latin1_General_CP1_CI_AS), and comparing it with a
+    /// Latin1_General_100_BIN2 column is a collation conflict SQL Server refuses outright
+    /// (error 468) — every tick would fail before filing anything. A constant takes the
+    /// column's collation instead. LeadsByConversationAsync does the same for the same reason.
+    /// </remarks>
+    public static async Task<HashSet<string>> AlreadyFiledAsync(
+        AppDbContext db, IReadOnlyCollection<string> messageIds, CancellationToken ct)
+    {
+        var known = new HashSet<string>(StringComparer.Ordinal);
+        if (messageIds.Count == 0) return known;
+
+        var wanted = messageIds.ToList();
+        var stored = await db.LeadActivities
+            .AsNoTracking()
+            .Where(a => a.ExternalMessageId != null && EF.Constant(wanted).Contains(a.ExternalMessageId))
+            .Select(a => a.ExternalMessageId!)
+            .ToListAsync(ct);
+
+        var asked = new HashSet<string>(wanted, StringComparer.Ordinal);
+        foreach (var id in stored)
+            if (asked.Contains(id)) known.Add(id);
+        return known;
+    }
+
     // No hasAttachments field, deliberately: the flag lies (false for inline-only
     // attachments), so the attachment listing is fetched for every filed message
     // instead of trusting it — see the call site in PollOnceAsync.
-    private record MailMessage(string Id, string? ConversationId, string? Subject, string Body,
+    //
+    // Public only so ParseMessageList can be tested as data.
+    public record MailMessage(string Id, string? ConversationId, string? Subject, string Body,
         string? FromAddress, DateTimeOffset ReceivedAt);
 
     /// <summary>
@@ -870,7 +911,7 @@ public class LeadMailPoller : BackgroundService
         var url =
             $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(_env.GraphSender)}/messages" +
             $"?$filter={filter}" +
-            $"&$select=id,conversationId,subject,body,from,receivedDateTime" +
+            $"&$select=id,conversationId,subject,body,from,receivedDateTime,isDraft" +
             $"&$orderby=receivedDateTime desc&$top={PageSize}";
 
         var http = _httpFactory.CreateClient();
@@ -894,6 +935,32 @@ public class LeadMailPoller : BackgroundService
             throw new InvalidOperationException($"Graph list messages failed: {(int)response.StatusCode} {raw}");
         }
 
+        return ParseMessageList(raw);
+    }
+
+    /// <summary>
+    /// The messages in one page of Graph's listing, minus the ones nobody has sent yet:
+    /// drafts.
+    /// </summary>
+    /// <remarks>
+    /// The listing covers every folder of the mailbox, Drafts included, and a reply from the
+    /// panel sits there as a draft — created, given its files, then sent — for anything from
+    /// a second to the better part of a minute with large files. A tick landing in that
+    /// window saw it, and an app-created draft has no `from` yet, so IsFromUs could not
+    /// recognise it as ours: it could be filed as the CUSTOMER speaking, under the draft's
+    /// id, and the reply's own record was then refused by the unique index. Hence isDraft,
+    /// read here rather than put in the $filter: Graph is particular about what a filter on
+    /// receivedDateTime may be combined with, and a refused filter would stop inbound mail
+    /// altogether rather than let one draft through.
+    ///
+    /// And `from` is read only when it is an object. A draft, or anything else odd, can
+    /// carry "from": null; TryGetProperty on that throws, and one throw here failed the
+    /// whole tick — every message in it, every two minutes, until the odd one aged out of
+    /// the Lookback window. The other properties are read the same guarded way for the
+    /// same reason.
+    /// </remarks>
+    public static List<MailMessage> ParseMessageList(string raw)
+    {
         using var doc = JsonDocument.Parse(raw);
         var results = new List<MailMessage>();
 
@@ -902,33 +969,37 @@ public class LeadMailPoller : BackgroundService
 
         foreach (var item in value.EnumerateArray())
         {
-            var id = item.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+            if (item.ValueKind != JsonValueKind.Object) continue;
+
+            var id = StringOrNull(item, "id");
             if (string.IsNullOrWhiteSpace(id)) continue;
 
+            if (item.TryGetProperty("isDraft", out var draftEl) && draftEl.ValueKind == JsonValueKind.True)
+                continue;
+
             var body = "";
-            if (item.TryGetProperty("body", out var bodyEl)
-                && bodyEl.TryGetProperty("content", out var contentEl))
-            {
-                body = contentEl.GetString() ?? "";
-            }
+            if (item.TryGetProperty("body", out var bodyEl) && bodyEl.ValueKind == JsonValueKind.Object)
+                body = StringOrNull(bodyEl, "content") ?? "";
 
             string? from = null;
             if (item.TryGetProperty("from", out var fromEl)
+                && fromEl.ValueKind == JsonValueKind.Object
                 && fromEl.TryGetProperty("emailAddress", out var addrEl)
-                && addrEl.TryGetProperty("address", out var addressEl))
+                && addrEl.ValueKind == JsonValueKind.Object)
             {
-                from = addressEl.GetString();
+                from = StringOrNull(addrEl, "address");
             }
 
             var received = item.TryGetProperty("receivedDateTime", out var recEl)
+                && recEl.ValueKind == JsonValueKind.String
                 && recEl.TryGetDateTimeOffset(out var parsed)
                 ? parsed
                 : DateTimeOffset.UtcNow;
 
             results.Add(new MailMessage(
                 id!,
-                item.TryGetProperty("conversationId", out var convEl) ? convEl.GetString() : null,
-                item.TryGetProperty("subject", out var subEl) ? subEl.GetString() : null,
+                StringOrNull(item, "conversationId"),
+                StringOrNull(item, "subject"),
                 body,
                 from,
                 received));
@@ -936,6 +1007,9 @@ public class LeadMailPoller : BackgroundService
 
         return results;
     }
+
+    private static string? StringOrNull(JsonElement item, string name) =>
+        item.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.String ? el.GetString() : null;
 
     // Everything below the first quote marker. Mail clients differ, so this matches the
     // common ones rather than trying to be exhaustive.

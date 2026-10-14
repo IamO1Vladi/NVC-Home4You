@@ -24,7 +24,23 @@ public class LeadActivity
     [MaxLength(20)] public string Type { get; set; } = LeadActivityTypes.Note;
 
     // Present on emails, usually absent on everything else.
-    [MaxLength(400)] public string? Subject { get; set; }
+    [MaxLength(SubjectMaxLength)] public string? Subject { get; set; }
+
+    public const int SubjectMaxLength = 400;
+
+    /// <summary>
+    /// A subject cut to fit the column rather than refused. Both writers need this: a
+    /// customer chooses the subject of what they send, and "Re: " on top of a long one can
+    /// push our reply past the limit. SQL Server refuses an overlong value outright, so an
+    /// unclamped subject would fail the poller's whole tick (every other message in the
+    /// batch with it, again on every retry) or the record of a reply that has already
+    /// gone out.
+    /// </summary>
+    public static string? FitSubject(string? subject)
+    {
+        if (subject is null) return null;
+        return subject.Length <= SubjectMaxLength ? subject : subject[..SubjectMaxLength];
+    }
 
     // NVARCHAR(MAX): an email body with quoted history behind it has no useful ceiling,
     // and this is never indexed or filtered on.

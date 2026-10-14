@@ -32,6 +32,10 @@ public class AppDbContext : DbContext
     public DbSet<PublicDocument> PublicDocuments => Set<PublicDocument>();
     public DbSet<HomeSlot> HomeSlots => Set<HomeSlot>();
 
+    // How a Microsoft Graph id is compared in the database: exactly. See LeadActivity in
+    // OnModelCreating for the failure that made it necessary.
+    public const string GraphIdCollation = "Latin1_General_100_BIN2";
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<AuditEntry>(e =>
@@ -234,6 +238,20 @@ public class AppDbContext : DbContext
 
             // The thread, in order. Every read of this table is "one lead, oldest first".
             e.HasIndex(a => new { a.LeadId, a.OccurredAt });
+
+            // Graph's ids compared byte for byte, because that is what they are: opaque
+            // base64url, in which 'a' and 'A' are different digits. The database default
+            // (SQL_Latin1_General_CP1_CI_AS) ignores case, and found on production
+            // 2026-10-15: two drafts whose mailbox counters differ by 26 get ids that differ
+            // only in the case of one character, so the unique index below refused a second,
+            // perfectly distinct reply — after the customer already had it, which the panel
+            // can only report as "sent but not recorded". The same blind spot let a
+            // customer's new email pass for one already filed, and a conversation id match
+            // somebody else's thread. Binary rather than a _CS_ collation because there is
+            // no language in an id to be clever about; _100_BIN2 is also the cheapest
+            // comparison SQL Server has.
+            e.Property(a => a.ExternalMessageId).UseCollation(GraphIdCollation);
+            e.Property(a => a.ConversationId).UseCollation(GraphIdCollation);
 
             // How inbound mail will find its way home (phase 2). Not unique: every message
             // in a thread shares the conversation id — that is the entire point of it.
