@@ -165,8 +165,8 @@ the old tracker (now `ROADMAP.md`).
    ```
 
    Expect `Prerender: catalogue matches live (… items).` near the top and `Done: N/N routes`
-   at the end, where N is 1 + the distinct paths in `src/routes/paths.js` (52 as of
-   deploy-2026-09-20). A partial run, or a local app that cannot serve its own catalogue,
+   at the end, where N is 1 + the distinct paths in `src/routes/paths.js` (49 as of
+   deploy-2026-10-15b, when the logistics page was retired into the delivery page; 52 before). A partial run, or a local app that cannot serve its own catalogue,
    exits non-zero; do not publish over it. The script first warms the API up (gallery,
    cases, reviews; up to 150s, since a paused database plus the app's retry backoff can take
    ~90s), then each page waits for its own `/api/` calls (up to `PRERENDER_DATA_TIMEOUT`,
