@@ -334,7 +334,8 @@ export function getBoxConfiguratorCatalog(locale = 'en') {
   const planMeta = {
     A1: t('Living room and kitchen + 1 bedroom', 'Хол и кухня + 1 спалня', 'Σαλόνι και κουζίνα + 1 υπνοδωμάτιο'),
     A2: t('Compact 1 bedroom', 'Компактна 1 спалня', 'Συμπαγής διάταξη, 1 υπνοδωμάτιο'),
-    A3: t('2 bedrooms + living room and kitchen', '2 спални + хол и кухня', '2 υπνοδωμάτια + σαλόνι και κουζίνα'),
+    // worded as B2 and C3 are, so the three sizes' two-bedroom plans read as one kind
+    A3: t('Living room and kitchen + 2 bedrooms', 'Хол и кухня + 2 спални', 'Σαλόνι και κουζίνα + 2 υπνοδωμάτια'),
     A4: t('3 bedrooms', '3 спални', '3 υπνοδωμάτια'),
     A5: t('3 bedrooms + workspace', '3 спални + работен кът', '3 υπνοδωμάτια + χώρος εργασίας'),
     A6: t('4 bedrooms', '4 спални', '4 υπνοδωμάτια'),

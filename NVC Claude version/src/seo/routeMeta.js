@@ -213,21 +213,25 @@ const META = {
         'Συνεργαστείτε με την NVC Home4You — ευκαιρίες διανομής και συνεργασίας στη δομική και προκατασκευασμένη κατασκευή.',
     },
   },
+  // The floor planner. The route files read these through getRouteSeo(), as the product
+  // routes do; the content files' own seo.title, which disagreed with this one, is gone. The
+  // head term ("разпределение", "layout", "κάτοψη") is in the page's H1 too. The sizes are the
+  // catalogue's Box houses the page's templates are drawn for; no price, as everywhere here.
   planner: {
     en: {
-      title: 'Floor Planner | NVC Home4You',
+      title: 'Box House Layout Planner | NVC Home4You',
       description:
-        'Plan your modular home layout online with the NVC Home4You floor planner. Design rooms, sizes and flow.',
+        'Start from a catalogue layout for the 37, 58 or 73 m² Box house, or draw your own online. The bathroom stays in its fixed place. Send us the plan for an offer.',
     },
     bg: {
-      title: 'Планиране на разпределение | NVC Home4You',
+      title: 'Планер за разпределение на Бокс къща | NVC Home4You',
       description:
-        'Планирайте разпределението на своята модулна къща онлайн с инструмента на NVC Home4You.',
+        'Изберете готово разпределение от каталога на Бокс къщите 37, 58 и 73 м² или начертайте свое онлайн. Банята е на мястото си. Изпратете плана за оферта.',
     },
     el: {
-      title: 'Σχεδιασμός Κάτοψης | NVC Home4You',
+      title: 'Σχεδιασμός κάτοψης για σπίτι Box | NVC Home4You',
       description:
-        'Σχεδιάστε online την κάτοψη του δομικού σας σπιτιού με το εργαλείο της NVC Home4You. Σχεδιάστε δωμάτια, μεγέθη και ροή.',
+        'Ξεκινήστε από μια κάτοψη του καταλόγου για σπίτι Box 37, 58 ή 73 m² ή σχεδιάστε τη δική σας διαδικτυακά. Το μπάνιο μένει στη θέση του. Στείλτε μας το σχέδιο.',
     },
   },
   boxConfigurator: {

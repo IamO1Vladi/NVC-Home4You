@@ -3,32 +3,27 @@ import SEO from '../../components/SEO.jsx'
 import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import FloorPlannerPage from '../../pages/FloorPlannerPage.jsx'
 import content from '../../content/el/floorPlanner.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
-const URL = 'https://nvc-home4you.eu/el/sxediasmos-katopsis'
-
+// Title, description, canonical and hreflangs all come from routeMeta.js, the way the product
+// routes do it. The planner used to carry two titles (this file's, from the content file, and
+// routeMeta's), and the bg and en routes left the Greek page out of their hreflang lists.
 export default function ElFloorPlannerRoute() {
+  const seo = getRouteSeo(paths.planner.el, 'el')
+
   return (
     <>
+      <SEO {...seo} />
+
       <BreadcrumbsJSONLD
         items={[
           { name: 'Αρχική', url: 'https://nvc-home4you.eu/el' },
-          { name: content.seo.breadcrumb, url: URL },
+          { name: content.seo.breadcrumb, url: seo.url },
         ]}
       />
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={URL}
-        canonical={URL}
-        locale="el"
-        hreflangs={[
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/floor-planner' },
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/planirane-na-razpredelenie' },
-          { hrefLang: 'el', href: URL },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/floor-planner' },
-        ]}
-      />
-      <FloorPlannerPage content={content} />
+
+      <FloorPlannerPage locale="el" content={content} />
     </>
   )
 }

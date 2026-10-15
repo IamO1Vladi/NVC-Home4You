@@ -15,6 +15,11 @@ python gen_catalog.py  # write src/content/shared/boxConfiguratorOptions.js
 
 Requires `pymupdf` and `pillow`.
 
+The floor planner's unfolding 3D house reads its sizes from the catalogue data at run
+time, but its poster stills (`public/planner/unfold-*.webp`, also the prerendered and
+no-WebGL picture) are files. After a new edition, re-render them with the dev server
+running: `node scripts/unfold-posters.mjs` from `NVC Claude version` (see that file).
+
 ## Greek
 
 `gen_catalog.py` writes en/bg only. The Greek for the generated finishes lives in

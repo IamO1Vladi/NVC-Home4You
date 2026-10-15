@@ -1,0 +1,161 @@
+/* The unfolding Box house (components/planner/UnfoldHouse.jsx): a warm paper card with the
+   3D house in it, the caption top left, the model and version switches top right and the
+   play bar along the bottom, all laid over the picture in one grid cell. On a phone the
+   caption, picture, bar and switches stack instead, so nothing covers the house.
+
+   Classes are prefixed uh- and the tokens are --uh-*, set on the usual :root[data-theme]
+   pair with the home page's paper colours, so the card looks the same on any page. The
+   global reduced-motion rule in index.css zeroes the two fades. */
+
+:root[data-theme='light']{
+  --uh-paper:#FAF7F2; --uh-ink:#1F2A37; --uh-muted:#5B6573; --uh-eyebrow:#8A6A45;
+  --uh-accent:#2B63C9; --uh-accent-text:#2B63C9; --uh-track:#E6DFD3;
+  --uh-card:rgba(250,247,242,.86); --uh-line:rgba(31,42,55,.10); --uh-shadow:0 6px 24px rgba(31,42,55,.08);
+}
+:root[data-theme='dark']{
+  --uh-paper:#1A1816; --uh-ink:#F1ECE4; --uh-muted:#B5ACA1; --uh-eyebrow:#C9A57A;
+  --uh-accent:#2B63C9; --uh-accent-text:#8DB8FF; --uh-track:#3A3530;
+  --uh-card:rgba(26,24,22,.82); --uh-line:rgba(239,232,221,.12); --uh-shadow:0 6px 24px rgba(0,0,0,.35);
+}
+
+.uh{
+  position:relative; margin:0;
+  display:grid; grid-template-columns:minmax(0,1fr); grid-template-areas:"stage" "list";
+  background:var(--uh-paper); color:var(--uh-ink);
+  border:1px solid var(--uh-line); border-radius:20px; overflow:hidden;
+}
+.uh :where(p, ol){ margin:0 }
+.uh :focus-visible{ outline:3px solid var(--uh-ink); outline-offset:2px; border-radius:6px }
+
+/* The picture: the poster until the 3D has drawn its first frame, then the canvas. */
+.uh-stage{ grid-area:stage; position:relative; aspect-ratio:16 / 10; min-width:0 }
+.uh-poster, .uh-canvas-host{ position:absolute; inset:0; width:100%; height:100% }
+.uh-poster{ object-fit:contain; transition:opacity .4s ease }
+.uh-poster.is-hidden{ opacity:0; visibility:hidden; transition:opacity .4s ease, visibility 0s linear .4s }
+.uh-canvas-host{ opacity:0; transition:opacity .4s ease }
+.uh.is-live .uh-canvas-host{ opacity:1 }
+/* touch-action stays at its default: a finger on the house scrolls the page */
+.uh-canvas{ display:block; width:100%; height:100% }
+@media (hover:hover) and (pointer:fine){
+  .uh-canvas{ cursor:grab }
+  .uh-canvas.is-dragging{ cursor:grabbing }
+}
+
+/* Caption */
+.uh-caption{
+  grid-area:stage; align-self:start; justify-self:start; z-index:2;
+  max-width:440px; padding:28px 32px; pointer-events:none;
+}
+.uh-eyebrow{ font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--uh-eyebrow); margin-bottom:12px !important }
+.uh-step{ display:flex; align-items:baseline; gap:14px }
+.uh-step-num{
+  flex:none; min-width:54px; color:var(--uh-accent-text); letter-spacing:.04em;
+  font:600 14px/1 ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+}
+.uh-step-label{ font-size:26px; line-height:1.15; font-weight:700; letter-spacing:-.02em; text-wrap:balance }
+.uh-step-note{ margin:8px 0 0 68px !important; font-size:14px; line-height:1.5; color:var(--uh-muted); max-width:330px }
+
+/* Model and version switches */
+.uh-switches{
+  grid-area:stage; align-self:start; justify-self:end; z-index:2;
+  display:flex; flex-direction:column; align-items:flex-end; gap:8px; padding:24px;
+}
+.uh-seg{
+  display:inline-flex; gap:2px; padding:3px;
+  background:var(--uh-card); border:1px solid var(--uh-line); border-radius:999px;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+.uh-seg-btn{
+  min-height:36px; padding:0 14px; border:0; border-radius:999px; cursor:pointer;
+  background:transparent; color:var(--uh-ink); font:inherit; font-size:14px; font-weight:600; line-height:1; white-space:nowrap;
+}
+.uh-seg-btn:hover{ background:var(--uh-line) }
+.uh-seg-btn[aria-pressed='true']{ background:var(--uh-accent); color:#fff }
+
+/* Play bar */
+.uh-bar{
+  grid-area:stage; align-self:end; justify-self:center; z-index:2;
+  width:min(640px, calc(100% - 32px)); margin-bottom:20px;
+  display:flex; align-items:center; gap:16px; padding:10px 18px 10px 10px;
+  background:var(--uh-card); border:1px solid var(--uh-line); border-radius:999px;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:var(--uh-shadow);
+}
+.uh-play{
+  flex:none; width:44px; height:44px; border:0; border-radius:50%; cursor:pointer;
+  display:grid; place-items:center; background:var(--uh-accent); color:#fff;
+}
+.uh-play svg{ width:18px; height:18px; fill:currentColor }
+.uh-track{ position:relative; flex:1; min-width:0; height:48px }
+.uh-scrub{
+  position:absolute; left:0; right:0; top:4px; width:100%; height:20px; margin:0;
+  -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer;
+}
+.uh-scrub::-webkit-slider-runnable-track{
+  height:4px; border-radius:4px;
+  background:linear-gradient(to right, var(--uh-accent) 0 var(--uh-p, 100%), var(--uh-track) var(--uh-p, 100%) 100%);
+}
+.uh-scrub::-moz-range-track{ height:4px; border-radius:4px; background:var(--uh-track) }
+.uh-scrub::-moz-range-progress{ height:4px; border-radius:4px; background:var(--uh-accent) }
+.uh-scrub::-webkit-slider-thumb{
+  -webkit-appearance:none; width:18px; height:18px; margin-top:-7px; border-radius:50%;
+  background:var(--uh-paper); border:3px solid var(--uh-accent);
+}
+.uh-scrub::-moz-range-thumb{ width:12px; height:12px; border-radius:50%; background:var(--uh-paper); border:3px solid var(--uh-accent) }
+.uh-scrub:focus-visible{ outline:none }
+.uh-scrub:focus-visible::-webkit-slider-thumb{ box-shadow:0 0 0 4px rgba(43,99,201,.35) }
+.uh-scrub:focus-visible::-moz-range-thumb{ box-shadow:0 0 0 4px rgba(43,99,201,.35) }
+.uh-ticks{ position:absolute; left:9px; right:9px; top:24px; height:24px; padding:0; list-style:none }
+.uh-ticks li{ position:absolute; top:0; transform:translateX(-50%) }
+.uh-tick{
+  min-width:24px; height:24px; padding:0 4px; border:0; background:none; cursor:pointer;
+  color:var(--uh-muted); font:600 12px/24px ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.uh-tick.is-on{ color:var(--uh-accent-text) }
+/* Until the 3D has arrived the ticks and the scrubber wait (UnfoldHouse.jsx): the picture
+   is still the poster, which they could not move. */
+.uh-tick:disabled, .uh-scrub:disabled{ cursor:default }
+
+.uh-hint{
+  position:absolute; right:20px; bottom:96px; z-index:1; display:none; pointer-events:none;
+  font-size:12px; color:var(--uh-muted);
+}
+@media (hover:hover) and (pointer:fine){ .uh-hint{ display:block } }
+
+/* Without the 3D (no WebGL, and in the prerendered page): the stages as plain text. */
+.uh-list{ grid-area:list; padding:4px 32px 28px 52px !important; display:grid; gap:6px; font-size:15px; line-height:1.5; color:var(--uh-muted) }
+.uh-list strong{ color:var(--uh-ink); font-weight:600 }
+
+.uh-sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap }
+
+/* A laptop screen (1280 × 800, 1440 × 900): a 16:10 picture as wide as the page would run
+   below the fold, so on a short wide screen the stage takes the height that is left under
+   the hero's words instead, and the whole house and its play bar are on the first screen. */
+@media (min-width:1024px) and (max-height:920px){
+  .uh-stage{ aspect-ratio:auto; height:clamp(360px, calc(100vh - 360px), 600px) }
+}
+
+/* Tablet: the switches go under the caption's corner rather than beside a long title. */
+@media (max-width:900px){
+  .uh-step-label{ font-size:22px }
+  .uh-caption{ padding:22px 24px; max-width:360px }
+  .uh-switches{ padding:20px }
+}
+
+/* Phone: stack everything; the picture gets a squarer frame so the house stays large. */
+@media (max-width:640px){
+  .uh{ grid-template-areas:"caption" "stage" "bar" "switches" "list"; border-radius:16px }
+  .uh-caption{ grid-area:caption; max-width:none; padding:16px 16px 0; min-height:118px }
+  .uh-step{ gap:10px }
+  .uh-step-num{ min-width:0; font-size:13px }
+  .uh-step-label{ font-size:20px }
+  .uh-step-note{ margin:6px 0 0 !important; max-width:none; font-size:14px }
+  /* the 16:10 poster fills the squarer frame; only empty paper is cropped off its sides */
+  .uh-stage{ aspect-ratio:4 / 3 }
+  .uh-poster{ object-fit:cover }
+  .uh-bar{ grid-area:bar; justify-self:stretch; width:auto; margin:0 12px 12px; gap:12px; padding:6px 14px 6px 6px }
+  .uh-switches{ grid-area:switches; justify-self:stretch; align-items:stretch; padding:0 12px 16px }
+  .uh-seg{ display:flex }
+  .uh-seg-btn{ flex:1; min-height:44px; padding:0 8px; font-size:14px; white-space:normal; line-height:1.2 }
+  .uh-hint{ display:none !important }
+  .uh-list{ padding:4px 16px 20px 36px !important }
+}

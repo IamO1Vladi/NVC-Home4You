@@ -224,7 +224,7 @@ describe('bg and en did not move', () => {
   const PINNED = {
     bg: {
       models: '6e8b3d5a395e10c0',
-      planOptions: '99ee5cf1139c74ea',
+      planOptions: '5175e39c4987e2bd', // A3 worded as B2 and C3 are (2026-10-15)
       bathroomOptions: '9dda31dd63ca7ad4',
       bathroomDoorOptions: 'ee3b9bc96927e80d',
       vanityOptions: '485f7dadc2bf68db',
@@ -253,7 +253,7 @@ describe('bg and en did not move', () => {
     },
     en: {
       models: '2b2e89149a10a0f0',
-      planOptions: '1d0eef3f109898fe',
+      planOptions: 'a02771497473e43e', // A3 worded as B2 and C3 are (2026-10-15)
       bathroomOptions: 'dc82be58c7111ea3',
       bathroomDoorOptions: 'b0badc15e0d1229e',
       vanityOptions: '7138005080de8086',

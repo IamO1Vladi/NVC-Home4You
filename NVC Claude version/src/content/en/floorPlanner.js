@@ -1,9 +1,92 @@
 export default {
+  // The page around the planner (FloorPlannerPage.jsx). Its title and description are in
+  // src/seo/routeMeta.js, which the route files read, so the search snippet has one source.
+  // Numbers are never typed here: {count} (the catalogue's layouts), {areas} ("37, 58 and
+  // 73", for the facts) and {areasOr} ("37, 58 or 73", where a house is one of them) are
+  // filled from src/content/shared/plannerModels.js, and no price appears.
+  //
+  // The editor is offered from 900px only (the owner's call), so every line that promises
+  // drawing has a *Phone twin the page shows below that: leadPhone, secondaryPhone,
+  // factsPhone, how.steps[].textPhone, templates.containerPhone and containersNotePhone.
   seo: {
-    title: 'Floor planner for modular homes | NVC Home4You',
-    description:
-      'Interactive floor planner for container modules and box houses. Draft layouts, walls, doors, windows, finishes, and export a printable plan.',
     breadcrumb: 'Floor planner',
+  },
+  hero: {
+    eyebrow: 'Free · no sign-up',
+    title: 'Plan the layout of your Box house',
+    lead: 'Start from one of the {count} layouts in our catalogue or draw your own. The sizes are the real ones, and the bathroom stays where it is in the house. When you are done, send us the plan and we reply with an offer.',
+    primary: 'Start from a ready plan',
+    secondary: 'Blank plan',
+    leadPhone: 'Look through the {count} layouts in our catalogue at the real sizes, with the bathroom where it is in the house. Pick the one you like and send it to us: we reply with an offer.',
+    secondaryPhone: 'Ask for an offer',
+    facts: [
+      'The catalogue sizes: {areas}\u00a0m²',
+      'The bathroom stays in its fixed place',
+      'Your plan is kept in your browser',
+    ],
+    factsPhone: [
+      'The catalogue sizes: {areas}\u00a0m²',
+      'The bathroom stays in its fixed place',
+      'Each plan with its rooms and their areas',
+    ],
+  },
+  templates: {
+    eyebrow: 'Quick start',
+    title: 'Ready layouts from the catalogue',
+    sub: 'The same plans as in the Box house catalogue. Pick a size and open a plan to change it.',
+    subPhone: 'The same plans as in the Box house catalogue. Open a plan to look at it closely and send it to us for an offer.',
+    tabsLabel: 'House size',
+    tabBox: '{area}\u00a0m²',
+    tabContainers: 'Containers',
+    containersNote: 'Every container comes with a bathroom (toilet, basin with cabinet and shower tray; the panoramic office has no shower). We have no published drawing of where it sits, so the planner starts from the bare shell: draw the bathroom where you want it.',
+    containersNotePhone: 'Every container comes with a bathroom (toilet, basin with cabinet and shower tray; the panoramic office has no shower). We have no published drawing of where it sits, so we settle the layout together after your enquiry.',
+    containerPhone: 'Shell with a bathroom: we settle the layout together',
+    containerRoom: 'The whole unit',
+    bedrooms: { zero: 'No bedroom', one: '1 bedroom', many: '{n} bedrooms' },
+    open: 'Open in the planner',
+    openAria: 'Open plan {key} in the planner',
+    view: 'View the plan',
+    viewAria: 'View plan {key} up close',
+    planAlt: 'Plan {key}: {summary}',
+    loaded: 'Plan {key} is loaded in the planner. The planner’s Undo button brings back your previous layout.',
+    loadedShell: '{name} is loaded in the planner. The planner’s Undo button brings back your previous layout.',
+    loadedBlank: 'A blank plan is open in the planner. The planner’s Undo button brings back your previous layout.',
+    bathFixed: 'Bathroom (fixed in place)',
+    terrace: 'Terrace {size}\u00a0m',
+    approx: '≈\u00a0{area}\u00a0m²',
+    areaNote: 'Room areas are approximate: measured on the plan, walls included.',
+    previewTitle: 'Plan {key} · {area}\u00a0m²',
+    send: 'Send this plan for an offer',
+    close: 'Close',
+  },
+  editor: {
+    eyebrow: 'Planner',
+    title: 'Arrange the layout yourself',
+    sub: 'Draw rooms, walls, doors and windows on the real plan of the house. The bathroom is locked, because in the house it cannot be moved.',
+    phoneTitle: 'The planner needs a wider screen',
+    phoneText: 'Drawing needs a screen at least as wide as a laptop’s. Open this page on a computer, or turn your tablet sideways — or pick a ready plan above and send it to us for an offer.',
+    sharedTitle: 'The plan from the link',
+    sharedText: 'This is the plan that was sent with the link, read-only. To change it, open the link on a computer.',
+    phoneTemplates: 'See the ready plans',
+    phoneOffer: 'Ask for an offer',
+  },
+  how: {
+    title: 'How it works',
+    sub: 'From an idea to an offer in four steps.',
+    steps: [
+      { title: 'Choose a model', text: 'A Box house of {areasOr}\u00a0m² or a container, at the real sizes from the catalogue.' },
+      {
+        title: 'Arrange the layout',
+        text: 'Start from a ready plan or a blank one and arrange the rooms, doors and windows. The bathroom stays where it is.',
+        textPhone: 'Pick one of the catalogue’s plans and look at it up close, with its rooms and their areas. The bathroom stays where it is.',
+      },
+      { title: 'Send it to us', text: 'One button puts the model and the list of rooms into your enquiry.' },
+      { title: 'Get an offer', text: 'We look at your layout and send you an offer for it.' },
+    ],
+  },
+  finalCta: {
+    title: 'Shall we talk about your layout?',
+    desc: 'Send us your plan or ask a question — we reply with an offer for your house.',
   },
   planner: {
     title: 'Floor plan builder',
@@ -17,7 +100,6 @@ export default {
     legendWall: 'Drag to draw an interior wall segment (auto axis-aligned). Doors snap to any wall; windows snap to exterior walls only.',
     legendOpenings: 'Click to place. Switch to Select to drag along a wall. Doors support Flip swing / hinge in the Inspector.',
     legendSelect: 'Click an element to inspect it. Drag rooms to move them with snapping and no-overlap protection. Drag doors and windows to reposition them.',
-    legendPan: 'Use the Pan tool to move the view. Use the mouse wheel to zoom. The plus/minus buttons work too.',
     legendSnapTitle: 'Snapping & multi-place',
     legendSnap: 'Grid snap is {grid}. Wall/room snap is {align}. Hold ALT to temporarily disable snapping. Hold SHIFT while moving a room to constrain the axis. Multi-place is currently {multi}.',
     keyAlt: 'Disable snapping while dragging',
@@ -28,7 +110,6 @@ export default {
     keyW: 'Wall tool',
     keyD: 'Door tool',
     keyN: 'Window tool',
-    keyP: 'Pan tool',
     model: 'Model',
     tools: 'Tools',
     roomSettings: 'Room settings',
@@ -103,6 +184,7 @@ export default {
       bath: 'Bathroom',
       office: 'Office',
       storage: 'Storage',
+      corridor: 'Hall',
     },
     finishes: {
       wood: 'Wood',

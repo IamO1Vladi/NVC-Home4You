@@ -228,8 +228,12 @@ section{padding:48px 0}
 
 .modal-card h3{margin:0 0 12px 0}
 .modal-card input,.modal-card textarea{
-  width:100%;background:#0b0c10;border:1px solid #ffffff1a;border-radius:10px;color:#fff;padding:10px
+  width:100%;background:#0b0c10;border:1px solid #ffffff1a;border-radius:10px;color:#fff;padding:10px;
+  /* the site's own type, not the browser's monospace: the floor planner and the configurator
+     fill the message with a long, many-line enquiry that has to read well on a phone */
+  font:inherit;font-size:15px;line-height:1.45
 }
+.modal-card textarea{resize:vertical}
 .close-x{position:absolute;right:10px;top:8px;opacity:.7;cursor:pointer}
 
 footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18px 0}
