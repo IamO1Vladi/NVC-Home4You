@@ -54,7 +54,13 @@
     <PackageReference Include="SkiaSharp" Version="4.151.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.151.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.4" />
+    <!-- 8.0.5: the four High advisories Microsoft published 2026-10-13 against <= 8.0.4
+         (CVE-2026-96222 spoofing; CVE-2026-96958, -96959, -96960 denial of service). -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.5" />
+    <!-- Pinned above the 8.0.1 that comes in transitively: CVE-2026-84008 / GHSA-846f-f764-76mx
+         (.NET denial of service, published 2026-10-13, High), fixed in 8.0.2. Both found by
+         DEPLOY.md's `dotnet list package vulnerable include-transitive` step. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="Properties\launchSettings.json">
