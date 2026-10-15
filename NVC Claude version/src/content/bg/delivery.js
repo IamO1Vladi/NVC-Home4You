@@ -1,101 +1,279 @@
-import { euro } from '../../lib/euro.js'
-import { DELIVERY_BASES, DELIVERY_RATES } from '../shared/deliveryRates.js'
-
-// The estimator still computes one rate, the container's, from Marikostinovo; the heading
-// above it names both products. Every figure comes from deliveryRates.js.
-const CONTAINER = DELIVERY_RATES.products.container
-const BOX = DELIVERY_RATES.products.box
-
+// The delivery page, /bg/dostavka-do-vratata: "Доставка и монтаж".
+//
+// WORDS ONLY. Every rate, crane price, workers' figure and lead time is a {placeholder} the page
+// fills from src/content/shared/deliveryRates.js (the owner's answers of 2026-10-15); the Box
+// assembly "from" from prices.js; the truck sizes and weights from boxConfiguratorCatalog.js;
+// the example km from deliveryPlaces/examples.json. So a price change is still one line there.
+//
+// The placeholders: {containerRate} {boxRate} {containerCrane} {boxCrane} {nights} {travel}
+// {days} {production} {months} {assembly}. Delivery and crane figures are WITHOUT VAT, and every
+// sentence that prints one says so; house and container prices elsewhere include it.
+//
+// No seo block: the title, description, canonical and hreflangs come from routeMeta.js.
+// Nothing here about forwarding, tracking, insurance or connecting utilities: the owner offers
+// none of it as a service, and the old logistics page that claimed it is retired.
 export default {
-  seo: {
-    title: 'Доставка до адрес на модулни и сглобяеми къщи | NVC Home4You',
-    description:
-      'Доставка до адрес на модулни, сглобяеми и контейнерни къщи с проследяване, логистика, митническо съдействие и интерактивен калкулатор за цена на доставката.',
-    url: 'https://nvc-home4you.eu/bg/dostavka-do-vratata',
+  breadcrumb: 'Доставка и монтаж',
+  home: 'Начало',
+
+  // ServiceJSONLD, no price: the page publishes a rate and an estimate, not an offer.
+  service: {
+    name: 'Доставка и монтаж на контейнери и Бокс къщи',
+    serviceType: 'Доставка с камион и поставяне с кран',
   },
-  breadcrumbs: [
-    { name: 'Начало', url: 'https://nvc-home4you.eu/bg' },
-    { name: 'Доставка до вратата', url: 'https://nvc-home4you.eu/bg/dostavka-do-vratata' },
-  ],
+
   hero: {
-    title: 'Доставка до вратата',
-    getOffer: 'Получи оферта',
-    askQuestion: 'Задай въпрос',
-    image: {
-      src: '/api/img/content/bvk4n834b-rcd-eg-vb.webp',
+    eyebrow: 'Доставка и монтаж',
+    h1: 'Доставка и монтаж до вашия парцел',
+    lead: 'Цената зависи от това какво доставяме и колко далеч сте. Изберете продукта и населеното място — сметката излиза веднага.',
+    facts: {
+      container: 'Контейнер: {containerRate}/км, в двете посоки, без ДДС',
+      box: 'Бокс къща: около {boxRate}/км в двете посоки + кран около {boxCrane}, без ДДС',
+      project: 'Къща по проект: доставката е в офертата',
+    },
+    ask: 'Задай въпрос',
+  },
+
+  // The calculator's own strings: the keys are listed at the top of DeliveryCalculator.jsx.
+  // {crane}, {rate}, {travel}, {nights}, {km}, {billable}, {amount} and {from} are filled by it.
+  calculator: {
+    title: 'Колко струва доставката до вас',
+    productLegend: 'Какво доставяме',
+    products: { container: 'Контейнер', box: 'Бокс къща', project: 'Къща по проект' },
+    placeLabel: 'Населено място',
+    placeholder: 'напр. Банско',
+    placeHint: 'В България или Гърция. Може да поставите и цял адрес.',
+    loading: 'Зареждаме населените места…',
+    loadError: 'Списъкът с населени места не се зареди.',
+    retry: 'Опитайте отново',
+    suggestionsLabel: 'Населени места',
+    suggestionsCount: { one: '1 предложение', many: '{count} предложения' },
+    noMatch: 'Не намираме това място в България или Гърция. Доставки извън тях оферираме отделно — пишете ни.',
+    countries: { BG: 'България', GR: 'Гърция' },
+    region: { BG: 'обл. {region}', GR: '{region}' },
+    bases: { marikostinovo: 'Марикостиново', varna: 'Варна' },
+    fromBase: { marikostinovo: 'от Марикостиново', varna: 'от Варна' },
+    km: 'км',
+    vat: 'без ДДС',
+    resultLabel: 'Цена на доставката',
+    distance: '{km} по пътя {from}, в една посока',
+    billable: 'В двете посоки: {km} × 2 = {billable}',
+    boxBase: 'Бокс къщата тръгва {from} — оттам е по-близо.',
+    container: {
+      transportLabel: 'Транспорт',
+      transportMath: '{billable} × {rate}/км',
+      fixed: 'фиксирана тарифа, без ДДС',
+      assembly: 'Монтажът е включен в цената на контейнера.',
+      craneTitle: 'С кран — по избор',
+      crane: 'Около {crane} без ДДС, за ваша сметка. Сглобяваме контейнера в нашия склад и той пристига готов — без път и нощувки за работници.',
+      noCraneTitle: 'Без кран',
+      noCrane: 'Двама наши работници го сглобяват на място и остават {nights} нощи. Пътят им добавя до {travel} без ДДС според мястото, а нощувките им осигурявате вие.',
+    },
+    box: {
+      transportLabel: 'Транспорт',
+      transportMath: '{billable} × около {rate}/км',
+      craneLabel: 'Кран',
+      craneNote: 'според мястото може и повече',
+      totalLabel: 'Общо',
+      about: 'около {amount}',
+      noCrane: 'Бокс къща не се доставя без кран.',
+      included: 'Морският превоз от Китай и митницата вече са в цената на къщата.',
+      assembly: 'Монтажът се оферира отделно.',
+      assemblyLink: 'Вижте цените',
+    },
+    project: {
+      text: 'Доставката се оферира с проекта; митницата поемаме ние.',
+    },
+    onRequest: 'Доставката до това място е по запитване.',
+    notes: {
+      approx: 'Ориентировъчно — по пътя до центъра на населеното място; точната цена е в офертата.',
+      several: 'За повече от един контейнер или Бокс къща — оферта по запитване.',
+      foundation: 'Основата не е включена — зависи от мястото.',
+      // The place table's names and road km are OpenStreetMap data (ODbL): credited wherever shown.
+      data: 'Населени места и разстояния: © OpenStreetMap contributors',
+    },
+    enquiry: 'Изпратете запитване с тази доставка',
+    enquiryPlain: 'Изпратете запитване',
+    map: {
+      show: 'Покажи на картата',
+      hide: 'Скрий картата',
+      loading: 'Картата се зарежда…',
+      label: 'Карта: нашата база и избраното място',
+      hint: 'Докоснете картата, за да изберете най-близкото населено място.',
+      nothingNear: 'Наблизо няма населено място от нашия списък. Докоснете по-близо до град или село.',
+      line: '{km} по пътя',
+      zoomIn: 'Приближи',
+      zoomOut: 'Отдалечи',
+      attributionTitle: 'JavaScript библиотека за интерактивни карти',
+      baseMarker: 'Нашата база: {base}',
+      placeMarker: '{place}',
+    },
+    offer: {
+      heading: 'Доставка — ориентировъчна сметка',
+      product: 'Продукт',
+      place: 'Място',
+      distance: 'Разстояние',
+      distanceValue: '{km} в една посока {from}; {billable} за таксуване',
+      transport: 'Транспорт',
+      crane: 'Кран',
+      total: 'Общо',
+      craneOptional: 'по избор, около {crane}',
+      noCraneTravel: 'Без кран: пътят на работниците до {travel}, нощувките им — от клиента.',
+      onRequest: 'по запитване',
+      project: 'Доставката се оферира с проекта.',
+      outside: 'Извън България и Гърция — оферта по запитване.',
+      footer: 'Ориентировъчно; всички суми са без ДДС.',
+      question: 'Въпрос за доставка — {product}, {place} ({km} в една посока).',
+      questionOnRequest: 'Въпрос за доставка — {product}, {place}.',
+      questionOutside: 'Въпрос за доставка — {product}, {place}.',
     },
   },
-  process: {
-    segmentMs: 1500,
-    lead: 'Организираме доставката от потвърждаването на поръчката до разтоварването на адреса, с ясен процес и координация във всеки етап.',
-    bullets: [
-      'Проследяване на пратката и координация на маршрута.',
-      'Съдействие за застраховка и планиране на разтоварването.',
-      'Подготовка на документи и подкрепа при митнически процедури.',
-    ],
-    replay: 'Повтори',
-    steps: [
-      {
-        key: 'order',
-        heading: 'Потвърждение на поръчката',
-        body: 'Уточняваме модела, адреса, сроковете и условията за доставка, за да фиксираме правилния маршрут.',
-        meta: 'План и координация',
+
+  included: {
+    heading: 'Какво влиза в цената',
+    sub: 'Доставката и кранът са без ДДС. Цените на къщите и контейнерите на сайта са с ДДС.',
+    cards: {
+      container: {
+        title: 'Контейнер',
+        lines: [
+          { label: 'Транспорт', text: '{containerRate}/км, в двете посоки — фиксирана тарифа, без ДДС.' },
+          { label: 'Монтаж', text: 'Включен е в цената на всеки контейнер.' },
+          { label: 'С кран', text: 'По ваш избор, около {containerCrane} без ДДС. Тогава сглобяваме контейнера в нашия склад и той пристига готов.' },
+          { label: 'Без кран', text: 'Двама наши работници го сглобяват на място и остават {nights} нощи. Пътят им добавя до {travel} без ДДС, а нощувките им осигурявате вие.' },
+          { label: 'Митница', text: 'Поемаме я ние.' },
+        ],
       },
-      {
-        key: 'prod',
-        heading: 'Производство и подготовка',
-        body: 'Планираме товаренето, опаковката и готовността на обекта за приемане на доставката.',
-        meta: 'Подготовка за експедиция',
+      box: {
+        title: 'Бокс къща',
+        lines: [
+          { label: 'Транспорт', text: 'Около {boxRate}/км, в двете посоки, без ДДС — от Марикостиново или от Варна, откъдето е по-близо.' },
+          { label: 'Кран', text: 'Задължителен — около {boxCrane} без ДДС, а според мястото може и повече. Без кран не е възможно.' },
+          { label: 'Морски превоз и митница', text: 'Вече са в цената на къщата. За пътя до вас плащате само камиона и крана.' },
+          { label: 'Монтаж', text: 'Отделно, от {assembly} без ДДС.' },
+        ],
+        pricesLink: 'Цените с монтажа →',
       },
-      {
-        key: 'export',
-        heading: 'Експорт и експедиция',
-        body: 'Товарът отпътува с подготвени документи, а клиентът получава информация за движението и етапите.',
-        meta: 'Документи и тръгване',
+      project: {
+        title: 'Къща по проект',
+        lines: [
+          { label: 'Доставка', text: 'Доставяме елементите до вашия парцел. Цената е в офертата за проекта.' },
+          { label: 'Митница', text: 'Поемаме я ние.' },
+        ],
       },
-      {
-        key: 'import',
-        heading: 'Внос и митници',
-        body: 'Организираме вносните формалности и координираме локалната логистика до финалната точка.',
-        meta: 'Митническо съдействие',
-      },
-      {
-        key: 'door',
-        heading: 'Доставка до адрес',
-        body: 'Следим последния етап до адреса, разтоварването и предаването според предварителния план.',
-        meta: 'Крайна доставка',
-      },
-    ],
-    // No lead-time chips: the owner is still confirming lead times (2026-10-15).
+    },
+    foundation: 'Основата не е включена — каква е нужна, зависи от мястото.',
+    several: 'Повече от един контейнер или Бокс къща — оферта по запитване. Извън България и Гърция — също.',
+    call: 'Обадете се',
   },
-  estimator: {
-    locale: 'bg-BG',
-    acceptLanguage: 'bg,en',
-    base: DELIVERY_BASES.marikostinovo,
-    ratePerKm: CONTAINER.perKm,
-    strings: {
-      heading: 'Ориентировъчна цена за доставка',
-      subheading: `Контейнер: ${euro(CONTAINER.perKm, 'bg')}/км от Марикостиново, в двете посоки. Бокс къща: около ${euro(BOX.perKm, 'bg')}/км, в двете посоки, от Марикостиново или от Варна (откъдето е по-близо), плюс кран около ${euro(BOX.crane.about, 'bg')}, а според мястото може и повече. Цените са без ДДС.`,
-      // Owner, 2026-10-15: abroad only Greece so far, at the same rates; other countries on request.
-      countriesNote: 'България и Гърция, на същите цени. Други държави — по запитване.',
-      placeholder: 'Въведете адрес (пример: София, бул. Черни връх 1)',
-      buttonIdle: 'Изчисли',
-      buttonLoading: 'Търсене…',
-      addressLabel: 'Адрес:',
-      oneWayLabel: 'Разстояние в една посока:',
-      billableLabel: 'Разстояние за таксуване:',
-      estimateLabel: 'Ориентировъчна цена за контейнер:',
-      vatLabel: 'без ДДС',
-      searchNote: 'Показана е ориентировъчна права линия, когато пътният маршрут не е наличен.',
-      helpText: 'Въведете адрес или кликнете върху картата, за да поставите маркер.',
-      droppedPin: 'Поставен маркер',
-      geocodeError: 'Грешка при геокодиране',
-      notFoundError: 'Не е намерен адрес',
-      // A map pin outside the countries above gets this in place of a price.
-      outsideError: 'Извън България и Гърция доставката е по запитване.',
-      genericError: 'Нещо се обърка',
-      emptyValue: '—',
-      km: 'км',
+
+  examples: {
+    heading: 'Примерни цени',
+    sub: 'По пътя от нашата база до центъра на населеното място.',
+    columns: ['Място · км в една посока', 'Контейнер, без ДДС', 'Бокс къща: транспорт + кран, без ДДС'],
+    // {transport} and {crane} arrive formatted; the Box house figures are estimates.
+    box: 'около {transport} + кран около {crane}',
+    // A place at the Varna base itself has no transport worth printing, only the crane.
+    boxCraneOnly: 'кран около {crane}',
+    fromVarna: 'от Варна, {km} — по-близо е',
+    note: 'Ориентировъчно, до центъра на населеното място, без ДДС. Точната цена е в офертата.',
+  },
+
+  journey: {
+    heading: 'От пристанището до вашия парцел',
+    sub: 'Кадри от наши доставки.',
+    // In this order, each beside its clip in public/delivery/journey-<id>.mp4.
+    clips: [
+      { id: 'port', title: 'На пристанището', text: 'Сгънатата къща пристига с кораба от Китай; митницата поемаме ние.' },
+      { id: 'yard', title: 'В нашата база', text: 'Разтоварваме я от морския контейнер.' },
+      { id: 'truck', title: 'На камиона', text: 'С кран я качваме на камиона, който я кара до вас.' },
+      { id: 'plot', title: 'На вашия парцел', text: 'Кранът я поставя на основата — тук на наземни винтове.' },
+    ],
+    leadTimesHeading: 'Колко време отнема',
+    leadTimes: {
+      container: 'Контейнер на склад — при вас до {days} дни.',
+      box: 'Бокс къща — изработва се до {production} дни и е на вашия адрес за около {months} месеца.',
+    },
+    unfoldHeading: 'На място се разгъва',
+    unfoldText: 'Бокс къщата пътува сгъната и се разгъва едва на мястото си.',
+    truck: {
+      heading: 'Размери и тегло при транспорт',
+      columns: ['Модел', 'Размери при транспорт (Д × Ш × В)', 'Тегло'],
+      dims: '{l} × {w} × {h} м',
+      weight: '{kg} кг',
+      note: 'Толкова трябва да носят камионът и кранът.',
     },
   },
+
+  prepare: {
+    heading: 'Какво да подготвите',
+    photoAlt: 'Кран сваля дълъг модул от камион върху бетонна площадка',
+    adminAlt: 'Доставка на модул с камион и кран',
+    terms: [
+      // foundationNote: the prices page's ground-screw recommendation follows the text.
+      { label: 'Основа', text: 'Зависи от мястото — обадете се за вашия терен.', foundationNote: true },
+      { label: 'Достъп', text: 'Камионът и кранът трябва да стигнат до мястото на къщата. Опишете ни пътя и мястото — снимка помага. Според мястото кранът може да струва и повече.' },
+      { label: 'Контейнер с кран', text: 'Сглобяваме го в нашия склад и пристига готов. Трябва само място за крана.' },
+      { label: 'Контейнер без кран', text: 'Двама наши работници го сглобяват на място и остават {nights} нощи. Осигурявате нощувките им; пътят им добавя до {travel} без ДДС.' },
+    ],
+  },
+
+  // The published case (/api/cases-page, id "2"), as the Box page draws it; not drawn if it is
+  // ever unpublished. Its photo is shown only while the case still lists it.
+  proof: {
+    heading: 'Доставена при клиент',
+    sub: 'Бокс къща, доставена и монтирана в Гърция.',
+    case: {
+      id: '2',
+      line: '58 м² с веранда · Паралия Кариани, Гърция · 2026',
+      result: 'Доставена и монтирана до ключ.',
+      name: 'Вангелис',
+    },
+    photo: {
+      url: '/api/img/cases/1/0ed68fb76fbe4876a9905da7d043216d.webp',
+      alt: 'Разгъваема къща от 58 м² с веранда, доставена в Паралия Кариани, Гърция',
+    },
+    stars: '{rating} от 5',
+    more: 'Вижте проекта →',
+  },
+
+  faq: {
+    heading: 'Въпроси за доставката',
+    items: [
+      {
+        q: 'Как се смята „в двете посоки“?',
+        a: 'Удвояваме километрите по пътя от нашата база до вашето населено място и ги умножаваме по цената на километър: {containerRate} за контейнер и около {boxRate} за Бокс къща, без ДДС. Бокс къщата се смята от Марикостиново или от Варна — откъдето е по-близо.',
+      },
+      {
+        q: 'Колко струва кранът?',
+        a: 'За Бокс къща кранът е задължителен: около {boxCrane} без ДДС, а според мястото може и повече. За контейнер е по ваш избор, около {containerCrane} без ДДС — тогава сглобяваме контейнера в нашия склад и той пристига готов.',
+      },
+      {
+        q: 'Може ли без кран?',
+        a: 'Контейнер — да: двама наши работници го сглобяват на място и остават {nights} нощи. Пътят им добавя до {travel} без ДДС според мястото, а нощувките им осигурявате вие. Бокс къща — не, без кран не е възможно.',
+      },
+      {
+        q: 'Доставяте ли в Гърция и в други държави?',
+        a: 'В Гърция — да, на същите цени; там вече сме доставили Бокс къща в Паралия Кариани. За други държави — по запитване.',
+      },
+      {
+        q: 'Колко време отнема?',
+        a: 'Контейнер, който е на склад, е при вас до {days} дни. Бокс къщата се изработва до {production} дни и е на вашия адрес за около {months} месеца.',
+      },
+      {
+        q: 'Това ли е окончателната цена?',
+        a: 'Сметката е ориентировъчна — по пътя до центъра на населеното място, без ДДС. За контейнер тарифата е фиксирана, за Бокс къща цената е приблизителна. Точната цена е в офертата. За повече от един контейнер или Бокс къща правим отделна оферта.',
+      },
+    ],
+  },
+
+  siblings: {
+    heading: 'Какво доставяме',
+    go: 'Разгледайте →',
+    containers: { label: 'Контейнерни модули', desc: 'Контейнери за живеене и офис, с монтажа в цената.' },
+    houses: { label: 'Бокс къщи', desc: 'Разгъваеми къщи, които пътуват сгънати.' },
+    steel: { label: 'Сглобяеми къщи по проект', desc: 'Стоманена конструкция по ваш или наш проект.' },
+    prices: { label: 'Цени', desc: 'Всички цени, с монтажа и с ДДС.' },
+  },
+
+  finalTitle: 'Да сметнем доставката до вашия парцел?',
 }

@@ -1,4 +1,7 @@
-import { routeMapControls, routeMapDestinations } from './logistics.js'
+import { routeMapControls as ROUTE_CONTROLS, routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
+
+const routeMapDestinations = ROUTE_MAP.el
+const routeMapControls = ROUTE_CONTROLS.el
 
 // The Greek slug, not the English one. This said '/el/partner' — a URL the router does not
 // register and the server answers with a 404 — so the page's own canonical, og:url and

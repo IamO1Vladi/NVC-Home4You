@@ -1,0 +1,122 @@
+/* The delivery calculator card. Built on the home page's tokens (--hp-*, declared per
+   data-theme in HomePage.css), so it follows the site's light and dark themes with no colours
+   of its own; the page wraps it in <main class="hp pp">. Every class is dc-.
+
+   PHONES FIRST: product chips across the full width, the field, the result, the button, the
+   map toggle, one under the other. From 900px the card sits in the hero's right column,
+   420-480px wide. */
+
+.dc{
+  width:100%; max-width:480px; padding:20px; display:grid; gap:18px;
+  background:var(--hp-surface); color:var(--hp-text);
+  border:1px solid var(--hp-line); border-radius:var(--hp-r-l, 20px); box-shadow:var(--hp-shadow-2);
+  font-size:16px; line-height:1.5;
+}
+@media (min-width:900px){ .dc{ margin-left:auto; padding:24px } }
+@media (max-width:899px){ .dc{ max-width:none } }
+.hp .dc-title{ font-size:20px; line-height:1.3; font-weight:600 }
+.dc-label{ display:block; margin:0 0 8px; padding:0; font-size:14px; font-weight:600; color:var(--hp-text) }
+.dc-hint{ margin:6px 0 0; font-size:14px; color:var(--hp-muted) }
+.dc-sr{ position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0 }
+
+/* Product: a radio group drawn as three chips sharing the row; a long Greek label wraps inside. */
+.dc-products{ margin:0; padding:0; border:0; min-width:0 }
+.dc-chips{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px }
+.dc-chip{ position:relative; display:flex; min-width:0 }
+.dc-chip input{ position:absolute; inset:0; margin:0; opacity:0; cursor:pointer }
+.dc-chip span{
+  flex:1; display:flex; align-items:center; justify-content:center; min-height:44px; padding:6px 8px;
+  border:1px solid var(--hp-line); border-radius:12px; background:var(--hp-surface);
+  font-size:15px; font-weight:600; line-height:1.2; text-align:center; overflow-wrap:anywhere;
+}
+.dc-chip:hover span{ border-color:var(--hp-muted) }
+.dc-chip input:checked + span{ background:var(--hp-accent); border-color:var(--hp-accent); color:#fff; box-shadow:var(--hp-btn-shadow) }
+.dc-chip input:focus-visible + span{ outline:3px solid var(--hp-text); outline-offset:2px }
+
+/* The place field and its suggestions */
+.dc-combo{ position:relative }
+.dc-input{
+  width:100%; min-height:48px; padding:0 14px; border:1px solid var(--hp-line); border-radius:12px;
+  background:var(--hp-bg); color:var(--hp-text); font:inherit; font-size:16px; /* 16px: no zoom on iOS */
+}
+.dc-input::placeholder{ color:var(--hp-muted); opacity:1 }
+.dc-input:focus{ outline:none; border-color:var(--hp-accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--hp-accent) 30%, transparent) }
+.dc-list{
+  position:absolute; z-index:30; left:0; right:0; top:calc(100% + 4px); margin:0; padding:4px; list-style:none;
+  max-height:min(330px, 50vh); overflow:auto; overscroll-behavior:contain;
+  background:var(--hp-surface); border:1px solid var(--hp-line); border-radius:12px; box-shadow:var(--hp-shadow-2);
+}
+.dc-list[hidden]{ display:none }
+.dc-option{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; min-height:44px; padding:10px 12px; border-radius:8px; cursor:pointer }
+.dc-option[aria-selected="true"]{ background:var(--hp-surface-2) }
+.dc-option-name{ font-weight:600 }
+.dc-option-region{ font-size:14px; color:var(--hp-muted) }
+.dc-option-region::before{ content:"· "; }
+.dc-loading::before{
+  content:""; display:inline-block; width:12px; height:12px; margin-right:8px; vertical-align:-1px;
+  border:2px solid var(--hp-line); border-top-color:var(--hp-accent); border-radius:50%; animation:dc-spin .8s linear infinite;
+}
+@keyframes dc-spin{ to{ transform:rotate(360deg) } }
+@media (prefers-reduced-motion: reduce){ .dc-loading::before{ animation:none } }
+.dc-error{ margin:8px 0 0; font-size:14px; color:var(--hp-text) }
+.dc-link{ padding:0; border:0; background:none; color:var(--hp-accent-text); font:inherit; font-weight:600; text-decoration:underline; cursor:pointer }
+
+/* The result */
+/* Empty until a pick, but still in the layout: a live region that is display:none when its
+   content arrives may not be announced. The negative margin takes back the grid gap. */
+.dc-result:empty{ margin-top:-18px }
+.dc-outcome{ display:grid; gap:12px; padding-top:16px; border-top:1px solid var(--hp-line) }
+.dc-message{ font-weight:600 }
+.dc-km{ display:grid; gap:2px; font-size:15px }
+.dc-km p:first-child{ font-weight:600; font-size:16px }
+.dc-km-math{ font-variant-numeric:tabular-nums; color:var(--hp-muted) }
+.dc-km-base{ color:var(--hp-muted) }
+.dc-sum{ margin:0; display:grid; gap:8px }
+.dc-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px }
+.dc-row dt{ display:grid; gap:1px; font-weight:600; min-width:0 }
+.dc-row dt small{ font-size:13px; font-weight:400; color:var(--hp-muted); font-variant-numeric:tabular-nums }
+.dc-row dd{ margin:0; text-align:right; white-space:nowrap }
+.dc-money{ font-weight:600; font-variant-numeric:tabular-nums }
+.dc-row--total{ padding-top:8px; border-top:1px solid var(--hp-line) }
+.dc-sum .dc-row--total:first-child{ padding-top:0; border-top:0 }
+.dc-row--total .dc-money{ font-size:22px; line-height:1.2; color:var(--hp-text) }
+/* ✓ what is in the price, ! what cannot be done, + what is quoted on top */
+.dc-ok,.dc-warn,.dc-extra{ font-size:15px; position:relative; padding-left:22px }
+.dc-ok::before,.dc-warn::before,.dc-extra::before{ position:absolute; left:0; top:0; font-weight:700 }
+.dc-ok::before{ content:"✓"; color:var(--hp-sage) }
+.dc-extra::before{ content:"+"; left:2px; color:var(--hp-accent-text) }
+.dc-warn::before{ content:"!"; left:5px; color:var(--hp-star) }
+.dc-warn{ font-weight:600 }
+/* Underlined: inside a sentence the link must not be told apart by colour alone. */
+.dc-extra a{ color:var(--hp-accent-text); font-weight:600; text-decoration:underline; text-underline-offset:2px }
+.dc-choices{ display:grid; gap:8px }
+.dc-choice{ padding:12px 14px; border-radius:12px; background:var(--hp-surface-2) }
+.hp .dc-choice h3{ font-size:15px; line-height:1.3; margin:0 0 2px }
+.dc-choice p{ font-size:14px; line-height:1.5; color:var(--hp-text) }
+.dc-notes{ margin:0; padding:0 0 0 18px; display:grid; gap:4px; font-size:13px; line-height:1.45; color:var(--hp-muted) }
+.dc .dc-cta{ width:100%; min-width:0; white-space:normal; text-align:center; line-height:1.25; padding:8px 16px }
+
+/* The map */
+.dc-map-toggle{
+  justify-self:start; display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 4px;
+  border:0; background:none; color:var(--hp-accent-text); font:inherit; font-weight:600; cursor:pointer;
+}
+.dc-map-toggle svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linejoin:round }
+.dc-map-toggle:hover{ text-decoration:underline }
+.dc-map{ height:260px; border-radius:12px; overflow:hidden; border:1px solid var(--hp-line) }
+@media (min-width:900px){ .dc-map{ height:280px } }
+.dc-map-canvas{ width:100%; height:100% }
+.dc-map-wait{ display:grid; place-items:center; height:260px; margin:0; border-radius:12px; background:var(--hp-surface-2) }
+.dc-map .dc-map-km{
+  padding:2px 8px; border:1px solid var(--hp-line); border-radius:999px; box-shadow:var(--hp-shadow-1);
+  background:var(--hp-surface); color:var(--hp-text); font:600 13px/1.4 inherit; font-family:inherit;
+}
+.dc-map .dc-map-km::before{ display:none }
+/* Leaflet's touch zoom buttons are 30px; ours are tapped with a thumb like every other control. */
+.dc-map .leaflet-touch .leaflet-bar a{ width:44px; height:44px; line-height:44px; font-size:22px }
+/* Dark theme: the OSM tiles dimmed so the map is not the brightest thing on the page; the pins
+   and the km pill already follow the theme. */
+:root[data-theme='dark'] .dc-map .leaflet-tile-pane{ filter:brightness(.78) contrast(1.08) saturate(.85) }
+/* The OpenStreetMap credit for the names and km, always under the card. */
+.dc-credit{ margin:0; font-size:12px; line-height:1.4; color:var(--hp-muted) }
+.dc-credit a{ color:inherit; text-decoration:underline; text-underline-offset:2px }

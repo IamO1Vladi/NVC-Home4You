@@ -1,29 +1,43 @@
+// src/routes/bg/BgDeliveryRoute.jsx
 import React from 'react'
 import SEO from '../../components/SEO.jsx'
-import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
+import { BreadcrumbsJSONLD, ServiceJSONLD } from '../../components/StructuredData.jsx'
 import DeliveryPage from '../../pages/DeliveryPage.jsx'
 import content from '../../content/bg/delivery.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs (all three languages) come from routeMeta.js,
+// as on the product routes; the content file has no seo block any more. The page's FAQ
+// markup is the page's own (DeliveryPage renders it beside the questions it repeats).
+//
+// No Offer markup: the page shows a rate and an estimate, not a price for a product. The
+// delivery is described as a Service of the site's Organization, with no price, as the
+// steel-frame houses are.
 export default function BgDeliveryRoute() {
-  const pageUrl = content.seo.url
-  const alternateEn = 'https://nvc-home4you.eu/en/delivery'
+  const seo = getRouteSeo(paths.delivery.bg, 'bg')
 
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={pageUrl}
-        canonical={pageUrl}
-        hreflangs={[
-          { hrefLang: 'bg', href: pageUrl },
-          { hrefLang: 'en', href: alternateEn },
-          { hrefLang: 'x-default', href: alternateEn },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: content.home, url: 'https://nvc-home4you.eu/bg' },
+          { name: content.breadcrumb, url: seo.url },
         ]}
       />
 
-      <BreadcrumbsJSONLD items={content.breadcrumbs} />
-      <DeliveryPage content={content} />
+      <ServiceJSONLD
+        name={content.service.name}
+        serviceType={content.service.serviceType}
+        description={seo.description}
+        url={seo.url}
+        image={seo.image}
+        areaServed={['BG', 'GR']}
+      />
+
+      <DeliveryPage locale="bg" content={content} />
     </>
   )
 }

@@ -65,6 +65,9 @@ export default {
       dimensionsFolded: 'Размер сгъната',
       totalKnown: 'Известна обща стойност',
       pricingFootnote: 'Окабеляване за контакти и всякакви индивидуални ел. работи остават за офериране след преглед.',
+      // The known total leaves out assembly (quoted separately), the truck and the crane; the
+      // last two are priced, excl. VAT, by the delivery page's calculator, which this line links to.
+      deliveryNote: 'Без монтаж, доставка и кран — изчислете доставката →',
       socketsHint: 'Кликнете върху избрания план, за да поставите контактни точки. Позициите се запазват в проценти и остават подравнени при преоразмеряване и в PDF обобщението.',
       socketCount: 'Брой контакти',
       socketNotes: 'Бележки за контактите',

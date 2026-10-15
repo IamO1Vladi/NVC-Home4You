@@ -6,7 +6,7 @@
 // unit cost 4,240 leva. Now every figure on it is read from the gallery: the cards are the
 // gallery's wagon rows (useProductRows, the same call /bg/ceni makes), the hero's "from" is
 // the cheapest of them, the assembly share is prices.js's, the delivery rate and the crane
-// are deliveryRates.js's (the module the delivery estimator charges from), and the Product
+// are deliveryRates.js's (the module the delivery calculator charges from), and the Product
 // markup is built from the very rows the cards print. Nothing the visitor reads as a price
 // is typed in the content file, so nothing here can go stale the way the brochures' 4,240
 // and 5,370 did.
@@ -40,7 +40,7 @@ import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, disp
 import { paths } from '../routes/paths.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 
-// The container's rate, crane and no-crane terms: the same module the delivery estimator
+// The container's rate, crane and no-crane terms: the same module the delivery calculator
 // charges from, so the sentence here and the calculator one tap away cannot disagree.
 const CONTAINER = DELIVERY_RATES.products.container
 
@@ -220,7 +220,8 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
           </dl>
 
           <p className="pp-links">
-            <Link to={paths.delivery[locale] || paths.delivery.en}>{c.assembly.deliveryLink}</Link>
+            {/* ?product= presets the delivery calculator to this page's product. */}
+            <Link to={`${paths.delivery[locale] || paths.delivery.en}?product=container`}>{c.assembly.deliveryLink}</Link>
           </p>
 
           <div className="hp-cta-row">

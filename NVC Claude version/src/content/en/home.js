@@ -34,10 +34,9 @@ export default {
           ],
         },
         {
-          title: 'Logistics & Site',
+          title: 'Delivery',
           items: [
-            { pathKey: 'delivery', label: 'Door-to-door delivery' },
-            { pathKey: 'logistics', label: 'Logistics' },
+            { pathKey: 'delivery', label: 'Delivery and assembly' },
           ],
         },
         {
@@ -202,7 +201,7 @@ export default {
       items: [
         { icon: 'qa', title: 'No hidden costs', desc: 'Every price is listed with its specs and finishes itemised.' },
         { icon: 'person', title: 'A real person answers', desc: 'Call, write or visit us near Petrich — we reply within 24 hours.' },
-        { icon: 'truck', title: 'Delivered across the EU', desc: 'In-house logistics and turn-key handover, anywhere in the EU.' },
+        { icon: 'truck', pathKey: 'delivery', title: 'Delivered across the EU', desc: 'In-house logistics and turn-key handover, anywhere in the EU.' },
       ],
     },
     steps: {

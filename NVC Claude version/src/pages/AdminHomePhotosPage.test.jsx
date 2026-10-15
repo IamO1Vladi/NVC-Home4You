@@ -5,8 +5,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminHomePhotosPage from './AdminHomePhotosPage.jsx'
 
-// The home page photos screen. What is pinned here: all eleven slots — the home page's
-// eight and the three product pages' — render with their labels BEFORE anything has been
+// The home page photos screen. What is pinned here: all twelve slots — the home page's
+// eight, the three product pages' and the delivery page's — render with their labels BEFORE anything has been
 // uploaded (a screen that only lists what exists cannot show where a photo belongs), and
 // each product page says what it shows while empty; each verb hits the address and body the API binds —
 // FormData with `file`, `{ imageKey }` for a gallery pick, `{ a, b }` for a swap, DELETE
@@ -25,13 +25,14 @@ const json = (body, status = 200) => Promise.resolve({
 
 const NAMES = [
   'hero-1', 'hero-2', 'hero-3', 'hero-4', 'hero-5', 'model-37', 'model-58', 'model-73',
-  'page-modular-builds', 'page-modular-houses', 'page-steel-houses',
+  'page-modular-builds', 'page-modular-houses', 'page-steel-houses', 'page-delivery',
 ]
 
 const PAGE_KEYS = {
   'page-modular-builds': 'modularBuilds',
   'page-modular-houses': 'modularHouses',
   'page-steel-houses': 'steelHouses',
+  'page-delivery': 'delivery',
 }
 
 const kindOf = (name) => (name.startsWith('hero') ? 'hero' : name.startsWith('page') ? 'page' : 'model')
@@ -100,23 +101,23 @@ afterEach(() => {
 const card = (label) => screen.getByText(label, { selector: 'strong' }).closest('li')
 
 describe('AdminHomePhotosPage', () => {
-  it('renders all eleven slots with their labels before any photo has been uploaded', async () => {
+  it('renders all twelve slots with their labels before any photo has been uploaded', async () => {
     listAnswer = () => json(EMPTY)
     render(<AdminHomePhotosPage />)
 
     expect(await screen.findByText('Снимка 1', { selector: 'strong' })).toBeInTheDocument()
     for (const n of [2, 3, 4, 5]) expect(screen.getByText(`Снимка ${n}`, { selector: 'strong' })).toBeInTheDocument()
     for (const label of ['37 m²', '58 m²', '73 m²']) expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
-    for (const label of ['Контейнерни модули', 'Модулни къщи', 'Сглобяеми къщи по проект']) {
+    for (const label of ['Контейнерни модули', 'Модулни къщи', 'Сглобяеми къщи по проект', 'Доставка и монтаж']) {
       expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
     }
 
     // Every slot says what the site shows while it is empty, and offers the two ways to fill
     // it. The steel page's default is no photo, so its box says so instead of "Default".
-    expect(screen.getAllByText('По подразбиране')).toHaveLength(10)
+    expect(screen.getAllByText('По подразбиране')).toHaveLength(11)
     expect(within(card('Сглобяеми къщи по проект')).getByText('Без снимка')).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(11)
-    expect(screen.getAllByRole('button', { name: 'От галерията' })).toHaveLength(11)
+    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(12)
+    expect(screen.getAllByRole('button', { name: 'От галерията' })).toHaveLength(12)
     // Nothing to clear yet.
     expect(screen.queryByRole('button', { name: /Изчисти/ })).not.toBeInTheDocument()
   })
@@ -177,7 +178,7 @@ describe('AdminHomePhotosPage', () => {
     // Still every slot behind the alert — a refused upload is not a broken page.
     expect(screen.getByText('Снимка 5', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('73 m²', { selector: 'strong' })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(11)
+    expect(screen.getAllByRole('button', { name: /^Замени$/ })).toHaveLength(12)
   })
 
   it('moving a hero photo left swaps it with its left neighbour', async () => {
@@ -222,20 +223,21 @@ describe('AdminHomePhotosPage', () => {
     const input = within(card('Снимка 1')).getByLabelText('Описание на снимката (по избор)')
     const hint = document.getElementById(input.getAttribute('aria-describedby'))
     expect(hint).toBeInTheDocument()
-    expect(hint).toHaveTextContent('На трите продуктови страници се използва само в българския сайт')
+    expect(hint).toHaveTextContent('На продуктовите страници и на доставката се използва само в българския сайт')
   })
 
-  it('lists the product pages in their own group, each saying what it shows while empty', async () => {
+  it('lists the product pages and the delivery page in their own group, each saying what it shows while empty', async () => {
     listAnswer = () => json(EMPTY)
     render(<AdminHomePhotosPage />)
 
-    const heading = await screen.findByRole('heading', { level: 2, name: 'Продуктови страници' })
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Продуктови страници и доставка' })
     const section = heading.closest('section')
-    expect(within(section).getAllByRole('listitem')).toHaveLength(3)
+    expect(within(section).getAllByRole('listitem')).toHaveLength(4)
 
     expect(within(card('Контейнерни модули')).getByText('Празно: снимка на контейнер от галерията.')).toBeInTheDocument()
     expect(within(card('Модулни къщи')).getByText(/Паралия Кариани \(58 м²\)/)).toBeInTheDocument()
     expect(within(card('Сглобяеми къщи по проект')).getByText('Празно: страницата е без снимка.')).toBeInTheDocument()
+    expect(within(card('Доставка и монтаж')).getByText('Празно: кран вдига модул от камиона.')).toBeInTheDocument()
 
     // A page photo belongs to its page: no reordering arrows.
     expect(within(section).queryByRole('button', { name: /Наляво|Надясно/ })).not.toBeInTheDocument()
@@ -262,8 +264,8 @@ describe('AdminHomePhotosPage', () => {
     try {
       listAnswer = () => json(EMPTY)
       render(<AdminHomePhotosPage />)
-      expect(await screen.findByRole('heading', { level: 2, name: 'Product pages' })).toBeInTheDocument()
-      for (const label of ['Container units', 'Modular houses', 'Steel-frame prefab houses to your plan']) {
+      expect(await screen.findByRole('heading', { level: 2, name: 'Product pages and delivery' })).toBeInTheDocument()
+      for (const label of ['Container units', 'Modular houses', 'Steel-frame prefab houses to your plan', 'Delivery and assembly']) {
         expect(screen.getByText(label, { selector: 'strong' })).toBeInTheDocument()
       }
       expect(within(card('Steel-frame prefab houses to your plan')).getByText('No photo')).toBeInTheDocument()

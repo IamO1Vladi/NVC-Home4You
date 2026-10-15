@@ -10,6 +10,7 @@ import el from '../content/el/boxConfigurator.js'
 import en from '../content/en/boxConfigurator.js'
 import { encodeConfig } from '../lib/configShare.js'
 import { CONFIG_PREFILL_KEY } from '../lib/configPrefill.js'
+import { paths } from '../routes/paths.js'
 
 // The configurator's own words in Greek (ROADMAP #11).
 //
@@ -282,6 +283,23 @@ describe('the PDF footer date follows the page language', () => {
     const container = renderPage(locale)
     const out = await summaryOutputs(container, false)
     expect(out.pdf).toContain(`${label}: ${new Date().toLocaleString(tag)}`)
+  })
+})
+
+// The known total is the house without assembly (quoted separately), the truck and the crane,
+// the last two of which the delivery page's calculator prices; the line under the total says
+// so and opens it on the Box house, on the screen and in the PDF the customer keeps.
+describe('the known total points to the delivery calculator', () => {
+  it.each(['bg', 'en', 'el'])('%s', async (locale) => {
+    const container = renderPage(locale)
+    const label = CONTENT[locale].page.labels.deliveryNote
+    const href = `${paths.delivery[locale]}?product=box`
+    const out = await summaryOutputs(container, false)
+
+    const links = [...container.querySelectorAll('a')].filter((a) => a.textContent === label)
+    expect(links.length).toBeGreaterThan(0)
+    for (const a of links) expect(a.getAttribute('href')).toBe(href)
+    expect(out.pdf).toContain(`${label.replace(/\s*→$/, '')}: <a href="${window.location.origin}${href}">`)
   })
 })
 

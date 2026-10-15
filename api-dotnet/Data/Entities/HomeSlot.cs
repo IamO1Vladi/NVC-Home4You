@@ -11,7 +11,9 @@ namespace Data.Entities;
 // photo without a developer: five hero slides and the three model cards in the prices strip.
 // The three product pages (containers, modular houses, houses built to a project) followed
 // a day later with one main photo each, because the owner asked for "the same as the home
-// page" there (2026-10-12) — eleven slots in all.
+// page" there (2026-10-12) — eleven slots in all. The delivery page got the twelfth when it
+// became "Delivery and assembly" (2026-10-15), so the crane photo can be swapped for one of
+// NVC's own deliveries without a developer.
 //
 // They are fixed slots rather than a list the panel can grow, for the same reason the
 // brochures are six wired slugs: each page is laid out around its count, the SPA carries a
@@ -36,6 +38,7 @@ public static class HomeSlotNames
         "hero-1", "hero-2", "hero-3", "hero-4", "hero-5",
         "model-37", "model-58", "model-73",
         "page-modular-builds", "page-modular-houses", "page-steel-houses",
+        "page-delivery",
     };
 
     public static readonly IReadOnlyList<string> All = AllArray;
@@ -52,6 +55,7 @@ public static class HomeSlotNames
         ("page-modular-builds", "modularBuilds"),
         ("page-modular-houses", "modularHouses"),
         ("page-steel-houses", "steelHouses"),
+        ("page-delivery", "delivery"),
     };
 
     public static readonly IReadOnlyList<string> PageKeys = PageArray.Select(p => p.Key).ToArray();

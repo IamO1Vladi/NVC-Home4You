@@ -188,7 +188,8 @@ describe.each(['bg', 'en', 'el'])('ModularBuildsPage (%s)', (locale) => {
     expect(block).not.toMatch(/0[.,]80?\b/)
     expect(block).not.toMatch(/\{\w+\}/)
     const link = within(container.querySelector('#assembly')).getByRole('link', { name: c.assembly.deliveryLink })
-    expect(link.getAttribute('href')).toBe(paths.delivery[locale])
+    // Preset to the container, so the calculator opens on the product the visitor was reading.
+    expect(link.getAttribute('href')).toBe(`${paths.delivery[locale]}?product=container`)
   })
 
   it('takes the rate, the crane, the nights and the travel from deliveryRates.js', async () => {

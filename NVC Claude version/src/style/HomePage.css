@@ -226,6 +226,12 @@
 .hp-why-card{ padding:20px; display:grid; gap:8px; align-content:start }
 .hp-why-card .hp-ico{ width:22px; height:22px; color:var(--hp-accent-text) }
 .hp-why-card p{ color:var(--hp-muted); font-size:15px; line-height:1.5 }
+.hp-why-card:has(.hp-why-link){ position:relative; transition:transform .15s }
+.hp-why-card:has(.hp-why-link):hover{ transform:translateY(-2px) }
+.hp-why-link{ color:var(--hp-accent-text); text-decoration:none }
+.hp-why-link::after{ content:''; position:absolute; inset:0; border-radius:inherit }
+.hp-why-card:hover .hp-why-link{ text-decoration:underline }
+@media (prefers-reduced-motion: reduce){ .hp-why-card:has(.hp-why-link):hover{ transform:none } }
 
 /* Contact card */
 .hp-contact{ padding:40px 24px; text-align:center; display:grid; gap:16px; justify-items:center }

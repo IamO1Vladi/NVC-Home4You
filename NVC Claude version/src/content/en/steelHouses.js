@@ -76,6 +76,7 @@ export default {
       {
         title: 'Delivery and customs',
         text: 'We deliver the parts to your plot and handle the customs clearance. On site the frame is assembled and closed with boards.',
+        link: { pathKey: 'delivery', label: 'How we quote delivery →' },
         image: {
           src: '/api/img/content/bvk4n834b-rck-eg-vb.webp',
           alt: 'Render of the assembled steel frame closed with boards on the walls and roof',

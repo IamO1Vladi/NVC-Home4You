@@ -3,7 +3,7 @@
 // component renders every locale. Update the "updated" date whenever the policy changes.
 export default {
   title: 'Privacy & Cookie Policy',
-  updated: 'Last updated: 17 June 2026',
+  updated: 'Last updated: 15 October 2026',
   intro:
     'This Privacy & Cookie Policy explains how NVC Home4You ("we", "us", "our") collects, uses and protects your personal data when you use our website nvc-home4you.eu, request an offer, ask us a question or otherwise contact us. We process personal data in accordance with the EU General Data Protection Regulation (Regulation (EU) 2016/679, "GDPR") and the Bulgarian Personal Data Protection Act.',
   tocTitle: 'On this page',
@@ -64,6 +64,7 @@ export default {
         'Our customer-relationship / quotation platform (Quickbase), where enquiry and offer data is securely stored so we can prepare and manage your offer.',
         'Analytics and advertising providers — Google (Google Analytics, Google Tag Manager, Google Ads) and Meta Platforms (Meta/Facebook Pixel) — but only where you have given consent to the relevant cookies.',
         'Our hosting and IT service providers who keep the website and systems running.',
+        'OpenStreetMap: the map on the delivery page loads its tiles from OpenStreetMap’s servers, and only when you open the map. Those servers see your IP address, as with any image your browser loads.',
         'Couriers, logistics and installation partners where this is necessary to deliver a project you have ordered.',
         'Professional advisers, authorities or courts where we are legally required to disclose information.',
       ],

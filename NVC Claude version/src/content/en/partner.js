@@ -1,4 +1,6 @@
-import { routeMapDestinations } from './logistics.js'
+import { routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
+
+const routeMapDestinations = ROUTE_MAP.en
 
 const url = 'https://nvc-home4you.eu/en/partner'
 

@@ -220,7 +220,7 @@ describe('ModularHousesPage', () => {
     }
   })
 
-  it.each(['bg', 'en', 'el'])('says what delivery and the crane cost, without VAT, how long the house takes, and links the estimator (%s)', async (locale) => {
+  it.each(['bg', 'en', 'el'])('says what delivery and the crane cost, without VAT, how long the house takes, and links the calculator (%s)', async (locale) => {
     const { container } = renderPage(locale)
     await ready(container)
     const BOX = DELIVERY_RATES.products.box
@@ -234,8 +234,9 @@ describe('ModularHousesPage', () => {
     expect(flat(section.textContent)).toContain(flat(line))
     expect(line).toContain({ bg: 'без ДДС', en: 'exclude VAT', el: 'ΦΠΑ' }[locale])
     expect(line).not.toMatch(/\{\w+\}/)
+    // The calculator prices a Box house now, so the link says "work out" and opens on the Box.
     const link = within(section).getByRole('link', { name: arrival.deliveryLink })
-    expect(link.getAttribute('href')).toBe(paths.delivery[locale])
+    expect(link.getAttribute('href')).toBe(`${paths.delivery[locale]}?product=box`)
   })
 
   it('reads the Box delivery figures from deliveryRates.js', async () => {

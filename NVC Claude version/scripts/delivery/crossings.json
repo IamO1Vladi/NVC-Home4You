@@ -1,0 +1,9 @@
+{
+  "_note": "Bulgaria-Greece road crossings used for cross-border distances. 'at' is an APPROXIMATE point on the border road; build-distances.mjs resolves it to the OSM border_control posts nearby (Overpass) and then snaps it in both OSRM graphs, refusing to run if either snap is far off. Check the printed resolution before trusting a run.",
+  "crossings": [
+    { "id": "kulata-promachonas", "bg": "Кулата", "gr": "Προμαχώνας", "latin": "Kulata–Promachonas", "at": [41.3766, 23.3647] },
+    { "id": "ilinden-exochi", "bg": "Илинден", "gr": "Εξοχή", "latin": "Ilinden–Exochi", "at": [41.4365, 23.8264] },
+    { "id": "makaza-nymfaia", "bg": "Маказа", "gr": "Νυμφαία", "latin": "Makaza–Nymfaia", "at": [41.2700, 25.4239] },
+    { "id": "kpv-ormenio", "bg": "Капитан Петко Войвода", "gr": "Ορμένιο", "latin": "Kapitan Petko Voyvoda–Ormenio", "at": [41.7267, 26.2249] }
+  ]
+}

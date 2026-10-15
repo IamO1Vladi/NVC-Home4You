@@ -12,7 +12,7 @@
 // roles explicitly; redundant on a wide screen, and what keeps the table a table on a narrow
 // one.
 //
-// Values are rendered as given, so a cell may hold a link (the delivery estimator). Only
+// Values are rendered as given, so a cell may hold a link (the delivery calculator). Only
 // facts the gallery or the owner has stated go in here; the page's content file says where
 // each one comes from.
 import React from 'react'

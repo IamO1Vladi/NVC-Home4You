@@ -83,6 +83,18 @@ describe('HomePage', () => {
     expect(container.querySelector('section.gl')).toBeNull()
   })
 
+  it('links the delivery reason to the delivery page', async () => {
+    vi.stubGlobal('fetch', stubFetch())
+    const { container } = renderHome()
+
+    const section = container.querySelector('.hp-why-section')
+    const card = enHome.home.whyUs.items.find((item) => item.pathKey === 'delivery')
+    expect(within(section).getByRole('link', { name: card.title })).toHaveAttribute('href', '/en/delivery')
+    // The other two reasons are not links.
+    expect(within(section).getAllByRole('link')).toHaveLength(1)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+  })
+
   it('quotes the cheapest container in the hero lead, from the figure the photos call brings', async () => {
     vi.stubGlobal('fetch', stubFetch({
       photos: { hero: [], models: { 37: null, 58: null, 73: null }, from: { wagon: 4300, modular: 10500 } },

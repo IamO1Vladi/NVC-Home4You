@@ -141,7 +141,16 @@ export default function SteelHousesPage({ locale = 'en', content }) {
         </div>
       </section>
 
-      <ProcessSteps id="pp-process" heading={c.process.h2} sub={c.process.sub} steps={c.process.steps} />
+      <ProcessSteps
+        id="pp-process"
+        heading={c.process.h2}
+        sub={c.process.sub}
+        // A step's link names its page by pathKey; ?product=project opens the delivery
+        // calculator on "a house to a project", whose delivery is quoted with the project.
+        steps={c.process.steps.map((step) => (step.link
+          ? { ...step, link: { label: step.link.label, to: `${pathOf(step.link.pathKey)}?product=project` } }
+          : step))}
+      />
 
       <section aria-labelledby="pp-price-title">
         <div className="hp-container">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getRouteSeo, pageImage } from './routeMeta.js'
 import { paths } from '../routes/paths.js'
+import { DELIVERY_RATES } from '../content/shared/deliveryRates.js'
 import bgBuilds from '../content/bg/modularBuilds.js'
 import enBuilds from '../content/en/modularBuilds.js'
 import elBuilds from '../content/el/modularBuilds.js'
@@ -10,6 +11,9 @@ import elHouses from '../content/el/modularHouses.js'
 import bgSteel from '../content/bg/steelHouses.js'
 import enSteel from '../content/en/steelHouses.js'
 import elSteel from '../content/el/steelHouses.js'
+import bgDelivery from '../content/bg/delivery.js'
+import enDelivery from '../content/en/delivery.js'
+import elDelivery from '../content/el/delivery.js'
 
 // The search snippet and share card of the three product pages.
 //
@@ -132,5 +136,54 @@ describe('the houses page names Bulgaria', () => {
     const { title } = getRouteSeo(paths.modularHouses[locale], locale)
     expect(title).toContain(BULGARIA[locale])
     expect(ARRIVAL[locale].arrival.paragraphs[0]).toMatch(/България|Bulgaria|Βουλγαρία/)
+  })
+})
+
+describe('the delivery page', () => {
+  // The one page that DOES print figures in its snippet: the per-km rates and the crane are
+  // what people search for. They are composed from deliveryRates.js, so the snippet moves
+  // with the rate, and every one is labelled without VAT (the owner, 2026-10-15).
+  const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
+  const TITLE = {
+    bg: 'Доставка на контейнери и Бокс къщи — цена на км и кран | NVC Home4You',
+    en: 'Container and Box House Delivery: Price per km | NVC Home4You',
+    el: 'Παράδοση κοντέινερ και σπιτιών Box: τιμή ανά χλμ | NVC Home4You',
+  }
+  const FIGURES = {
+    bg: [`${CONTAINER.perKm} €/км`, `около ${BOX.perKm} €/км`, `около ${BOX.crane.about} €`, 'без ДДС'],
+    en: [`€${CONTAINER.perKm}/km`, `about €${BOX.perKm}/km`, `about €${BOX.crane.about}`, 'excl. VAT'],
+    el: [`${CONTAINER.perKm} €/χλμ`, `περίπου ${BOX.perKm} €/χλμ`, `περίπου ${BOX.crane.about} €`, 'χωρίς ΦΠΑ'],
+  }
+
+  it.each(LOCALES)('%s: the title, and the figures from deliveryRates.js without VAT', (locale) => {
+    const seo = getRouteSeo(paths.delivery[locale], locale)
+    expect(seo.title).toBe(TITLE[locale])
+    // Short enough that a results page keeps the brand.
+    expect(seo.title.length).toBeLessThanOrEqual(70)
+    expect(seo.title).toMatch(/\| NVC Home4You$/)
+    for (const figure of FIGURES[locale]) expect(seo.description).toContain(figure)
+    expect(seo.description.length).toBeLessThanOrEqual(160)
+    if (locale !== 'bg') expect(`${seo.title} ${seo.description}`).not.toMatch(CYRILLIC)
+  })
+
+  it.each(LOCALES)('%s: the share picture is the page’s own crane photo, with its alt', (locale) => {
+    const seo = getRouteSeo(paths.delivery[locale], locale)
+    const content = { bg: bgDelivery, en: enDelivery, el: elDelivery }[locale]
+    expect(seo.image).toBe(`${SITE}/delivery/crane-lift-1500.webp`)
+    expect(seo.imageAlt).toBe(content.prepare.photoAlt)
+    expect(seo.imageType).toBe('image/webp')
+  })
+
+  it.each(LOCALES)('%s: a self-canonical and the full hreflang cluster', (locale) => {
+    const seo = getRouteSeo(paths.delivery[locale], locale)
+    expect(seo.canonical).toBe(`${SITE}${paths.delivery[locale]}`)
+    expect(seo.hreflangs.map((h) => h.hrefLang)).toEqual(['bg', 'en', 'el', 'x-default'])
+  })
+
+  it('the retired logistics URLs have no metadata of their own (they 301 to this page)', () => {
+    expect(paths.logistics).toBeUndefined()
+    for (const old of ['/bg/mejdunarodna-logistika', '/en/logistics', '/el/diethnis-efodiastiki']) {
+      expect(getRouteSeo(old)).toBeNull()
+    }
   })
 })

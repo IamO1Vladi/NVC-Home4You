@@ -44,11 +44,12 @@ export const paths = {
     en: '/en/delivery',
     el: '/el/paradosi-sto-spiti',
   },
-  logistics: {
-     bg: '/bg/mejdunarodna-logistika',
-     en: '/en/logistics',
-     el: '/el/diethnis-efodiastiki',
-  },
+  // REMOVED 2026-10-15: `logistics` (/bg/mejdunarodna-logistika, /en/logistics,
+  // /el/diethnis-efodiastiki). It sold freight forwarding the owner does not offer as a
+  // service, and the buyer's real question (what it costs to get the house onto the plot)
+  // is the delivery page's.
+  // Program.cs 301s each old URL to the delivery page in its own language. The partner
+  // page's route map, the last of its forwarding claims, went with it.
   partner: {
    bg: '/bg/stani-partnjor',
    en: '/en/partner',

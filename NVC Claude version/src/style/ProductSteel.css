@@ -30,6 +30,7 @@
 .pp-steel .pp-step-body{ grid-column:2; min-width:0 }
 .pp-steel .pp-step-title{ font-size:19px; line-height:1.3; padding-top:8px }
 .pp-steel .pp-step-text{ margin-top:6px; color:var(--hp-muted); font-size:16px; line-height:1.6; max-width:60ch }
+.pp-steel .pp-step-link{ margin-top:8px }
 /* The renders have a white ground of their own, so the frame stays white in the dark theme
    too rather than showing a pale box on a dark card. */
 .pp-steel .pp-step-fig{

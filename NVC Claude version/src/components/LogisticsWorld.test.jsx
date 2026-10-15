@@ -10,10 +10,12 @@ vi.mock('react-leaflet', async (importOriginal) => ({
 }))
 
 import LogisticsWorld from './LogisticsWorld.jsx'
-import bgLogistics from '../content/bg/logistics.js'
-import elLogistics from '../content/el/logistics.js'
-import enLogistics from '../content/en/logistics.js'
+// The map is the partner page's now: the logistics page that also drew it was retired into the
+// delivery page on 2026-10-15.
+import bgPartner from '../content/bg/partner.js'
 import elPartner from '../content/el/partner.js'
+import enPartner from '../content/en/partner.js'
+import { routeMapDestinations } from '../content/shared/routeMap.js'
 
 // The route map on /…/logistics and /…/partner. Its destination names used to be English
 // literals inside this component, so the Greek page offered "Piraeus, GR" in a Greek
@@ -48,8 +50,8 @@ const attributionLink = (container) =>
   container.querySelector('.leaflet-control-attribution a[href="https://leafletjs.com"]')
 
 describe('LogisticsWorld', () => {
-  it('names every destination in Greek on the Greek logistics page', () => {
-    const world = elLogistics.map.world
+  it('names every destination in Greek on the Greek partner page', () => {
+    const world = elPartner.logisticsWorld
     render(<LogisticsWorld content={world} />)
 
     const options = optionsByMode(world)
@@ -61,23 +63,23 @@ describe('LogisticsWorld', () => {
     expect(screen.getByLabelText(world.legendLabel)).toHaveTextContent('Λάεμ Τσαμπάνγκ')
   })
 
-  it('the Greek partner page draws the same Greek map', () => {
+  it('the Greek partner page draws the shared Greek list', () => {
     const world = elPartner.logisticsWorld
     render(<LogisticsWorld content={world} />)
 
-    expect(optionsByMode(world).sea).toEqual(Object.values(elLogistics.map.world.destinations.sea))
+    expect(optionsByMode(world).sea).toEqual(Object.values(routeMapDestinations.el.sea))
   })
 
   it.each([
-    ['en', enLogistics.map.world],
-    ['bg', bgLogistics.map.world],
+    ['en', enPartner.logisticsWorld],
+    ['bg', bgPartner.logisticsWorld],
   ])('%s offers exactly the names it did before', (_, world) => {
     render(<LogisticsWorld content={world} />)
     expect(optionsByMode(world)).toEqual(BEFORE)
   })
 
   it("puts Leaflet's controls in Greek on the Greek page", () => {
-    const { container } = render(<LogisticsWorld content={elLogistics.map.world} />)
+    const { container } = render(<LogisticsWorld content={elPartner.logisticsWorld} />)
 
     const zoomIn = container.querySelector('.leaflet-control-zoom-in')
     const zoomOut = container.querySelector('.leaflet-control-zoom-out')
@@ -93,8 +95,8 @@ describe('LogisticsWorld', () => {
   })
 
   it.each([
-    ['en', enLogistics.map.world],
-    ['bg', bgLogistics.map.world],
+    ['en', enPartner.logisticsWorld],
+    ['bg', bgPartner.logisticsWorld],
   ])("leaves Leaflet's own wording alone where the content has none (%s)", (_, world) => {
     const { container } = render(<LogisticsWorld content={world} />)
 

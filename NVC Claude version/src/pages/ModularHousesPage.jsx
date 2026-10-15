@@ -19,7 +19,7 @@
 // The main photo is the admin's page-modular-houses slot when one is set, and otherwise the
 // delivered 58 m² house from the published case, with a chip naming where it stands. The
 // proof card reads the same case from /api/cases-page and is not drawn if it is unpublished.
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
@@ -38,8 +38,7 @@ import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfigurat
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
-
-const API_BASE = import.meta.env.VITE_API_BASE || ''
+import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
 
 // The size cards, by gallery id, in the order a visitor reads sizes. `variant` is the same
 // house with veranda and double roof, printed as one line of its card rather than a card of
@@ -70,35 +69,6 @@ function widthInMetres(dimensions, locale) {
   const mm = Number(String(dimensions || '').split('x')[1])
   if (!Number.isFinite(mm) || mm <= 0) return null
   return new Intl.NumberFormat(NUMBER_LOCALES[locale] || 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(mm / 1000)
-}
-
-/** The script a quote is written in, so a Bulgarian page can mark an English quote lang="en". */
-function langOf(text) {
-  if (/[А-Яа-я]/.test(text)) return 'bg'
-  if (/[Α-Ωα-ωάέήίόύώ]/.test(text)) return 'el'
-  return 'en'
-}
-
-/**
- * The published case with this id from /api/cases-page, or null: while it loads, if the
- * call fails and if the case is no longer published. The prerender waits for the call.
- */
-function usePublishedCase(id) {
-  const [found, setFound] = useState(null)
-  useEffect(() => {
-    if (!id || typeof fetch !== 'function') return undefined
-    let active = true
-    fetch(`${API_BASE}/api/cases-page`)
-      .then((res) => (res && res.ok ? res.json() : null))
-      .then((body) => {
-        if (!active || !body) return
-        const hit = (Array.isArray(body.cases) ? body.cases : []).find((c) => String(c?.id) === String(id))
-        setFound(hit || null)
-      })
-      .catch(() => {})
-    return () => { active = false }
-  }, [id])
-  return found
 }
 
 export default function ModularHousesPage({ locale = 'bg', content }) {
@@ -290,7 +260,7 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
             <p>{fill(c.arrival.delivery, { rate: euro(BOX_DELIVERY.perKm, locale), crane: euro(BOX_DELIVERY.crane.about, locale), production: LEAD_TIMES.boxProductionDays, months: LEAD_TIMES.boxToAddressMonths })}</p>
             <p className="pp-links">
               <Link to={pricesPath}>{c.arrival.pricesLink}</Link>
-              <Link to={paths.delivery[locale]}>{c.arrival.deliveryLink}</Link>
+              <Link to={`${paths.delivery[locale]}?product=box`}>{c.arrival.deliveryLink}</Link>
             </p>
           </div>
 

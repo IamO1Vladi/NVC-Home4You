@@ -1452,11 +1452,20 @@ app.MapGet("/c/{code}", async (string code, Services.ISavedConfigStore svc, Canc
 // /uslugi in particular was serving the SPA's "Page not found" body under an HTTP 200: a
 // soft 404, advertised in the sitemap, because paths.js registered the path while App.jsx
 // never registered a route for it.
+//
+// The international logistics page went the same way on 2026-10-15. It sold freight
+// forwarding the owner does not offer as a service (Vietnam and Thailand, the Americas, air,
+// rail, EXW/FOB), and repeated the delivery page's steps under a second URL. The one buyer
+// question it touched, what it costs to get the house onto the plot, is the delivery page's,
+// so each language's old URL goes to the delivery page in that same language.
 var retiredPages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
     ["/uslugi"] = "/bg",
     ["/services"] = "/en",
     ["/ypiresies"] = "/el",
+    ["/bg/mejdunarodna-logistika"] = "/bg/dostavka-do-vratata",
+    ["/en/logistics"] = "/en/delivery",
+    ["/el/diethnis-efodiastiki"] = "/el/paradosi-sto-spiti",
 };
 
 foreach (var (from, to) in retiredPages)

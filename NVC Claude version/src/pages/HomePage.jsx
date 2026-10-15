@@ -47,7 +47,7 @@ export default function HomePage({ locale = 'en', bundle }) {
       <Catalogues locale={locale} content={content.catalogues} />
       <Testimonials locale={locale} content={content.testimonials} />
       <Steps content={content.steps} />
-      <WhyUs content={content.whyUs} />
+      <WhyUs locale={locale} content={content.whyUs} />
 
       <FinalCta content={finalCta} business={business} />
 

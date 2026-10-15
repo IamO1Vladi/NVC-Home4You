@@ -1,0 +1,77 @@
+{
+  "v": "2026-10-15",
+  "rows": [
+    {
+      "id": "sofia",
+      "country": "BG",
+      "names": {
+        "bg": "София",
+        "en": "Sofia",
+        "el": "Σόφια"
+      },
+      "native": "София",
+      "km": 175,
+      "kmV": 442
+    },
+    {
+      "id": "plovdiv",
+      "country": "BG",
+      "names": {
+        "bg": "Пловдив",
+        "en": "Plovdiv",
+        "el": "Φιλιππούπολη"
+      },
+      "native": "Пловдив",
+      "km": 329,
+      "kmV": 395
+    },
+    {
+      "id": "varna",
+      "country": "BG",
+      "names": {
+        "bg": "Варна",
+        "en": "Varna",
+        "el": "Βάρνα"
+      },
+      "native": "Варна",
+      "km": 620,
+      "kmV": 1
+    },
+    {
+      "id": "burgas",
+      "country": "BG",
+      "names": {
+        "bg": "Бургас",
+        "en": "Burgas",
+        "el": "Μπουργκάς"
+      },
+      "native": "Бургас",
+      "km": 570,
+      "kmV": 132
+    },
+    {
+      "id": "thessaloniki",
+      "country": "GR",
+      "names": {
+        "bg": "Солун",
+        "en": "Thessaloniki",
+        "el": "Θεσσαλονίκη"
+      },
+      "native": "Θεσσαλονίκη",
+      "km": 119,
+      "kmV": 720
+    },
+    {
+      "id": "kariani",
+      "country": "GR",
+      "names": {
+        "bg": "Кариани",
+        "en": "Kariani",
+        "el": "Κάριανη"
+      },
+      "native": "Κάριανη",
+      "km": 123,
+      "kmV": 624
+    }
+  ]
+}

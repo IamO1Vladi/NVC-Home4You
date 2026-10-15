@@ -1,6 +1,10 @@
 // Three reasons, each a claim the site already publishes elsewhere: no hidden costs, a
-// real person answers, delivered across the EU. Static cards, no framer-motion.
+// real person answers, delivered across the EU. Static cards, no framer-motion. A card whose
+// content names a pathKey links there through its title (the delivery card goes to the
+// delivery page); the link's ::after covers the card, so the whole card is the target.
 import React from 'react'
+import { Link } from 'react-router-dom'
+import { paths } from '../routes/paths.js'
 
 function Icon({ name }) {
   switch (name) {
@@ -15,7 +19,7 @@ function Icon({ name }) {
   }
 }
 
-export default function WhyUs({ content }) {
+export default function WhyUs({ locale = 'en', content }) {
   const items = content?.items || []
   if (!content || !items.length) return null
 
@@ -32,7 +36,11 @@ export default function WhyUs({ content }) {
           {items.map((item) => (
             <div key={item.title} className="hp-card hp-why-card">
               <Icon name={item.icon} />
-              <h3>{item.title}</h3>
+              <h3>
+                {item.pathKey && paths[item.pathKey] ? (
+                  <Link className="hp-why-link" to={paths[item.pathKey][locale] || paths[item.pathKey].en}>{item.title}</Link>
+                ) : item.title}
+              </h3>
               <p>{item.desc}</p>
             </div>
           ))}

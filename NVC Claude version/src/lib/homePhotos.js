@@ -1,13 +1,13 @@
 // The admin-managed photos: the home page's five hero slides and three model cards, and the
-// main photo of each of the three product pages. The same answer also carries "from", the
+// main photo of each of the three product pages and of the delivery page. The same answer also carries "from", the
 // gallery's cheapest published price per category, which the home hero quotes (useHomeFrom):
 // it rides on this call so the figure costs no request of its own and is seeded and kept
 // exactly as the photos are.
 //
-// The admin panel fills eight home slots (hero-1..hero-5, model-37/58/73) and three page
-// slots (page-modular-builds/-houses, page-steel-houses) that the API serves anonymously at
-// /api/home/photos — the pages under "pages", keyed by the same route keys as paths.js
-// (modularBuilds, modularHouses, steelHouses). A page fetches them AFTER first paint and merges them
+// The admin panel fills eight home slots (hero-1..hero-5, model-37/58/73) and four page
+// slots (page-modular-builds/-houses, page-steel-houses, page-delivery) that the API serves
+// anonymously at /api/home/photos — the pages under "pages", keyed by the same route keys as
+// paths.js (modularBuilds, modularHouses, steelHouses, delivery). A page fetches them AFTER first paint and merges them
 // over the content files' defaults, so every failure path (network down, 404 while the
 // migration is not yet applied, an empty table, a malformed body) shows the default
 // photographs and nothing else. Nothing here throws; a failure is `null`, and
@@ -34,7 +34,14 @@ export const HOME_PHOTOS_URL = `${API_BASE}/api/home/photos`
 export const HOME_PHOTOS_TIMEOUT_MS = 4000
 
 export const MODEL_KEYS = ['37', '58', '73']
-export const PAGE_KEYS = ['modularBuilds', 'modularHouses', 'steelHouses']
+export const PAGE_KEYS = ['modularBuilds', 'modularHouses', 'steelHouses', 'delivery']
+
+// What a page slot shows while it is empty, for the pages whose default is not a content
+// photo of its own: the delivery page's crane lifting a unit off the truck. The
+// alt text is words, so it stays in the page's content; this is only where the file is.
+export const PAGE_PHOTO_DEFAULTS = {
+  delivery: { url: '/delivery/crane-lift-1500.webp', width: 1500, height: 1125 },
+}
 
 /** The API body, or null on any failure. Never throws. */
 export async function fetchHomePhotos(signal) {

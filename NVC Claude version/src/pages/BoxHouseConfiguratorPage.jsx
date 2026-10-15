@@ -8,6 +8,7 @@ import { trackEvent } from '../lib/analytics.js'
 import { saveConfig, loadSavedConfig, clearSavedConfig } from '../lib/configPersistence.js'
 import { buildShareUrl, readSharedConfigFromHash, readShortCodeFromSearch, createShortLink, resolveShortLink, emailMyConfig, isLikelyEmail } from '../lib/configShare.js'
 import { SLOT_BATH, runSlotKey, eligibleSlots, reconcileAppliances, followDrawnSink } from '../lib/appliancePlanner.js'
+import { paths } from '../routes/paths.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -679,6 +680,9 @@ export default function BoxHouseConfiguratorPage({ content }) {
     dimensionsFolded: t.labels?.dimensionsFolded || (isBg ? 'Размер сгъната' : 'Folded size'),
     totalKnown: t.labels?.totalKnown || (isBg ? 'Известна обща стойност' : 'Known total'),
     pricingFootnote: t.labels?.pricingFootnote || (isBg ? 'Окабеляване за контакти и индивидуални ел. работи остават за офериране след преглед.' : 'Socket routing and custom electrical work stay as quote-on-review items.'),
+    // The known total leaves out the truck and the crane (both excl. VAT, priced by the
+    // delivery page's calculator), so the line under it says so and links there.
+    deliveryNote: t.labels?.deliveryNote || (isBg ? 'Без монтаж, доставка и кран — изчислете доставката →' : 'Assembly, delivery and crane not included — work out delivery →'),
     socketsHint: t.labels?.socketsHint || (isBg ? 'Кликнете върху плана, за да добавите контакт. Кликнете маркер, за да го премахнете.' : 'Click the floor plan to add a socket. Click a marker to remove it.'),
     socketCount: t.labels?.socketCount || (isBg ? 'Брой контакти' : 'Socket count'),
     socketNotes: t.labels?.socketNotes || (isBg ? 'Бележки за контактите' : 'Socket notes'),
@@ -807,6 +811,11 @@ export default function BoxHouseConfiguratorPage({ content }) {
     sockets: t.hints?.sockets || (isBg ? 'Маркерите се поставят спрямо самото изображение на плана, за да съвпадат еднакво в работната стъпка и в обобщението.' : 'Markers are now placed relative to the plan image itself so the socket scheme matches both the working step and the summary.'),
     summary: t.hints?.summary || (isBg ? 'Тази стъпка събира известната цена, избраните визуализации, схемата на контактите и каталожните референции на едно място.' : 'This stage collects the known total, selected visuals, socket scheme and catalogue references in one place.'),
   }), [isBg, t.hints])
+
+  // ?product=box opens the delivery calculator on the Box house. The PDF is kept and printed
+  // away from the site, so it carries the address in full.
+  const deliveryHref = `${paths.delivery[locale] || paths.delivery.en}?product=box`
+  const deliveryUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://nvc-home4you.eu'}${deliveryHref}`
 
   const pdfText = React.useMemo(() => ({
     title: t.pdf?.title || (isBg ? 'Конфигурация на NVC Бокс къща' : 'NVC Box house configuration'),
@@ -2254,7 +2263,8 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
     <footer>
       ${escapeHtml(`${pdfText.generatedLabel}: ${new Date().toLocaleString(DATE_LOCALES[locale] || 'en-GB')}`)}<br />
-      ${escapeHtml(pdfText.note)}${planApplianceSlots ? `<br />${escapeHtml(labels.applianceDisclaimer)}` : ''}
+      ${escapeHtml(pdfText.note)}${planApplianceSlots ? `<br />${escapeHtml(labels.applianceDisclaimer)}` : ''}<br />
+      ${escapeHtml(labels.deliveryNote.replace(/\s*→\s*$/, ''))}: <a href="${escapeHtml(deliveryUrl)}">${escapeHtml(deliveryUrl)}</a>
     </footer>
   </div>
   <script>
@@ -3400,6 +3410,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <SummaryRow label={labels.totalKnown} value={euro(knownTotal, locale)} strong />
             </div>
             <div className="bhc-small-note">{labels.pricingFootnote}</div>
+            <div className="bhc-small-note"><a href={deliveryHref}>{labels.deliveryNote}</a></div>
           </div>
 
           <div className="bhc-summary-board">
@@ -3554,6 +3565,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 </div>
               ) : null}
               <div className="bhc-small-note">{labels.pricingFootnote}</div>
+              <div className="bhc-small-note"><a href={deliveryHref}>{labels.deliveryNote}</a></div>
             </div>
           </div>
         </div>
@@ -4685,6 +4697,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
             </div>
           ) : null}
           <div className="bhc-small-note">{labels.pricingFootnote}</div>
+          <div className="bhc-small-note"><a href={deliveryHref}>{labels.deliveryNote}</a></div>
         </MobileSection>
       </div>
     )

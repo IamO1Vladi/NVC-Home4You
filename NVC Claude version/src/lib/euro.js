@@ -1,6 +1,6 @@
 // Euro amounts the way each of the site's languages writes them. A module of its own, with no
 // imports, so a page that only prints a delivery rate or a crane price (the FAQ, the delivery
-// page and its estimator) does not pull in the whole configurator catalogue to format a number.
+// page and its calculator) does not pull in the whole configurator catalogue to format a number.
 // boxConfiguratorCatalog.js re-exports it, so its existing importers are unchanged.
 
 // el-GR prints "14.840 €". en-GB's "€14,840" would put a comma where Greek

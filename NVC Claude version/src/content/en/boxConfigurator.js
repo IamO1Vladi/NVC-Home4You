@@ -65,6 +65,9 @@ export default {
       dimensionsFolded: 'Folded size',
       totalKnown: 'Known total',
       pricingFootnote: 'Socket routing and any custom electrical work stay as quote-on-review items.',
+      // The known total leaves out assembly (quoted separately), the truck and the crane; the
+      // last two are priced, excl. VAT, by the delivery page's calculator, which this line links to.
+      deliveryNote: 'Assembly, delivery and crane not included — work out delivery →',
       socketsHint: 'Click on the selected floor plan to place socket points. The positions are saved as percentages, so the marks remain aligned on resize and in the PDF summary.',
       socketCount: 'Socket count',
       socketNotes: 'Socket notes',

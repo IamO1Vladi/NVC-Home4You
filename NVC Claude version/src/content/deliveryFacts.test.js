@@ -64,8 +64,13 @@ describe('delivery facts across the content', () => {
       content(locale, 'modularBuilds').assembly.noCrane,
       content(locale, 'modularBuilds').assembly.delivery,
       content(locale, 'modularHouses').arrival.delivery,
-      content(locale, 'delivery').estimator.strings.subheading,
-      content(locale, 'delivery').estimator.strings.vatLabel,
+      // The delivery page words its figures as {placeholders} filled from deliveryRates.js.
+      content(locale, 'delivery').hero.facts.container,
+      content(locale, 'delivery').hero.facts.box,
+      ...content(locale, 'delivery').included.cards.container.lines.filter((l) => /\{(containerRate|containerCrane|travel)\}/.test(l.text)).map((l) => l.text),
+      ...content(locale, 'delivery').included.cards.box.lines.filter((l) => /\{(boxRate|boxCrane|assembly)\}/.test(l.text)).map((l) => l.text),
+      ...content(locale, 'delivery').faq.items.filter((i) => /\{(containerRate|boxRate|boxCrane|containerCrane|travel)\}/.test(i.a)).map((i) => i.a),
+      content(locale, 'delivery').calculator.vat,
       faqCrane.a,
       ...prices.excluded.filter((line) => line.includes('€')),
     ]
@@ -131,8 +136,9 @@ describe('delivery facts across the content', () => {
   it.each(LOCALES)('%s: claims delivery in Bulgaria and Greece only, other countries on request, where delivery is priced', (locale) => {
     const EU_WIDE = /other EU|други страни от ЕС|χώρες της ΕΕ/
     expect(content(locale, 'modularHouses').arrival.paragraphs.join(' ')).not.toMatch(EU_WIDE)
-    const { countriesNote, outsideError } = content(locale, 'delivery').estimator.strings
-    expect(countriesNote).toBeTruthy()
-    expect(outsideError).toBeTruthy()
+    const { calculator, faq } = content(locale, 'delivery')
+    expect(calculator.noMatch).toBeTruthy()
+    expect(calculator.offer.outside).toBeTruthy()
+    expect(faq.items.map((i) => i.a).join(' ')).not.toMatch(EU_WIDE)
   })
 })

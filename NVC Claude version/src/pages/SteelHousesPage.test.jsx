@@ -198,6 +198,20 @@ describe.each(['bg', 'en', 'el'])('SteelHousesPage (%s)', (locale) => {
     unmount()
   })
 
+  it('links the delivery step, and only that one, to the delivery page set to a project', async () => {
+    const { unmount } = await renderLoaded(locale)
+
+    const section = screen.getByRole('region', { name: c.process.h2 })
+    const steps = [...section.querySelectorAll('ol.pp-steps > li')]
+    const linked = steps.filter((item) => item.querySelector('a'))
+    expect(linked).toHaveLength(1)
+    const step = c.process.steps.find((s) => s.link)
+    expect(linked[0].querySelector('h3')).toHaveTextContent(step.title)
+    const link = within(linked[0]).getByRole('link', { name: step.link.label })
+    expect(link).toHaveAttribute('href', `${paths.delivery[locale]}?product=project`)
+    unmount()
+  })
+
   it('does not bring back the example gallery: none of its seven pictures, no grid, no lightbox', async () => {
     const { container, unmount } = await renderLoaded(locale)
 
@@ -322,10 +336,11 @@ describe('the three locales', () => {
       'Монтаж на място и предаване',
     ])
     expect(JSON.stringify(bg)).not.toMatch(/обков/)
-    // No stray Latin in the Bulgarian words: every string but the picture paths.
+    // No stray Latin in the Bulgarian words: every string but the picture paths and the
+    // route keys links name their page by.
     const words = (value) => (typeof value === 'string'
       ? [value]
-      : Object.entries(value || {}).flatMap(([key, v]) => (key === 'src' ? [] : words(v))))
+      : Object.entries(value || {}).flatMap(([key, v]) => (key === 'src' || key === 'pathKey' ? [] : words(v))))
     expect(words(bg).filter((text) => /[A-Za-z]{2,}/.test(text.replace(/\{\w+\}/g, '')))).toEqual([])
   })
 })

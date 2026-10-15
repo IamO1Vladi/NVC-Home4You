@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { renderHook, waitFor } from '@testing-library/react'
 import {
   HOME_PHOTOS_SEED_ID,
+  PAGE_KEYS,
+  PAGE_PHOTO_DEFAULTS,
   fetchHomePhotos,
   forgetHomePhotos,
   homeFromOf,
@@ -149,6 +153,7 @@ const PAGES_BODY = {
     modularBuilds: null,
     modularHouses: { url: '/api/img/cases/3/kariani.webp', alt: 'Paralia Kariani, 58 m²' },
     steelHouses: { url: '/api/img/home/11/s.webp' },
+    delivery: { url: '/api/img/home/12/d.webp', alt: 'Crane at the yard' },
   },
 }
 
@@ -156,6 +161,16 @@ describe('pagePhotoOf', () => {
   it('returns the url and alt of a filled page slot', () => {
     expect(pagePhotoOf(PAGES_BODY, 'modularHouses')).toEqual({ url: '/api/img/cases/3/kariani.webp', alt: 'Paralia Kariani, 58 m²' })
     expect(pagePhotoOf(PAGES_BODY, 'steelHouses')).toEqual({ url: '/api/img/home/11/s.webp', alt: '' })
+    expect(pagePhotoOf(PAGES_BODY, 'delivery')).toEqual({ url: '/api/img/home/12/d.webp', alt: 'Crane at the yard' })
+  })
+
+  it("knows the four page slots the API serves, and the delivery page's default file", () => {
+    // The same keys and order as HomeSlotNames.PageKeys in the API (page-delivery appended
+    // 2026-10-15); a key missing here makes usePagePhoto answer null for a filled slot.
+    expect(PAGE_KEYS).toEqual(['modularBuilds', 'modularHouses', 'steelHouses', 'delivery'])
+    expect(PAGE_PHOTO_DEFAULTS.delivery.url).toBe('/delivery/crane-lift-1500.webp')
+    const file = path.resolve(__dirname, '../../public', PAGE_PHOTO_DEFAULTS.delivery.url.slice(1))
+    expect(fs.existsSync(file)).toBe(true)
   })
 
   it('is null for an empty slot, an unknown key, or a body without pages', () => {

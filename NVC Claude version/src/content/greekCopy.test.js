@@ -9,7 +9,6 @@ import * as elFloorPlanner from './el/floorPlanner.js'
 import * as elHome from './el/home.js'
 import * as elInteriors from './el/interiors.js'
 import * as elInternalDoors from './el/internalDoors.js'
-import * as elLogistics from './el/logistics.js'
 import * as elModularBuilds from './el/modularBuilds.js'
 import * as elModularHouses from './el/modularHouses.js'
 import * as elPartner from './el/partner.js'
@@ -20,10 +19,9 @@ import bgHome from './bg/home.js'
 import enHome from './en/home.js'
 import bgModularHouses from './bg/modularHouses.js'
 import enModularHouses from './en/modularHouses.js'
-import * as bgLogistics from './bg/logistics.js'
-import * as enLogistics from './en/logistics.js'
 import bgPartner from './bg/partner.js'
 import enPartner from './en/partner.js'
+import { routeMapControls, routeMapDestinations } from './shared/routeMap.js'
 
 // ROADMAP #11, the Greek audit: English and Bulgarian-in-Latin words that sat inside the
 // Greek copy outside the configurator. Each pattern below was a real string on a /el page
@@ -38,7 +36,6 @@ const EL_FILES = {
   'el/home.js': elHome,
   'el/interiors.js': elInteriors,
   'el/internalDoors.js': elInternalDoors,
-  'el/logistics.js': elLogistics,
   'el/modularBuilds.js': elModularBuilds,
   'el/modularHouses.js': elModularHouses,
   'el/partner.js': elPartner,
@@ -100,16 +97,17 @@ describe('Greek copy outside the configurator', () => {
     expect(mixed).toEqual([])
   })
 
-  it('names the logistics page the way its own title does', () => {
-    // The page is titled «Διεθνής εφοδιαστική»; the menu link and the breadcrumb said
-    // "Logistics", and the breadcrumb is what Google shows in the result.
-    const pageTitle = elLogistics.default.hero.title
-    expect(pageTitle).toBe('Διεθνής εφοδιαστική')
-    expect(elLogistics.default.breadcrumbs[1].name).toBe(pageTitle)
-    const link = elHome.default.header.servicesMenu.columns
-      .flatMap((c) => c.items)
-      .find((item) => item.pathKey === 'logistics')
-    expect(link.label).toBe(pageTitle)
+  it('names the delivery menu column and link in Greek', () => {
+    // The column was «Εφοδιαστική & Εργοτάξιο» with a link to the international logistics
+    // page, which was retired into the delivery page on 2026-10-15.
+    const column = elHome.default.header.servicesMenu.columns.find((c) =>
+      c.items.some((item) => item.pathKey === 'delivery'))
+    expect(column.title).toBe('Παράδοση')
+    expect(column.items).toEqual([{ pathKey: 'delivery', label: 'Παράδοση και συναρμολόγηση' }])
+    for (const home of [elHome.default, enHome, bgHome]) {
+      const keys = home.header.servicesMenu.columns.flatMap((c) => c.items.map((item) => item.pathKey))
+      expect(keys).not.toContain('logistics')
+    }
   })
 })
 
@@ -123,8 +121,7 @@ describe('header Planning dropdown', () => {
 
 describe('route map destinations', () => {
   const KINDS = ['sea', 'air', 'rail']
-  const el = elLogistics.routeMapDestinations
-  const en = enLogistics.routeMapDestinations
+  const { el, en, bg } = routeMapDestinations
 
   it('el names the same places as en, and every one in Greek script', () => {
     for (const kind of KINDS) {
@@ -135,18 +132,17 @@ describe('route map destinations', () => {
 
   it('keeps the IATA codes in the Greek airport names', () => {
     for (const [id, name] of Object.entries(en.air)) {
-      const code = name.match(/\(([A-Z]{3})\)/)[1]
+      const code = name.match(/(([A-Z]{3}))/)[1]
       expect(el.air[id]).toContain(`(${code})`)
     }
   })
 
-  it('bg keeps exactly the names it showed before, and both pages share one list per locale', () => {
-    expect(bgLogistics.routeMapDestinations).toEqual(en)
-    expect(bgLogistics.default.map.world.destinations).toBe(bgLogistics.routeMapDestinations)
-    expect(bgPartner.logisticsWorld.destinations).toBe(bgLogistics.routeMapDestinations)
+  it('bg keeps exactly the names it showed before, and the partner page reads the shared lists', () => {
+    expect(bg).toEqual(en)
+    expect(bgPartner.logisticsWorld.destinations).toBe(bg)
     expect(enPartner.logisticsWorld.destinations).toBe(en)
     expect(elPartner.default.logisticsWorld.destinations).toBe(el)
-    expect(elPartner.default.logisticsWorld.mapControls).toBe(elLogistics.routeMapControls)
+    expect(elPartner.default.logisticsWorld.mapControls).toBe(routeMapControls.el)
   })
 })
 

@@ -1,0 +1,98 @@
+{
+  "v": "2026-10-15",
+  "source": "OpenStreetMap (Geofabrik extracts, Overpass API), routed with OSRM car profile, ferries excluded",
+  "attribution": "© OpenStreetMap contributors (ODbL)",
+  "bases": {
+    "marikostinovo": {
+      "lat": 41.43165,
+      "lon": 23.33813
+    },
+    "varna": {
+      "lat": 43.2141,
+      "lon": 27.9147
+    }
+  },
+  "cols": [
+    "name",
+    "bg",
+    "en",
+    "el",
+    "r",
+    "t",
+    "lat",
+    "lon",
+    "km",
+    "kmV"
+  ],
+  "scale": 10000,
+  "shrink": [],
+  "crossings": [
+    {
+      "id": "kulata-promachonas",
+      "latin": "Kulata–Promachonas",
+      "bg": [
+        41.37629,
+        23.364255
+      ],
+      "gr": [
+        41.37629,
+        23.364255
+      ],
+      "gapKm": 0
+    },
+    {
+      "id": "ilinden-exochi",
+      "latin": "Ilinden–Exochi",
+      "bg": [
+        41.436503,
+        23.826415
+      ],
+      "gr": [
+        41.436503,
+        23.826415
+      ],
+      "gapKm": 0
+    },
+    {
+      "id": "makaza-nymfaia",
+      "latin": "Makaza–Nymfaia",
+      "bg": [
+        41.269972,
+        25.423836
+      ],
+      "gr": [
+        41.269972,
+        25.423836
+      ],
+      "gapKm": 0
+    },
+    {
+      "id": "kpv-ormenio",
+      "latin": "Kapitan Petko Voyvoda–Ormenio",
+      "bg": [
+        41.7267,
+        26.2249
+      ],
+      "gr": [
+        41.7267,
+        26.2249
+      ],
+      "gapKm": 0
+    }
+  ],
+  "counts": {
+    "BG": 5115,
+    "GR": 7673,
+    "unroutable": 2032
+  },
+  "bytes": {
+    "bg": {
+      "raw": 287990,
+      "gzip": 74669
+    },
+    "gr": {
+      "raw": 450520,
+      "gzip": 113308
+    }
+  }
+}

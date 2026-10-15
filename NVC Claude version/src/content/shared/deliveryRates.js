@@ -1,8 +1,8 @@
 // What delivery and the crane cost, as the owner gave them on 2026-10-15. Numbers only:
 // every page that quotes a rate or a crane reads it from here and words it in its own
-// content, so the containers page, the Box page, the prices list, the FAQ and the
-// estimator cannot quote two different figures again (the estimator charged 0.80 €/km
-// for everything until this file).
+// content, so the containers page, the Box page, the prices list, the FAQ, the SEO snippet
+// and the delivery calculator cannot quote two different figures again (the old estimator
+// charged 0.80 €/km for everything until this file).
 //
 // NONE OF THESE INCLUDE VAT. House and container prices elsewhere on the site do, so
 // every place that prints one of these figures says "без ДДС" / "excl. VAT" / "χωρίς ΦΠΑ".
@@ -11,10 +11,10 @@
 // everything; abroad we have delivered only to Greece, at the same rates, and other
 // countries are on request; more than one container or Box house is quoted separately.
 //
-// What the pages READ: countries, the perKm rates, crane.about, noCrane.nights and
-// noCrane.travelMax, DELIVERY_BASES.marikostinovo (the estimator's start) and LEAD_TIMES. The rest
-// (kind, roundTrip, bases, varna, optional/required/canBeMore, workers, project, vatIncluded)
-// records the owner's answer and is read by no page: the copy words those facts itself
+// What the pages READ: the perKm rates, crane.about, noCrane.nights and noCrane.travelMax,
+// DELIVERY_BASES (the calculator's map pins and line) and LEAD_TIMES. The rest (countries, kind,
+// roundTrip, bases, optional/required/canBeMore, workers, project, vatIncluded) records the
+// owner's answer and is read by no page: the copy words those facts itself
 // ("two of our workers", "Marikostinovo or Varna", "or more depending on the location"), so
 // changing one of these fields changes nothing on the site until the copy is changed too.
 
@@ -26,7 +26,8 @@ export const DELIVERY_BASES = {
 
 export const DELIVERY_RATES = {
   vatIncluded: false,
-  // ISO 3166 codes the estimator's address search is limited to (Nominatim countrycodes).
+  // The countries the calculator's place table covers (scripts/delivery/build-distances.mjs
+  // builds BG and GR); anywhere else is on request.
   countries: ['bg', 'gr'],
   products: {
     // A fixed rate, the km counted there and back.

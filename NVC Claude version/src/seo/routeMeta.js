@@ -3,8 +3,11 @@
 // locales. Rendered once from AppShell so every route ships a unique title,
 // description, canonical URL, hreflang set and Open Graph tags.
 import { paths, getPageKeyByPath, getLocaleFromPath } from '../routes/paths.js'
+import { DELIVERY_RATES } from '../content/shared/deliveryRates.js'
 
 const SITE_URL = 'https://nvc-home4you.eu'
+
+const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
 
 const META = {
   home: {
@@ -162,38 +165,31 @@ const META = {
         'Διαμόρφωση εσωτερικών χώρων, υλικά και υπηρεσίες ανακαίνισης για δομικά και παραδοσιακά σπίτια από την NVC Home4You.',
     },
   },
+  // The delivery page, the one place that answers "what does it cost to get it onto my
+  // plot". Its route files read this through getRouteSeo(), as the product routes do, so
+  // there is one title per locale. Unlike the product pages it DOES name its
+  // figures: the per-km rate and the crane are what people search for, and no seller in
+  // those results publishes one. They are composed from deliveryRates.js, never typed, so a
+  // new rate changes the snippet in the same commit (a few hundred bytes in the main chunk).
+  // Every one is excl. VAT and says so; the logistics page's searches ("международна
+  // логистика") are no longer targeted, its URLs 301 here (Program.cs retiredPages). The
+  // titles stay within 70 characters so the brand is not cut off, and the crane sits with the
+  // Box house, the one product that cannot do without it.
   delivery: {
     en: {
-      title: 'Door-to-Door Delivery | NVC Home4You',
+      title: 'Container and Box House Delivery: Price per km | NVC Home4You',
       description:
-        'Door-to-door delivery and installation of modular homes in Bulgaria and Greece. See how delivery works.',
+        `Container: €${CONTAINER.perKm}/km. Box house: about €${BOX.perKm}/km plus a crane of about €${BOX.crane.about}. Km counted both ways, excl. VAT. Work out delivery to your town in Bulgaria or Greece.`,
     },
     bg: {
-      title: 'Доставка до врата | NVC Home4You',
+      title: 'Доставка на контейнери и Бокс къщи — цена на км и кран | NVC Home4You',
       description:
-        'Доставка до врата и монтаж на модулни къщи в България и Гърция. Вижте как протича доставката.',
+        `Контейнер: ${CONTAINER.perKm} €/км. Бокс къща: около ${BOX.perKm} €/км и кран около ${BOX.crane.about} €. Км в двете посоки, без ДДС. Изчислете доставката до вашето място в България или Гърция.`,
     },
     el: {
-      title: 'Παράδοση έως την Πόρτα | NVC Home4You',
+      title: 'Παράδοση κοντέινερ και σπιτιών Box: τιμή ανά χλμ | NVC Home4You',
       description:
-        'Παράδοση έως την πόρτα και τοποθέτηση δομικών σπιτιών σε Βουλγαρία και Ελλάδα. Δείτε πώς λειτουργεί η παράδοση.',
-    },
-  },
-  logistics: {
-    en: {
-      title: 'International Logistics | NVC Home4You',
-      description:
-        'Cross-border logistics for modular and prefab structures throughout the EU, handled end to end by NVC Home4You.',
-    },
-    bg: {
-      title: 'Международна логистика | NVC Home4You',
-      description:
-        'Трансгранична логистика за модулни и сглобяеми конструкции в целия ЕС, изцяло организирана от NVC Home4You.',
-    },
-    el: {
-      title: 'Διεθνής Εφοδιαστική (Logistics) | NVC Home4You',
-      description:
-        'Διασυνοριακή μεταφορά για δομικές και προκατασκευασμένες κατασκευές σε όλη την ΕΕ, με ολοκληρωμένη διαχείριση από την NVC Home4You.',
+        `Κοντέινερ: ${CONTAINER.perKm} €/χλμ. Σπίτι Box: περίπου ${BOX.perKm} €/χλμ + γερανός περίπου ${BOX.crane.about} €. Και στις δύο κατευθύνσεις, χωρίς ΦΠΑ. Υπολογίστε την παράδοση σε Βουλγαρία ή Ελλάδα.`,
     },
   },
   partner: {
@@ -351,6 +347,19 @@ const META = {
 // size for it, and this module runs in plain Node at build time (the SEO manifest), where
 // the live slot cannot be read.
 const PAGE_IMAGES = {
+  // The delivery page's own photo (PAGE_PHOTO_DEFAULTS.delivery), with its alt from the
+  // delivery content's prepare.photoAlt.
+  delivery: {
+    url: `${SITE_URL}/delivery/crane-lift-1500.webp`,
+    width: 1500,
+    height: 1125,
+    type: 'image/webp',
+    alt: {
+      bg: 'Кран сваля дълъг модул от камион върху бетонна площадка',
+      en: 'A crane lifting a long module off a truck onto a concrete yard',
+      el: 'Γερανός κατεβάζει μια μακριά μονάδα από φορτηγό σε τσιμεντένιο προαύλιο',
+    },
+  },
   modularBuilds: {
     url: `${SITE_URL}/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp`,
     width: 1024,

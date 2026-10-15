@@ -89,7 +89,7 @@ export default {
     foundation: 'The foundation it needs depends on the location. Call us or ask us about your plot.',
     deliveryLabel: 'Delivery',
     delivery: 'We deliver from Marikostinovo, Bulgaria: {rate} per kilometre, counted both ways, excl. VAT. A container in stock arrives within {days} days.',
-    deliveryLink: 'Estimate delivery to your address →',
+    deliveryLink: 'Work out delivery to you →',
     ask: 'Ask a Question',
     call: 'Call us',
   },

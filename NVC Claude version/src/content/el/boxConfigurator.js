@@ -87,6 +87,9 @@ export default {
       dimensionsFolded: 'Διαστάσεις διπλωμένο',
       totalKnown: 'Γνωστό σύνολο',
       pricingFootnote: 'Η καλωδίωση πριζών και τυχόν ειδικές ηλεκτρολογικές εργασίες παραμένουν προς προσφορά μετά από έλεγχο.',
+      // The known total leaves out assembly (quoted separately), the truck and the crane; the
+      // last two are priced, excl. VAT, by the delivery page's calculator, which this line links to.
+      deliveryNote: 'Χωρίς συναρμολόγηση, παράδοση και γερανό — υπολογίστε την παράδοση →',
       socketsHint: 'Κάντε κλικ στην κάτοψη για να προσθέσετε πρίζα. Κάντε κλικ σε δείκτη για να τον αφαιρέσετε.',
       socketCount: 'Αριθμός πριζών',
       socketNotes: 'Σημειώσεις πριζών',

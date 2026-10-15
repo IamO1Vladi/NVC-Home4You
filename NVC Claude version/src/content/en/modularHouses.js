@@ -108,7 +108,7 @@ export default {
     // {rate}, {crane}, {production} and {months} come from deliveryRates.js, the owner's figures of 2026-10-15.
     delivery: 'Delivery to your plot: about {rate} per kilometre, counted both ways, from Marikostinovo or from Varna, whichever is closer to you. The crane is required and costs about {crane}, or more depending on the location. Delivery and crane exclude VAT. The house is made in up to {production} days and reaches your address in about {months} months.',
     pricesLink: 'Prices with assembly →',
-    deliveryLink: 'Check the distance to your address →',
+    deliveryLink: 'Work out delivery to you →',
     includedHeading: 'What assembly covers',
     excludedHeading: 'What is not included',
     foundationAsk: 'The foundation you need depends on the site. Call us or ask us.',

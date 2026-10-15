@@ -42,13 +42,33 @@ describe('Header planning dropdown', () => {
     expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-haspopup', 'menu')
   })
 
-  it('names the Greek logistics link and its menu column in Greek', () => {
+  it('names the Greek delivery link and its menu column in Greek', () => {
     const { container } = renderHeader('el')
     fireEvent.click(screen.getByRole('button', { name: /Σπίτια & υπηρεσίες/ }))
 
-    expect(screen.getByText('Εφοδιαστική & Εργοτάξιο')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Διεθνής εφοδιαστική' })).toHaveAttribute('href', '/el/diethnis-efodiastiki')
-    expect(container.textContent).not.toMatch(/Logistics|Planning/)
+    expect(screen.getByText('Παράδοση')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Παράδοση και συναρμολόγηση' })).toHaveAttribute('href', paths.delivery.el)
+    expect(container.textContent).not.toMatch(/Logistics|Delivery|Planning/)
+  })
+
+  // The logistics page was retired into the delivery page (2026-10-15): its column is the
+  // delivery column now, one item, and no locale links the old URLs.
+  it.each([
+    ['bg', 'Доставка', 'Доставка и монтаж'],
+    ['en', 'Delivery', 'Delivery and assembly'],
+    ['el', 'Παράδοση', 'Παράδοση και συναρμολόγηση'],
+  ])('%s: the delivery column holds the one delivery link', (locale, column, label) => {
+    const header = getHomeContent(locale).header
+    const { container } = renderHeader(locale)
+    expect(header.servicesMenu.columns).toHaveLength(3)
+    expect(header.servicesMenu.columns[1]).toEqual({ title: column, items: [{ pathKey: 'delivery', label }] })
+
+    fireEvent.click(screen.getByRole('button', { name: (name) => name.startsWith(header.servicesSummary) }))
+    expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', paths.delivery[locale])
+    const hrefs = [...container.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))
+    expect(hrefs).not.toContain('/bg/mejdunarodna-logistika')
+    expect(hrefs).not.toContain('/en/logistics')
+    expect(hrefs).not.toContain('/el/diethnis-efodiastiki')
   })
 })
 

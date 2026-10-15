@@ -17,6 +17,7 @@
 //
 // The styling lives in src/style/ProductSteel.css, which the page that uses this imports.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { cdnImage, cdnSrcSet } from '../../lib/img.js'
 
 // The width at which the stage takes over; ProductSteel.css uses the same breakpoint.
@@ -32,7 +33,9 @@ const STEP_WIDTHS = [480, 640, 800, 1200]
  * @param id       the section id, also the stem of the heading's and the stage's ids
  * @param heading  the h2
  * @param sub      an optional line under it
- * @param steps    [{ title, text, image: { src, alt, caption } }], in order
+ * @param steps    [{ title, text, image: { src, alt, caption }, link?: { to, label } }], in order;
+ *                 a step's link (the steel page's delivery step to the delivery page) sits
+ *                 under its words
  */
 export default function ProcessSteps({ id = 'pp-process', heading, sub, steps = [] }) {
   const list = (steps || []).filter((step) => step && step.title)
@@ -109,6 +112,9 @@ export default function ProcessSteps({ id = 'pp-process', heading, sub, steps = 
                     ) : step.title}
                   </h3>
                   {step.text ? <p className="pp-step-text">{step.text}</p> : null}
+                  {step.link?.to && step.link.label ? (
+                    <p className="pp-links pp-step-link"><Link to={step.link.to}>{step.link.label}</Link></p>
+                  ) : null}
                   {step.image?.src ? (
                     <figure className="pp-step-fig">
                       <img

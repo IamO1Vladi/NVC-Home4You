@@ -25,23 +25,25 @@ const MODELS = [
   { name: 'model-58', label: '58 m²' },
   { name: 'model-73', label: '73 m²' },
 ]
-// In menu order. Their labels and their empty-slot defaults are words, so they live in TEXT.
-const PAGES = ['page-modular-builds', 'page-modular-houses', 'page-steel-houses']
+// In menu order, the delivery page (2026-10-15) after the products. Their labels and their
+// empty-slot defaults are words, so they live in TEXT.
+const PAGES = ['page-modular-builds', 'page-modular-houses', 'page-steel-houses', 'page-delivery']
 
 const TEXT = {
   bg: {
     title: 'Начална страница',
-    subtitle: 'Снимките в началото на сайта, на трите модела и на продуктовите страници. Промяната се вижда на сайта веднага.',
+    subtitle: 'Снимките в началото на сайта, на трите модела, на продуктовите страници и на доставката. Промяната се вижда на сайта веднага.',
     heroHeading: 'Снимки в началото',
     heroHint: 'Показват се една след друга в реда отляво надясно. Празно място показва снимката по подразбиране.',
     modelsHeading: 'Снимки на трите модела',
     modelsHint: 'Снимката на картата на модела в началната страница. Празно място показва снимката от каталога.',
-    pagesHeading: 'Продуктови страници',
-    pagesHint: 'Главната снимка на всяка продуктова страница. Под всяко място пише какво показва страницата, докато то е празно.',
+    pagesHeading: 'Продуктови страници и доставка',
+    pagesHint: 'Главната снимка на всяка продуктова страница и на страницата за доставка. Под всяко място пише какво показва страницата, докато то е празно.',
     pages: {
       'page-modular-builds': { label: 'Контейнерни модули', empty: 'Празно: снимка на контейнер от галерията.' },
       'page-modular-houses': { label: 'Модулни къщи', empty: 'Празно: снимката на къщата в Паралия Кариани (58 м²) от „Казуси и отзиви“.' },
       'page-steel-houses': { label: 'Сглобяеми къщи по проект', empty: 'Празно: страницата е без снимка.', thumb: 'Без снимка' },
+      'page-delivery': { label: 'Доставка и монтаж', empty: 'Празно: кран вдига модул от камиона.' },
     },
     pageSaved: (label) => `Готово — снимката на „${label}“ е на сайта.`,
     pageCleared: (label) => `Снимката на „${label}“ е премахната — страницата се връща към вида по подразбиране.`,
@@ -50,7 +52,7 @@ const TEXT = {
     replace: 'Замени', fromGallery: 'От галерията', moveLeft: 'Наляво', moveRight: 'Надясно',
     clear: 'Изчисти', uploading: 'Качване…', working: 'Момент…',
     alt: 'Описание на снимката (по избор)',
-    altHint: 'Чете се от екранните четци и се показва, ако снимката не се зареди. На трите продуктови страници се използва само в българския сайт; английският и гръцкият имат свое общо описание.',
+    altHint: 'Чете се от екранните четци и се показва, ако снимката не се зареди. На продуктовите страници и на доставката се използва само в българския сайт; английският и гръцкият имат свое общо описание.',
     pickTitle: 'Избери снимка от галерията',
     pickSubtitle: 'Натиснете снимка, за да я сложите в избраното място.',
     pickFor: (label) => `За: ${label}`,
@@ -67,17 +69,18 @@ const TEXT = {
   },
   en: {
     title: 'Home page',
-    subtitle: 'The photos at the top of the site, on the three model cards and on the product pages. Changes show on the site immediately.',
+    subtitle: 'The photos at the top of the site, on the three model cards, on the product pages and on the delivery page. Changes show on the site immediately.',
     heroHeading: 'Photos at the top',
     heroHint: 'Shown one after another, left to right. An empty slot shows the default photo.',
     modelsHeading: 'Photos of the three models',
     modelsHint: 'The photo on the model card on the home page. An empty slot shows the catalogue photo.',
-    pagesHeading: 'Product pages',
-    pagesHint: 'The main photo of each product page. Under each slot: what the page shows while it is empty.',
+    pagesHeading: 'Product pages and delivery',
+    pagesHint: 'The main photo of each product page and of the delivery page. Under each slot: what the page shows while it is empty.',
     pages: {
       'page-modular-builds': { label: 'Container units', empty: 'Empty: a container photo from the gallery.' },
       'page-modular-houses': { label: 'Modular houses', empty: 'Empty: the Paralia Kariani house (58 m²) from Cases & Reviews.' },
       'page-steel-houses': { label: 'Steel-frame prefab houses to your plan', empty: 'Empty: the page has no photo.', thumb: 'No photo' },
+      'page-delivery': { label: 'Delivery and assembly', empty: 'Empty: a crane lifting a unit off the truck.' },
     },
     pageSaved: (label) => `Done — the photo for “${label}” is live.`,
     pageCleared: (label) => `The photo for “${label}” is removed — the page is back to its default.`,
@@ -86,7 +89,7 @@ const TEXT = {
     replace: 'Replace', fromGallery: 'From the gallery', moveLeft: 'Move left', moveRight: 'Move right',
     clear: 'Clear', uploading: 'Uploading…', working: 'One moment…',
     alt: 'Photo description (optional)',
-    altHint: 'Read by screen readers and shown if the photo fails to load. On the three product pages it is used on the Bulgarian site only; the English and Greek sites use a general description of their own.',
+    altHint: 'Read by screen readers and shown if the photo fails to load. On the product pages and the delivery page it is used on the Bulgarian site only; the English and Greek sites use a general description of their own.',
     pickTitle: 'Pick a photo from the gallery',
     pickSubtitle: 'Press a photo to put it in the chosen slot.',
     pickFor: (label) => `For: ${label}`,

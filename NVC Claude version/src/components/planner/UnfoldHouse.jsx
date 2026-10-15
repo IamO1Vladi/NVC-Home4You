@@ -120,6 +120,9 @@ export default function UnfoldHouse({
   showVariantSwitch = true,
   showModelSwitch = true,
   autoplay = true,
+  // 'lazy' where the house sits below the fold (the delivery page); left unset above it
+  // (PlannerHero), where the poster is the largest paint.
+  posterLoading,
   className = '',
 }) {
   const text = useMemo(() => unfoldText(locale, content), [locale, content])
@@ -368,6 +371,7 @@ export default function UnfoldHouse({
           aria-hidden={live ? 'true' : undefined}
           width="1600"
           height="1000"
+          loading={posterLoading}
           decoding="async"
           // a missing dark or roofed still falls back to the light base one of the same model
           onError={imageFallback(`${posterBase}.webp`)}

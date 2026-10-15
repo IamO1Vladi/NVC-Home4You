@@ -50,9 +50,6 @@ const BgInternalDoorsRoute= lazy(()=> import('./routes/bg/BgInternalDoorsRoute.j
 const EnParthnerRoute= lazy(()=> import('./routes/en/EnPartnerRoute.jsx'))
 const BgParthnerRoute= lazy(()=> import('./routes/bg/BgPartnerRoute.jsx'))
 
-const EnLogisticsRoute = lazy(()=> import('./routes/en/EnLogisticsRoute.jsx'))
-const BgLogisticsRoute = lazy(()=> import('./routes/bg/BgLogisticsRoute.jsx'))
-
 const EnPlannerRoute = lazy(()=> import('./routes/en/EnFloorPlannerRoute.jsx'))
 const BgPlannerRoute = lazy(()=> import('./routes/bg/BgFloorPlannerRoute.jsx'))
 
@@ -75,7 +72,6 @@ const ElDeliveryRoute = lazy(() => import('./routes/el/ElDeliveryRoute.jsx'))
 const ElInteriorsRoute = lazy(() => import('./routes/el/ElInteriorsRoute.jsx'))
 const ElInternalDoorsRoute = lazy(() => import('./routes/el/ElInternalDoorsRoute.jsx'))
 const ElPartnerRoute = lazy(() => import('./routes/el/ElPartnerRoute.jsx'))
-const ElLogisticsRoute = lazy(() => import('./routes/el/ElLogisticsRoute.jsx'))
 const ElPlannerRoute = lazy(() => import('./routes/el/ElFloorPlannerRoute.jsx'))
 const ElCasesRoute = lazy(() => import('./routes/el/ElCasesRoute.jsx'))
 const ElGalleryRoute = lazy(() => import('./routes/el/ElGalleryRoute.jsx'))
@@ -414,8 +410,6 @@ function AppShell() {
               <Route path={paths.interiors.bg} element={<BgInteriorsRoute />} />
               <Route path={paths.delivery.en} element={<EnDeliveryRoute />} />
               <Route path={paths.delivery.bg} element={<BgDeliveryRoute />} />
-              <Route path={paths.logistics.en} element={<EnLogisticsRoute />} />
-              <Route path={paths.logistics.bg} element={<BgLogisticsRoute />} />
               <Route path={paths.partner.en} element={<EnParthnerRoute />} />
               <Route path={paths.partner.bg} element={<BgParthnerRoute />} />
               <Route path={paths.planner.en} element={<EnPlannerRoute />} />
@@ -433,7 +427,6 @@ function AppShell() {
               <Route path={paths.steelHouses.el} element={<ElSteelHousesRoute />} />
               <Route path={paths.interiors.el} element={<ElInteriorsRoute />} />
               <Route path={paths.delivery.el} element={<ElDeliveryRoute />} />
-              <Route path={paths.logistics.el} element={<ElLogisticsRoute />} />
               <Route path={paths.partner.el} element={<ElPartnerRoute />} />
               <Route path={paths.planner.el} element={<ElPlannerRoute />} />
               <Route path={paths.doors.el} element={<ElInternalDoorsRoute />} />
