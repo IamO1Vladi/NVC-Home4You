@@ -30,14 +30,41 @@ export default {
 
   story: {
     heading: 'Who we are',
-    paragraphs: [
-      'We started out in interior renovation. That work showed us how often people had to choose between quality, clarity and price, and it is why we moved into prefab and modular homes.',
-      'Today we sell and deliver containers, Box houses and houses built to your design from our base in Marikostinovo, near Petrich. Container and Box house prices are published with VAT, and each model\'s specification says what the price includes.',
+    lead: 'NVC Home4You is a Bulgarian company from Marikostinovo, near Petrich. We started in logistics and, step by step, came to the homes we sell today.',
+    timelineLabel: 'Our path, year by year',
+    timeline: [
+      { year: '2021', title: 'Logistics', text: 'We set up NVC Home4You as a logistics firm.' },
+      { year: '2024', title: 'Containers', text: 'We begin importing living containers.' },
+      { year: '2025', title: 'Box houses', text: 'We add the expandable Box houses.' },
+      { year: '2026', title: 'Steel-frame houses', text: 'We start offering steel-frame houses too, built to your design.' },
     ],
+    todayHeading: 'Today',
+    paragraphs: [
+      'We sell and deliver containers, Box houses and houses built to your design from our base in Marikostinovo. Container and Box house prices are published with VAT, and each model\'s specification says what the price includes.',
+    ],
+    renovation: {
+      text: 'With our own team of builders we also renovate bathrooms and kitchens, in the area from Sofia to Petrich.',
+      link: 'Interior renovations →',
+    },
     terms: [
       { key: 'base', label: 'Our base', text: 'Marikostinovo, 2850 Petrich, Bulgaria.', map: 'See it on the map' },
+      { key: 'visits', label: 'Visits', text: 'You are welcome at our base, by prior appointment only.' },
       { key: 'factory', label: 'Where they are made', text: 'Containers and Box houses are made at our factory in China.' },
       { key: 'answer', label: 'Who answers', text: 'A real person, by phone or email, within 24 hours.' },
+      { key: 'company', label: 'Company', text: 'NVC Home4You, VAT number {vat}' },
+    ],
+  },
+
+  team: {
+    heading: 'Our team',
+    sub: 'The people behind NVC Home4You: the three managing directors, sales and our builders.',
+    people: [
+      { slug: 'vladimir-vladimirov', name: 'Vladimir Vladimirov', role: 'Managing Director', area: 'Marketing and engineering' },
+      { slug: 'tsvetelin-bonin', name: 'Tsvetelin Bonin', role: 'Managing Director', area: 'Legal matters and customers' },
+      { slug: 'nikolay-lekov', name: 'Nikolay Lekov', role: 'Managing Director', area: 'Logistics and production' },
+      { slug: 'radina-ivanova', name: 'Radina Ivanova', role: 'Sales Manager', area: '' },
+      { slug: 'vasil-vasilev', name: 'Vasil Vasilev', role: 'Builder', area: '' },
+      { slug: 'ivan-vasilev', name: 'Ivan Vasilev', role: 'Builder', area: '' },
     ],
   },
 
@@ -76,9 +103,11 @@ export default {
 
   inWriting: {
     heading: 'What we take on, and what stays with you',
-    sub: 'The contract, customs, transport and prices.',
+    sub: 'The contract, the documents, customs, transport and prices.',
     terms: [
       { key: 'contract', label: 'Contract', text: 'We sell under a written contract, and the warranty is set out in an annex to it.' },
+      { key: 'documents', label: 'Documents', text: 'With a container or a Box house you get the CE certificate, the list of materials and the drawings.' },
+      { key: 'qc', label: 'Quality check', text: 'Before we ship an order, we check its quality at our factory.' },
       { key: 'customs', label: 'Customs', text: 'We handle it, for everything we deliver.' },
       { key: 'insurance', label: 'Insurance and tracking', text: 'We offer transport insurance and shipment tracking.' },
       { key: 'unloading', label: 'Unloading', text: 'At our base it is at our cost. Transport from the base to your address, and unloading there, are at your cost unless we agree otherwise.' },
@@ -112,37 +141,9 @@ export default {
 
   // WAITING FOR THE OWNER, NEVER RENDERED (see bg/about.js).
   pending: {
-    founding: {
-      ask: 'When was the company founded, and since which year have you sold containers and Box houses? The site says 2019, 2021 and 2022.',
-      draft: 'Founded in 2019',
-    },
-    since: {
-      ask: 'Is "Building homes since 2022" right?',
-      draft: 'Building homes since 2022',
-    },
-    people: {
-      ask: 'May we show the name, role and photo of the people who answer customers?',
-      draft: 'Our team',
-    },
-    legal: {
-      ask: 'What is the company\'s legal name and its EIK/VAT number?',
-      draft: 'EIK',
-    },
     homes: {
       ask: 'Is "87 homes delivered" current, and does it count containers and houses together?',
       draft: '87 homes delivered',
-    },
-    documents: {
-      ask: 'Do ordinary buyers also get the CE certificate, the materials list and the drawings?',
-      draft: 'CE certificate, materials list and drawings',
-    },
-    factoryQc: {
-      ask: 'Is there a quality check at our factory before shipping?',
-      draft: 'Quality check before shipping',
-    },
-    visits: {
-      ask: 'May any customer visit the base in Marikostinovo by appointment?',
-      draft: 'Visits to the base by appointment',
     },
     hours: {
       ask: 'Are the hours Mon–Fri 07:00–19:00 right?',

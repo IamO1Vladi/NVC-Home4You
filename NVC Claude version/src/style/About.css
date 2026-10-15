@@ -2,8 +2,8 @@
    HomePage.css, ProductPage.css and Delivery.css (for the four clips) first, so the --hp-*
    tokens, the hero, the cards, the terms lists and the section rhythm are theirs and follow
    the site's data-theme light and dark with no colours of its own. Only what this page has and
-   the others do not lives here, every class ab-: the facts tiles, the "who we are" pair, the
-   factory card over the clips and the delivered case under them.
+   the others do not lives here, every class ab-: the facts tiles, the timeline and the "who we
+   are" pair, the team cards, the factory card over the clips and the delivered case under them.
 
    It replaces the old about-* rules in index.css (dark glass cards, gradient text, the year
    chips), deleted with the page that used them.
@@ -39,14 +39,69 @@
   .ab .ab-who-terms dd a{ display:inline-block; padding-block:10px; margin-block:-10px }
 }
 
-/* Who we are: the story beside its three short facts. */
+/* Who we are: the owner's timeline, then today beside the short facts. */
+.ab-timeline{ display:grid; grid-template-columns:minmax(0,1fr); margin:0 0 36px; padding:0; list-style:none }
+.ab-step{ position:relative; padding:0 0 22px 34px; min-width:0 }
+.ab-step:last-child{ padding-bottom:0 }
+/* The line runs from this year's dot to the next one's; the last year has none. */
+.ab-step::before{ content:""; position:absolute; left:7px; top:14px; bottom:-14px; width:2px; background:var(--hp-line) }
+.ab-step:last-child::before{ display:none }
+.ab-step::after{
+  content:""; position:absolute; left:0; top:6px; width:16px; height:16px; box-sizing:border-box;
+  border-radius:50%; border:3px solid var(--hp-accent-text); background:var(--hp-bg);
+}
+/* Where we are now: the dot filled. */
+.ab-step:last-child::after{ background:var(--hp-accent-text) }
+.ab-step-year{ display:block; font-size:28px; font-weight:700; line-height:1; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; color:var(--hp-accent-text) }
+.ab .ab-step h3{ margin:8px 0 4px; font-size:18px; line-height:1.3 }
+.ab-step p{ margin:0; color:var(--hp-muted); line-height:1.5; max-width:34ch }
+@media (min-width:768px){
+  /* Four across, the dots on one line over the years. */
+  .ab-timeline{ grid-template-columns:repeat(4,minmax(0,1fr)); column-gap:28px; margin-bottom:48px }
+  .ab-step, .ab-step:last-child{ padding:34px 0 0 }
+  .ab-step::before{ left:16px; right:-28px; top:7px; bottom:auto; width:auto; height:2px }
+  .ab-step::after{ top:0 }
+  .ab-step-year{ font-size:32px }
+}
+
 .ab-who .pp-terms{ align-self:start }
+.ab-who .pp-prose h3{ font-size:20px }
 @media (min-width:900px){
-  .ab-who{ grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:48px }
-  .ab-who .pp-terms{ margin-top:52px }
+  .ab-who{ grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:48px }
   .ab-who .pp-terms > div{ grid-template-columns:150px minmax(0,1fr) }
 }
-.ab .ab-who-terms a{ font-weight:600 }
+.ab .ab-who a{ font-weight:600 }
+
+/* The team: a card each, the initials (or, once it is in, the photo) beside the name and role.
+   One column on a phone, two on a tablet, three on a wide screen: the three directors fill the
+   first row. */
+.ab-team{ display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin:0; padding:0; list-style:none }
+@media (min-width:600px){ .ab-team{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+@media (min-width:1000px){ .ab-team{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px } }
+.ab-person{ display:flex; align-items:center; gap:16px; min-width:0; padding:16px 18px }
+.ab-avatar{
+  flex:none; width:64px; height:64px; border-radius:50%; object-fit:cover;
+  border:1px solid var(--hp-line); background:var(--hp-surface-2);
+}
+.ab-monogram{
+  display:grid; place-items:center; font-size:22px; font-weight:600; letter-spacing:0.02em;
+  color:var(--hp-accent-text);
+  background:color-mix(in srgb, var(--hp-accent) 12%, var(--hp-surface));
+  border-color:color-mix(in srgb, var(--hp-accent) 28%, var(--hp-surface));
+}
+.ab-person-text{ display:grid; gap:2px; min-width:0 }
+.ab .ab-person h3{ margin:0; font-size:18px; line-height:1.3 }
+.ab-person-role{ margin:0; font-weight:600; font-size:15px; color:var(--hp-text) }
+.ab-person-area{ margin:0; font-size:15px; line-height:1.4; color:var(--hp-muted) }
+@media (min-width:1000px){ .ab-avatar{ width:72px; height:72px } }
+/* A phone stacks the six: tighter cards, so the list is not a long scroll. */
+@media (max-width:599px){
+  .ab-team{ gap:10px }
+  .ab-person{ gap:14px; padding:12px 14px }
+  .ab-avatar{ width:52px; height:52px }
+  .ab-monogram{ font-size:18px }
+}
+
 /* A link at the end of a term keeps its arrow with its words. */
 .ab .pp-terms dd a{ white-space:nowrap }
 
@@ -78,5 +133,5 @@
 }
 @media (max-width:599px){ .ab-proof-img{ border-radius:var(--hp-r-m) } }
 
-/* With no reviews to show, the warranty band and the next-pages band would run together. */
-.ab .pp-warranty + .pp-siblings{ border-top:0 }
+/* The warranty and the reviews under it are both on the page background: a rule between them. */
+.ab .pp-warranty + .testimonials{ border-top:1px solid var(--hp-line) }

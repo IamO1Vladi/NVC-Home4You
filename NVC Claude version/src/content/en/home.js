@@ -77,7 +77,7 @@ export default {
       leadNoPrice: 'Prefab and container homes with clear prices. Based in Petrich, Bulgaria — delivered across the EU.',
       primaryCta: 'Get a Quote',
       pricesCta: 'See models & prices',
-      facts: ['87 homes delivered', 'Prices include VAT', 'Building homes since 2022'],
+      facts: ['87 homes delivered', 'Prices include VAT', 'In business since 2021'],
       slidesLabel: 'Hero photos',
       photoLabelPattern: 'Photo {n} of {total}: {label}',
       showcase: {

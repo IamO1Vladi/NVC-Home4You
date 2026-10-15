@@ -12,15 +12,19 @@
 //
 // The copy keeps the owner's rules (see the content files): one factory, "нашата фабрика в
 // Китай"; delivery "в целия ЕС", Bulgaria and Greece priced by the calculator; customs ours;
-// insurance and tracking offered. What still waits for him sits in content.pending and is
-// never read here.
+// insurance and tracking offered; the CE certificate, materials list and drawings for every
+// buyer, a quality check at our factory before shipping, visits to the base by appointment only
+// (owner, 2026-10-15). What still waits for him (the homes count, the hours in body copy) sits
+// in content.pending and is never read here.
 //
-// Sections, in order: the hero (the owner's crane-lift photo); the facts strip; who we are;
-// from our factory to your plot (the factory floor, the four delivery clips, the published
-// Paralia Kariani case); what we take on and what stays with you; the warranty; the reviews; where next; the
-// closing card. The offer and question buttons carry the lead source 'about-page' (App.jsx
+// Sections, in order: the hero (the owner's crane-lift photo); the facts strip; who we are (the
+// owner's timeline, 2021 logistics to 2026 steel-frame houses, then today, the base, visits and
+// the company's VAT number from shared/company.js); the team (initials until the photos are in
+// TEAM_PHOTOS); from our factory to your plot (the factory floor, the four delivery clips, the
+// published Paralia Kariani case); what we take on and what stays with you; the warranty; the
+// reviews; where next; the closing card. The offer and question buttons carry the lead source 'about-page' (App.jsx
 // reports it to GA and Meta). The breadcrumbs and AboutPage markup are the route's.
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
@@ -40,6 +44,7 @@ import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
 import { useReviewSummary } from '../lib/useReviewSummary.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { paths } from '../routes/paths.js'
+import { COMPANY, TEAM_PHOTOS } from '../content/shared/company.js'
 
 /** The lead source the page's offer and question buttons report. */
 export const ABOUT_LEAD_SOURCE = 'about-page'
@@ -77,6 +82,39 @@ export function aboutFigures(reviews) {
 }
 
 const TILE_ORDER = ['container', 'production', 'toAddress', 'warranty', 'reviews']
+
+/** "Владимир Владимиров" -> "ВВ": the first letter of the first and the family name. */
+export const initials = (name) => String(name || '')
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((word) => word[0])
+  .filter((_, i, all) => i === 0 || i === all.length - 1)
+  .join('')
+  .toUpperCase()
+
+/**
+ * A person's picture: the photo once TEAM_PHOTOS lists one, else (or if it fails to load) the
+ * initials in a circle. Either is decorative: the name is the card's heading, right beside it.
+ */
+function Avatar({ slug, name }) {
+  const [failed, setFailed] = useState(false)
+  const photo = TEAM_PHOTOS[slug]
+  if (photo && !failed) {
+    return (
+      <img
+        className="ab-avatar"
+        src={`${BASE}${String(photo).replace(/^\//, '')}`}
+        alt=""
+        width="160"
+        height="160"
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+  return <span className="ab-avatar ab-monogram" aria-hidden="true">{initials(name)}</span>
+}
 
 export default function AboutPage({ locale = 'bg', content }) {
   const { openOffer, openQuestion } = useModalActions()
@@ -155,28 +193,74 @@ export default function AboutPage({ locale = 'bg', content }) {
       </section>
 
       <section id="who" aria-labelledby="ab-who-title">
-        <div className="hp-container pp-split ab-who">
-          <div className="pp-prose">
-            <h2 id="ab-who-title">{c.story.heading}</h2>
-            {c.story.paragraphs.map((text) => <p key={text}>{text}</p>)}
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="ab-who-title">{c.story.heading}</h2>
+              <p className="hp-sub">{c.story.lead}</p>
+            </div>
           </div>
-          <dl className="pp-terms ab-who-terms">
-            {c.story.terms.map((term) => (
-              <div key={term.key}>
-                <dt>{term.label}</dt>
-                <dd>
-                  {term.text}
-                  {term.map && business.mapsHref ? (
-                    <> <a href={business.mapsHref} target="_blank" rel="noopener noreferrer">{term.map}</a></>
-                  ) : null}
-                </dd>
-              </div>
+
+          <ol className="ab-timeline" aria-label={c.story.timelineLabel}>
+            {c.story.timeline.map((step) => (
+              <li key={step.year} className="ab-step" data-year={step.year}>
+                <span className="ab-step-year">{step.year}</span>
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </li>
             ))}
-          </dl>
+          </ol>
+
+          <div className="pp-split ab-who">
+            <div className="pp-prose">
+              <h3>{c.story.todayHeading}</h3>
+              {c.story.paragraphs.map((text) => <p key={text}>{text}</p>)}
+              <p>
+                {c.story.renovation.text}{' '}
+                <Link to={paths.interiors[locale] || paths.interiors.en}>{c.story.renovation.link}</Link>
+              </p>
+            </div>
+            <dl className="pp-terms ab-who-terms">
+              {c.story.terms.map((term) => (
+                <div key={term.key} data-term={term.key}>
+                  <dt>{term.label}</dt>
+                  <dd>
+                    {fill(term.text, { vat: COMPANY.vatID })}
+                    {term.map && business.mapsHref ? (
+                      <> <a href={business.mapsHref} target="_blank" rel="noopener noreferrer">{term.map}</a></>
+                    ) : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
       </section>
 
-      <section className="pp-band" id="journey" aria-labelledby="ab-journey-title">
+      <section className="pp-band" id="team" aria-labelledby="ab-team-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="ab-team-title">{c.team.heading}</h2>
+              <p className="hp-sub">{c.team.sub}</p>
+            </div>
+          </div>
+          <ul className="ab-team">
+            {c.team.people.map((person) => (
+              <li key={person.slug} className="hp-card ab-person" data-person={person.slug}>
+                <Avatar slug={person.slug} name={person.name} />
+                <div className="ab-person-text">
+                  <h3>{person.name}</h3>
+                  <p className="ab-person-role">{person.role}</p>
+                  {person.area ? <p className="ab-person-area">{person.area}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section id="journey" aria-labelledby="ab-journey-title">
         <div className="hp-container">
           <div className="hp-head">
             <div>
@@ -240,7 +324,7 @@ export default function AboutPage({ locale = 'bg', content }) {
         </div>
       </section>
 
-      <section id="in-writing" aria-labelledby="ab-writing-title">
+      <section className="pp-band" id="in-writing" aria-labelledby="ab-writing-title">
         <div className="hp-container">
           <div className="hp-head">
             <div>
@@ -262,7 +346,7 @@ export default function AboutPage({ locale = 'bg', content }) {
         </div>
       </section>
 
-      <WarrantyTerms id="warranty" content={c.warranty} className="pp-band" />
+      <WarrantyTerms id="warranty" content={c.warranty} />
 
       <Testimonials locale={locale} content={home.testimonials} />
 

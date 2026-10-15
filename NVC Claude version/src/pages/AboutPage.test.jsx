@@ -18,11 +18,23 @@ import { LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { getRouteSeo } from '../seo/routeMeta.js'
 import { ORGANIZATION_ID } from '../components/StructuredData.jsx'
+import { COMPANY, TEAM_PHOTOS } from '../content/shared/company.js'
+import bgHome from '../content/bg/home.js'
+import enHome from '../content/en/home.js'
+import elHome from '../content/el/home.js'
+import bgPrivacy from '../content/bg/privacy.js'
+import enPrivacy from '../content/en/privacy.js'
+import elPrivacy from '../content/el/privacy.js'
 
-// The About page as rebuilt on 2026-10-15. What these pin, in every language:
+// The About page as rebuilt on 2026-10-15, with the owner's answers of the same day. What these
+// pin, in every language:
 // - the sections in their order, one H1 naming the brand, no skipped heading level;
-// - none of the old false or unbacked figures ("40+ suppliers", "6 countries", "8 weeks"), and
-//   no founding year, homes count or company number, which wait for the owner;
+// - none of the old false or unbacked figures ("40+ suppliers", "6 countries", "8 weeks", the
+//   "2019"/"2022" years, the renovation-first story), and no homes count, which waits for him;
+// - the owner's timeline (2021 logistics, 2024 containers, 2025 Box houses, 2026 steel-frame
+//   houses), the six people of the team, the company's VAT number from shared/company.js, the
+//   documents, the factory quality check and visits by appointment;
+// - the home page's hero and the privacy page agreeing with the About page;
 // - every figure from its module (LEAD_TIMES, WARRANTY_YEARS) or the live reviews, none typed
 //   in the content, and the review tile hidden rather than zero when the reviews do not answer;
 // - nothing in content.pending ever on the page;
@@ -116,7 +128,7 @@ function strings(value, at = '') {
 describe('AboutPage', () => {
   it.each(LOCALES)('%s: the sections in order, one H1 with the brand, no skipped heading level', async (locale) => {
     const { container } = await ready(locale)
-    const ids = ['ab-hero-title', 'ab-facts-title', 'ab-who-title', 'ab-journey-title', 'ab-writing-title', 'warranty-title', 'ab-siblings-title', 'hp-final-title']
+    const ids = ['ab-hero-title', 'ab-facts-title', 'ab-who-title', 'ab-team-title', 'ab-journey-title', 'ab-writing-title', 'warranty-title', 'ab-siblings-title', 'hp-final-title']
     const order = [...container.querySelectorAll('h1, h2')].map((h) => h.id)
     for (const id of ids) expect(order.indexOf(id), id).toBeGreaterThanOrEqual(0)
     expect(ids.map((id) => order.indexOf(id))).toEqual([...ids.map((id) => order.indexOf(id))].sort((a, b) => a - b))
@@ -132,7 +144,7 @@ describe('AboutPage', () => {
     levels.forEach((level, i) => { if (i) expect(level - levels[i - 1]).toBeLessThanOrEqual(1) })
   })
 
-  it.each(LOCALES)('%s: none of the old figures, no founding year, no homes count, no company number', async (locale) => {
+  it.each(LOCALES)('%s: none of the old figures or years, no renovation-first story, no homes count', async (locale) => {
     const { container } = await ready(locale)
     const text = mainText(container)
     expect(text).not.toMatch(/40\+/)
@@ -140,12 +152,108 @@ describe('AboutPage', () => {
     expect(text).not.toMatch(/\b8\s*(седмици|weeks|εβδομάδες)/i)
     expect(text).not.toMatch(/Обслужвани държави|Countries served|Χώρες που εξυπηρετούμε/i)
     expect(text).not.toMatch(/Средно време|lead time|Μέσος χρόνος/i)
-    for (const year of ['2019', '2021', '2022', '2024']) expect(text).not.toContain(year)
+    for (const year of ['2019', '2022']) expect(text).not.toContain(year)
+    // The old story began with interior renovations; the business began in logistics.
+    expect(text).not.toMatch(/Започнахме с интериорни|started out in interior|Ξεκινήσαμε με ανακαινίσεις/i)
     // (The phone number, +359 87 ..., is the one 87 the page may carry.)
     expect(text).not.toMatch(/87\s*(доставени|дома|homes|σπίτια)/i)
-    expect(text).not.toMatch(/ЕИК|EIK|ΕΙΚ|VAT number|ДДС номер|БУЛСТАТ/i)
-    // Nor a team, until the page shows people.
-    expect(text).not.toMatch(/екип|\bteam\b|ομάδα/i)
+    expect(text).not.toMatch(/ЕИК|EIK|ΕΙΚ|БУЛСТАТ/i)
+  })
+
+  it.each(LOCALES)('%s: the owner\'s timeline, 2021 to 2026, starting the year the company was founded', async (locale) => {
+    const { container } = await ready(locale)
+    const steps = [...container.querySelectorAll('#who .ab-timeline > li')]
+    expect(steps.map((li) => li.dataset.year)).toEqual(['2021', '2024', '2025', '2026'])
+    expect(steps[0].dataset.year).toBe(String(COMPANY.foundingYear))
+    const read = steps.map((li) => flat(li.textContent))
+    expect(read[0]).toMatch({ bg: /логисти/i, en: /logistics/i, el: /εφοδιαστικ|μεταφορ/i }[locale])
+    expect(read[1]).toMatch({ bg: /контейнери/i, en: /containers/i, el: /κοντέινερ/i }[locale])
+    expect(read[2]).toMatch({ bg: /Бокс къщи/, en: /Box houses/, el: /σπίτια Box/i }[locale])
+    expect(read[3]).toMatch({ bg: /стоманен/i, en: /steel/i, el: /μεταλλικ/i }[locale])
+    for (const li of steps) expect(li.querySelector('h3')).not.toBeNull()
+    // Today's renovations, by our own builders, link to the interiors page.
+    const who = container.querySelector('#who')
+    expect(flat(who.textContent)).toMatch({ bg: /от София до Петрич/, en: /from Sofia to Petrich/, el: /από τη Σόφια έως το Πέτριτς/ }[locale])
+    expect([...who.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))).toContain(paths.interiors[locale])
+  })
+
+  it.each(LOCALES)('%s: the company, its VAT number and visits by appointment', async (locale) => {
+    const { container } = await ready(locale)
+    const term = (key) => flat(container.querySelector(`#who [data-term="${key}"]`)?.textContent)
+    expect(term('company')).toContain(COMPANY.name)
+    expect(term('company')).toContain(COMPANY.vatID)
+    expect(term('company')).toMatch(/ДДС номер|VAT number|αριθμός ΦΠΑ/)
+    expect(term('visits')).toMatch({ bg: /само след предварителна уговорка/, en: /by prior appointment only/, el: /μόνο κατόπιν ραντεβού/ }[locale])
+    // The number is read from shared/company.js, never typed in the content.
+    for (const t of CONTENT[locale].story.terms) expect(t.text, t.key).not.toContain(COMPANY.vatID)
+  })
+
+  it.each(LOCALES)('%s: the six people, by name and role, with no contact details of their own', async (locale) => {
+    const { container } = await ready(locale)
+    const team = container.querySelector('#team')
+    const cards = [...team.querySelectorAll('[data-person]')]
+    expect(cards.map((li) => li.dataset.person)).toEqual([
+      'vladimir-vladimirov', 'tsvetelin-bonin', 'nikolay-lekov', 'radina-ivanova', 'vasil-vasilev', 'ivan-vasilev',
+    ])
+    const names = {
+      bg: ['Владимир Владимиров', 'Цветелин Бонин', 'Николай Леков', 'Радина Иванова', 'Васил Василев', 'Иван Василев'],
+      en: ['Vladimir Vladimirov', 'Tsvetelin Bonin', 'Nikolay Lekov', 'Radina Ivanova', 'Vasil Vasilev', 'Ivan Vasilev'],
+      el: ['Βλαντιμίρ Βλαντιμίροφ', 'Τσβετελίν Μπονίν', 'Νικολάι Λέκοφ', 'Ραντίνα Ιβάνοβα', 'Βασίλ Βασίλεφ', 'Ιβάν Βασίλεφ'],
+    }[locale]
+    expect(cards.map((li) => li.querySelector('h3').textContent)).toEqual(names)
+    // The three directors share one title, each with an area; the two builders share theirs.
+    const roles = cards.map((li) => li.querySelector('.ab-person-role').textContent)
+    expect(new Set(roles.slice(0, 3)).size).toBe(1)
+    expect(roles[4]).toBe(roles[5])
+    expect(cards.slice(0, 3).every((li) => li.querySelector('.ab-person-area')?.textContent)).toBe(true)
+    // No photo yet: the initials, hidden from screen readers (the name is right beside them).
+    expect(team.querySelector('img')).toBeNull()
+    const monograms = cards.map((li) => li.querySelector('.ab-monogram'))
+    expect(monograms[0].textContent).toBe(names[0].split(' ').map((w) => w[0]).join(''))
+    for (const m of monograms) expect(m.getAttribute('aria-hidden')).toBe('true')
+    // No personal phones or emails.
+    expect(team.querySelector('a[href^="tel:"], a[href^="mailto:"]')).toBeNull()
+    expect(team.textContent).not.toMatch(/@|\+359/)
+  })
+
+  it('shows a person\'s photo once TEAM_PHOTOS lists it, and the initials again if it fails', async () => {
+    TEAM_PHOTOS['radina-ivanova'] = 'about/team/radina-ivanova.webp'
+    try {
+      const { container } = renderPage('bg')
+      const card = container.querySelector('[data-person="radina-ivanova"]')
+      const img = card.querySelector('img.ab-avatar')
+      expect(img.getAttribute('src')).toBe('/about/team/radina-ivanova.webp')
+      expect(img.getAttribute('alt')).toBe('')
+      expect(card.querySelector('.ab-monogram')).toBeNull()
+      expect(container.querySelector('[data-person="ivan-vasilev"] img')).toBeNull()
+      fireEvent.error(img)
+      expect(card.querySelector('img')).toBeNull()
+      expect(card.querySelector('.ab-monogram').textContent).toBe('РИ')
+    } finally {
+      delete TEAM_PHOTOS['radina-ivanova']
+    }
+  })
+
+  it.each(LOCALES)('%s: every buyer gets the documents, and the factory checks quality before shipping', async (locale) => {
+    const { container } = await ready(locale)
+    const term = (key) => flat(container.querySelector(`#in-writing [data-term="${key}"]`)?.textContent)
+    expect(term('documents')).toMatch(/\bCE\b/)
+    expect(term('documents')).toMatch({ bg: /списък на материалите и чертежите/, en: /list of materials and the drawings/, el: /κατάλογο των υλικών και τα σχέδια/ }[locale])
+    expect(term('qc')).toMatch({ bg: /проверяваме качеството/, en: /check its quality at our factory/, el: /ελέγχουμε την ποιότητά της/ }[locale])
+    const keys = [...container.querySelectorAll('#in-writing [data-term]')].map((el) => el.dataset.term)
+    expect(keys).toEqual(['contract', 'documents', 'qc', 'customs', 'insurance', 'unloading', 'prices'])
+  })
+
+  it.each(LOCALES)('%s: the home page and the privacy page agree: 2021, and the VAT number', (locale) => {
+    const home = JSON.stringify({ bg: bgHome, en: enHome, el: elHome }[locale])
+    expect(home).toContain(String(COMPANY.foundingYear))
+    expect(home).not.toMatch(/Строим домове от 2022|since 2022|από το 2022/)
+    // The company's age, not "homes on the market since": 2021 was logistics.
+    expect(home).not.toMatch(/На пазара от|Στην αγορά από/)
+    expect(home).toContain({ bg: 'Фирма от 2021 г.', en: 'In business since 2021', el: 'Εταιρεία από το 2021' }[locale])
+    const privacy = JSON.stringify({ bg: bgPrivacy, en: enPrivacy, el: elPrivacy }[locale])
+    expect(privacy).toContain(COMPANY.vatID)
+    expect(privacy).not.toMatch(/да бъде попълнен|to be completed by|θα συμπληρωθεί/)
   })
 
   it.each(LOCALES)('%s: one factory, ours, in China, and no suppliers', async (locale) => {
@@ -232,15 +340,14 @@ describe('AboutPage', () => {
   it.each(LOCALES)('%s: nothing that waits for the owner is ever on the page', async (locale) => {
     const { container } = await ready(locale)
     const pending = strings(CONTENT[locale].pending)
-    expect(pending.length).toBeGreaterThanOrEqual(18)
+    // The homes count and the hours: the rest moved into the page on 2026-10-15.
+    expect(Object.keys(CONTENT[locale].pending)).toEqual(['homes', 'hours'])
+    expect(pending.length).toBe(4)
     const text = mainText(container)
     for (const [at, s] of pending) expect(text, at).not.toContain(flat(s))
     // No opening hours in the body copy: only the closing card shows them, as on every page.
     const body = [...container.querySelectorAll('main > section')].filter((s) => s.id !== 'final-cta')
     for (const section of body) expect(section.textContent).not.toMatch(/\d{2}:\d{2}/)
-    // No yard visits, no CE or QC promise.
-    expect(text).not.toMatch(/по уговорка|by appointment|κατόπιν ραντεβού|контрол на качеството|проверка на качеството|quality check|έλεγχος ποιότητας/i)
-    expect(text).not.toMatch(/\bCE\b/)
   })
 
   it.each(LOCALES)('%s: only the owner\'s own photos', async (locale) => {
@@ -255,10 +362,10 @@ describe('AboutPage', () => {
     }
   })
 
-  it.each(LOCALES)('%s: links on to Cases, FAQ, Gallery, Delivery and Prices', async (locale) => {
+  it.each(LOCALES)('%s: links on to Cases, FAQ, Gallery, Delivery, Prices and Interiors', async (locale) => {
     const { container } = await ready(locale)
     const hrefs = [...container.querySelectorAll('main a[href]')].map((a) => a.getAttribute('href'))
-    for (const key of ['cases', 'faq', 'gallery', 'delivery', 'prices']) expect(hrefs, key).toContain(paths[key][locale])
+    for (const key of ['cases', 'faq', 'gallery', 'delivery', 'prices', 'interiors']) expect(hrefs, key).toContain(paths[key][locale])
     expect(hrefs.some((h) => h.startsWith('tel:'))).toBe(true)
     expect(hrefs.some((h) => h.startsWith('mailto:'))).toBe(true)
     const siblings = within(container.querySelector('#ab-siblings'))
@@ -332,7 +439,7 @@ describe('the About routes', () => {
     expect(seo.imageAlt).toBe(CONTENT[locale].hero.photoAlt)
   })
 
-  it.each(LOCALES)('%s: breadcrumbs and an AboutPage of the site\'s Organization, with no unconfirmed field', async (locale) => {
+  it.each(LOCALES)('%s: breadcrumbs and an AboutPage of the site\'s Organization, with its VAT number and no unconfirmed field', async (locale) => {
     const { container } = renderRoute(locale)
     await waitFor(() => expect(container.querySelector('h1')).not.toBeNull())
     const data = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent))
@@ -344,9 +451,26 @@ describe('the About routes', () => {
     expect(about.inLanguage).toBe(locale)
     expect(about.mainEntity['@id']).toBe(ORGANIZATION_ID)
     expect(about.primaryImageOfPage.url).toBe(`${SITE}${ABOUT_PHOTO.url}`)
+    expect(about.mainEntity).toMatchObject({
+      legalName: COMPANY.legalName,
+      vatID: COMPANY.vatID,
+      foundingDate: String(COMPANY.foundingYear),
+    })
     const raw = JSON.stringify(about)
-    for (const field of ['foundingDate', 'legalName', 'taxID', 'vatID', 'numberOfEmployees', 'aggregateRating', 'openingHours']) {
+    for (const field of ['taxID', 'numberOfEmployees', 'aggregateRating', 'openingHours']) {
       expect(raw).not.toContain(field)
     }
+  })
+
+  it('index.html\'s Organization carries the same legal name, VAT number and founding year', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../../index.html'), 'utf8')
+    const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]))
+    const organization = blocks.find((block) => block['@type'] === 'Organization')
+    expect(organization['@id']).toBe(ORGANIZATION_ID)
+    expect(organization).toMatchObject({
+      legalName: COMPANY.legalName,
+      vatID: COMPANY.vatID,
+      foundingDate: String(COMPANY.foundingYear),
+    })
   })
 })

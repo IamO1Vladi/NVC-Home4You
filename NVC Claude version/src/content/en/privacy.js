@@ -20,7 +20,7 @@ export default {
       p: [
         'The controller responsible for your personal data is NVC Home4You.',
         'Address: Marikostinovo, 2850 Petrich, Blagoevgrad Province, Bulgaria. Email: contact@nvc-home4you.eu. Phone: +359 87 935 5269.',
-        'Company registration number (EIK/VAT): to be completed by NVC Home4You. If you have any question about this policy or how we handle your data, please contact us using the details above.',
+        'VAT number: BG113592898. If you have any question about this policy or how we handle your data, please contact us using the details above.',
       ],
     },
     {

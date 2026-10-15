@@ -119,8 +119,8 @@ const META = {
   // The About page (rebuilt 2026-10-15). The place, what we sell and why it is safe to buy:
   // our factory (ONE, never named), customs ours, the warranty's years read from warranty.js
   // and said of the structure only, delivery in the EU as the home page words it (the Greek one
-  // names Greece, where we have delivered). No "team" or "craftsmanship" until the page shows
-  // people; no founding year, homes count or company number until the owner confirms them.
+  // names Greece, where we have delivered). No "craftsmanship" and no homes count (still
+  // unconfirmed); the founding year, the team and the VAT number are on the page itself.
   about: {
     en: {
       title: 'About Us: Containers and Box Houses, Petrich | NVC Home4You',

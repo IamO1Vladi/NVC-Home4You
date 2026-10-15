@@ -1,4 +1,5 @@
 import React from 'react'
+import { COMPANY } from '../content/shared/company.js'
 
 export function LocalBusinessJSONLD({
   name = 'NVC Home4You',
@@ -248,8 +249,9 @@ export function ServiceJSONLD({
 /**
  * The About page as an AboutPage whose subject is the site's Organization, joined to the node
  * index.html publishes by ORGANIZATION_ID. Only what the page itself backs: its url, name,
- * description, language and photo. No foundingDate, legalName, taxID, employees or rating:
- * the owner has not confirmed the first three yet, and the reviews keep their own markup.
+ * description, language and photo, and the company's legal name, VAT number and founding year
+ * from shared/company.js, which the page prints (the owner gave them on 2026-10-15; index.html
+ * repeats them). No employees, opening hours or rating: the reviews keep their own markup.
  */
 export function AboutPageJSONLD({ name, description, url, image, inLanguage }) {
   if (!url) return null
@@ -257,7 +259,10 @@ export function AboutPageJSONLD({ name, description, url, image, inLanguage }) {
   const organization = {
     '@type': 'Organization',
     '@id': ORGANIZATION_ID,
-    name: 'NVC Home4You',
+    name: COMPANY.name,
+    legalName: COMPANY.legalName,
+    vatID: COMPANY.vatID,
+    foundingDate: String(COMPANY.foundingYear),
     url: 'https://nvc-home4you.eu/',
   }
   const data = {
