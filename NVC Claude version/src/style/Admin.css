@@ -1234,6 +1234,9 @@ label.btn { cursor: pointer; }
    source when that source is the partner page. Green rather than the accent, so it never
    reads as the offer badge it sits next to. */
 .adm-badge-partner  { background: var(--adm-ok-bg); color: var(--adm-ok); }
+/* The page a non-house enquiry came from (doors, renovation, About), beside its Оферта badge.
+   Quiet like the question badge, with the text in the ink colour so it still reads. */
+.adm-badge-origin   { background: var(--adm-line); color: var(--adm-accent-ink); }
 /* A pipeline card's source. Free text up to 60 characters, so not shouted in capitals like
    the stage, and allowed to wrap rather than widen the list. */
 .adm-badge.adm-source {

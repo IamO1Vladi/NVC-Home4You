@@ -42,7 +42,7 @@ public class RepresentativeNotificationTests
         var method = typeof(EmailService).GetMethod("BuildLeadNotification",
             BindingFlags.Instance | BindingFlags.NonPublic)!;
         var result = method.Invoke(Service(),
-            new object?[] { isOffer, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?", model, intake, null })!;
+            new object?[] { isOffer, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?", model, intake, null, null })!;
 
         var type = result.GetType();
         return (

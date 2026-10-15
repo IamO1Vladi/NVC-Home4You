@@ -3,9 +3,9 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { brochureUrl } from './brochure.js'
 
-import bgInteriors from '../content/bg/interiors.js'
-import elInteriors from '../content/el/interiors.js'
-import enInteriors from '../content/en/interiors.js'
+import bgHome from '../content/bg/home.js'
+import elHome from '../content/el/home.js'
+import enHome from '../content/en/home.js'
 import bgModularBuilds from '../content/bg/modularBuilds.js'
 import elModularBuilds from '../content/el/modularBuilds.js'
 import enModularBuilds from '../content/en/modularBuilds.js'
@@ -25,9 +25,9 @@ import enModularHouses from '../content/en/modularHouses.js'
 // without one error anywhere.
 
 const CONTENT = {
-  bg: { interiors: bgInteriors, modularBuilds: bgModularBuilds, modularHouses: bgModularHouses },
-  el: { interiors: elInteriors, modularBuilds: elModularBuilds, modularHouses: elModularHouses },
-  en: { interiors: enInteriors, modularBuilds: enModularBuilds, modularHouses: enModularHouses },
+  bg: { home: bgHome, modularBuilds: bgModularBuilds, modularHouses: bgModularHouses },
+  el: { home: elHome, modularBuilds: elModularBuilds, modularHouses: elModularHouses },
+  en: { home: enHome, modularBuilds: enModularBuilds, modularHouses: enModularHouses },
 }
 const LOCALES = Object.keys(CONTENT)
 
@@ -60,7 +60,7 @@ function jsFilesIn(dir) {
  * fewer.
  */
 function referencesFor(locale) {
-  const { interiors, modularBuilds, modularHouses } = CONTENT[locale]
+  const { home, modularBuilds, modularHouses } = CONTENT[locale]
   const at = (where, node) => ({ where, slug: node.brochureSlug, page: node.brochurePage })
   // The two product pages list their brochures as Catalogues cards, which always open a
   // brochure at its first page (Catalogues.jsx calls brochureUrl(slug, 1, locale)), so the
@@ -69,7 +69,11 @@ function referencesFor(locale) {
   return [
     ...modularHouses.catalogues.items.map(card('modularHouses')),
     ...modularBuilds.catalogues.items.map(card('modularBuilds')),
-    at('interiors.hero.quick', interiors.hero.quick),
+    // The home page's band of all six. Until 2026-10-15 the summary catalogue was also the
+    // interiors page's "p. 4" link, which opened its door-delivery page; the rebuilt
+    // interiors page links no brochure (InteriorsPage.test.jsx), so this is where
+    // 'modular-builds' is linked now.
+    ...home.home.catalogues.items.map(card('home')),
   ]
 }
 
@@ -80,7 +84,12 @@ const EXPECTED = {
   'modularBuilds.catalogues.standard-containers': ['standard-containers', 1],
   'modularBuilds.catalogues.villa-office': ['villa-office', 1],
   'modularBuilds.catalogues.sloped-roof': ['sloped-roof', 1],
-  'interiors.hero.quick': ['modular-builds', 4],
+  'home.catalogues.modular-builds': ['modular-builds', 1],
+  'home.catalogues.standard-containers': ['standard-containers', 1],
+  'home.catalogues.villa-office': ['villa-office', 1],
+  'home.catalogues.sloped-roof': ['sloped-roof', 1],
+  'home.catalogues.box-house': ['box-house', 1],
+  'home.catalogues.space-capsules': ['space-capsules', 1],
 }
 
 describe('brochureUrl', () => {
@@ -114,7 +123,7 @@ describe('brochureUrl', () => {
 })
 
 describe('the brochures the content files name', () => {
-  it('is the same set of six references in every language', () => {
+  it('is the same set of references in every language', () => {
     const bg = referencesFor('bg')
     for (const locale of LOCALES) {
       const refs = referencesFor(locale)

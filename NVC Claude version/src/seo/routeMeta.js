@@ -155,21 +155,26 @@ const META = {
         'Δείτε ολοκληρωμένα δομικά σπίτια, σπίτια-κοντέινερ και έργα που παραδόθηκαν από την NVC Home4You σε Βουλγαρία και ΕΕ.',
     },
   },
+  // The interiors page: bathroom and kitchen renovations by NVC's own builders, from Sofia to
+  // Petrich (the owner, 2026-10-15). No price and no duration, here or on the page: the price
+  // comes after the free site visit. The head term ("ремонт на баня", "renovation",
+  // "ανακαίνιση") is in the page's H1 too; titles within 70 characters, descriptions within 160
+  // (InteriorsPage.test.jsx).
   interiors: {
     en: {
-      title: 'Interiors & Renovations | NVC Home4You',
+      title: 'Bathroom and Kitchen Renovation, Sofia to Petrich | NVC Home4You',
       description:
-        'Interior fit-out, materials and renovation services for modular and traditional homes from NVC Home4You.',
+        'Bathroom and kitchen renovation by our own builders, from demolition to tiling and kitchen fitting. Free site visit, written offer, contract and warranty.',
     },
     bg: {
-      title: 'Интериори и ремонти | NVC Home4You',
+      title: 'Ремонт на баня и кухня от София до Петрич | NVC Home4You',
       description:
-        'Интериорно обзавеждане, материали и ремонтни услуги за модулни и традиционни домове от NVC Home4You.',
+        'Ремонт на баня и кухня от нашия екип: от къртенето до плочките и монтажа на кухнята. Безплатен оглед, писмена оферта, договор и гаранция.',
     },
     el: {
-      title: 'Εσωτερικοί Χώροι & Ανακαινίσεις | NVC Home4You',
+      title: 'Ανακαίνιση μπάνιου και κουζίνας, Σόφια έως Πέτριτς | NVC Home4You',
       description:
-        'Διαμόρφωση εσωτερικών χώρων, υλικά και υπηρεσίες ανακαίνισης για δομικά και παραδοσιακά σπίτια από την NVC Home4You.',
+        'Ανακαίνιση μπάνιου και κουζίνας από τη δική μας ομάδα: από την καθαίρεση έως τα πλακάκια και την κουζίνα. Δωρεάν αυτοψία, γραπτή προσφορά, σύμβαση, εγγύηση.',
     },
   },
   // The delivery page, the one place that answers "what does it cost to get it onto my
@@ -261,21 +266,24 @@ const META = {
         'Διαμορφώστε online το box σπίτι σας — επιλέξτε κάτοψη, κουζίνα, μπάνιο και φινιρίσματα με την NVC Home4You.',
     },
   },
+  // The internal doors page (rebuilt 2026-10-15): a separate product, sold on its own. The four
+  // types, WPC, the complete set, fitting on request and the price by quantity, all the owner's;
+  // no figure, since none is published.
   doors: {
     en: {
-      title: 'Internal Doors | NVC Home4You',
+      title: 'Internal WPC Doors, Supplied as a Set | NVC Home4You',
       description:
-        'Quality internal doors for modular and traditional homes, supplied and fitted by NVC Home4You.',
+        'Internal WPC doors with decorative or metal lines, concealed or with glass. Supplied as a set with frame and hardware, fitting on request, priced by quantity.',
     },
     bg: {
-      title: 'Интериорни врати | NVC Home4You',
+      title: 'Интериорни врати от WPC в комплект | NVC Home4You',
       description:
-        'Качествени интериорни врати за модулни и традиционни домове, доставени и монтирани от NVC Home4You.',
+        'Интериорни врати от WPC: с декоративни или метални линии, тапетни или със стъкло. В комплект с каса и обков, монтаж по желание, цена според количеството.',
     },
     el: {
-      title: 'Εσωτερικές Πόρτες | NVC Home4You',
+      title: 'Εσωτερικές πόρτες WPC σε πλήρες σετ | NVC Home4You',
       description:
-        'Ποιοτικές εσωτερικές πόρτες για δομικά και παραδοσιακά σπίτια, με προμήθεια και τοποθέτηση από την NVC Home4You.',
+        'Εσωτερικές πόρτες WPC με γραμμές, αφανείς ή με τζάμι. Σε σετ με κάσα και εξαρτήματα, τοποθέτηση κατόπιν αιτήματος, τιμή ανάλογα με την ποσότητα.',
     },
   },
   cases: {
@@ -398,6 +406,32 @@ const PAGE_IMAGES = {
       bg: 'Кран сваля дълъг модул от камион върху бетонна площадка',
       en: 'A crane lifting a long module off a truck onto a concrete yard',
       el: 'Γερανός κατεβάζει μια μακριά μονάδα από φορτηγό σε τσιμεντένιο προαύλιο',
+    },
+  },
+  // The interiors page opens on the owner's black-marble bathroom (interiorsMedia.js
+  // INTERIORS_PHOTOS.bathBlack, its 1200 wide crop), with the interiors content's hero.photoAlt.
+  // Portrait: a share card crops it to the middle band, the basin and the window.
+  interiors: {
+    url: `${SITE_URL}/interiors/bath-black-1200.webp`,
+    width: 1200,
+    height: 1500,
+    type: 'image/webp',
+    alt: {
+      bg: 'Баня с черен мрамор и плочки имитация на дърво: черен душ комплект, мивка върху дървен шкаф, прозорец',
+      en: 'Bathroom in black marble and wood-look tiles: black shower set, basin on a wooden vanity unit, window',
+      el: 'Μπάνιο με μαύρο μάρμαρο και πλακάκια όψης ξύλου: μαύρο σετ ντους, νιπτήρας σε ξύλινο έπιπλο, παράθυρο',
+    },
+  },
+  // The doors page opens on its catalogue's cover (doorsCatalogue.js DOORS_COVER), with its alt.
+  doors: {
+    url: `${SITE_URL}/internal-doors/catalogue/rooms/cover.webp`,
+    width: 1120,
+    height: 960,
+    type: 'image/webp',
+    alt: {
+      bg: 'Хол с бяла врата с декоративни линии',
+      en: 'A living room with a white door with decorative lines',
+      el: 'Σαλόνι με λευκή πόρτα με διακοσμητικές γραμμές',
     },
   },
   modularBuilds: {

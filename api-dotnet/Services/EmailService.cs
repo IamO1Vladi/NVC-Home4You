@@ -80,10 +80,14 @@ public class EmailService
     // With a partner line (the partner page, 2026-10-15) it goes to PartnerRecipients instead
     // of the sales list, says "[Партньор]" first and opens with the line. The representative,
     // if any, is still added.
+    //
+    // With an origin (doors / interiors / about, 2026-10-15) the recipients stay the sales
+    // list; the subject gets a short tag first ("[Врати]") and the body opens with the line.
+    // Ignored next to a partner line, which wins (EnquiryOrigin.Effective already says so).
     public async Task<bool> TrySendLeadNotificationAsync(
         bool isOffer, string name, string leadEmail, string? phone, string details,
         CancellationToken ct = default, OfferModel? model = null, LeadIntakeNote? intake = null,
-        string? partnerLine = null)
+        string? partnerLine = null, string? origin = null)
     {
         if (!IsConfigured) return false;
         var recipients = WithRecipient(
@@ -91,7 +95,7 @@ public class EmailService
         if (recipients.Count == 0) return false;
         try
         {
-            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model, intake, partnerLine);
+            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model, intake, partnerLine, origin);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
             var replyTo = string.IsNullOrWhiteSpace(leadEmail) ? null : leadEmail.Trim();
@@ -513,7 +517,7 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
     // Internal team notification (Bulgarian) with the lead's contact details and submission.
     private (string subject, string html) BuildLeadNotification(
         bool isOffer, string name, string leadEmail, string? phone, string details,
-        OfferModel? model = null, LeadIntakeNote? intake = null, string? partnerLine = null)
+        OfferModel? model = null, LeadIntakeNote? intake = null, string? partnerLine = null, string? origin = null)
     {
         var trimmedName = (name ?? "").Trim();
         var trimmedEmail = (leadEmail ?? "").Trim();
@@ -540,6 +544,10 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         // their list rather than the sales inbox (TrySendLeadNotificationAsync), and a rule
         // that matches "Ново запитване" anywhere in the subject still matches.
         if (partnerLine is not null) subject = "[Партньор] " + subject;
+        // The page an enquiry that is not about a house came from, tagged the same way so the
+        // inbox shows a doors or renovation enquiry as one; only without a partner line.
+        var originLine = partnerLine is null ? EnquiryOrigin.LineFor(origin) : null;
+        if (originLine is not null) subject = EnquiryOrigin.Tag(origin) + " " + subject;
 
         var phoneRow = string.IsNullOrEmpty(safePhone)
             ? ""
@@ -554,9 +562,10 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         // First in the body, above the name: it is what the reader needs to decide how to
         // answer. Built by PartnerEnquiry from fixed labels and three capped one-line boxes the
         // visitor typed, so it is encoded like everything else from the form.
-        var partnerRow = partnerLine is null
+        var bannerLine = partnerLine ?? originLine;
+        var partnerRow = bannerLine is null
             ? ""
-            : $@"<p style=""margin:0 0 12px;padding:10px 14px;background:#eef6f0;border-radius:8px;font-weight:bold"">{System.Net.WebUtility.HtmlEncode(partnerLine)}</p>";
+            : $@"<p style=""margin:0 0 12px;padding:10px 14px;background:#eef6f0;border-radius:8px;font-weight:bold"">{System.Net.WebUtility.HtmlEncode(bannerLine)}</p>";
 
         // The partner form's message is optional, so a partner enquiry can arrive with nothing
         // typed: no empty box then, as in the autoresponder.

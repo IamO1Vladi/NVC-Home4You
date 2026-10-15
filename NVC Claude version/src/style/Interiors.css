@@ -1,82 +1,136 @@
-:root[data-theme='dark']{
-  --ir-bg: #0f1115;
-  --ir-hero: color-mix(in srgb, #4f46e5 7%, #0f1115);
-  --ir-card: #151923;
-  --ir-surface: #141820;
-  --ir-border: #ffffff1a;
-  --ir-muted: #9ca3af;
+/* The interiors page's own parts (InteriorsPage.jsx), layered after HomePage.css,
+   ProductPage.css, ProductSteel.css and Delivery.css, on the home page's --hp-* tokens: it
+   follows data-theme light and dark with no colours of its own. Every class is ir-, and
+   everything is under .ir (the page's class on <main>), so nothing here reaches another page
+   once this stylesheet stays in the document.
+
+   PHONES FIRST: one column at 360-390px, then widened. The old indigo ir- page's rules (the
+   sticky card, the tabs, the chips, the before/after slider) are gone with it. */
+
+.ir h4{ margin:0; font-size:17px; line-height:1.35; font-weight:600 }
+
+/* ---------- Hero: the bathroom photo is portrait ---------- */
+@media (max-width:899px){
+  /* A little taller than the product pages' wide crop, so the basin and the shower both show. */
+  .ir .pp-hero-media img{ aspect-ratio:4/3 }
 }
-:root[data-theme='light']{
-  --ir-bg: #f6f7f9;
-  --ir-hero: #eef2ff;
-  --ir-card: #ffffff;
-  --ir-surface: #ffffff;
-  --ir-border: #00000016;
-  --ir-muted: #374151;
+@media (min-width:900px){
+  .ir .pp-hero-grid{ grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr) }
+  .ir .pp-hero-media img{ aspect-ratio:4/5; max-height:620px }
 }
 
-.ir{ background: var(--ir-bg); }
-
-/* HERO */
-.ir-hero{ background: var(--ir-hero); border-bottom:1px solid var(--ir-border); }
-.ir-hero-grid{ display:grid; grid-template-columns: 1.2fr .8fr; gap:24px; padding: clamp(28px,4vw,56px) 0; }
-.ir-title{ margin:0 0 .2em; font-weight:800; font-size: clamp(28px,5vw,44px); letter-spacing:.2px; }
-.ir-lead{ margin:0; opacity:.9; font-size: clamp(16px,1.9vw,18px); }
-
-.ir-card{ position: sticky; top:86px; background: var(--ir-card); border:1px solid var(--ir-border); border-radius:16px; padding:16px 18px; box-shadow: 0 18px 40px rgba(0,0,0,.10); }
-.ir-card-h{ font-weight:800; margin-bottom:8px; }
-.ir-card-list{ margin:0 0 6px; padding-left:18px; opacity:.9; }
-.ir-card-link{ text-decoration:underline; }
-
-/* TABS */
-.ir-tabs{ display:flex; gap:8px; margin: 18px 0 10px; }
-.ir-tab{ border:1px solid var(--ir-border); background: var(--ir-surface); border-radius:999px; padding:8px 12px; font-weight:700; }
-.ir-tab.is-active{ outline: 2px solid color-mix(in srgb, #4f46e5 55%, #fff); }
-
-/* GRID */
-.ir-pane{ padding: 6px 0 12px; }
-.ir-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-.ir-col{ background: var(--ir-surface); border:1px solid var(--ir-border); border-radius:16px; padding:16px 18px; box-shadow: 0 18px 40px rgba(0,0,0,.08); }
-.ir-h2{ margin:0 0 6px; font-weight:800; }
-.ir-sub{ font-weight:800; margin-bottom:8px; }
-.ir-muted{ margin:0 0 10px; color: var(--ir-muted); }
-
-/* Chips / Configurator */
-.ir-chiprow{ display:flex; flex-wrap:wrap; gap:8px; }
-.ir-chip{ display:inline-flex; align-items:center; height:32px; padding:0 12px; border-radius:999px; border:1px solid var(--ir-border); background: linear-gradient(135deg, #ffffff14, #00000006); font-weight:700; }
-.ir-chip.is-active{ outline: 2px solid color-mix(in srgb, #10b981 55%, #fff); }
-.ir-result{ margin-top:10px; border-top:1px dashed var(--ir-border); padding-top:10px; }
-
-/* Before-After slider */
-.ir-ba{
-  position: relative;
-  border:1px solid var(--ir-border);
-  border-radius:14px;
-  overflow:hidden;
-  background:#e5e7eb;
+/* ---------- What we do: eight works beside the fitting photo ---------- */
+.ir-works-grid{ display:grid; gap:20px; grid-template-columns:minmax(0,1fr) }
+.ir-works{ display:grid; gap:12px; grid-template-columns:minmax(0,1fr); margin:0; padding:0; list-style:none }
+@media (min-width:600px){ .ir-works{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+.ir-work{ display:grid; grid-template-columns:44px minmax(0,1fr); gap:14px; align-items:start; padding:16px 18px; min-width:0 }
+.ir-work-ico{
+  width:44px; height:44px; padding:9px; border-radius:12px;
+  color:var(--hp-accent-text); background:color-mix(in srgb, var(--hp-accent) 10%, var(--hp-surface));
+  border:1px solid color-mix(in srgb, var(--hp-accent) 22%, var(--hp-line));
 }
-.ir-ba::before{ content:''; display:block; padding-top:56.25%; }
-.ir-ba-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.ir-ba-before{ clip-path: inset(0 calc(100% - var(--pct, 50%)) 0 0); transition: clip-path .25s ease; }
-.ir-ba-handle{ position:absolute; top:0; bottom:0; width:0; transform: translateX(-50%); cursor: col-resize; outline: none; }
-.ir-ba-line{ position:absolute; top:0; bottom:0; left:50%; width:2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
-.ir-ba-knob{ position:absolute; top:50%; left:50%; transform: translate(-50%,-50%); width:34px; height:34px; border-radius:999px; border:1px solid var(--ir-border); background: var(--ir-card); box-shadow: 0 8px 24px rgba(0,0,0,.25); }
-.ir-ba-range{ position:absolute; inset:0; opacity:0; }
-.ir-ba-tags{ position:absolute; inset:auto 0 8px 0; display:flex; justify-content:space-between; padding: 0 10px; pointer-events:none; }
-.ir-tag{ font-weight:800; font-size:.85rem; color:#fff; padding:4px 8px; border-radius:999px; background: color-mix(in srgb, #00000055, #ffffff11); }
-
-/* WHY US */
-.ir-why{ border-top:1px dashed var(--ir-border); padding-top:18px; }
-.ir-why-h{ font-weight:800; margin-bottom:6px; }
-.ir-why-list{ margin:0; padding-left:18px; color: var(--ir-muted); }
-
-.visually-hidden{ position:absolute !important; height:1px; width:1px; overflow:hidden; clip: rect(1px, 1px, 1px, 1px); white-space:nowrap; }
-
-/* Responsive */
-@media (max-width: 960px){
-  .ir-hero-grid{ grid-template-columns: 1fr; }
-  .ir-grid{ grid-template-columns: 1fr; }
+.ir .ir-work h3{ font-size:17px; line-height:1.3 }
+.ir-work p{ margin-top:4px; color:var(--hp-muted); font-size:15px; line-height:1.5 }
+.ir-works-photo{ margin:0; overflow:hidden; border:1px solid var(--hp-line); border-radius:var(--hp-r-m); background:var(--hp-surface) }
+.ir-works-photo img{ display:block; width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; object-position:50% 60% }
+.ir-works-photo figcaption{ padding:10px 14px; color:var(--hp-muted); font-size:14px }
+@media (min-width:900px){
+  .ir-works-grid{ grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:24px; align-items:stretch }
+  .ir-works-photo{ display:flex; flex-direction:column }
+  /* As tall as the four rows of works: the cabinets and the worktop, not the ceiling. */
+  .ir-works-photo img{ flex:1; min-height:0; aspect-ratio:auto; height:100%; object-position:50% 78% }
 }
-@media (prefers-reduced-motion: reduce){
-  .ir-ba-before{ transition: none; }
+@media (max-width:599px){
+  /* Eight cards in one column: a little tighter, so the list is not three screens long. */
+  .ir-works{ gap:8px }
+  .ir-work{ grid-template-columns:38px minmax(0,1fr); gap:12px; padding:12px 14px }
+  .ir-work-ico{ width:38px; height:38px; padding:7px; border-radius:10px }
+  .ir .ir-work h3{ font-size:16px }
+  .ir-work p{ margin-top:2px; font-size:14px }
 }
+
+/* Materials: two cards under the works. */
+.ir .ir-materials-title{ margin:36px 0 14px }
+.ir-material{ display:grid; gap:6px; padding:18px 20px; min-width:0; border-left:4px solid var(--hp-sage) }
+.ir-material p{ color:var(--hp-text); line-height:1.55 }
+
+/* ---------- Our renovations: two clips and the kitchen, then the pairs ---------- */
+.ir-gallery{ display:grid; gap:16px 12px; grid-template-columns:repeat(2,minmax(0,1fr)); margin:0; padding:0; list-style:none }
+.ir-tile{ display:grid; gap:4px; align-content:start; min-width:0 }
+.ir-tile-media{
+  position:relative; overflow:hidden; aspect-ratio:4/5; margin-bottom:6px;
+  border:1px solid var(--hp-line); border-radius:var(--hp-r-m); background:var(--hp-surface-2);
+}
+.ir-tile-media img,.ir-tile-media video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block }
+.ir-tile--wide{ grid-column:1 / -1 }
+.ir-tile--wide .ir-tile-media{ aspect-ratio:16/10 }
+.ir .ir-tile-title{ font-size:17px; line-height:1.3 }
+.ir-tile-text{ color:var(--hp-muted); font-size:14px; line-height:1.5 }
+@media (min-width:900px){
+  /* One row: the two portrait clips and the landscape kitchen, at nearly the same height. */
+  .ir-gallery{ grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr); gap:16px }
+  .ir-tile--wide{ grid-column:auto }
+  /* Two columns and a gap wide, as tall as a 4:5 clip beside it (at the 1180px container). */
+  .ir-tile--wide .ir-tile-media{ aspect-ratio:1.64 }
+  .ir .ir-tile-title{ font-size:18px }
+  .ir-tile-text{ font-size:15px }
+}
+
+.ir .ir-pairs-title{ margin:40px 0 14px }
+.ir-pairs{ display:grid; gap:16px; grid-template-columns:minmax(0,1fr); margin:0; padding:0; list-style:none }
+@media (min-width:900px){ .ir-pairs{ grid-template-columns:repeat(2,minmax(0,1fr)) } }
+.ir-pair{ display:grid; gap:12px; padding:16px; min-width:0 }
+.ir-pair-row{ display:grid; gap:8px; grid-template-columns:repeat(2,minmax(0,1fr)) }
+.ir-pair-fig{ position:relative; margin:0; overflow:hidden; border-radius:var(--hp-r-s); background:var(--hp-surface-2) }
+.ir-pair-fig img{ display:block; width:100%; height:auto; aspect-ratio:4/5; object-fit:cover }
+.ir-pair-tag{
+  position:absolute; left:8px; top:8px; max-width:calc(100% - 16px); padding:4px 10px; border-radius:999px;
+  background:color-mix(in srgb, var(--hp-surface) 92%, transparent); color:var(--hp-text);
+  font-size:13px; font-weight:600; line-height:1.35; box-shadow:var(--hp-shadow-1);
+}
+.ir-pair-tag--after{ background:var(--hp-accent); color:#fff }
+@media (max-width:599px){
+  .ir-pair{ padding:14px 12px }
+  .ir-pair-tag{ left:6px; top:6px; max-width:calc(100% - 12px); padding:3px 8px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+}
+
+/* ---------- How we work: five steps, no pictures ---------- */
+/* A vertical timeline on a phone (ProductSteel.css); from 900px the five steps in one row,
+   the line running between the numbers. ProcessSteps stays a plain list here: no stage. */
+@media (min-width:900px){
+  .ir-process .pp-steps{ grid-template-columns:repeat(5,minmax(0,1fr)); column-gap:20px; max-width:none }
+  /* align-content: a step with a two-line title must not stretch its neighbours' rows apart. */
+  .ir-process .pp-step{ grid-template-columns:minmax(0,1fr); row-gap:12px; padding-bottom:0; align-content:start }
+  .ir-process .pp-step::before{ left:52px; right:-14px; top:19px; bottom:auto; width:auto; height:2px }
+  .ir-process .pp-step-body{ grid-column:1 }
+  .ir-process .pp-step-title{ padding-top:0; font-size:18px }
+  .ir-process .pp-step-text{ font-size:15px }
+}
+
+/* ---------- Where we work, and the terms at a glance ---------- */
+.ir-area{ display:grid; gap:24px; grid-template-columns:minmax(0,1fr) }
+@media (min-width:900px){ .ir-area{ grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:40px; align-items:start } }
+.ir-area-card{ display:grid; grid-template-columns:minmax(0,1fr) 104px; gap:16px; align-items:center; padding:24px }
+.ir-area-place{ margin-top:10px; font-size:clamp(24px, 1rem + 1.4vw, 30px); font-weight:600; line-height:1.2; color:var(--hp-brand) }
+.ir-area-text{ margin-top:10px; color:var(--hp-muted); line-height:1.55 }
+.ir-area-line{ width:104px; height:auto; overflow:visible }
+.ir-area-road{ fill:none; stroke:var(--hp-accent); stroke-width:3; stroke-linecap:round; stroke-dasharray:2 7 }
+.ir-area-dot{ fill:var(--hp-accent); stroke:var(--hp-surface); stroke-width:3 }
+/* 17 units of a 120-unit drawing 104px wide: about 15px on screen. */
+.ir-area-name{ fill:var(--hp-text); font-size:17px; font-weight:600; font-family:inherit }
+@media (max-width:599px){
+  .ir-area-card{ padding:20px 16px; grid-template-columns:minmax(0,1fr) 84px; gap:6px }
+  .ir-area-line{ width:84px }
+  /* At 84px the names would be under 10px; the heading beside the drawing already says
+     "От София до Петрич", and the drawing's aria-label names both places. */
+  .ir-area-name{ display:none }
+  /* "От София до Петрич" on one line at 360-390px beside the drawing. */
+  .ir-area-place{ font-size:22px }
+}
+.ir .ir-glance h3{ margin-bottom:10px }
+
+/* Three sibling pages: three across from 900px, not two and an orphan. */
+@media (min-width:900px){ .ir .pp-sibs{ grid-template-columns:repeat(3,minmax(0,1fr)) } }
+
+/* The form's own section sits on the page ground, the questions after it. */
+.ir .ir-form{ scroll-margin-top:88px }

@@ -571,7 +571,7 @@ public class PartnerEnquiryTests
         var service = new EmailService(Config(), new StubHttpClientFactory(), NullLogger<EmailService>.Instance);
         var method = typeof(EmailService).GetMethod("BuildLeadNotification", BindingFlags.Instance | BindingFlags.NonPublic)!;
         var result = method.Invoke(service,
-            new object?[] { true, "Nikos", "nikos@example.gr", "+30 231 000 0000", details, null, intake, partnerLine })!;
+            new object?[] { true, "Nikos", "nikos@example.gr", "+30 231 000 0000", details, null, intake, partnerLine, null })!;
 
         var type = result.GetType();
         return ((string)type.GetField("Item1")!.GetValue(result)!, (string)type.GetField("Item2")!.GetValue(result)!);

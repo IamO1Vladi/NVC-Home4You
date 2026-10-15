@@ -111,6 +111,17 @@ describe('ProcessSteps', () => {
     }
   })
 
+  it('stays a plain list on a wide screen when no step has a picture', () => {
+    // The interiors page's steps: its photos are in its own gallery, so there is nothing to
+    // put on a stage, and title buttons would pick pictures that are not there.
+    stubBrowser({ wide: true })
+    const bare = STEPS.map(({ image, ...step }) => step)
+    const { container } = render(<ProcessSteps heading="How" steps={bare} />)
+    expect(container.querySelectorAll('ol > li')).toHaveLength(3)
+    expect(container.querySelector('.pp-stage, .pp-step-btn, figure, [aria-current]')).toBeNull()
+    expect(container.querySelector('.pp-process--live')).toBeNull()
+  })
+
   it('renders nothing without steps', () => {
     const { container } = render(<ProcessSteps heading="How" steps={[]} />)
     expect(container).toBeEmptyDOMElement()

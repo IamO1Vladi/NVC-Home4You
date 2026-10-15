@@ -20,10 +20,14 @@ namespace Models;
 // other form. Trailing and optional for the same reason again. UNTRUSTED like the rest: the
 // controller checks it against PartnerEnquiry's fixed lists before anything is stored, and
 // only the Bulgarian line built from those lists reaches staff.
+//
+// Origin (2026-10-15) is the page an enquiry that is not about a house came from: "doors",
+// "interiors" or "about", null for every other form. Trailing and optional again; an unknown
+// key is a 400 naming "origin". See EnquiryOrigin.
 public record OfferDto(
     string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null,
     string? ModelTitle = null, string? ModelPath = null, string? Rep = null, string? Website = null,
-    PartnerDto? Partner = null);
+    PartnerDto? Partner = null, string? Origin = null);
 
 // What the partner form asked, as the keys the SPA sends. Role, Quantity and Country are the
 // required three; every other field may be absent. Products is a set of keys rather than one,

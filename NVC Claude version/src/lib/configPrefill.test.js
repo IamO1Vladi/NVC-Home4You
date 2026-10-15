@@ -57,6 +57,14 @@ describe('enquiryPrefill', () => {
     expect(enquiryPrefill('/bg/za-nas', { source: 'about-page' })).toEqual({ source: 'about-page' })
   })
 
+  it('carries a page origin the server knows, and drops one it does not', () => {
+    expect(enquiryPrefill('/bg/za-nas', { source: 'about-page', origin: 'about' })).toEqual({ source: 'about-page', origin: 'about' })
+    expect(enquiryPrefill('/bg/vrati', { origin: 'doors' })).toEqual({ origin: 'doors' })
+    expect(enquiryPrefill('/bg/za-nas', { source: 'about-page', origin: 'About' })).toEqual({ source: 'about-page' })
+    expect(enquiryPrefill('/bg/za-nas', { origin: 'villa' })).toBeNull()
+    expect(enquiryPrefill('/bg/za-nas', { target: {}, origin: 'about' })).toBeNull()
+  })
+
   it('treats a click event, nothing, or a blank source as no source', () => {
     expect(enquiryPrefill('/bg/za-nas', { nativeEvent: {}, target: {}, source: 'x' })).toBeNull()
     expect(enquiryPrefill('/bg/za-nas', { target: {} })).toBeNull()

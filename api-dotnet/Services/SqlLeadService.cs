@@ -49,9 +49,11 @@ public class SqlLeadService : ILeadStore
                 //
                 // The partner page's line (2026-10-15) goes BELOW both, directly above the
                 // visitor's words, for the same reason: the lines above it are read off the
-                // top of the message. See PartnerEnquiry.
+                // top of the message. See PartnerEnquiry. The page-origin line ("Запитване за
+                // врати") takes the same place; the two never meet, the partner line winning.
+                // See EnquiryOrigin.
                 Message = Trim(OfferModel.WithModelLine(OfferModel.From(dto),
-                    WithRepresentative(dto.Rep, PartnerEnquiry.Prepend(dto.Project, dto.Partner))), 4000),
+                    WithRepresentative(dto.Rep, PartnerEnquiry.Prepend(EnquiryOrigin.Prepend(dto.Project, dto), dto.Partner))), 4000),
                 ModelId = Trim(dto.ModelId, 100),
                 Locale = Trim(dto.Locale, 10),
                 CreatedAt = DateTimeOffset.UtcNow,

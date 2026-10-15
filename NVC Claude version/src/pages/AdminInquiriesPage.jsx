@@ -34,6 +34,11 @@ const TEXT = {
     partnerHint: 'От страницата за партньори',
     onlyPartners: 'Само партньори',
     partnersNone: 'Тук няма партньорски запитвания.',
+    origins: {
+      doors: ['Врати', 'От страницата за врати'],
+      interiors: ['Ремонт', 'От страницата за ремонти'],
+      about: ['За нас', 'От страницата „За нас“'],
+    },
     openLead: 'Отвори лийда',
     creating: 'Създавам…',
     archive: 'Архивирай',
@@ -76,6 +81,11 @@ const TEXT = {
     partnerHint: 'From the partner page',
     onlyPartners: 'Partners only',
     partnersNone: 'No partner inquiries here.',
+    origins: {
+      doors: ['Doors', 'From the doors page'],
+      interiors: ['Renovation', 'From the renovation page'],
+      about: ['About us', 'From the About page'],
+    },
     openLead: 'Open lead',
     creating: 'Creating…',
     archive: 'Archive',
@@ -135,6 +145,27 @@ export function isPartnerInquiry(message) {
     if (!SERVER_LINES.some((prefix) => paragraph.startsWith(prefix))) return false
   }
   return false
+}
+
+// Which page an inquiry that is not about a house came from — the doors, renovation or About
+// page (2026-10-15). The server writes one whole-paragraph line for it in the same place as
+// the partner line (EnquiryOrigin in the API), and it is looked for there only, the way
+// isPartnerInquiry looks: below the model and representative lines, above the visitor's words.
+// The lines are pinned against the server's by src/lib/__fixtures__/enquiry-origins.json.
+export const ORIGIN_LINES = {
+  doors: 'Запитване за врати',
+  interiors: 'Запитване за ремонт',
+  about: 'Запитване от страницата „За нас“',
+}
+
+export function inquiryOrigin(message) {
+  if (!message) return null
+  for (const paragraph of String(message).split('\n\n').slice(0, 3)) {
+    const key = Object.keys(ORIGIN_LINES).find((k) => ORIGIN_LINES[k] === paragraph)
+    if (key) return key
+    if (!SERVER_LINES.some((prefix) => paragraph.startsWith(prefix))) return null
+  }
+  return null
 }
 
 // How old an inquiry is, in the words someone would actually use. The outstanding queue
@@ -417,6 +448,11 @@ export default function AdminInquiriesPage() {
                     {isPartnerInquiry(l.message) ? (
                       <span className="adm-badge adm-badge-partner" title={t.partnerHint}>{t.partner}</span>
                     ) : null}
+                    {(() => {
+                      const origin = inquiryOrigin(l.message)
+                      const [label, hint] = (origin && t.origins[origin]) || []
+                      return label ? <span className="adm-badge adm-badge-origin" title={hint}>{label}</span> : null
+                    })()}
                     {l.locale ? <span className="adm-muted adm-small">{l.locale.toUpperCase()}</span> : null}
                   </div>
                   <div className="adm-lead-when adm-small">

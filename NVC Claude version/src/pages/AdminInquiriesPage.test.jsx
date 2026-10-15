@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import AdminInquiriesPage, { isPartnerInquiry } from './AdminInquiriesPage.jsx'
+import AdminInquiriesPage, { isPartnerInquiry, inquiryOrigin, ORIGIN_LINES } from './AdminInquiriesPage.jsx'
+import originContract from '../lib/__fixtures__/enquiry-origins.json'
 
 // The inquiry queue is the section sales works from every day, so these cover the things
 // that would cost a call: that the outstanding queue is what loads first, that ticking a
@@ -327,6 +328,38 @@ describe('AdminInquiriesPage', () => {
     await waitFor(() => expect(screen.queryByText('Иван Петров')).not.toBeInTheDocument())
     expect(screen.queryByText('Maria S')).not.toBeInTheDocument()
     expect(screen.getByText('Nikos Dimitriou')).toBeInTheDocument()
+  })
+
+  // --- Page origins: doors, renovation, About (2026-10-15) -----------------------------
+  // The same place as the partner line, a whole paragraph of its own.
+
+  it('reads the same lines the server writes (the shared contract file)', () => {
+    expect(ORIGIN_LINES).toEqual(originContract.lines)
+  })
+
+  it('badges an inquiry from the doors, renovation or About page, and only there', async () => {
+    const doors = { ...openOffer, id: 21, name: 'Door Buyer', message: 'Запитване за врати\n\n12 врати' }
+    const reno = {
+      ...openOffer, id: 22, name: 'Reno Rep',
+      message: 'Представител: dtodorov\n\nЗапитване за ремонт\n\nБаня в Благоевград',
+    }
+    const about = { ...openOffer, id: 23, name: 'About Visitor', message: 'Запитване от страницата „За нас“' }
+    const copy = { ...openOffer, id: 24, name: 'Copy Door', message: 'Здравейте\n\nЗапитване за врати' }
+    mockApi({ items: [openOffer, doors, reno, about, copy, partnerOffer] })
+    render(<AdminInquiriesPage />)
+
+    await waitFor(() => expect(screen.getByText('Door Buyer')).toBeInTheDocument())
+    const badgeIn = (name) => screen.getByText(name).closest('li').querySelector('.adm-badge-origin')
+    expect(badgeIn('Door Buyer')).toHaveTextContent('Врати')
+    expect(badgeIn('Reno Rep')).toHaveTextContent('Ремонт')
+    expect(badgeIn('About Visitor')).toHaveTextContent('За нас')
+    expect(badgeIn('Copy Door')).toBeNull()
+    expect(badgeIn('Иван Петров')).toBeNull()
+    expect(badgeIn('Nikos Dimitriou')).toBeNull()
+
+    expect(inquiryOrigin('Модел от сайта: X\n\nЗапитване за врати')).toBe('doors')
+    expect(inquiryOrigin('Запитване за врати и прозорци')).toBeNull()
+    expect(inquiryOrigin(null)).toBeNull()
   })
 
   it('says there are none rather than showing an empty queue message', async () => {

@@ -96,8 +96,8 @@ export function cdnImage(url, { width, quality = 'auto' } = {}) {
 // browser takes the src it is given, and src becomes the next fallback not yet tried. When
 // the chain is exhausted it stops and leaves the broken image as it is. sizes is LEFT: it
 // does nothing without a srcset, and React only rewrites an attribute whose prop changed,
-// so removing it would strip the next image a reused node shows (InteriorsPage's
-// before/after swaps images in the same node) of its sizes and fetch the 100vw candidate.
+// so removing it would strip the next image a reused node shows (a picker or carousel
+// swaps images in the same node) of its sizes and fetch the 100vw candidate.
 //
 // The position is read from the src attribute itself, not stored, so when React swaps in a
 // new image (a carousel, a picker) that image gets its own retry and the whole chain again.

@@ -1,3 +1,5 @@
+import { ENQUIRY_ORIGINS } from './enquiryOrigins.js'
+
 // The Box House configurator writes its current summary here so the global
 // offer/question modals can prefill their message field with the configuration.
 export const CONFIG_PREFILL_KEY = 'nvc_box_config_prefill_v1'
@@ -32,10 +34,16 @@ export function readConfiguratorPrefill(pathname) {
 // as lead_source instead of 'site' (App.jsx reads offerPrefillData.source). Most buttons hand
 // openOffer straight to onClick, so the argument is often a click event: that, and anything
 // else without a plain string `source`, is no source at all.
+//
+// A page may also pass `origin` (2026-10-15): one of the server's page keys (ENQUIRY_ORIGINS,
+// e.g. the About page's 'about'), which the offer form then sends so staff read where the
+// enquiry came from. Anything else is dropped rather than sent to be refused.
 export function enquiryPrefill(pathname, arg) {
   const saved = readConfiguratorPrefill(pathname)
   if (saved) return saved
   const isEvent = Boolean(arg && typeof arg === 'object' && ('nativeEvent' in arg || 'target' in arg))
   const source = !isEvent && typeof arg?.source === 'string' ? arg.source.trim() : ''
-  return source ? { source } : null
+  const origin = !isEvent && ENQUIRY_ORIGINS.includes(arg?.origin) ? arg.origin : ''
+  if (!source && !origin) return null
+  return { ...(source ? { source } : {}), ...(origin ? { origin } : {}) }
 }

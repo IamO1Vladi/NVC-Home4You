@@ -44,15 +44,19 @@ export default function ProcessSteps({ id = 'pp-process', heading, sub, steps = 
   // stage. Until then (and on a phone) the steps carry their own pictures.
   const [live, setLive] = useState(false)
   const itemsRef = useRef([])
+  // Steps with no picture at all (the interiors page: its photos are in its own gallery) have
+  // nothing to show on a stage, so they stay a plain list at every width: no empty stage, and
+  // no title buttons that would pick a picture that is not there.
+  const pictured = list.some((step) => step.image?.src)
 
   useBeforePaint(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    if (!pictured || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
     const query = window.matchMedia(STAGE_QUERY)
     const sync = () => setLive(query.matches)
     sync()
     query.addEventListener?.('change', sync)
     return () => query.removeEventListener?.('change', sync)
-  }, [])
+  }, [pictured])
 
   // Follow the step the visitor is reading: the one crossing a thin band a little above the
   // middle of the viewport, where the eye is while scrolling through a list.

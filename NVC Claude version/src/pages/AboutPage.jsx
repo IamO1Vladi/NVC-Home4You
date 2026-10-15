@@ -48,6 +48,7 @@ import { COMPANY, TEAM_PHOTOS } from '../content/shared/company.js'
 
 /** The lead source the page's offer and question buttons report. */
 export const ABOUT_LEAD_SOURCE = 'about-page'
+export const ABOUT_ORIGIN = 'about'
 
 const BASE = import.meta.env.BASE_URL || '/'
 // The owner's crane lift, the delivery page's photo, in its 800 and 1500 wide crops. The share
@@ -127,7 +128,9 @@ export default function AboutPage({ locale = 'bg', content }) {
   const business = home.localBusiness || {}
   const telephone = business.telephone || ''
   const v = aboutFigures(reviews)
-  const offer = () => openOffer({ source: ABOUT_LEAD_SOURCE })
+  // origin: the server's key for this page, so staff read "Запитване от страницата „За нас“"
+  // above the visitor's words and the mail says "[За нас]" (EnquiryOrigin in the API).
+  const offer = () => openOffer({ source: ABOUT_LEAD_SOURCE, origin: ABOUT_ORIGIN })
   const question = () => openQuestion({ source: ABOUT_LEAD_SOURCE })
 
   // A tile is drawn only when every figure it names is known: the reviews tile waits for the

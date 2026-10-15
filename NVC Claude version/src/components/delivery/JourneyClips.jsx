@@ -33,11 +33,20 @@ export function wantsMotion() {
   return true
 }
 
-function Clip({ id, title, text, headingLevel = 3 }) {
+/**
+ * One clip's picture box: the WebP poster as an <img>, with the muted <video> laid over it
+ * once it nears the screen (and only where motion is wanted), playing while half of it is in
+ * view. Exported so another page can lay its own clips out (the interiors page's gallery);
+ * the box takes whatever aspect ratio its stylesheet gives `className`.
+ *
+ * @param src     the .mp4
+ * @param poster  the .webp still, also the <img> shown before and without the video
+ * @param alt     the poster's alt: '' when words beside the clip already say what it shows
+ */
+export function ClipMedia({ src, poster, alt = '', width = 640, height = 800, className = 'dl-clip-media' }) {
   const boxRef = useRef(null)
   const videoRef = useRef(null)
   const [live, setLive] = useState(false)
-  const Heading = `h${headingLevel}`
 
   // Mount the <video> when the clip nears the screen, and only where motion is wanted.
   useEffect(() => {
@@ -74,26 +83,33 @@ function Clip({ id, title, text, headingLevel = 3 }) {
   }, [live])
 
   return (
+    <div className={className} ref={boxRef}>
+      <img src={poster} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+      {live ? (
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          loop
+          preload="none"
+          poster={poster}
+          aria-hidden="true"
+          tabIndex={-1}
+          width={width}
+          height={height}
+        >
+          <source src={src} type="video/mp4" />
+        </video>
+      ) : null}
+    </div>
+  )
+}
+
+function Clip({ id, title, text, headingLevel = 3 }) {
+  const Heading = `h${headingLevel}`
+  return (
     <li className="dl-clip">
-      <div className="dl-clip-media" ref={boxRef}>
-        <img src={posterSrc(id)} alt="" width="640" height="800" loading="lazy" decoding="async" />
-        {live ? (
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            loop
-            preload="none"
-            poster={posterSrc(id)}
-            aria-hidden="true"
-            tabIndex={-1}
-            width="640"
-            height="800"
-          >
-            <source src={clipSrc(id)} type="video/mp4" />
-          </video>
-        ) : null}
-      </div>
+      <ClipMedia src={clipSrc(id)} poster={posterSrc(id)} />
       <Heading className="dl-clip-title">{title}</Heading>
       <p className="dl-clip-text">{text}</p>
     </li>

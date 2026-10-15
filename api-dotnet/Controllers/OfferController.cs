@@ -43,7 +43,10 @@ public class OfferController : ControllerBase
         // only sender is our own form, so a refusal here is a form out of step with this
         // list, and the 400 is what makes that visible. After the honeypot, so a bot still
         // gets its decoy whatever else it filled in. See PartnerEnquiry.Validate.
+        // The origin key (doors / interiors / about, 2026-10-15) the same way and in the same
+        // answer, so a form out of step on both hears about both. See EnquiryOrigin.
         var partnerErrors = PartnerEnquiry.Validate(dto);
+        foreach (var (field, messages) in EnquiryOrigin.Validate(dto)) partnerErrors[field] = messages;
         if (partnerErrors.Count > 0)
             return BadRequest(new ValidationProblemDetails(partnerErrors));
 
@@ -79,7 +82,7 @@ public class OfferController : ControllerBase
         var autoresponder = _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: true, dto.Project, dto.Locale, ct);
         var notification = _email.TrySendLeadNotificationAsync(
             isOffer: true, dto.Name, dto.Email, dto.Phone, dto.Project, ct, model: OfferModel.From(dto), intake: intake,
-            partnerLine: PartnerEnquiry.Line(dto.Partner));
+            partnerLine: PartnerEnquiry.Line(dto.Partner), origin: EnquiryOrigin.Effective(dto));
         await Task.WhenAll(autoresponder, notification);
 
         return LeadResponse.For(this, _logger, "offer", dto.Email, write, salesNotified: await notification);

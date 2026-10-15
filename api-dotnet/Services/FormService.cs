@@ -34,9 +34,9 @@ public class FormService : ILeadStore
             // The representative line (#38) goes into the Quickbase copy as it does into SQL
             // (SqlLeadService), resolved against the registry here too so only a registered
             // slug, in its registered spelling, ever reaches a record. The partner line
-            // (2026-10-15) the same way, below it.
+            // (2026-10-15) the same way, below it, or in its place the page-origin line.
             [_env.F_OFFER_MESSAGE.ToString()] = new { value = RepresentativeLine.Prepend(
-                PartnerEnquiry.Prepend(dto.Project, dto.Partner), _env.FindRepresentativeBySlug(dto.Rep)?.Slug) },
+                PartnerEnquiry.Prepend(EnquiryOrigin.Prepend(dto.Project, dto), dto.Partner), _env.FindRepresentativeBySlug(dto.Rep)?.Slug) },
         };
         if (!string.IsNullOrWhiteSpace(dto.ModelId))
             rec[_env.F_OFFER_MODEL_ID.ToString()] = new { value = dto.ModelId };

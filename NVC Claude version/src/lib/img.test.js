@@ -215,7 +215,8 @@ describe('imageFallback', () => {
   })
 
   it('in React: retry, then one fallback; a new image in the same node gets its own retry, chain and sizes', () => {
-    // The reused-node case (InteriorsPage's before/after): React swaps src and srcSet in place.
+    // The reused-node case (a picker or carousel; first met in the old interiors page's
+    // before/after slider): React swaps src and srcSet in place.
     // createElement rather than JSX: this file is .js, which the build does not parse as JSX.
     const Pic = ({ src }) => React.createElement('img', {
       alt: 'pic',
@@ -283,7 +284,9 @@ describe('no hand-rolled image fallbacks', () => {
   it('scans the source tree and finds the handlers', () => {
     expect(files.length).toBeGreaterThan(50)
     const all = files.flatMap((f) => handlers(readFileSync(f, 'utf8')))
-    expect(all.length).toBeGreaterThan(15)
+    // A floor that proves the scanner reads the tree, not a count to keep: the interiors
+    // rebuild (2026-10-15) took the old before/after slider's two handlers with it.
+    expect(all.length).toBeGreaterThan(12)
   })
 
   it('every onError is imageFallback(...) or a listed non-image handler', () => {

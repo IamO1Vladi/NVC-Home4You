@@ -1,719 +1,424 @@
-import React from 'react'
-import { useModalActions } from '../context/ModalActions.jsx'
-import Modal from '../components/Modal.jsx'
-import HoneypotField from '../components/HoneypotField.jsx'
+// /bg/interiorni-vrati, „Интериорни врати": the catalogue of a SEPARATE product, rebuilt
+// 2026-10-15 on the product pages' system (<main class="hp pp idp">, HomePage.css and
+// ProductPage.css first, InternalDoors.css for what only this page has).
+//
+// The owner's facts (content/bg/internalDoors.js says where each one comes from): the doors are
+// sold on their own to builders, developers, shops and individuals, with no minimum; price and
+// delivery are quoted by the quantity ordered; NVC fits them on request. The range is the
+// owner's catalogue (content/shared/doorsCatalogue.js): its photos, drawings, colours, handles,
+// trims, sliding doors and wall panels. Where the old page and the catalogue differ, the old
+// page's information stays (the owner: "the catalogue is a little old"): the frame widths
+// 70–180 mm and the three standard colours per type (components/doors/doorOptions.js).
+//
+// It replaces a page of stock room renders, a visualiser whose preview could stay invisible,
+// "Брава" pictures that were hinges and a review modal. Every enquiry on the page now goes
+// through one in-page form (DoorsEnquiry, #zapitvane) with origin 'doors'; the builder, a
+// sliding-door style and the wall panels' button write their text into it.
+//
+// Sections, in order: the hero (the catalogue's cover); what every door has; the four types
+// (each opens its drawing, details and catalogue models); the builder (#izbor); sliding doors;
+// wall panels; how ordering works; the form; the questions (also FAQ JSON-LD); the other pages;
+// the closing card. No price anywhere: none exists.
+import React, { useRef, useState } from 'react'
+import '../style/HomePage.css'
+import '../style/ProductPage.css'
+import '../style/Delivery.css'
+import '../style/PartnerEnquiry.css'
 import '../style/InternalDoors.css'
-import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
+import ProductHero from '../components/product/ProductHero.jsx'
+import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import FinalCta from '../components/FinalCta.jsx'
+import { FAQJSONLD } from '../components/StructuredData.jsx'
+import DoorBuilder from '../components/doors/DoorBuilder.jsx'
+import DoorsEnquiry from '../components/doors/DoorsEnquiry.jsx'
+import { BUILDER_TYPES, STANDARD_FINISHES, fill, initialSelection, photoColourOf } from '../components/doors/doorOptions.js'
+import {
+  DOORS_COVER,
+  DOOR_FEATURES,
+  DOOR_FINISHES,
+  DOOR_HARDWARE,
+  SLIDING_DOORS,
+  WALL_PANELS,
+} from '../content/shared/doorsCatalogue.js'
+import { paths } from '../routes/paths.js'
 
-import { submitInBackground } from '../lib/backgroundSubmit.js'
-import { loadRep } from '../lib/repAttribution.js'
+// The features in the order the page shows them: the owner-confirmed four (fire, sound, water,
+// WPC), then the two the catalogue adds (eco, termite). Sound and WPC are the owner's, not in
+// DOOR_FEATURES; the other four are its keys.
+export const FEATURE_ORDER = ['fire', 'sound', 'water', 'wpc', 'eco', 'termite']
+const CATALOGUE_FEATURES = new Set(DOOR_FEATURES.map((f) => f.key))
 
-const API_BASE = import.meta.env.VITE_API_BASE || ''
+// The wall panels' room photos the page shows (of the seven in the catalogue).
+const PANEL_ROOMS = [0, 2, 3]
 
-function TypeTabs({ items, value, onChange, ariaLabel = 'Door type' }) {
-  return (
-    <div className="id-type-tabs" role="tablist" aria-label={ariaLabel}>
-      {items.map((it) => {
-        const active = it.key === value
-        return (
-          <button
-            key={it.key}
-            type="button"
-            className={['id-type-tab', active && 'is-active'].filter(Boolean).join(' ')}
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(it.key)}
-          >
-            {it.label}
-          </button>
-        )
-      })}
-    </div>
-  )
+function Tick() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
 }
 
-function ColorPicker({ options, value, onChange, pillBg = 'rgba(255,255,255,.75)', ariaLabel = 'Finish', position = 'bottom-right' }) {
-  const refs = React.useRef([])
-
-  const move = (dir) => {
-    const idx = Math.max(0, options.findIndex((o) => o.key === value))
-    const next = (idx + dir + options.length) % options.length
-    const nextKey = options[next]?.key
-    if (!nextKey) return
-    onChange(nextKey)
-    window.requestAnimationFrame(() => refs.current[next]?.focus())
-  }
-
-  return (
-    <div
-      className={['id-picker', position === 'bottom-right' && 'is-bottom'].filter(Boolean).join(' ')}
-      style={{ '--pill': pillBg }}
-      role="radiogroup"
-      aria-label={ariaLabel}
-    >
-      {options.map((opt, i) => {
-        const active = value === opt.key
-        return (
-          <button
-            key={opt.key}
-            ref={(el) => (refs.current[i] = el)}
-            type="button"
-            className={['id-dot', active && 'is-active'].filter(Boolean).join(' ')}
-            style={{ '--dot': opt.swatch }}
-            onClick={() => onChange(opt.key)}
-            role="radio"
-            aria-checked={active}
-            aria-label={opt.label}
-            tabIndex={active ? 0 : -1}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowLeft') {
-                e.preventDefault()
-                move(-1)
-              }
-              if (e.key === 'ArrowRight') {
-                e.preventDefault()
-                move(1)
-              }
-            }}
-          />
-        )
-      })}
-    </div>
-  )
+const FEATURE_ICONS = {
+  fire: <path d="M12 3c1 3 4 5 4 9a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 0-8z" />,
+  sound: <><path d="M4 10v4h3l4 3V7L7 10H4z" /><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12" /></>,
+  water: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
+  wpc: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9h16M4 14h16M9 4v16" /></>,
+  eco: <path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15M5 19l7-7" />,
+  termite: <><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z" /><path d="M9 12l2 2 4-4" /></>,
 }
 
-function ThumbGrid({ options, value, onChange, ariaLabel, fallbackSrc }) {
-  const refs = React.useRef([])
-
-  const move = (dir) => {
-    const idx = Math.max(0, options.findIndex((o) => o.key === value))
-    const next = (idx + dir + options.length) % options.length
-    const nextKey = options[next]?.key
-    if (!nextKey) return
-    onChange(nextKey)
-    window.requestAnimationFrame(() => refs.current[next]?.focus())
-  }
-
-  return (
-    <div className="id-opt-grid" role="radiogroup" aria-label={ariaLabel}>
-      {options.map((opt, i) => {
-        const active = value === opt.key
-        return (
-          <button
-            key={opt.key}
-            ref={(el) => (refs.current[i] = el)}
-            type="button"
-            className={['id-opt', active && 'is-active'].filter(Boolean).join(' ')}
-            onClick={() => onChange(opt.key)}
-            role="radio"
-            aria-checked={active}
-            aria-label={opt.label}
-            tabIndex={active ? 0 : -1}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                e.preventDefault()
-                move(-1)
-              }
-              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                e.preventDefault()
-                move(1)
-              }
-            }}
-          >
-            <img
-              className="id-opt-img"
-              src={cdnImage(opt.img, { width: 240 })}
-              srcSet={cdnSrcSet(opt.img, [120, 240, 360])}
-              sizes="120px"
-              alt=""
-              loading="lazy"
-              onError={imageFallback(fallbackSrc)}
-            />
-            <div className="id-opt-label">{opt.label}</div>
-            {opt.meta ? <div className="id-opt-meta">{opt.meta}</div> : null}
-          </button>
-        )
-      })}
-    </div>
-  )
+function Icon({ name }) {
+  return <svg className="hp-ico" viewBox="0 0 24 24" aria-hidden="true">{FEATURE_ICONS[name]}</svg>
 }
 
-function ConfigGroup({ title, hint, options, value, onChange, ariaLabel, fallbackSrc }) {
-  const selected = options.find((o) => o.key === value) || options[0]
+/** The questions as the page prints them and as the FAQ markup publishes them: one list. */
+export function faqItems(c) {
+  return (c.faq.items || []).map((item) => ({ question: item.q, answer: item.a }))
+}
+
+function TypeCard({ type, locale, c, onChoose }) {
+  const t = c.range.types[type.key]
+  const lang = (o) => (o ? o[locale] || o.en : '')
+  const std = STANDARD_FINISHES[type.key]
+  const views = type.variants
+    ? type.variants.map((v) => ({ key: v.key, name: c.range.variants[v.key], room: v.room, roomAlt: lang(v.roomAlt), drawing: v.drawing }))
+    : [{ key: type.key, name: t.name, room: type.room, roomAlt: lang(type.roomAlt), drawing: type.drawing }]
+  const headingId = `idp-type-${type.key}`
 
   return (
-    <div className="id-group">
-      <div className="id-group-h">{title}</div>
-      {hint ? <div className="id-group-sub">{hint}</div> : null}
-
-      <div className="id-choice">
-        <div className="id-choice-preview" aria-label={`${title}: ${selected?.label || ''}`}>
-          <img
-            className="id-choice-img"
-            src={cdnImage(selected?.img, { width: 600 })}
-            srcSet={cdnSrcSet(selected?.img, [300, 450, 600, 900])}
-            sizes="(max-width: 760px) 60vw, 360px"
-            alt=""
-            loading="lazy"
-            onError={imageFallback(fallbackSrc)}
-          />
-          <div className="id-choice-name">{selected?.label}</div>
-        </div>
-
-        <ThumbGrid
-          options={options}
-          value={value}
-          onChange={onChange}
-          ariaLabel={ariaLabel || title}
-          fallbackSrc={fallbackSrc}
-        />
+    <li className="hp-card idp-type">
+      <div className="idp-type-doors" aria-hidden="true">
+        {std.map((f) => (
+          <img key={f.key} src={type.photos[f.photo].src} alt="" width="140" height="300" loading="lazy" decoding="async" />
+        ))}
       </div>
-    </div>
+      <div className="idp-type-body">
+        <h3 id={headingId}>{t.name}</h3>
+        <p className="idp-muted">{t.desc}</p>
+        <p className="idp-sub-legend">{c.range.standard}</p>
+        <ul className="idp-colours" aria-label={`${t.name}: ${c.range.standard}`}>
+          {std.map((f) => (
+            <li key={f.key}><span className="idp-swatch" style={{ '--sw': f.swatch }} aria-hidden="true" />{c.colors[f.key]}</li>
+          ))}
+        </ul>
+
+        <details className="idp-more idp-type-more">
+          <summary>{c.range.details}</summary>
+          <div className="idp-type-views">
+            {views.map((v) => (
+              <figure key={v.key} className="idp-type-view">
+                <div className="idp-type-pair">
+                  <img src={v.room} alt={v.roomAlt} width="400" height="432" loading="lazy" decoding="async" />
+                  <img className="idp-drawing" src={v.drawing} alt={fill(c.range.drawingAlt, { name: v.name })} width="300" height="432" loading="lazy" decoding="async" />
+                </div>
+                <figcaption>{type.variants ? v.name : c.range.drawing}</figcaption>
+              </figure>
+            ))}
+          </div>
+          <h4 className="idp-h4">{c.range.features}</h4>
+          <ul className="idp-list">
+            {t.features.map((line) => <li key={line}><Tick />{line}</li>)}
+          </ul>
+          <h4 className="idp-h4">{c.range.models}</h4>
+          <ul className="idp-models">
+            {type.photos.map((photo, i) => {
+              // A standard colour's photo carries that colour's name, as on the chips above.
+              const colour = photoColourOf(type, i, locale, c.colors)
+              const detail = photo.detail ? lang(photo.detail) : ''
+              return (
+                <li key={photo.src}>
+                  <img src={photo.src} alt={fill(c.range.photoAlt, { name: t.name, colour })} width="70" height="150" loading="lazy" decoding="async" />
+                  <span>{colour}{detail ? <><br /><small>{detail}</small></> : null}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </details>
+
+        <button type="button" className="hp-btn ghost idp-choose" onClick={() => onChoose(type.key)} aria-describedby={headingId}>
+          {c.range.choose}
+        </button>
+      </div>
+    </li>
   )
 }
 
-// locale: the page's language ('bg' | 'en' | 'el'), sent with the enquiry like every other
-// form on the site. Without it the server answered in its default, so a Greek visitor got
-// an English autoresponder and the lead was filed with no language at all.
-export default function InternalDoorsPage({ content, locale }) {
-  const { openOffer, openQuestion } = useModalActions()
-  const asset = React.useCallback((p) => `${import.meta.env.BASE_URL}${p}`, [])
-  const fallback = asset('modular-builds/card.svg')
+export default function InternalDoorsPage({ locale = 'bg', content }) {
+  const c = content
+  const [selection, setSelection] = useState(initialSelection)
+  const [message, setMessage] = useState('')
+  const [filled, setFilled] = useState(false)
+  const formHeadingRef = useRef(null)
+  const builderRef = useRef(null)
 
-  const decorLinesOptions = React.useMemo(
-    () => [
-      { key: 'white', label: content.colors.white, swatch: '#D0D0CC', pillBg: 'rgba(255,255,255,.78)', img: asset('internal-doors/decor-lines-white.webp') },
-      { key: 'charcoal', label: content.colors.charcoal, swatch: '#53534E', pillBg: 'rgba(17,24,39,.62)', img: asset('internal-doors/decor-lines-charcoal.webp') },
-      { key: 'sage', label: content.colors.sage, swatch: '#9EAB98', pillBg: 'rgba(158,171,152,.65)', img: asset('internal-doors/decor-lines-sage.webp') },
-    ],
-    [content.colors, asset]
-  )
+  if (!c) return null
+  const lang = (o) => (o ? o[locale] || o.en : '')
+  const pathOf = (key) => paths[key]?.[locale] || paths[key]?.en
 
-  const wallpaperOptions = React.useMemo(
-    () => [
-      { key: 'panelLight', label: content.panels.light, swatch: '#C3BCB1', pillBg: 'rgba(255,255,255,.70)', img: asset('internal-doors/wallpaper-light.webp') },
-      { key: 'panelSmoked', label: content.panels.smoked, swatch: '#81796A', pillBg: 'rgba(17,24,39,.55)', img: asset('internal-doors/wallpaper-smoked.webp') },
-      { key: 'panelDark', label: content.panels.dark, swatch: '#221D11', pillBg: 'rgba(17,24,39,.62)', img: asset('internal-doors/wallpaper-dark.webp') },
-    ],
-    [content.panels, asset]
-  )
+  const scrollTo = (id) => {
+    const target = document.getElementById(id)
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    target?.scrollIntoView?.({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+  }
+  const toForm = () => {
+    scrollTo('zapitvane')
+    formHeadingRef.current?.focus?.({ preventScroll: true })
+  }
+  const toBuilder = () => {
+    scrollTo('izbor')
+    builderRef.current?.focus?.({ preventScroll: true })
+  }
+  // Only the builder's text is "your choice from this page" (the form then links back to the
+  // builder); a sliding-door or wall-panel line is just a starting message.
+  const fillForm = (text, fromBuilder = false) => {
+    setMessage(text)
+    setFilled(fromBuilder)
+    toForm()
+  }
+  // Emptied (by the visitor or by a sent form), the message is no longer the builder's.
+  const onMessage = (text) => {
+    setMessage(text)
+    if (!text) setFilled(false)
+  }
 
-  const metalLinesOptions = React.useMemo(
-    () => [
-      { key: 'grey', label: content.colors.grey, swatch: '#7E7973', pillBg: 'rgba(255,255,255,.72)', img: asset('internal-doors/metal-lines-grey.webp') },
-      { key: 'oak', label: content.colors.oak, swatch: '#C19C62', pillBg: 'rgba(193,156,98,.55)', img: asset('internal-doors/metal-lines-oak.webp') },
-      { key: 'darkWood', label: content.colors.darkWood, swatch: '#44403C', pillBg: 'rgba(17,24,39,.62)', img: asset('internal-doors/metal-lines-dark.webp') },
-    ],
-    [content.colors, asset]
-  )
+  // The sliding doors' enquiry, with the catalogue style when one was clicked.
+  const slidingText = (style) => [c.message.sliding, style ? fill(c.message.slidingStyle, { style }) : null].filter(Boolean).join('\n')
 
-  const glassOptions = React.useMemo(
-    () => [
-      { key: 'warmWhite', label: content.colors.warmWhite, swatch: '#DFD9D0', pillBg: 'rgba(255,255,255,.78)', img: asset('internal-doors/glass-warm-white.webp') },
-      { key: 'grey', label: content.colors.grey, swatch: '#C2BFB9', pillBg: 'rgba(255,255,255,.70)', img: asset('internal-doors/glass-grey.webp') },
-      { key: 'black', label: content.colors.black, swatch: '#1C170C', pillBg: 'rgba(17,24,39,.62)', img: asset('internal-doors/glass-black.webp') },
-    ],
-    [content.colors, asset]
-  )
+  const chooseType = (key) => {
+    setSelection((prev) => ({ ...prev, type: key }))
+    toBuilder()
+  }
 
-  const optionsByType = React.useMemo(
-    () => ({
-      decorLines: decorLinesOptions,
-      wallpaper: wallpaperOptions,
-      metalLines: metalLinesOptions,
-      glass: glassOptions,
-    }),
-    [decorLinesOptions, wallpaperOptions, metalLinesOptions, glassOptions]
-  )
-
-  const typeItems = React.useMemo(
-    () => [
-      { key: 'decorLines', label: content.types.decorLines.label },
-      { key: 'wallpaper', label: content.types.wallpaper.label },
-      { key: 'metalLines', label: content.types.metalLines.label },
-      { key: 'glass', label: content.types.glass.label },
-    ],
-    [content.types]
-  )
-
-  const typeCopy = React.useMemo(
-    () => ({
-      decorLines: { desc: content.types.decorLines.desc, features: content.types.decorLines.features, tag: content.types.decorLines.tag },
-      wallpaper: { desc: content.types.wallpaper.desc, features: content.types.wallpaper.features, tag: content.types.wallpaper.tag },
-      metalLines: { desc: content.types.metalLines.desc, features: content.types.metalLines.features, tag: content.types.metalLines.tag },
-      glass: { desc: content.types.glass.desc, features: content.types.glass.features, tag: content.types.glass.tag },
-    }),
-    [content.types]
-  )
-
-  const [typeKey, setTypeKey] = React.useState('decorLines')
-  const [finishByType, setFinishByType] = React.useState(() => ({
-    decorLines: decorLinesOptions[0]?.key || 'white',
-    wallpaper: wallpaperOptions.find((o) => o.key === 'panelDark')?.key || wallpaperOptions[0]?.key || 'panelDark',
-    metalLines: metalLinesOptions[0]?.key || 'grey',
-    glass: glassOptions[0]?.key || 'warmWhite',
+  const faq = faqItems(c)
+  const panelSizes = WALL_PANELS.sizes.map((s) => ({
+    label: s.code,
+    values: [fill(c.panels.mm, { n: s.widthMm }), fill(c.panels.mm, { n: s.thicknessMm }), s.joint],
   }))
 
-  React.useEffect(() => {
-    setFinishByType((prev) => {
-      const next = { ...prev }
-      Object.entries(optionsByType).forEach(([tk, opts]) => {
-        const cur = next[tk]
-        const ok = opts.some((o) => o.key === cur)
-        if (!ok) {
-          if (tk === 'wallpaper') next[tk] = opts.find((o) => o.key === 'panelDark')?.key || opts[0]?.key
-          else next[tk] = opts[0]?.key
-        }
-      })
-      return next
-    })
-  }, [optionsByType])
-
-  const activeOptions = optionsByType[typeKey] || decorLinesOptions
-  const activeFinishKey = finishByType[typeKey]
-  const selected = activeOptions.find((o) => o.key === activeFinishKey) || activeOptions[0]
-  const activeImg = selected?.img
-  const setActiveFinishKey = (k) => setFinishByType((prev) => ({ ...prev, [typeKey]: k }))
-
-  const frameOptions = React.useMemo(
-    () => Object.entries(content.hardware.frame.options).map(([key, label]) => ({ key, label, img: asset(`internal-doors/hardware/frame-${key}.webp`) })),
-    [content.hardware.frame.options, asset]
-  )
-  const handleOptions = React.useMemo(
-    () => Object.entries(content.hardware.handle.options).map(([key, label]) => ({ key, label, img: asset(`internal-doors/hardware/handle-${key.replace('h', '')}.webp`) })),
-    [content.hardware.handle.options, asset]
-  )
-  const trimOptions = React.useMemo(
-    () => Object.entries(content.hardware.trim.options).map(([key, label]) => ({ key, label, img: asset(`internal-doors/hardware/trim-${key.replace('p', '')}.webp`) })),
-    [content.hardware.trim.options, asset]
-  )
-  const lockOptions = React.useMemo(
-    () => Object.entries(content.hardware.lock.options).map(([key, label]) => ({ key, label, img: asset(`internal-doors/hardware/lock-${key.replace('l', '')}.webp`) })),
-    [content.hardware.lock.options, asset]
-  )
-
-  const [frameKey, setFrameKey] = React.useState(frameOptions[0]?.key || '70')
-  const [handleKey, setHandleKey] = React.useState(handleOptions[0]?.key || 'h1')
-  const [trimKey, setTrimKey] = React.useState(trimOptions[0]?.key || 'p1')
-  const [lockKey, setLockKey] = React.useState(lockOptions[0]?.key || 'l1')
-
-  const frameSelected = frameOptions.find((o) => o.key === frameKey) || frameOptions[0]
-  const handleSelected = handleOptions.find((o) => o.key === handleKey) || handleOptions[0]
-  const trimSelected = trimOptions.find((o) => o.key === trimKey) || trimOptions[0]
-  const lockSelected = lockOptions.find((o) => o.key === lockKey) || lockOptions[0]
-
-  const [reviewOpen, setReviewOpen] = React.useState(false)
-  const [projectDraft, setProjectDraft] = React.useState('')
-
-  const typeLabel = typeItems.find((i) => i.key === typeKey)?.label || typeKey
-
-  const makeProjectText = React.useCallback(() => {
-    const lines = []
-    lines.push(content.review.autoIntro)
-    lines.push('')
-    lines.push(`${content.types.h}: ${typeLabel}`)
-    lines.push(`${content.review.labels.finish}: ${selected?.label || '—'}`)
-    lines.push(`${content.hardware.summary.frame}: ${frameSelected?.label || '—'}`)
-    lines.push(`${content.hardware.summary.handle}: ${handleSelected?.label || '—'}`)
-    lines.push(`${content.hardware.summary.trim}: ${trimSelected?.label || '—'}`)
-    lines.push(`${content.hardware.summary.lock}: ${lockSelected?.label || '—'}`)
-    lines.push('')
-    lines.push(`${content.review.fields.qty}:`)
-    lines.push(`${content.review.fields.size}:`)
-    lines.push(`${content.review.fields.addr}:`)
-    lines.push(`${content.review.fields.notes}:`)
-    return lines.join('\n')
-  }, [content, typeLabel, selected?.label, frameSelected?.label, handleSelected?.label, trimSelected?.label, lockSelected?.label])
-
-  const reviewItems = React.useMemo(
-    () => [
-      {
-        key: 'door',
-        label: content.review.labels.door,
-        value: `${typeLabel}${selected?.label ? ` · ${selected.label}` : ''}`,
-        img: activeImg,
-        alt: content.preview.alt,
-        fit: 'contain',
-        swatch: selected?.swatch,
-      },
-      { key: 'frame', label: content.hardware.summary.frame, value: frameSelected?.label || '—', img: frameSelected?.img, alt: frameSelected?.label || '' },
-      { key: 'handle', label: content.hardware.summary.handle, value: handleSelected?.label || '—', img: handleSelected?.img, alt: handleSelected?.label || '' },
-      { key: 'trim', label: content.hardware.summary.trim, value: trimSelected?.label || '—', img: trimSelected?.img, alt: trimSelected?.label || '' },
-      { key: 'lock', label: content.hardware.summary.lock, value: lockSelected?.label || '—', img: lockSelected?.img, alt: lockSelected?.label || '' },
-    ],
-    [content, typeLabel, selected, activeImg, frameSelected, handleSelected, trimSelected, lockSelected]
-  )
-
-  // Only the draft is reset here. This used to reset reviewSent/reviewError too — state
-  // that went when the form became fire-and-forget (5a7fe40), leaving two calls to setters
-  // that no longer existed, so this button threw a ReferenceError and the form never opened.
-  const openReview = () => {
-    setProjectDraft(makeProjectText())
-    setReviewOpen(true)
-  }
-
-  // Fire-and-forget, same as the site-wide offer/question modals (owner, 2026-08-18):
-  // the modal closes on Send and the top-right banner owns the request from there — with
-  // retries, so a phone in a dead spot is not the visitor's problem to notice.
-  const submitReview = React.useCallback((e) => {
-    e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    const payload = {
-      name: fd.get('name') || '',
-      email: fd.get('email') || '',
-      phone: fd.get('phone') || '',
-      project: fd.get('project') || '',
-      modelId: '',
-      locale,
-      // Same as the site-wide offer form (App.jsx): the representative whose link brought
-      // this visitor (#38), and the honeypot, which is empty for every human.
-      rep: loadRep() || '',
-      website: fd.get('website') || '',
-    }
-    if (!payload.name || !payload.email) return
-
-    setReviewOpen(false)
-    submitInBackground({
-      url: API_BASE + '/api/offer',
-      payload,
-      labels: {
-        sending: content.review.sending,
-        retrying: content.review.sending,
-        success: content.review.sent.h,
-        error: content.review.error,
-        retry: content.forms.submit,
-        close: content.common.close,
-      },
-      // Success-only, like every other tracked event: a counted lead is one that arrived.
-      onSuccess: () => {
-        if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-          window.fbq('track', 'Lead', {
-            content_name: 'Internal doors review request',
-            content_category: 'Internal doors',
-          })
-        }
-      },
-    })
-  }, [content.review, content.forms.submit, content.common.close, locale])
-
-  const [loaded, setLoaded] = React.useState(true)
-  React.useEffect(() => {
-    setLoaded(false)
-  }, [activeImg])
-
-  const heroHotspots = React.useMemo(
-    () => [
-      { id: 'fire', title: content.hero.fire.h, body: content.hero.fire.p },
-      { id: 'sound', title: content.hero.sound.h, body: content.hero.sound.p },
-      { id: 'water', title: content.hero.water.h, body: content.hero.water.p },
-      {
-        id: 'coat',
-        title: content.hero.coating.h,
-        body: content.hero.coating.p,
-        swatches: ['#E7E5E4', '#111827', '#C7A56B', '#D1D5DB', '#A3B18A', '#6B7280', '#F5F5F4'],
-      },
-      { id: 'kit', title: content.hero.kit.h, body: content.hero.kit.p },
-      { id: 'wpc', title: content.hero.wpc.h, body: content.hero.wpc.p },
-    ],
-    [content.hero]
-  )
-
-  const [openHotspot, setOpenHotspot] = React.useState(null)
-  const [isNarrow, setIsNarrow] = React.useState(false)
-
-  React.useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return undefined
-    const mq = window.matchMedia('(max-width: 960px)')
-    const onChange = () => setIsNarrow(!!mq.matches)
-    onChange()
-    try {
-      mq.addEventListener('change', onChange)
-      return () => mq.removeEventListener('change', onChange)
-    } catch {
-      mq.addListener(onChange)
-      return () => mq.removeListener(onChange)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    if (!isNarrow || !openHotspot) return undefined
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [openHotspot, isNarrow])
-
-  const openHotspotData = React.useMemo(
-    () => heroHotspots.find((h) => h.id === openHotspot) || null,
-    [heroHotspots, openHotspot]
-  )
-
-  React.useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') setOpenHotspot(null)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  const siblings = [
+    { to: pathOf('interiors'), label: c.siblings.interiors.label, desc: c.siblings.interiors.desc },
+    { to: pathOf('modularBuilds'), label: c.siblings.containers.label, desc: c.siblings.containers.desc },
+    { to: pathOf('partner'), label: c.siblings.partner.label, desc: c.siblings.partner.desc },
+  ]
 
   return (
-    <main className="id">
-      <section className="id-intro">
-        <div className="container id-wide">
-          <div className="id-intro-head">
-            <h1 className="id-title">{content.title}</h1>
-            <p className="id-lead">{content.lead}</p>
+    <main className="hp pp idp">
+      <ProductHero
+        titleId="idp-hero-title"
+        eyebrow={c.hero.eyebrow}
+        title={c.hero.title}
+        lead={c.hero.lead}
+        primary={{ label: c.hero.primary, onClick: toForm }}
+        secondary={{ label: c.hero.secondary, onClick: toBuilder }}
+        facts={c.hero.facts}
+        photo={{ url: DOORS_COVER.src, alt: lang(DOORS_COVER.alt), caption: c.hero.chip, position: '30% 50%' }}
+      />
 
-            <div className="row mt-6">
-              <button className="btn" onClick={openOffer}>{content.common.getOffer}</button>
-              <button className="btn ghost" onClick={openQuestion}>{content.common.askQuestion}</button>
+      <section className="pp-band" id="idp-features" aria-labelledby="idp-features-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="idp-features-title">{c.features.heading}</h2>
             </div>
           </div>
-
-          <div className="id-intro-banner" aria-label={content.heroBanner.aria}>
-            <div className="id-intro-media" onClick={() => setOpenHotspot(null)}>
-              <img
-                className="id-intro-bg"
-                src={asset('internal-doors/clear.webp')}
-                alt=""
-                aria-hidden="true"
-                loading="eager"
-                onError={imageFallback(activeImg, fallback)}
-              />
-              <div className="id-intro-shade" aria-hidden="true" />
-
-              <div className="id-intro-overlay" role="presentation">
-                {heroHotspots.map((h) => {
-                  const isOpen = openHotspot === h.id
-                  return (
-                    <div
-                      key={h.id}
-                      className={['id-hotspot', `id-hotspot--${h.id}`, isOpen && 'is-open'].filter(Boolean).join(' ')}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className="id-bubble"
-                        onClick={() => setOpenHotspot((cur) => (cur === h.id ? null : h.id))}
-                        aria-expanded={isOpen}
-                        aria-controls={`id-pop-${h.id}`}
-                        aria-label={h.title}
-                        title={h.title}
-                      >
-                        <span className="id-bubble-label">{h.title}</span>
-                      </button>
-
-                      {isOpen && !isNarrow && (
-                        <div id={`id-pop-${h.id}`} className="id-pop" role="dialog" aria-label={h.title}>
-                          <button type="button" className="id-pop-close" aria-label={content.common.close} onClick={() => setOpenHotspot(null)}>✕</button>
-                          <div className="id-pop-h">{h.title}</div>
-                          <div className="id-pop-p">{h.body}</div>
-
-                          {h.id === 'coat' && Array.isArray(h.swatches) && (
-                            <div className="id-intro-swatches" aria-label={content.hero.coating.aria}>
-                              {h.swatches.map((c) => (
-                                <span key={c} className="id-intro-swatch" style={{ '--sw': c }} aria-hidden="true" />
-                              ))}
-                            </div>
-                          )}
-
-                          {h.id === 'kit' && (
-                            <div className="id-pop-media">
-                              <img
-                                src={asset('internal-doors/kit.webp')}
-                                alt={content.hero.kit.mediaAlt}
-                                loading="lazy"
-                                onError={imageFallback(fallback)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {isNarrow && openHotspotData && (
-            <div className="id-hotmodal" role="dialog" aria-modal="true" aria-label={openHotspotData.title} onClick={() => setOpenHotspot(null)}>
-              <div className="id-hotsheet" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="id-hotsheet-close" aria-label={content.common.close} onClick={() => setOpenHotspot(null)}>✕</button>
-                <div id={`id-pop-${openHotspotData.id}`}>
-                  <div className="id-hotsheet-h">{openHotspotData.title}</div>
-                  <div className="id-hotsheet-p">{openHotspotData.body}</div>
-
-                  {openHotspotData.id === 'coat' && Array.isArray(openHotspotData.swatches) && (
-                    <div className="id-intro-swatches" aria-label={content.hero.coating.aria}>
-                      {openHotspotData.swatches.map((c) => (
-                        <span key={c} className="id-intro-swatch" style={{ '--sw': c }} aria-hidden="true" />
-                      ))}
-                    </div>
-                  )}
-
-                  {openHotspotData.id === 'kit' && (
-                    <div className="id-sheet-media">
-                      <img
-                        src={asset('internal-doors/kit.webp')}
-                        alt={content.hero.kit.mediaAlt}
-                        loading="lazy"
-                        onError={imageFallback(fallback)}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="container id-wide">
-          <div className="id-pane">
-            <h2 className="id-h2">{content.preview.h}</h2>
-            <p className="id-muted">{content.preview.p2}</p>
-
-            <div className="id-showcase" aria-label={content.preview.sectionAria}>
-              <div className="id-showcase-media">
-                <div className="id-preview id-preview--tall" aria-label={content.preview.imageAria}>
-                  <img
-                    className={['id-preview-img', loaded && 'is-loaded'].filter(Boolean).join(' ')}
-                    src={cdnImage(activeImg, { width: 900 })}
-                    srcSet={cdnSrcSet(activeImg, [450, 700, 900, 1200])}
-                    sizes="(max-width: 900px) 90vw, 560px"
-                    alt={content.preview.alt}
-                    onLoad={() => setLoaded(true)}
-                    onError={imageFallback(fallback)}
-                  />
-
-                  <div className="id-preview-tag">{typeCopy[typeKey]?.tag}</div>
-
-                  <ColorPicker
-                    options={activeOptions}
-                    value={activeFinishKey}
-                    onChange={setActiveFinishKey}
-                    pillBg={selected?.pillBg}
-                    ariaLabel={typeKey === 'wallpaper' ? content.preview.ariaPanel : content.preview.ariaDoor}
-                    position="bottom-right"
-                  />
-
-                  <div className="id-preview-badge">{selected?.label}</div>
-                </div>
-              </div>
-
-              <div className="id-showcase-controls">
-                <div className="id-sub">{content.types.h}</div>
-                <TypeTabs items={typeItems} value={typeKey} onChange={(k) => setTypeKey(k)} ariaLabel={content.types.aria} />
-                <p className="id-type-desc">{typeCopy[typeKey]?.desc}</p>
-              </div>
-
-              <div className="id-showcase-details">
-                <div className="id-sub">{content.details.h}</div>
-                <ul className="id-list">
-                  {(typeCopy[typeKey]?.features || []).map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-
-                <div className="id-sub mt-6">{content.selected.h}</div>
-                <div className="id-selected">
-                  <span className="id-swatch" style={{ '--sw': selected?.swatch }} aria-hidden="true" />
-                  <div>
-                    <div className="id-selected-name">{selected?.label}</div>
-                    <div className="id-selected-meta">{content.selected.meta}</div>
-                  </div>
-                </div>
-
-                <div className="row mt-6">
-                  <button className="btn" onClick={openOffer}>{content.cta}</button>
-                </div>
+          <div className="idp-features">
+            <ul className="idp-feature-list">
+              {FEATURE_ORDER.map((key) => (
+                <li key={key} className="hp-card idp-feature" data-feature={key} data-source={CATALOGUE_FEATURES.has(key) ? 'catalogue' : 'owner'}>
+                  <Icon name={key} />
+                  <h3>{c.features.items[key].title}</h3>
+                  <p>{c.features.items[key].text}</p>
+                </li>
+              ))}
+            </ul>
+            <div className="hp-card idp-set">
+              <h3>{c.features.set.title}</h3>
+              <p>{c.features.set.text}</p>
+              <ul className="idp-set-parts">
+                {c.features.set.parts.map((part) => <li key={part}><Tick />{part}</li>)}
+              </ul>
+              <div className="idp-set-hw">
+                {DOOR_HARDWARE.hinges.slice(0, 3).map((h) => (
+                  <img key={h.key} src={h.src} alt={lang(h.look)} width="58" height="94" loading="lazy" decoding="async" />
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section>
-        <div className="container id-wide">
-          <div className="id-hw">
-            <h2 className="id-h2">{content.hardware.h}</h2>
-            <p className="id-muted">{content.hardware.p}</p>
-
-            <div className="id-hw-grid">
-              <ConfigGroup title={content.hardware.frame.h} hint={content.hardware.frame.hint} options={frameOptions} value={frameKey} onChange={setFrameKey} ariaLabel={content.hardware.frame.aria} fallbackSrc={fallback} />
-              <ConfigGroup title={content.hardware.handle.h} hint={content.hardware.handle.hint} options={handleOptions} value={handleKey} onChange={setHandleKey} ariaLabel={content.hardware.handle.aria} fallbackSrc={fallback} />
-              <ConfigGroup title={content.hardware.trim.h} hint={content.hardware.trim.hint} options={trimOptions} value={trimKey} onChange={setTrimKey} ariaLabel={content.hardware.trim.aria} fallbackSrc={fallback} />
-              <ConfigGroup title={content.hardware.lock.h} hint={content.hardware.lock.hint} options={lockOptions} value={lockKey} onChange={setLockKey} ariaLabel={content.hardware.lock.aria} fallbackSrc={fallback} />
-            </div>
-
-            <div className="id-hw-summary" aria-label={content.hardware.summaryAria}>
-              <div className="id-hw-pill">{content.hardware.summary.frame}: <strong>{frameSelected?.label}</strong></div>
-              <div className="id-hw-pill">{content.hardware.summary.handle}: <strong>{handleSelected?.label}</strong></div>
-              <div className="id-hw-pill">{content.hardware.summary.trim}: <strong>{trimSelected?.label}</strong></div>
-              <div className="id-hw-pill">{content.hardware.summary.lock}: <strong>{lockSelected?.label}</strong></div>
-            </div>
-
-            <div className="row mt-6">
-              <button className="btn" onClick={openReview}>{content.review.cta}</button>
+      <section id="idp-range" aria-labelledby="idp-range-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="idp-range-title">{c.range.heading}</h2>
+              <p className="hp-sub">{c.range.sub}</p>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section>
-        <div className="container id-why">
-          <div className="id-why-h">{content.why.h}</div>
-          <ul className="id-why-list">
-            {content.why.items.map((item) => <li key={item}>{item}</li>)}
+          <ul className="idp-types">
+            {BUILDER_TYPES.map((type) => (
+              <TypeCard key={type.key} type={type} locale={locale} c={c} onChoose={chooseType} />
+            ))}
           </ul>
         </div>
       </section>
 
-      <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title={content.review.title} closeLabel={content.common.close}>
-        {/* No in-modal outcome screen any more: the modal closes on Send, and the
-            top-right banner owns the request from there (see submitReview). */}
-        <form className="grid" style={{ gap: 10 }} onSubmit={submitReview}>
-            <div className="id-review-grid" aria-label={content.review.summaryAria}>
-              {reviewItems.map((it) => (
-                <div className="id-review-item" key={it.key}>
-                  <div className={['id-review-thumb', it.fit === 'contain' && 'is-contain'].filter(Boolean).join(' ')}>
-                    {it.img ? (
-                      <img
-                        src={cdnImage(it.img, { width: 160 })}
-                        srcSet={cdnSrcSet(it.img, [120, 160, 240])}
-                        sizes="80px"
-                        alt={it.alt || it.label || ''}
-                        loading="lazy"
-                        decoding="async"
-                        onError={imageFallback(fallback)}
-                      />
-                    ) : (
-                      <span className="id-review-thumb-fallback" aria-hidden="true">—</span>
-                    )}
-                  </div>
+      <div className="pp-band idp-builder-band" ref={builderRef} tabIndex={-1}>
+        <DoorBuilder locale={locale} content={c} selection={selection} onChange={setSelection} onSend={(text) => fillForm(text, true)} />
+      </div>
 
-                  <div className="id-review-meta">
-                    <div className="id-review-k">{it.label}</div>
-                    <div className="id-review-v">{it.value}</div>
-                  </div>
+      <section id="idp-sliding" aria-labelledby="idp-sliding-title">
+        <div className="hp-container">
+          <div className="pp-split idp-sliding">
+            <div className="idp-sliding-text">
+              <h2 id="idp-sliding-title">{c.sliding.heading}</h2>
+              <p className="hp-sub">{c.sliding.text}</p>
+              <div className="idp-sliding-pair">
+                <img src={SLIDING_DOORS.room} alt={lang(SLIDING_DOORS.roomAlt)} width="1200" height="912" loading="lazy" decoding="async" />
+                <img className="idp-drawing" src={SLIDING_DOORS.drawing} alt={c.sliding.drawingAlt} width="766" height="720" loading="lazy" decoding="async" />
+              </div>
+              <button type="button" className="hp-btn" onClick={() => fillForm(slidingText())}>{c.sliding.ask}</button>
+            </div>
+            <div>
+              <h3 className="idp-h3">{c.sliding.styles}</h3>
+              <ul className="idp-sliding-styles">
+                {SLIDING_DOORS.styles.map((s, i) => (
+                  <li key={s.key}>
+                    <button
+                      type="button"
+                      className="idp-style"
+                      onClick={() => fillForm(slidingText(`${i + 1} · ${lang(s.look)} (${fill(c.builder.pageRef, { p: s.page })})`))}
+                      aria-label={`${c.sliding.askStyle}: ${lang(s.look)}`}
+                    >
+                      <img src={s.src} alt="" width="503" height="600" loading="lazy" decoding="async" />
+                      <span>{lang(s.look)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
 
-                  {it.swatch && <span className="id-review-swatch" style={{ '--sw': it.swatch }} aria-hidden="true" />}
-                </div>
+      <section className="pp-band" id="idp-panels" aria-labelledby="idp-panels-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="idp-panels-title">{c.panels.heading}</h2>
+              <p className="hp-sub">{c.panels.text}</p>
+            </div>
+            <button type="button" className="hp-btn ghost" onClick={() => fillForm(c.message.panels)}>{c.panels.ask}</button>
+          </div>
+
+          <ul className="idp-panel-rooms">
+            {PANEL_ROOMS.map((i) => (
+              <li key={WALL_PANELS.rooms[i].src}>
+                <img src={WALL_PANELS.rooms[i].src} alt={lang(WALL_PANELS.rooms[i].alt)} width="1000" height="667" loading="lazy" decoding="async" />
+              </li>
+            ))}
+          </ul>
+
+          <div className="idp-panels-grid">
+            <div className="hp-card idp-panel-card">
+              <h3 className="idp-h3">{c.panels.finishes}</h3>
+              <p className="idp-sub-legend">{lang(WALL_PANELS.finishes.wpc.title)}</p>
+              <p className="idp-muted idp-small">{c.panels.wpcNote}</p>
+              <ul className="idp-swatches" aria-label={lang(WALL_PANELS.finishes.wpc.title)}>
+                {DOOR_FINISHES.map((f) => (
+                  <li key={f.code} title={f.code}><img src={f.src} alt={f.code} width="40" height="64" loading="lazy" decoding="async" /></li>
+                ))}
+              </ul>
+              {['pet', 'melamine'].map((kind) => (
+                <React.Fragment key={kind}>
+                  <p className="idp-sub-legend">{lang(WALL_PANELS.finishes[kind].title)}</p>
+                  <ul className="idp-swatches idp-swatches--wide" aria-label={lang(WALL_PANELS.finishes[kind].title)}>
+                    {WALL_PANELS.finishes[kind].items.map((f, i) => (
+                      <li key={f.key}><img src={f.src} alt={`${lang(WALL_PANELS.finishes[kind].title)} ${i + 1}`} width="60" height="45" loading="lazy" decoding="async" /></li>
+                    ))}
+                  </ul>
+                </React.Fragment>
               ))}
             </div>
 
-            <input name="name" required placeholder={content.forms.name} autoComplete="name" />
-            <input name="email" type="email" required placeholder={content.forms.email} autoComplete="email" />
-            <input name="phone" placeholder={content.forms.phone} autoComplete="tel" />
-            <textarea name="project" rows="6" required placeholder={content.forms.project} value={projectDraft} onChange={(e) => setProjectDraft(e.target.value)} />
-            <HoneypotField />
+            <div className="idp-panel-card">
+              <table className="idp-sizes">
+                <caption>{c.panels.sizesCaption}</caption>
+                <thead>
+                  <tr>{c.panels.cols.map((col) => <th key={col} scope="col">{col}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {panelSizes.map((row) => (
+                    <tr key={row.label}>
+                      <th scope="row">{row.label}</th>
+                      {row.values.map((v, i) => <td key={i}>{v}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="pp-note">{c.panels.edgeNote}</p>
+              <div className="idp-panel-boards">
+                <img src={WALL_PANELS.board.src} alt={c.panels.boardAlt} width="800" height="405" loading="lazy" decoding="async" />
+                <img src={WALL_PANELS.profile.src} alt="" width="800" height="446" loading="lazy" decoding="async" />
+              </div>
+              <details className="idp-more">
+                <summary>{c.panels.more}</summary>
+                <p className="idp-muted idp-small">{fill(c.panels.accessories, { n: WALL_PANELS.accessories.length })}</p>
+                <h4 className="idp-h4">{c.panels.profiles}</h4>
+                <ul className="idp-tags">
+                  {WALL_PANELS.metalLines.profiles.map((p) => <li key={p.en}>{lang(p)}</li>)}
+                </ul>
+                <div className="idp-panel-schemes">
+                  <img className="idp-drawing" src={WALL_PANELS.metalLines.src} alt={c.panels.metalAlt} width="1000" height="1185" loading="lazy" decoding="async" />
+                  <img className="idp-drawing" src={WALL_PANELS.installScheme.src} alt={c.panels.installAlt} width="1000" height="1242" loading="lazy" decoding="async" />
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <button className="btn" type="submit">{content.forms.submit}</button>
+      <section id="idp-order" aria-labelledby="idp-order-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="idp-order-title">{c.order.heading}</h2>
+            </div>
+          </div>
+          <ol className="hp-steps">
+            {c.order.steps.map((step, i) => (
+              <li key={step.title} className="hp-card hp-step">
+                <strong><span className="hp-step-n" aria-hidden="true">{i + 1}</span>{step.title}</strong>
+                <p>{step.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
 
-            <div className="id-review-note">{content.review.note}</div>
-        </form>
-      </Modal>
+      <div className="pp-band idp-form-band">
+        <DoorsEnquiry locale={locale} content={c.form} message={message} onMessage={onMessage} filled={filled && Boolean(message)} headingRef={formHeadingRef} />
+      </div>
+
+      <section id="idp-faq" aria-labelledby="idp-faq-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="idp-faq-title">{c.faq.heading}</h2>
+            </div>
+          </div>
+          <div className="dl-faq">
+            {faq.map((item) => (
+              <details key={item.question} className="dl-faq-item">
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
+          </div>
+          <FAQJSONLD questions={faq} />
+        </div>
+      </section>
+
+      <SiblingLinks id="idp-siblings" heading={c.siblings.heading} go={c.siblings.go} items={siblings} />
+
+      <FinalCta locale={locale} title={c.finalTitle} desc={c.finalDesc} onPrimary={toForm} />
     </main>
   )
 }

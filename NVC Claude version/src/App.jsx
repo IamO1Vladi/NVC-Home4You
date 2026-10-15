@@ -292,6 +292,10 @@ function AppShell() {
       rep: loadRep() || '',
       // The honeypot (HoneypotField): empty for every human.
       website: fd.get('website') || '',
+      // The page the form was opened from, when that page said (the About page's 'about',
+      // 2026-10-15; enquiryPrefill admits only the server's keys). Absent otherwise, so
+      // every other enquiry is the shape it always was.
+      ...(offerPrefillData?.origin ? { origin: offerPrefillData.origin } : {}),
     }
     if (!payload.name || !payload.email) return
 

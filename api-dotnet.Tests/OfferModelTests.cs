@@ -361,7 +361,7 @@ public class OfferNotificationModelTests
         // (2026-10-15); reflection does not fill in defaults, and RepresentativeNotificationTests
         // and PartnerEnquiryTests cover those arguments.
         var result = method.Invoke(service,
-            new object?[] { isOffer, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?", model, null, null })!;
+            new object?[] { isOffer, "Ivan", "ivan@example.com", "+359 88 000 0000", "Delivery to Varna?", model, null, null, null })!;
 
         var type = result.GetType();
         return (

@@ -91,7 +91,9 @@ public class LeadService
             OwnerUpn = actorUpn,
             // A partner page enquiry says so in its stored message, and that is the only place
             // it can: the panel's promote button sends no source. See PartnerEnquiry.SourceFor.
-            Source = PartnerEnquiry.SourceFor(offer.Message, source),
+            // A doors / interiors / About page enquiry the same way (EnquiryOrigin.SourceFor);
+            // a stored message carries one of the two lines at most.
+            Source = EnquiryOrigin.SourceFor(offer.Message, PartnerEnquiry.SourceFor(offer.Message, source)),
             // Born at the moment the customer asked, not the moment someone got round to
             // promoting it. Otherwise every lead looks brand new on the day sales opened it
             // and "how long did we sit on this?" becomes unanswerable.

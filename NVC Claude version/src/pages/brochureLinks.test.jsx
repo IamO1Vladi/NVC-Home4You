@@ -22,8 +22,8 @@ import bgSteelHouses from '../content/bg/steelHouses.js'
 import elSteelHouses from '../content/el/steelHouses.js'
 import enSteelHouses from '../content/en/steelHouses.js'
 
-// The six brochure links a visitor can actually click on the product and interiors pages,
-// rendered.
+// The brochure links a visitor can actually click on the product pages, rendered (and the
+// interiors page's none).
 //
 // brochure.test.js proves the content files hold the right slugs and that the helper
 // addresses the API; this proves each page hands the helper the right TRIPLE — slug, page,
@@ -102,18 +102,12 @@ describe.each(Object.keys(PAGES))('%s', (locale) => {
     expect(hrefsOf(container)).toEqual([])
   })
 
-  it('the interiors page opens the summary brochure at page 4', () => {
+  it('the interiors page links no brochure', () => {
+    // Its one link, "p. 4" of the summary catalogue, opened the door-delivery page with the
+    // old sea-transit windows; the rebuilt page (2026-10-15) asks for a free site visit instead.
     const container = renderPage(<InteriorsPage locale={locale} content={content.interiors} />)
 
-    expect(hrefsOf(container)).toEqual([`${dir}modular-builds.pdf?lang=${locale}#page=4`])
-  })
-
-  it('keeps the wording a visitor reads on each brochure link', () => {
-    // Reading the label back off the rendered link is what makes the wording checkable, in a
-    // language nobody on the team reads fluently.
-    const interiors = renderPage(<InteriorsPage locale={locale} content={content.interiors} />)
-    expect(brochureLinks(interiors)[0].textContent.trim())
-      .toBe(content.interiors.hero.quick.brochureLabel)
+    expect(hrefsOf(container)).toEqual([])
   })
 
   it.each(['modularBuilds', 'modularHouses'])('names each %s catalogue card by its visible label', (key) => {
