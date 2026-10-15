@@ -73,6 +73,16 @@ the old tracker (now `ROADMAP.md`).
    Skip it altogether and nothing errors. The site serves, the panel opens, and one part of
    it is quietly empty until somebody notices.
 
+   **The exception: when the LIVE code cannot run on the migrated schema.** Before choosing
+   the order, ask both questions: does the new code work on the old schema, and does the old
+   code work on the new one? deploy-2026-10-15 was the case where only the first held.
+   `MakeGraphIdsCaseSensitive` changes two columns to a binary collation, and the live
+   poller's `list.Contains(column)` queries (EF 8 sends the list through OPENJSON, whose
+   column takes the database's case-insensitive default) would have failed every tick with
+   a collation conflict, filing no inbound mail, until the publish. The new code had been
+   written to work on both. So that release was published first and migrated straight after.
+   (The poller looks back 2 hours, so even a short wrong-way gap would have caught up.)
+
 6. **Publish from the `production` checkout — after 6b, not before.** In VS Code:
    right-click the `api-dotnet` project → **Publish to Azure** → pick the App Service.
 
