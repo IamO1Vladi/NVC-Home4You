@@ -206,10 +206,15 @@ describe('AboutPage', () => {
     expect(new Set(roles.slice(0, 3)).size).toBe(1)
     expect(roles[4]).toBe(roles[5])
     expect(cards.slice(0, 3).every((li) => li.querySelector('.ab-person-area')?.textContent)).toBe(true)
-    // No photo yet: the initials, hidden from screen readers (the name is right beside them).
-    expect(team.querySelector('img')).toBeNull()
-    const monograms = cards.map((li) => li.querySelector('.ab-monogram'))
-    expect(monograms[0].textContent).toBe(names[0].split(' ').map((w) => w[0]).join(''))
+    // The three directors have photos (2026-10-15); the rest keep their initials. Either is
+    // decorative, hidden from screen readers: the name is the heading right beside it.
+    const photos = cards.slice(0, 3).map((li) => li.querySelector('img.ab-avatar'))
+    photos.forEach((img, i) => {
+      expect(img.getAttribute('src')).toBe(`/${TEAM_PHOTOS[cards[i].dataset.person]}`)
+      expect(img.getAttribute('alt')).toBe('')
+    })
+    const monograms = cards.slice(3).map((li) => li.querySelector('.ab-monogram'))
+    expect(monograms[0].textContent).toBe(names[3].split(' ').map((w) => w[0]).join(''))
     for (const m of monograms) expect(m.getAttribute('aria-hidden')).toBe('true')
     // No personal phones or emails.
     expect(team.querySelector('a[href^="tel:"], a[href^="mailto:"]')).toBeNull()
@@ -354,11 +359,12 @@ describe('AboutPage', () => {
     const { container } = await ready(locale)
     const srcs = [...container.querySelectorAll('main img')].map((img) => img.getAttribute('src'))
     expect(srcs.length).toBeGreaterThanOrEqual(6)
-    for (const src of srcs) expect(src).toMatch(/^\/(delivery\/|partner\/factory-floor\.webp$|api\/img\/cases\/)/)
+    for (const src of srcs) expect(src).toMatch(/^\/(delivery\/|partner\/factory-floor\.webp$|api\/img\/cases\/|about\/team\/)/)
     expect(srcs).toContain(ABOUT_PHOTO.url)
     expect(srcs).toContain('/partner/factory-floor.webp')
     for (const img of container.querySelectorAll('main img')) {
-      if (!img.closest('.dl-clip-media')) expect(img.getAttribute('alt'), img.getAttribute('src')).toBeTruthy()
+      // Clip posters and team avatars are decorative (the clip's caption and the person's name sit beside them).
+      if (!img.closest('.dl-clip-media') && !img.classList.contains('ab-avatar')) expect(img.getAttribute('alt'), img.getAttribute('src')).toBeTruthy()
     }
   })
 
@@ -382,8 +388,8 @@ describe('AboutPage', () => {
     fireEvent.click(closing.getAllByRole('button')[0])
     fireEvent.click(closing.getAllByRole('button')[1])
     expect(offer).toHaveBeenCalledTimes(2)
-    expect(offer).toHaveBeenNthCalledWith(1, { source: ABOUT_LEAD_SOURCE })
-    expect(offer).toHaveBeenNthCalledWith(2, { source: ABOUT_LEAD_SOURCE })
+    expect(offer).toHaveBeenNthCalledWith(1, { source: ABOUT_LEAD_SOURCE, origin: 'about' })
+    expect(offer).toHaveBeenNthCalledWith(2, { source: ABOUT_LEAD_SOURCE, origin: 'about' })
     expect(question).toHaveBeenCalledWith({ source: ABOUT_LEAD_SOURCE })
     expect(ABOUT_LEAD_SOURCE).toBe('about-page')
   })

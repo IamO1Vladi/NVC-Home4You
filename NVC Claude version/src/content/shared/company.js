@@ -16,4 +16,10 @@ export const COMPANY = {
 // public/about/team/: square, at least 400 px, WebP, e.g.
 //   'vladimir-vladimirov': 'about/team/vladimir-vladimirov.webp',
 // A listed file that fails to load falls back to the monogram too.
-export const TEAM_PHOTOS = {}
+export const TEAM_PHOTOS = {
+  // The owner's photos of 2026-10-15 (Nikolay's is a stand-in until he sends a better one),
+  // cropped to 320 px squares for the round avatar.
+  'vladimir-vladimirov': 'about/team/vladimir-vladimirov.webp',
+  'tsvetelin-bonin': 'about/team/tsvetelin-bonin.webp',
+  'nikolay-lekov': 'about/team/nikolay-lekov.webp',
+}
