@@ -5,6 +5,7 @@
 import { paths, getPageKeyByPath, getLocaleFromPath } from '../routes/paths.js'
 import { DELIVERY_RATES } from '../content/shared/deliveryRates.js'
 import { PARTNER_MIN_UNITS } from '../content/shared/partnerTerms.js'
+import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 
 const SITE_URL = 'https://nvc-home4you.eu'
 
@@ -115,21 +116,26 @@ const META = {
         'Απαντήσεις σε συχνές ερωτήσεις για δομικά σπίτια, τιμές, παράδοση και τοποθέτηση από την NVC Home4You.',
     },
   },
+  // The About page (rebuilt 2026-10-15). The place, what we sell and why it is safe to buy:
+  // our factory (ONE, never named), customs ours, the warranty's years read from warranty.js
+  // and said of the structure only, delivery in the EU as the home page words it (the Greek one
+  // names Greece, where we have delivered). No "team" or "craftsmanship" until the page shows
+  // people; no founding year, homes count or company number until the owner confirms them.
   about: {
     en: {
-      title: 'About Us | NVC Home4You',
+      title: 'About Us: Containers and Box Houses, Petrich | NVC Home4You',
       description:
-        'Learn about NVC Home4You — our team, craftsmanship and approach to modular and prefab home building across the EU.',
+        `NVC Home4You of Marikostinovo, Petrich: containers and Box houses from our own factory, customs handled by us, a ${WARRANTY_YEARS.structure}-year structural warranty, EU delivery.`,
     },
     bg: {
-      title: 'За нас | NVC Home4You',
+      title: 'За нас: контейнери и Бокс къщи от Петрич | NVC Home4You',
       description:
-        'Научете повече за NVC Home4You — нашия екип, майсторство и подход към модулното и сглобяемо строителство в ЕС.',
+        `NVC Home4You от Марикостиново, Петрич: контейнери и Бокс къщи от нашата фабрика, митницата е наша грижа, гаранция ${WARRANTY_YEARS.structure} години на конструкцията, доставка в ЕС.`,
     },
     el: {
-      title: 'Σχετικά με Εμάς | NVC Home4You',
+      title: 'Σχετικά με εμάς: κοντέινερ και σπίτια Box, Πέτριτς | NVC Home4You',
       description:
-        'Μάθετε για την NVC Home4You — την ομάδα μας, τη μαστοριά μας και την προσέγγισή μας στη δομική και προκατασκευασμένη κατασκευή σε όλη την ΕΕ.',
+        `NVC Home4You, Μαρικοστίνοβο Πέτριτς: κοντέινερ και σπίτια Box από το εργοστάσιό μας, εκτελωνισμός από εμάς, εγγύηση ${WARRANTY_YEARS.structure} ετών στον σκελετό, παράδοση στην Ελλάδα.`,
     },
   },
   gallery: {
@@ -371,6 +377,19 @@ const PAGE_IMAGES = {
   // The partner page borrows the same photo (PAGE_PHOTO_DEFAULTS.partner) until the owner
   // uploads one of the yard; its alt is the partner content's hero.photoAlt.
   partner: {
+    url: `${SITE_URL}/delivery/crane-lift-1500.webp`,
+    width: 1500,
+    height: 1125,
+    type: 'image/webp',
+    alt: {
+      bg: 'Кран сваля дълъг модул от камион върху бетонна площадка',
+      en: 'A crane lifting a long module off a truck onto a concrete yard',
+      el: 'Γερανός κατεβάζει μια μακριά μονάδα από φορτηγό σε τσιμεντένιο προαύλιο',
+    },
+  },
+  // The About page opens on the same crane lift (AboutPage.jsx ABOUT_PHOTO), with its alt
+  // from the about content's hero.photoAlt.
+  about: {
     url: `${SITE_URL}/delivery/crane-lift-1500.webp`,
     width: 1500,
     height: 1125,

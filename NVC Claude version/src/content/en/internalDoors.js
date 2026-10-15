@@ -121,7 +121,7 @@ export default {
   },
   hardware: {
     h: 'Hardware & trims',
-    p: 'Choose a frame, handle, trims and lock. Images are examples — replace them with your own.',
+    p: 'Choose a frame, handle, trims and lock.',
     frame: {
       h: 'Frame',
       hint: 'Frame size / width',

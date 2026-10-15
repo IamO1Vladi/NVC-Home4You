@@ -25,3 +25,17 @@ export function readConfiguratorPrefill(pathname) {
     return null
   }
 }
+
+// The prefill an offer or question form opens with. The configurator's summary (or the
+// delivery calculator's estimate) when this page saved one; otherwise only the lead source a
+// page's own button passed, openOffer({ source: 'about-page' }), which GA and Meta then report
+// as lead_source instead of 'site' (App.jsx reads offerPrefillData.source). Most buttons hand
+// openOffer straight to onClick, so the argument is often a click event: that, and anything
+// else without a plain string `source`, is no source at all.
+export function enquiryPrefill(pathname, arg) {
+  const saved = readConfiguratorPrefill(pathname)
+  if (saved) return saved
+  const isEvent = Boolean(arg && typeof arg === 'object' && ('nativeEvent' in arg || 'target' in arg))
+  const source = !isEvent && typeof arg?.source === 'string' ? arg.source.trim() : ''
+  return source ? { source } : null
+}

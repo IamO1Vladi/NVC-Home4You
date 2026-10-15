@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { CONFIG_PREFILL_KEY, readConfiguratorPrefill, writeConfiguratorPrefill } from './configPrefill.js'
+import { CONFIG_PREFILL_KEY, enquiryPrefill, readConfiguratorPrefill, writeConfiguratorPrefill } from './configPrefill.js'
 
 const CONFIG_PATH = '/bg/konfigurator-box-kyshti'
 
@@ -45,5 +45,28 @@ describe('configPrefill', () => {
     })
     expect(() => writeConfiguratorPrefill(sample)).not.toThrow()
     spy.mockRestore()
+  })
+})
+
+describe('enquiryPrefill', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear()
+  })
+
+  it('carries a page\'s own lead source when nothing is saved for the page', () => {
+    expect(enquiryPrefill('/bg/za-nas', { source: 'about-page' })).toEqual({ source: 'about-page' })
+  })
+
+  it('treats a click event, nothing, or a blank source as no source', () => {
+    expect(enquiryPrefill('/bg/za-nas', { nativeEvent: {}, target: {}, source: 'x' })).toBeNull()
+    expect(enquiryPrefill('/bg/za-nas', { target: {} })).toBeNull()
+    expect(enquiryPrefill('/bg/za-nas')).toBeNull()
+    expect(enquiryPrefill('/bg/za-nas', { source: '  ' })).toBeNull()
+    expect(enquiryPrefill('/bg/za-nas', { source: 7 })).toBeNull()
+  })
+
+  it('keeps the configurator\'s saved prefill over a passed source', () => {
+    writeConfiguratorPrefill(sample)
+    expect(enquiryPrefill(CONFIG_PATH, { source: 'about-page' })).toEqual(sample)
   })
 })

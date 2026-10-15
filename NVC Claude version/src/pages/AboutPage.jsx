@@ -1,240 +1,274 @@
-import React, { useRef, useState } from 'react'
-import { m, useInView } from 'framer-motion'
+// /bg/za-nas, "За нас": who is behind NVC Home4You, where, and why buying a house made in China
+// from them is safe. Rebuilt 2026-10-15 on the home page's system (hp-*, the product pages'
+// pp-*), replacing the old dark glass page: its "40+ suppliers", "6 countries" and "8 weeks"
+// were unbacked or false, its year tabs hid two of three milestones, and its framer-motion
+// fade made the prerendered hero blink to nothing and back (main.jsx renders with createRoot).
+// Nothing here animates on load.
+//
+// EVERY FIGURE IS READ, NONE IS TYPED. The lead times come from deliveryRates.js LEAD_TIMES,
+// the warranty's years from warranty.js (the 15 are the structure's alone and the tile says
+// so), the review score and count from the live feed the home page's reviews read, and the
+// case's stars from /api/cases-page. A tile whose figure is not there is not drawn.
+//
+// The copy keeps the owner's rules (see the content files): one factory, "нашата фабрика в
+// Китай"; delivery "в целия ЕС", Bulgaria and Greece priced by the calculator; customs ours;
+// insurance and tracking offered. What still waits for him sits in content.pending and is
+// never read here.
+//
+// Sections, in order: the hero (the owner's crane-lift photo); the facts strip; who we are;
+// from our factory to your plot (the factory floor, the four delivery clips, the published
+// Paralia Kariani case); what we take on and what stays with you; the warranty; the reviews; where next; the
+// closing card. The offer and question buttons carry the lead source 'about-page' (App.jsx
+// reports it to GA and Meta). The breadcrumbs and AboutPage markup are the route's.
+import React from 'react'
+import { Link } from 'react-router-dom'
+import '../style/HomePage.css'
+import '../style/ProductPage.css'
+import '../style/Delivery.css'
+import '../style/About.css'
+import ProductHero from '../components/product/ProductHero.jsx'
+import WarrantyTerms from '../components/product/WarrantyTerms.jsx'
+import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import JourneyClips from '../components/delivery/JourneyClips.jsx'
+import Testimonials from '../components/Testimonials.jsx'
+import FinalCta from '../components/FinalCta.jsx'
+import { useModalActions } from '../context/ModalActions.jsx'
+import { getHomeContent } from '../content/home/index.js'
+import { LEAD_TIMES } from '../content/shared/deliveryRates.js'
+import { WARRANTY_YEARS } from '../content/shared/warranty.js'
+import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
+import { useReviewSummary } from '../lib/useReviewSummary.js'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { paths } from '../routes/paths.js'
 
-function PrincipleIcon({ index }) {
-  const i = index % 3
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 2,
-  }
+/** The lead source the page's offer and question buttons report. */
+export const ABOUT_LEAD_SOURCE = 'about-page'
 
-  if (i === 0) {
-    // Quality / trust
-    return (
-      <svg {...common}>
-        <path d="M12 2 4 6v6c0 5 4 8 8 10 4-2 8-5 8-10V6l-8-4Z" />
-        <path d="M9 11l2 2 4-4" />
-      </svg>
-    )
+const BASE = import.meta.env.BASE_URL || '/'
+// The owner's crane lift, the delivery page's photo, in its 800 and 1500 wide crops. The share
+// picture (routeMeta PAGE_IMAGES.about) is the 1500 one.
+export const ABOUT_PHOTO = {
+  url: `${BASE}delivery/crane-lift-1500.webp`,
+  srcSet: `${BASE}delivery/crane-lift-800.webp 800w, ${BASE}delivery/crane-lift-1500.webp 1500w`,
+}
+// The factory floor the partner page shows, "our factory in China".
+export const FACTORY_PHOTO = { url: `${BASE}partner/factory-floor.webp`, width: 1200, height: 891 }
+
+
+export const fill = (pattern, values = {}) => String(pattern ?? '').replace(
+  /\{(\w+)\}/g,
+  (m, key) => (values[key] == null ? m : String(values[key])),
+)
+
+/** The figures the copy names, from the modules (and the reviews, when they have answered). */
+export function aboutFigures(reviews) {
+  // Written as the reviews section under it writes it ("4.8 от 12 потвърдени отзива"), so the
+  // two figures on one page read the same.
+  const score = reviews?.average ? reviews.average.toFixed(1) : null
+  return {
+    days: LEAD_TIMES.containerInStockDays,
+    production: LEAD_TIMES.boxProductionDays,
+    months: LEAD_TIMES.boxToAddressMonths,
+    years: WARRANTY_YEARS.structure,
+    score,
+    // "from 1 verified reviews" reads wrong in all three languages: one review is not a count.
+    count: reviews?.total > 1 ? reviews.total : null,
   }
-  if (i === 1) {
-    // Speed / process
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    )
-  }
-  // Support / partnership
-  return (
-    <svg {...common}>
-      <path d="M7 11a3 3 0 1 1 4-2.83" />
-      <path d="M17 11a3 3 0 1 0-4-2.83" />
-      <path d="M5 20c0-2.2 2.2-4 5-4h4c2.8 0 5 1.8 5 4" />
-    </svg>
-  )
 }
 
-export default function AboutPage({locale, content}) {
-  const [year] = useState(() => new Date().getFullYear())
-  const heroRef = useRef(null)
-  const heroInView = useInView(heroRef, { amount: 0.3, once: true })
-  const timelineRef = useRef(null)
-  const timelineInView = useInView(timelineRef, { amount: 0.3, once: true })
+const TILE_ORDER = ['container', 'production', 'toAddress', 'warranty', 'reviews']
 
-  const principles = (content && content.principles) || []
-  const timeline = (content && content.timeline) || []
+export default function AboutPage({ locale = 'bg', content }) {
+  const { openOffer, openQuestion } = useModalActions()
+  const reviews = useReviewSummary()
+  const c = content
+  const published = usePublishedCase(c?.proof?.case?.id)
+  if (!c) return null
 
-  const [activeIdx, setActiveIdx] = useState(0)
-  const safeIdx = timeline.length ? Math.min(activeIdx, timeline.length - 1) : 0
-  const activeItem = timeline.length ? timeline[safeIdx] : null
+  const home = getHomeContent(locale)?.home || {}
+  const business = home.localBusiness || {}
+  const telephone = business.telephone || ''
+  const v = aboutFigures(reviews)
+  const offer = () => openOffer({ source: ABOUT_LEAD_SOURCE })
+  const question = () => openQuestion({ source: ABOUT_LEAD_SOURCE })
 
-  const currentYear = new Date().getFullYear()
-  const timelineLead = content.timelineLead || content.missionP
-  const doneLabel = content.done || 'Completed'
-  const plannedLabel = content.planned || 'Planned'
+  // A tile is drawn only when every figure it names is known: the reviews tile waits for the
+  // feed and never shows a zero.
+  const tiles = TILE_ORDER
+    .map((key) => ({ key, ...c.facts.tiles[key] }))
+    .filter((tile) => tile.value)
+    // A range ("3–4") holds together with word joiners: it broke at the dash on a wide screen,
+    // "около 3–" over "4 месеца".
+    .map((tile) => ({ ...tile, value: fill(tile.value, v).replace(/(\d)–(\d)/g, '$1⁠–⁠$2'), label: fill(tile.label, v) }))
+    .filter((tile) => !/\{\w+\}/.test(`${tile.value} ${tile.label}`))
+
+  const casePhoto = published && (published.images || []).includes(c.proof.photo.url) ? c.proof.photo : null
+  const quote = String(published?.quote || '').trim()
+  const quoteLang = quote ? langOf(quote) : null
+  const rating = Number(published?.rating) || 0
+  // The case's year is the published case's own (edited in /admin), never typed; without one
+  // the line simply ends at the place.
+  const caseLine = fill(c.proof.case.line, { year: published?.year }).replace(/\s*·\s*\{\w+\}/g, '')
+
+  const deliveryPath = paths.delivery[locale] || paths.delivery.en
+  const siblings = [
+    { to: paths.cases[locale], ...c.siblings.cases },
+    { to: paths.faq[locale], ...c.siblings.faq },
+    { to: paths.gallery[locale], ...c.siblings.gallery },
+    { to: deliveryPath, ...c.siblings.delivery },
+  ]
 
   return (
-    <main className="arx">
-   
+    <main className="hp pp ab">
+      <ProductHero
+        titleId="ab-hero-title"
+        eyebrow={c.hero.eyebrow}
+        title={c.hero.h1}
+        lead={c.hero.lead}
+        primary={{ label: c.hero.offer, onClick: offer }}
+        secondary={telephone ? { label: c.hero.call, href: `tel:${telephone}` } : null}
+        photo={{ url: ABOUT_PHOTO.url, srcSet: ABOUT_PHOTO.srcSet, alt: c.hero.photoAlt }}
+      />
 
-      <section>
-        <div className="container">
-          {/* HERO CARD */}
-          <m.div
-            ref={heroRef}
-            className="card about-hero-card"
-            initial={{ opacity: 0, y: 24 }}
-            animate={heroInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.45, ease: 'easeOut' }}
-          >
-            <div className="about-hero-main">
-              <div className="about-hero-eyebrow">{content.heading}</div>
-              <h1 className="about-hero-title">{content.missionH}</h1>
-              <p className="about-hero-lead">{content.missionP}</p>
-
-              <div className="about-hero-badges">
-                <span className="about-badge">
-                  <span className="about-badge-dot" />
-                  {content.brand.motto}
-                </span>
-                <span className="about-badge">
-                  <span className="about-badge-dot" />
-                  {content.timelineH} · {year}
-                </span>
-              </div>
+      <section className="pp-band" id="facts" aria-labelledby="ab-facts-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="ab-facts-title">{c.facts.heading}</h2>
             </div>
-
-            <div className="about-hero-panel">
-              <div>
-                <div className="about-panel-label">
-                  {content.principlesH}
-                </div>
-                <ul className="about-panel-list">
-                  <li>{content.missionl1}</li>
-                  <li>{content.missionl2}</li>
-                  <li>{content.missionl3}</li>
-                </ul>
-              </div>
-
-              <div className="about-hero-stats">
-                <div className="stat-card">
-                  <div className="stat-number">40+</div>
-                  <div className="stat-label"> {content.principlesh1}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-number">6</div>
-                  <div className="stat-label">{content.principlesh2}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-number">8</div>
-                  <div className="stat-label">{content.principlesh3}</div>
-                </div>
-              </div>
-            </div>
-          </m.div>
-
-          {/* MISSION & PRINCIPLES */}
-          <div className="about-body-grid mt-6">
-            <div className="card p-6">
-              <h2 className="grad-text" style={{ margin: 0, marginBottom: 8, fontSize: '1.17em' }}>
-                {content.storyH}
-              </h2>
-              <p style={{ opacity: 0.9 }}>{content.storyP}</p>
-             
-            </div>
-
-            <aside className="card p-6 about-principles">
-              <h3 className="grad-text" style={{ margin: 0, marginBottom: 8, fontSize: '1em' }}>
-                {content.principlesH}
-              </h3>
-              <ul className="about-pill-list">
-                {principles.map((p, i) => (
-                  <li key={p} className="about-pill-item">
-                    <span className="about-pill-icon">
-                      <PrincipleIcon index={i} />
-                    </span>
-                    <span className="about-pill-text">{p}</span>
-                  </li>
-                ))}
-              </ul>
-            </aside>
           </div>
-
-          {/* TIMELINE AS "CALENDAR STRIP" */}
-          <section
-            className="about-timeline-section mt-8"
-            ref={timelineRef}
-          >
-            <div className="about-timeline-head">
-              <div>
-                <h2 style={{ margin: 0, fontSize: '1.17em' }}>{content.timelineH}</h2>
-                <p
-                  className="mt-2"
-                  style={{ opacity: 0.85, maxWidth: 520 }}
-                >
-                  {timelineLead}
-                </p>
-              </div>
-              <div className="about-timeline-legend">
-                <span className="time-badge is-past">{doneLabel}</span>
-                <span className="time-badge is-future">{plannedLabel}</span>
-              </div>
-            </div>
-
-            {/* Year strip like a calendar row */}
-            <div
-              className="about-year-strip"
-              role="tablist"
-              aria-label={content.timelineH}
-            >
-              {timeline.map((r, i) => {
-                const yNum = Number(r.y)
-                const isFuture =
-                  Number.isFinite(yNum) && yNum > currentYear
-                return (
-                  <button
-                    key={r.y}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === safeIdx}
-                    className={
-                      'about-year-chip ' +
-                      (i === safeIdx ? 'is-active ' : '') +
-                      (isFuture ? 'is-future' : 'is-past')
-                    }
-                    onClick={() => setActiveIdx(i)}
-                  >
-                    {r.y}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Active year detail card */}
-            {activeItem && (
-              <m.div
-                key={activeItem.y}
-                className="about-year-detail card"
-                initial={{ opacity: 0, y: 16 }}
-                animate={
-                  timelineInView
-                    ? { opacity: 1, y: 0 }
-                    : { opacity: 1, y: 0 }
-                }
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-              >
-                <div className="about-year-detail-head">
-                  <div className="about-year-detail-year">
-                    {activeItem.y}
-                  </div>
-                  <div className="about-year-detail-status">
-                    {(() => {
-                      const yNum = Number(activeItem.y)
-                      const isFuture =
-                        Number.isFinite(yNum) && yNum > currentYear
-                      const label = isFuture ? plannedLabel : doneLabel
-                      const cls = isFuture ? 'is-future' : 'is-past'
-                      return (
-                        <span className={'time-badge ' + cls}>{label}</span>
-                      )
-                    })()}
-                  </div>
-                </div>
-                <div className="about-year-detail-title grad-text">
-                  {activeItem.h}
-                </div>
-                <p className="about-year-detail-desc">{activeItem.p}</p>
-              </m.div>
-            )}
-          </section>
+          <ul className="ab-tiles">
+            {tiles.map((tile) => (
+              <li key={tile.key} className="hp-card ab-tile" data-fact={tile.key}>
+                <strong className="ab-tile-value">
+                  {tile.key === 'reviews' ? <span className="hp-agg-star" aria-hidden="true">★ </span> : null}
+                  {tile.value}
+                </strong>
+                <span className="ab-tile-label">{tile.label}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="ab-everywhere">
+            {c.facts.everywhere} <Link to={deliveryPath}>{c.facts.calculator}</Link>
+          </p>
         </div>
       </section>
+
+      <section id="who" aria-labelledby="ab-who-title">
+        <div className="hp-container pp-split ab-who">
+          <div className="pp-prose">
+            <h2 id="ab-who-title">{c.story.heading}</h2>
+            {c.story.paragraphs.map((text) => <p key={text}>{text}</p>)}
+          </div>
+          <dl className="pp-terms ab-who-terms">
+            {c.story.terms.map((term) => (
+              <div key={term.key}>
+                <dt>{term.label}</dt>
+                <dd>
+                  {term.text}
+                  {term.map && business.mapsHref ? (
+                    <> <a href={business.mapsHref} target="_blank" rel="noopener noreferrer">{term.map}</a></>
+                  ) : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      <section className="pp-band" id="journey" aria-labelledby="ab-journey-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="ab-journey-title">{c.journey.heading}</h2>
+              <p className="hp-sub" id="ab-journey-sub">{c.journey.sub}</p>
+            </div>
+          </div>
+
+          <figure className="hp-card ab-factory">
+            <img
+              src={FACTORY_PHOTO.url}
+              alt={c.journey.factory.alt}
+              width={FACTORY_PHOTO.width}
+              height={FACTORY_PHOTO.height}
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>
+              <h3>{c.journey.factory.title}</h3>
+              <p>{c.journey.factory.text}</p>
+            </figcaption>
+          </figure>
+
+          <JourneyClips clips={c.journey.clips} labelledBy="ab-journey-sub" />
+
+          {published ? (
+            <div className="pp-split ab-proof">
+              <article className="cs-review-card">
+                <h3>{c.proof.heading}</h3>
+                <p className="cs-review-name">{caseLine}</p>
+                <p className="cs-muted">{c.proof.case.result}</p>
+                {quote ? (
+                  <p className="hp-lead" lang={quoteLang !== locale ? quoteLang : undefined}>“{quote}”</p>
+                ) : null}
+                <p className="cs-review-name">{c.proof.case.name}</p>
+                {rating ? (
+                  <p className="hp-agg">
+                    <span className="hp-agg-star" aria-hidden="true">★</span>
+                    {fill(c.proof.stars, { rating })}
+                  </p>
+                ) : null}
+                <p className="pp-links"><Link to={paths.cases[locale]}>{c.proof.more}</Link></p>
+              </article>
+              {casePhoto ? (
+                <img
+                  className="ab-proof-img"
+                  src={cdnImage(casePhoto.url, { width: 800 })}
+                  srcSet={cdnSrcSet(casePhoto.url, [480, 640, 800, 1200])}
+                  sizes="(max-width: 899px) 100vw, 520px"
+                  alt={casePhoto.alt}
+                  width="1200"
+                  height="900"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : null}
+            </div>
+          ) : null}
+
+          <p className="pp-links"><Link to={deliveryPath}>{c.journey.more}</Link></p>
+        </div>
+      </section>
+
+      <section id="in-writing" aria-labelledby="ab-writing-title">
+        <div className="hp-container">
+          <div className="hp-head">
+            <div>
+              <h2 id="ab-writing-title">{c.inWriting.heading}</h2>
+              <p className="hp-sub">{c.inWriting.sub}</p>
+            </div>
+          </div>
+          <dl className="pp-terms">
+            {c.inWriting.terms.map((term) => (
+              <div key={term.key} data-term={term.key}>
+                <dt>{term.label}</dt>
+                <dd>
+                  {term.text}
+                  {term.link ? <> <Link to={paths.prices[locale] || paths.prices.en}>{term.link}</Link></> : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      <WarrantyTerms id="warranty" content={c.warranty} className="pp-band" />
+
+      <Testimonials locale={locale} content={home.testimonials} />
+
+      <SiblingLinks id="ab-siblings" heading={c.siblings.heading} go={c.siblings.go} items={siblings} />
+
+      <FinalCta locale={locale} title={c.finalTitle} onPrimary={offer} onSecondary={question} />
     </main>
   )
 }

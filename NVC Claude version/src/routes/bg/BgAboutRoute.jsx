@@ -1,25 +1,39 @@
-// src/routes/Bg/BgAboutRoute.jsx
+// src/routes/bg/BgAboutRoute.jsx
+import React from 'react'
 import SEO from '../../components/SEO.jsx'
+import { AboutPageJSONLD, BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import AboutPage from '../../pages/AboutPage.jsx'
-import bgContent from '../../content/bg/about.js'
+import content from '../../content/bg/about.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
-
+// Title, description, canonical, hreflangs (all three languages) and the share picture come
+// from routeMeta.js, as on the product, delivery and partner routes; the content file has no
+// seo block. The page is an AboutPage of the site's Organization (index.html), with only the
+// fields the page backs: no founding date or company number until the owner confirms them.
 export default function BgAboutRoute() {
+  const seo = getRouteSeo(paths.about.bg, 'bg')
+
   return (
     <>
-        <SEO
-        title="За нас | NVC Home4You"
-        description="Научете повече за NVC Home4You — нашия екип, майсторство и подход към модулното и сглобяемо строителство в ЕС."
-        url="https://nvc-home4you.eu/bg/za-nas"
-        canonical="https://nvc-home4you.eu/bg/za-nas"
-        locale="bg"
-        hreflangs={[
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/za-nas' },
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/about' },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/about' },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: content.home, url: 'https://nvc-home4you.eu/bg' },
+          { name: content.breadcrumb, url: seo.url },
         ]}
       />
-      <AboutPage locale="bg" content={bgContent} />
+
+      <AboutPageJSONLD
+        name={seo.title}
+        description={seo.description}
+        url={seo.url}
+        image={seo.image}
+        inLanguage="bg"
+      />
+
+      <AboutPage locale="bg" content={content} />
     </>
   )
 }

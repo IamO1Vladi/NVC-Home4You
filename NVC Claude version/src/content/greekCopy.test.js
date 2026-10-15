@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import * as elAbout from './el/about.js'
 import * as elCases from './el/cases.js'
 import * as elDelivery from './el/delivery.js'
 import * as elFaq from './el/faq.js'
@@ -29,6 +30,7 @@ import { routeMapControls, routeMapDestinations } from './shared/routeMap.js'
 // on the team reads Greek fluently enough to notice one creeping back in review.
 
 const EL_FILES = {
+  'el/about.js': elAbout,
   'el/cases.js': elCases,
   'el/delivery.js': elDelivery,
   'el/faq.js': elFaq,

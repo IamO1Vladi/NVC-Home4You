@@ -12,7 +12,7 @@ import { paths, getLocaleFromPath, getLocalizedPath, getPageKeyByPath } from './
 import { getHomeContent } from './content/home/index.js'
 import SEO from './components/SEO.jsx'
 import { getRouteSeo } from './seo/routeMeta.js'
-import { readConfiguratorPrefill } from './lib/configPrefill.js'
+import { enquiryPrefill } from './lib/configPrefill.js'
 import { trackEvent } from './lib/analytics.js'
 import { submitInBackground } from './lib/backgroundSubmit.js'
 import { loadRep } from './lib/repAttribution.js'
@@ -164,13 +164,15 @@ function AppShell() {
   // The configurator stores its summary in sessionStorage right before calling
   // openOffer/openQuestion; prefill the modal message with it (configurator page only).
   // The full object is kept so submit handlers can attach model/total to analytics.
-  const openOfferModal = useCallback(() => {
-    setOfferPrefillData(readConfiguratorPrefill(window.location.pathname))
+  // A page's own button may pass { source } (the About page's 'about-page'), which the
+  // analytics below report as the lead source; a click event passed by onClick is ignored.
+  const openOfferModal = useCallback((arg) => {
+    setOfferPrefillData(enquiryPrefill(window.location.pathname, arg))
     setOfferOpen(true)
   }, [])
 
-  const openQuestionModal = useCallback(() => {
-    setQuestionPrefillData(readConfiguratorPrefill(window.location.pathname))
+  const openQuestionModal = useCallback((arg) => {
+    setQuestionPrefillData(enquiryPrefill(window.location.pathname, arg))
     setQuestionOpen(true)
   }, [])
 

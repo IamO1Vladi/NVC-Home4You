@@ -1,0 +1,82 @@
+/* The About page (AboutPage.jsx). It wraps itself in <main class="hp pp ab"> and imports
+   HomePage.css, ProductPage.css and Delivery.css (for the four clips) first, so the --hp-*
+   tokens, the hero, the cards, the terms lists and the section rhythm are theirs and follow
+   the site's data-theme light and dark with no colours of its own. Only what this page has and
+   the others do not lives here, every class ab-: the facts tiles, the "who we are" pair, the
+   factory card over the clips and the delivered case under them.
+
+   It replaces the old about-* rules in index.css (dark glass cards, gradient text, the year
+   chips), deleted with the page that used them.
+
+   PHONES FIRST: one column at 390px, nothing sideways except the clips, which scroll in their
+   own row. */
+
+/* The H1 names the brand and the place, so it is longer than a product page's: a size down,
+   or it ran five lines beside the photo. */
+.ab .pp-title{ font-size:clamp(28px, 1.1rem + 1.7vw, 42px) }
+
+/* Facts: four tiles from the modules, and a fifth, the live review score, once the feed answers.
+   The count changes, so the row is a wrapping flex row, not a fixed grid: four or five always
+   fill their rows (one row on a wide screen, two by two on a phone, a fifth taking the last row
+   whole), with no empty cell whatever the feed does. */
+.ab-tiles{ display:flex; flex-wrap:wrap; gap:12px; margin:0; padding:0; list-style:none }
+.ab-tiles > li{ flex:1 1 160px }
+@media (min-width:1100px){
+  /* Five across: "έως 40 ημέρες" still on one line. */
+  .ab .ab-tile-value{ font-size:25px }
+}
+.ab-tile{ display:grid; gap:6px; align-content:start; min-width:0; padding:18px 16px 20px }
+.ab-tile-value{ font-size:clamp(24px, 1rem + 1.2vw, 30px); font-weight:600; line-height:1.15; font-variant-numeric:tabular-nums; color:var(--hp-text) }
+.ab-tile-label{ color:var(--hp-muted); font-size:15px; line-height:1.45 }
+.ab-everywhere{ margin-top:20px; max-width:72ch; line-height:1.55 }
+.ab .ab-everywhere a{ font-weight:600; white-space:nowrap }
+@media (max-width:767px){
+  .ab-tile{ padding:14px 14px 16px }
+  .ab-tile-label{ font-size:14px }
+  /* A taller tap target that keeps the link in the line it ends. */
+  .ab .ab-everywhere a{ display:inline-block; padding-block:10px; margin-block:-10px }
+  /* "Вижте на картата" wraps onto its own line on a phone: the same taller target. */
+  .ab .ab-who-terms dd a{ display:inline-block; padding-block:10px; margin-block:-10px }
+}
+
+/* Who we are: the story beside its three short facts. */
+.ab-who .pp-terms{ align-self:start }
+@media (min-width:900px){
+  .ab-who{ grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:48px }
+  .ab-who .pp-terms{ margin-top:52px }
+  .ab-who .pp-terms > div{ grid-template-columns:150px minmax(0,1fr) }
+}
+.ab .ab-who-terms a{ font-weight:600 }
+/* A link at the end of a term keeps its arrow with its words. */
+.ab .pp-terms dd a{ white-space:nowrap }
+
+/* The factory: one card, its photo beside the words on a wide screen, over them on a phone. */
+.ab-factory{ display:grid; grid-template-columns:minmax(0,1fr); overflow:hidden; margin:0 0 20px }
+.ab-factory img{ width:100%; height:auto; aspect-ratio:16/9; object-fit:cover; background:var(--hp-surface-2) }
+.ab-factory figcaption{ display:grid; gap:6px; align-content:center; padding:18px 20px 20px }
+.ab-factory p{ color:var(--hp-muted); line-height:1.55 }
+@media (min-width:720px){
+  .ab-factory{ grid-template-columns:minmax(0,1fr) minmax(0,1fr) }
+  .ab-factory img{ aspect-ratio:16/9; border-right:1px solid var(--hp-line) }
+  .ab-factory figcaption{ padding:24px 28px }
+}
+/* On a wide screen the photo takes most of the card and the words a narrow column, so the
+   card is not half empty. */
+@media (min-width:900px){
+  .ab-factory{ grid-template-columns:minmax(0,2fr) minmax(0,1fr) }
+  .ab-factory img{ aspect-ratio:21/9 }
+  .ab-factory h3{ font-size:22px }
+}
+@media (max-width:719px){ .ab-factory img{ border-bottom:1px solid var(--hp-line) } }
+
+/* The delivered case under the clips, as the delivery page draws it. */
+.ab-proof{ margin-top:32px }
+.ab-proof .cs-review-card h3{ font-size:20px }
+.ab-proof-img{
+  width:100%; height:auto; aspect-ratio:4/3; object-fit:cover;
+  border:1px solid var(--hp-line); border-radius:var(--hp-r-l); background:var(--hp-surface-2);
+}
+@media (max-width:599px){ .ab-proof-img{ border-radius:var(--hp-r-m) } }
+
+/* With no reviews to show, the warranty band and the next-pages band would run together. */
+.ab .pp-warranty + .pp-siblings{ border-top:0 }

@@ -34,7 +34,9 @@ function Tick() {
  * @param primary   { label, onClick | href | to }, the solid button
  * @param secondary the same shape, the ghost button
  * @param facts     short strings, each with a tick
- * @param photo     { url, alt, caption?, position?, fallback? } or null
+ * @param photo     { url, alt, caption?, position?, fallback?, srcSet? } or null; srcSet is for a
+ *                  static photo under /public, which has no resizer behind it (the About page's
+ *                  crane lift in its 800 and 1500 wide crops)
  * @param children  more of the right-hand column (the steel page's card), under the photo if there is one
  */
 export default function ProductHero({
@@ -96,7 +98,7 @@ export default function ProductHero({
           <figure className="pp-hero-media">
             <img
               src={cdnImage(photo.url, { width: 800 })}
-              srcSet={cdnSrcSet(photo.url, [480, 640, 800, 1200, 1600])}
+              srcSet={photo.srcSet || cdnSrcSet(photo.url, [480, 640, 800, 1200, 1600])}
               sizes="(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 600px"
               alt={photo.alt || ''}
               width="1200"

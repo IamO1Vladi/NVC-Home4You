@@ -246,6 +246,36 @@ export function ServiceJSONLD({
 }
 
 /**
+ * The About page as an AboutPage whose subject is the site's Organization, joined to the node
+ * index.html publishes by ORGANIZATION_ID. Only what the page itself backs: its url, name,
+ * description, language and photo. No foundingDate, legalName, taxID, employees or rating:
+ * the owner has not confirmed the first three yet, and the reviews keep their own markup.
+ */
+export function AboutPageJSONLD({ name, description, url, image, inLanguage }) {
+  if (!url) return null
+  const absolute = toAbsoluteUrl(url)
+  const organization = {
+    '@type': 'Organization',
+    '@id': ORGANIZATION_ID,
+    name: 'NVC Home4You',
+    url: 'https://nvc-home4you.eu/',
+  }
+  const data = {
+    '@context': 'https://schema.org',
+    '@type': 'AboutPage',
+    '@id': `${absolute}#webpage`,
+    url: absolute,
+    name,
+    description,
+    inLanguage,
+    primaryImageOfPage: image ? { '@type': 'ImageObject', url: toAbsoluteUrl(image) } : undefined,
+    about: organization,
+    mainEntity: organization,
+  }
+  return <JsonLD data={data} />
+}
+
+/**
  * Product list JSON-LD (Merchant listings / Product structured data).
  *
  * Emit it only beside the prices it publishes: the product pages and /bg/ceni build `items`

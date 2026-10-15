@@ -1,25 +1,39 @@
 // src/routes/el/ElAboutRoute.jsx
+import React from 'react'
 import SEO from '../../components/SEO.jsx'
+import { AboutPageJSONLD, BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import AboutPage from '../../pages/AboutPage.jsx'
-import elContent from '../../content/el/about.js'
+import content from '../../content/el/about.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical, hreflangs (all three languages) and the share picture come
+// from routeMeta.js, as on the product, delivery and partner routes; the content file has no
+// seo block. The page is an AboutPage of the site's Organization (index.html), with only the
+// fields the page backs: no founding date or company number until the owner confirms them.
 export default function ElAboutRoute() {
+  const seo = getRouteSeo(paths.about.el, 'el')
+
   return (
     <>
-        <SEO
-        title="Σχετικά με Εμάς | NVC Home4You"
-        description="Μάθετε για την NVC Home4You — την ομάδα μας, τη μαστοριά μας και την προσέγγισή μας στη δομική και προκατασκευασμένη κατασκευή σε όλη την ΕΕ."
-        url="https://nvc-home4you.eu/el/sxetika-me-emas"
-        canonical="https://nvc-home4you.eu/el/sxetika-me-emas"
-        locale="el"
-        hreflangs={[
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/about' },
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/za-nas' },
-          { hrefLang: 'el', href: 'https://nvc-home4you.eu/el/sxetika-me-emas' },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/about' },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: content.home, url: 'https://nvc-home4you.eu/el' },
+          { name: content.breadcrumb, url: seo.url },
         ]}
       />
-      <AboutPage locale="el" content={elContent} />
+
+      <AboutPageJSONLD
+        name={seo.title}
+        description={seo.description}
+        url={seo.url}
+        image={seo.image}
+        inLanguage="el"
+      />
+
+      <AboutPage locale="el" content={content} />
     </>
   )
 }
