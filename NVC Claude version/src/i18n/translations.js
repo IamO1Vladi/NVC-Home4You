@@ -28,7 +28,7 @@ export const dictionaries = {
      steelHouse: 'Prefab Houses',
      modularHouse: 'Modular Houses'
     },
-    gallery: 'Gallery', faq: 'FAQ', about: 'About Us', quote: 'Get a Quote', partner: 'Partner with Us', planner: 'Plan your layout',
+    gallery: 'Gallery', faq: 'FAQ', about: 'About Us', quote: 'Get a Quote', partner: 'Partners', planner: 'Plan your layout',
       getOffer: 'Get an Offer', askQuestion: 'Ask a Question',
       theme: { light: 'Light', dark: 'Dark', system: 'System' }, lang: 'Language'
     },
@@ -125,7 +125,6 @@ export const dictionaries = {
         { q: 'Are prices transparent?', a: 'Yes. All prices are itemized with specifications—no hidden costs.' },
         { q: 'What does the listed price include?', a: 'The structure, insulation, standard finishes, and defined inclusions per model.' },
         { q: 'What is not included in the price?', a: 'Foundations, permits, and site utilities unless stated otherwise.' },
-        { q: 'Do you offer special pricing for bulk orders?', a: 'Yes. Orders of 6+ units qualify for special pricing.' },
         { q: 'What payment terms do you offer?', a: 'Payment is milestone-based and agreed before production starts.' },
       ],
     },
@@ -711,7 +710,7 @@ internalDoors: {
      steelHouse: 'Сглобяеми къщи',
      modularHouse: 'Модулни къщи'
     },
-    gallery: 'Каталог', faq: 'Въпроси', about: 'За нас', quote: 'Заяви оферта', partner: 'Работи с Нас',  planner: 'Планирай своето разположение',
+    gallery: 'Каталог', faq: 'Въпроси', about: 'За нас', quote: 'Заяви оферта', partner: 'Партньори',  planner: 'Планирай своето разположение',
       getOffer: 'Получи оферта', askQuestion: 'Задай въпрос',
       theme: { light: 'Светла', dark: 'Тъмна', system: 'Система' }, lang: 'Език'
     },
@@ -808,7 +807,6 @@ internalDoors: {
         { q: 'Прозрачни ли са цените?', a: 'Да. Всички цени са с подробна разбивка на спецификации — без скрити разходи.' },
         { q: 'Какво включва обявената цена?', a: 'Конструкцията, изолацията, стандартните довършителни и включените елементи за конкретния модел.' },
         { q: 'Какво не е включено в цената?', a: 'Основа, разрешителни и присъединяване към комуникации, освен ако не е упоменато друго.' },
-        { q: 'Имате ли специални цени за по-големи поръчки?', a: 'Да. Поръчки от 6 и повече единици ползват специални условия.' },
         { q: 'Какви са условията за плащане?', a: 'Плащането е поетапно и се договаря предварително, преди започване на производството.' },
       ],
     },

@@ -162,6 +162,7 @@ export default function SteelHousesPage({ locale = 'en', content }) {
           <p className="pp-links">
             <Link to={pathOf('prices')}>{c.price.link}</Link>
             <Link to={pathOf('gallery')}>{c.price.galleryLink}</Link>
+            {c.price.partnerLink ? <Link to={`${pathOf('partner')}#zapitvane`}>{c.price.partnerLink}</Link> : null}
           </p>
         </div>
       </section>

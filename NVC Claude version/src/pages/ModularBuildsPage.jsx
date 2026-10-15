@@ -15,7 +15,8 @@
 // accommodation, the kitchen, the foundation and the made-to-order sizes are the owner's
 // answers (2026-10-12; the crane's cost, the 3–4 nights and the workers' travel are his
 // 2026-10-15 figures in deliveryRates.js) and are worded in the content file exactly as he gave them; nothing
-// about permits, lead times or what foundation to pour is said, because nobody has.
+// about permits, lead times or what foundation to pour is said, because nobody has. The
+// warranty block is his too (2026-10-15), its years read from shared/warranty.js.
 //
 // The hero photo is the admin's "page-modular-builds" slot when one is set, otherwise a real
 // daylight photo from the gallery. Never the CGI night render the page used to open on.
@@ -27,6 +28,7 @@ import ProductHero from '../components/product/ProductHero.jsx'
 import UnitCard from '../components/product/UnitCard.jsx'
 import SpecTable from '../components/product/SpecTable.jsx'
 import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import WarrantyTerms from '../components/product/WarrantyTerms.jsx'
 import Testimonials from '../components/Testimonials.jsx'
 import Catalogues from '../components/Catalogues.jsx'
 import FinalCta from '../components/FinalCta.jsx'
@@ -195,6 +197,7 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
           <p className="pp-links">
             <Link to={pricesHref}>{c.units.pricesLink}</Link>
             <Link to={galleryHref}>{c.units.galleryLink}</Link>
+            {c.units.partnerLink ? <Link to={`${paths.partner[locale] || paths.partner.en}#zapitvane`}>{c.units.partnerLink}</Link> : null}
           </p>
         </div>
       </section>
@@ -230,6 +233,10 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
           </div>
         </div>
       </section>
+
+      {/* The owner's terms of 2026-10-15, after assembly and delivery: what happens once the
+          container is handed over. */}
+      <WarrantyTerms id="warranty" content={c.warranty} className="pp-band" />
 
       <Testimonials
         locale={locale}

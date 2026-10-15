@@ -1,8 +1,11 @@
 // src/content/en/faq.js
 import { euro } from '../../lib/euro.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../shared/deliveryRates.js'
+import { WARRANTY_YEARS as W } from '../shared/warranty.js'
 
 // The crane and lead-time answers quote the owner's figures (2026-10-15) from deliveryRates.js.
+// The warranty answer is his too (2026-10-15), for containers and Box houses only, its years
+// from warranty.js.
 const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
 const crane = (product) => euro(product.crane.about, 'en')
 
@@ -32,6 +35,10 @@ export default {
         {
           q: 'Can I customize finishes?',
           a: 'Yes, we provide curated finish packs and custom options on request.',
+        },
+        {
+          q: 'What warranty do the containers and Box houses carry?',
+          a: `For containers and Box houses: the load-bearing steel structure ${W.structure}\u00a0years; the thermal panels ${W.panels}\u00a0years; the windows and doors (profiles and glazing) ${W.joinery}\u00a0years; the sanitary ware and plumbing fittings ${W.sanitary}\u00a0years. Everything else is checked visually at handover. The warranty covers factory defects and runs from the day of handover, with normal use, a suitable foundation, proper drainage and no unauthorised work by third parties. It does not cover mechanical damage, improper transport or unloading not carried out by us, an unsuitable foundation, lack of ventilation, poor drainage, leaks from external connections, condensation, later repairs or changes by the buyer or third parties, or force majeure.`,
         },
       ],
     },

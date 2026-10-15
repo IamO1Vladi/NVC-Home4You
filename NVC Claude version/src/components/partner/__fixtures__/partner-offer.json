@@ -1,0 +1,22 @@
+{
+  "name": "Νίκος Παπαδόπουλος",
+  "email": "nikos@example.gr",
+  "phone": "+30 231 000 0000",
+  "project": "Χρειαζόμαστε μονάδες για τη σεζόν.",
+  "modelId": "",
+  "locale": "el",
+  "rep": "dtodorov",
+  "website": "",
+  "partner": {
+    "role": "reseller",
+    "sector": "shop",
+    "products": ["container", "box58"],
+    "quantity": "6-10",
+    "timing": "1-3m",
+    "country": "GR",
+    "region": "Θεσσαλονίκη",
+    "company": "Domus EE",
+    "vatId": "EL123456789",
+    "logistics": "own"
+  }
+}

@@ -4,6 +4,7 @@
 // description, canonical URL, hreflang set and Open Graph tags.
 import { paths, getPageKeyByPath, getLocaleFromPath } from '../routes/paths.js'
 import { DELIVERY_RATES } from '../content/shared/deliveryRates.js'
+import { PARTNER_MIN_UNITS } from '../content/shared/partnerTerms.js'
 
 const SITE_URL = 'https://nvc-home4you.eu'
 
@@ -192,21 +193,28 @@ const META = {
         `Κοντέινερ: ${CONTAINER.perKm} €/χλμ. Σπίτι Box: περίπου ${BOX.perKm} €/χλμ + γερανός περίπου ${BOX.crane.about} €. Και στις δύο κατευθύνσεις, χωρίς ΦΠΑ. Υπολογίστε την παράδοση σε Βουλγαρία ή Ελλάδα.`,
     },
   },
+  // The partner page, for resellers and bulk buyers. Its routes read this through
+  // getRouteSeo(), as the delivery routes do, so the head the server injects and the snapshot
+  // agree (the content files' own seo blocks, which disagreed with it, are gone). The quantity
+  // thresholds are partnerTerms.js's, never typed; no price, no percentage. The titles stay
+  // within 70 characters and the descriptions within 160 (routeMeta.test.js). "на едро" /
+  // "wholesale" / "χονδρικώς" is the search term the owner's 2026-10-15 answer now backs:
+  // partners get a lower price by quantity.
   partner: {
     en: {
-      title: 'Become a Partner | NVC Home4You',
+      title: 'Wholesale Containers and Box Houses for Resellers | NVC Home4You',
       description:
-        'Partner with NVC Home4You — distribution and collaboration opportunities in modular and prefab construction.',
+        `Reselling or buying several? Lower prices by quantity: containers from ${PARTNER_MIN_UNITS.container} units, Box houses from ${PARTNER_MIN_UNITS.box}. In stock in Bulgaria, customs handled, delivery anywhere.`,
     },
     bg: {
-      title: 'Станете партньор | NVC Home4You',
+      title: 'Контейнери и Бокс къщи на едро – за търговци | NVC Home4You',
       description:
-        'Партнирайте си с NVC Home4You — възможности за дистрибуция и сътрудничество в модулното строителство.',
+        `Препродавате или купувате на едро? По-ниски цени според броя: контейнери от ${PARTNER_MIN_UNITS.container}, Бокс къщи от ${PARTNER_MIN_UNITS.box} бр. Контейнери на склад, поемаме митницата, доставка навсякъде.`,
     },
     el: {
-      title: 'Γίνετε Συνεργάτης | NVC Home4You',
+      title: 'Κοντέινερ και σπίτια Box χονδρικώς – για μεταπωλητές | NVC Home4You',
       description:
-        'Συνεργαστείτε με την NVC Home4You — ευκαιρίες διανομής και συνεργασίας στη δομική και προκατασκευασμένη κατασκευή.',
+        `Μεταπωλείτε ή αγοράζετε αρκετά τεμάχια; Χαμηλότερη τιμή ανά ποσότητα: κοντέινερ από ${PARTNER_MIN_UNITS.container}, σπίτια Box από ${PARTNER_MIN_UNITS.box}. Εκτελωνισμός από εμάς, παράδοση και στην Ελλάδα.`,
     },
   },
   // The floor planner. The route files read these through getRouteSeo(), as the product
@@ -350,6 +358,19 @@ const PAGE_IMAGES = {
   // The delivery page's own photo (PAGE_PHOTO_DEFAULTS.delivery), with its alt from the
   // delivery content's prepare.photoAlt.
   delivery: {
+    url: `${SITE_URL}/delivery/crane-lift-1500.webp`,
+    width: 1500,
+    height: 1125,
+    type: 'image/webp',
+    alt: {
+      bg: 'Кран сваля дълъг модул от камион върху бетонна площадка',
+      en: 'A crane lifting a long module off a truck onto a concrete yard',
+      el: 'Γερανός κατεβάζει μια μακριά μονάδα από φορτηγό σε τσιμεντένιο προαύλιο',
+    },
+  },
+  // The partner page borrows the same photo (PAGE_PHOTO_DEFAULTS.partner) until the owner
+  // uploads one of the yard; its alt is the partner content's hero.photoAlt.
+  partner: {
     url: `${SITE_URL}/delivery/crane-lift-1500.webp`,
     width: 1500,
     height: 1125,

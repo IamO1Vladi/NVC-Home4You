@@ -154,6 +154,7 @@ const PAGES_BODY = {
     modularHouses: { url: '/api/img/cases/3/kariani.webp', alt: 'Paralia Kariani, 58 m²' },
     steelHouses: { url: '/api/img/home/11/s.webp' },
     delivery: { url: '/api/img/home/12/d.webp', alt: 'Crane at the yard' },
+    partner: { url: '/api/img/home/13/p.webp', alt: 'Units in the yard' },
   },
 }
 
@@ -162,14 +163,17 @@ describe('pagePhotoOf', () => {
     expect(pagePhotoOf(PAGES_BODY, 'modularHouses')).toEqual({ url: '/api/img/cases/3/kariani.webp', alt: 'Paralia Kariani, 58 m²' })
     expect(pagePhotoOf(PAGES_BODY, 'steelHouses')).toEqual({ url: '/api/img/home/11/s.webp', alt: '' })
     expect(pagePhotoOf(PAGES_BODY, 'delivery')).toEqual({ url: '/api/img/home/12/d.webp', alt: 'Crane at the yard' })
+    expect(pagePhotoOf(PAGES_BODY, 'partner')).toEqual({ url: '/api/img/home/13/p.webp', alt: 'Units in the yard' })
   })
 
-  it("knows the four page slots the API serves, and the delivery page's default file", () => {
-    // The same keys and order as HomeSlotNames.PageKeys in the API (page-delivery appended
-    // 2026-10-15); a key missing here makes usePagePhoto answer null for a filled slot.
-    expect(PAGE_KEYS).toEqual(['modularBuilds', 'modularHouses', 'steelHouses', 'delivery'])
+  it("knows the five page slots the API serves, and the delivery and partner pages' default file", () => {
+    // The same keys and order as HomeSlotNames.PageKeys in the API (page-delivery and then
+    // page-partner appended 2026-10-15); a key missing here makes usePagePhoto answer null
+    // for a filled slot.
+    expect(PAGE_KEYS).toEqual(['modularBuilds', 'modularHouses', 'steelHouses', 'delivery', 'partner'])
     expect(PAGE_PHOTO_DEFAULTS.delivery.url).toBe('/delivery/crane-lift-1500.webp')
-    const file = path.resolve(__dirname, '../../public', PAGE_PHOTO_DEFAULTS.delivery.url.slice(1))
+    expect(PAGE_PHOTO_DEFAULTS.partner.url).toBe('/delivery/crane-lift-1500.webp')
+    const file = path.resolve(__dirname, '../../public', PAGE_PHOTO_DEFAULTS.partner.url.slice(1))
     expect(fs.existsSync(file)).toBe(true)
   })
 

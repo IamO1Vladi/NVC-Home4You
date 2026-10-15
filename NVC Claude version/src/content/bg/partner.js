@@ -1,139 +1,275 @@
-import { routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
-
-const routeMapDestinations = ROUTE_MAP.bg
-
-const url = 'https://nvc-home4you.eu/bg/stani-partnjor'
+// The partner page, /bg/stani-partnjor: „Партньори", for companies that resell our containers
+// and Box houses or buy several for a site of their own.
+//
+// WORDS ONLY, AND ONLY THE OWNER'S. Every sentence here is one of his answers of 2026-10-15
+// (lower prices by the number of units, a company ordering at least that many, 100% in advance
+// under a contract, no territories, delivery to the partner or straight to the client, yard
+// visits by appointment, the documents, the option to pay the factory and arrange the
+// transport yourself) or one of the delivery facts already on the site. Anything he has not
+// answered says nothing: a row or question marked `pending` is never rendered. The warranty
+// was one until he answered it the same day (the annex to our Box-house sales contract, the
+// same terms for containers); it speaks of containers and Box houses only, never of the
+// steel-frame houses, which are quoted per project.
+//
+// „Нашата фабрика в Китай", always ONE factory: the owner's rule is that a customer knows of one.
+//
+// The figures are {placeholders} the page fills: {containerMin} and {boxMin} from
+// shared/partnerTerms.js; {containerRate} {boxRate} {boxCrane} {days} {production} {months}
+// {nights} {travel} from shared/deliveryRates.js; {structureYears} {panelYears} {joineryYears}
+// {sanitaryYears} from shared/warranty.js. No seo block: the title, description, canonical and
+// hreflangs come from routeMeta.js.
+import { routeMapControls as ROUTE_CONTROLS, routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
+import delivery from './delivery.js'
 
 export default {
-  seo: {
-    title: 'Стани наш партньор | NVC Home4You',
-    description: 'Партньорска програма за 6+ контейнера с по-добри цени, ясен процес и доставка до обект по ваш избор.',
-    url,
+  breadcrumb: 'Партньори',
+  home: 'Начало',
+
+  // ServiceJSONLD, no price: the page quotes a price per quantity, never a figure.
+  service: {
+    name: 'Контейнери и Бокс къщи за търговци и поръчки на едро',
+    serviceType: 'Продажба на контейнери и разгъваеми къщи на търговци и фирми',
   },
-  breadcrumbs: [
-    { name: 'Начало', url: 'https://nvc-home4you.eu/bg' },
-    { name: 'Стани наш партньор', url },
-  ],
+
   hero: {
-    title: 'Стани наш партньор',
-    lead: 'Поръчайте 6+ контейнера и се възползвайте от специални цени с доставка до избран от вас обект. Разгледайте моделите в галерията.',
-    image: 'partner/hero.png',
-    productsAriaLabel: 'Основни продукти',
-    productKicker: 'Категория',
-    productCta: 'Виж модели →',
-    cta: {
-      badge: '6+',
-      title: 'Специални цени и доставка при 6+ контейнера',
-      sub: 'Изпратете ни количеството и дестинацията, а ние ще ви отговорим с оферта, на която трудно се отказва.',
-      primary: 'Поискай партньорска оферта',
-      secondary: 'Контакт',
-      tertiary: 'Галерия',
-      tertiaryTo: '/bg/galeriq',
+    eyebrow: 'Партньори',
+    h1: 'Контейнери и Бокс къщи за търговци и поръчки на едро',
+    lead: 'Идват от нашата фабрика в Китай, контейнерите държим на склад в Марикостиново, а митницата поемаме ние. Вие ги препродавате или ги поставяте на своя обект — доставяме до вас или направо до вашия клиент.',
+    facts: [
+      'По-ниски цени според броя: контейнери от {containerMin} бр., Бокс къщи от {boxMin} бр.',
+      'Контейнер от склада — при вас до {days} дни',
+      'Митницата поемаме ние; предлагаме застраховка и проследяване на транспорта',
+      'Пълни документи: CE сертификат, CAD чертежи, списък на материалите',
+    ],
+    primary: 'Изпратете запитване',
+    call: 'Обадете се',
+    photoAlt: 'Кран сваля дълъг модул от камион върху бетонна площадка',
+    adminAlt: 'Контейнер или Бокс къща при доставка',
+  },
+
+  doors: {
+    heading: 'Препродавате или купувате за свой обект?',
+    resell: {
+      title: 'Препродавам',
+      text: 'Предлагайте нашите контейнери и Бокс къщи на своите клиенти — навсякъде и на ваша цена, без собствен внос и митница. Доставяме до вашия клиент или до вашия склад.',
+      button: 'Запитване за препродажба',
+    },
+    own: {
+      title: 'Купувам няколко броя за свой обект',
+      text: 'Правим оферта за цялото количество наведнъж, с доставката до обекта.',
+      chipsLabel: 'Подходящо за:',
+      // Each chip opens the product page that fits it.
+      chips: [
+        { key: 'glamping', label: 'Къмпинг и глемпинг', pathKey: 'modularHouses' },
+        { key: 'hotel', label: 'Хотел и къща за гости', pathKey: 'modularHouses' },
+        { key: 'construction', label: 'Строителен обект', pathKey: 'modularBuilds' },
+        { key: 'farm', label: 'Стопанство', pathKey: 'modularBuilds' },
+        { key: 'investor', label: 'Инвеститор', pathKey: 'steelHouses' },
+      ],
+      button: 'Запитване за обект',
     },
   },
-  products: [
-    {
-      key: 'livable',
-      title: 'Контейнери за живеене',
-      desc: 'Готови решения за живеене и настаняване.',
-      pos: '50% 55%',
-      img: '/api/img/content/bvk4n834b-rc6-eg-vb.webp',
-      to: '/bg/galeriq?cat=wagon',
-    },
-    {
-      key: 'box',
-      title: 'Box къщи',
-      desc: 'Модулни “box” конфигурации за дом или бизнес.',
-      pos: '50% 55%',
-      img: '/api/img/content/bvk4n834b-rc5-eg-vb.webp',
-      to: '/bg/galeriq?cat=modular',
-    },
-    {
-      key: 'capsules',
-      title: 'Капсули',
-      desc: 'Комбинация от технологии и комфорт.',
-      pos: '50% 55%',
-      img: '/api/img/content/bvk4n834b-rc8-eg-vb.webp',
-      to: '/bg/galeriq',
-    },
-    {
-      key: 'prefab',
-      title: 'Сглобяеми къщи',
-      desc: 'Къщи с метална конструкция.',
-      pos: '50% 55%',
-      img: '/api/img/content/bvk4n834b-rc9-eg-vb.webp',
-      to: '/bg/galeriq?cat=prefab',
-    },
-  ],
-  roadIntro: {
-    kicker: 'Партньорски процес',
-    title: 'Ясен път от избора до доставката',
-    lead: 'Процесът е подреден в ясни стъпки — от модела и спецификациите до контрола, логистиката и следващите доставки.',
+
+  // „Накратко": label and value. `link` names a page by its paths.js key; a `pending` row would
+  // wait for the owner's answer and never be drawn (none does now).
+  terms: {
+    heading: 'Накратко',
+    rows: [
+      { key: 'price', label: 'Цена', text: 'По-ниска според броя: за контейнери от {containerMin} бр., за Бокс къщи от {boxMin} бр. в поръчка. Точната цена е в офертата за количеството.' },
+      { key: 'who', label: 'Кой е партньор', text: 'Фирма, която поръчва поне толкова броя наведнъж.' },
+      { key: 'payment', label: 'Плащане', text: '100% предплащане, по договор.' },
+      { key: 'resale', label: 'Продажба', text: 'Продавате навсякъде и на цена, която определяте вие.' },
+      {
+        key: 'delivery',
+        label: 'Доставка',
+        text: 'До вас, до вашия склад или направо до вашия клиент. Контейнер — {containerRate}/км, Бокс къща — около {boxRate}/км и кран около {boxCrane}; км в двете посоки, без ДДС. България и Гърция — по калкулатора, другите държави — по запитване.',
+        link: { label: 'Изчислете доставката →', pathKey: 'delivery' },
+      },
+      { key: 'ownLogistics', label: 'Собствена логистика', text: 'Може да платите директно на фабриката и да организирате транспорта сами.' },
+      { key: 'documents', label: 'Документи', text: 'Списък на материалите, CAD чертежи, CE сертификат и всички други нужни документи — за контейнерите и за къщите.' },
+      { key: 'customs', label: 'Митница', text: 'Поемаме я ние — за всичко, което доставяме.' },
+      { key: 'insurance', label: 'Застраховка и проследяване', text: 'Предлагаме ги за транспорта.' },
+      { key: 'yard', label: 'Склад', text: 'В Марикостиново. Може да го посетите с предварителна уговорка.' },
+      { key: 'containers', label: 'Контейнери', text: 'Моделите от галерията са на склад, монтажът е в цената. При вас до {days} дни.' },
+      { key: 'boxes', label: 'Бокс къщи', text: '37, 58 и 73 м², пътуват сгънати. Изработват се до {production} дни и са на адреса за около {months} месеца.' },
+      { key: 'steel', label: 'Сглобяеми къщи', text: 'По ваш проект или по проект, който изготвяме ние.' },
+      // The short form; the questions below give every term, the conditions and what it does not cover.
+      { key: 'warranty', label: 'Гаранция', text: 'Контейнери и Бокс къщи: конструкция\u00a0{structureYears}\u00a0г., панели\u00a0{panelYears}\u00a0г., дограма\u00a0{joineryYears}\u00a0г., санитария\u00a0{sanitaryYears}\u00a0г. — от предаването.' },
+    ],
+    note: 'Цените в галерията са крайни цени на дребно, с ДДС. Офертата за количество е отделна.',
   },
-  roadSteps: [
-    {
-      key: 'config',
-      title: 'Избор на модели и конфигурация',
-      text: 'Изпращате ни кодовете на моделите, а ние подреждаме количествата и конфигурацията според вашия проект.',
-      points: [
-        'Фиксираме размери, материали, покрития, цветове и аксесоари.',
-        'Консултираме ви за приложение, бюджет и технически изисквания.',
-      ],
-      badge: 'Каталог и конфигурация',
-      img: 'partner/road/step-01.jpg',
-      fallback: '/api/img/content/bvk4n834b-rc5-eg-vb.webp',
-      alt: 'Модулен модел за партньорска програма',
-      mediaNote: 'Първо уточняваме точния модел и пакета.',
-    },
-    {
-      key: 'production',
-      title: 'Договор, производство и контрол',
-      text: 'След одобрение подготвяме договор и стартираме производството по финалните параметри.',
-      points: [
-        'Получавате срокове, условия за плащане, гаранция и доставка.',
-        'Изпращаме известия за напредъка и снимки от ключовите етапи.',
-      ],
-      badge: 'Производство',
-      img: 'partner/road/step-02.jpg',
-      fallback: '/api/img/content/bvk4n834b-rc6-eg-vb.webp',
-      alt: 'Производствен етап на модулни решения',
-      mediaNote: 'Контролът започва още по време на производството.',
-    },
-    {
-      key: 'logistics',
-      title: 'Проверки, спецификации и логистика',
-      text: 'Всеки продукт преминава проверки, а документацията се подготвя прецизно за безпроблемен внос и доставка.',
-      points: [
-        'Предоставяме параметри, спецификации и съобразяване с местните изисквания.',
-        'Избираме маршрут с баланс между цена, транзитно време и сигурност.',
-      ],
-      badge: 'Документи и маршрути',
-      img: 'partner/road/step-03.jpg',
-      fallback: '/api/img/content/bvk4n834b-rc9-eg-vb.webp',
-      alt: 'Сертификати и документация',
-      mediaNote: 'Документите и маршрутът се настройват според пазара.',
-    },
-    {
-      key: 'delivery',
-      title: 'Доставка, проследяване и следващи поръчки',
-      text: 'Следим пратката от експедицията до разтоварването и улесняваме следващи доставки по вече одобрени параметри.',
-      points: [
-        'Получавате сертификати, инструкции и списък с комплектация.',
-        'Съдействаме за резервни части, застраховка и повторни поръчки.',
-      ],
-      badge: 'Доставка',
-      img: 'partner/road/step-04.jpg',
-      fallback: '/api/img/content/bvk4n834b-rc8-eg-vb.webp',
-      alt: 'Подготовка на товар за изпращане',
-      mediaNote: 'Оставаме до вас и след първата доставка.',
-    },
-  ],
-  roadCta: {
-    title: 'Имате конкретен пазар, срок или държава?',
-    text: 'Настройваме документацията, производствения график и логистичната схема според продукта, количеството и пазара.',
-    primary: 'Стартирай партньорски разговор',
-    secondary: 'Задай въпрос',
+
+  // The three product pages with their live "from" prices (the gallery's, never typed).
+  products: {
+    heading: 'Какво можете да поръчате',
+    sub: 'Цените тук са на дребно, с ДДС. За количество правим отделна оферта.',
+    go: 'Разгледайте →',
+    from: 'от',
+    containers: { label: 'Контейнерни модули', desc: 'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м, на склад в Марикостиново.', basis: 'с ДДС и монтаж' },
+    houses: { label: 'Бокс къщи', desc: 'Разгъваеми къщи 37, 58 и 73 м², които пътуват сгънати.', basis: 'с ДДС, без монтаж' },
+    steel: { label: 'Сглобяеми къщи по проект', desc: 'Стоманена конструкция по ваш или по наш проект.' },
   },
+
+  process: {
+    heading: 'Как работим',
+    steps: [
+      {
+        title: 'Запитване',
+        text: 'Пишете ни какво, колко броя и къде — до вас или до вашия клиент.',
+        image: { src: '/delivery/journey-yard.webp', alt: 'Сгъната Бокс къща се разтоварва от морски контейнер в нашата база', caption: 'Нашата база в Марикостиново' },
+      },
+      {
+        title: 'Оферта за количеството и договор',
+        text: 'Получавате цена за цялото количество, с доставката. Подписваме договор и плащате 100% предварително.',
+        image: { src: '/partner/factory-floor.webp', alt: 'Производствен цех с рамки и стенни панели на модули', caption: 'Производството в нашата фабрика в Китай' },
+      },
+      {
+        title: 'От склада или от нашата фабрика',
+        text: 'Контейнерите на склад са при вас до {days} дни. Бокс къщите се изработват до {production} дни и пристигат по море; митницата поемаме ние.',
+        image: { src: '/delivery/journey-port.webp', alt: 'Сгъната Бокс къща, опакована във фолио, се вдига на пристанището', caption: 'На пристанището' },
+      },
+      {
+        title: 'Доставка',
+        text: 'Докарваме до вас, до склада ви или направо до вашия клиент. Или плащате директно на фабриката и организирате транспорта сами.',
+        image: { src: '/delivery/journey-plot.webp', alt: 'Кран поставя модул върху наземни винтове', caption: 'При клиента' },
+      },
+    ],
+  },
+
+  // „Кой какво поема". No line on connecting utilities; the warranty is in „Накратко" and the questions.
+  split: {
+    heading: 'Кой какво поема',
+    we: {
+      title: 'Ние',
+      items: [
+        'Производството в нашата фабрика в Китай',
+        'Морския превоз и митницата',
+        'Доставката с камион и кран — до вас, до склада ви или до вашия клиент; кранът е за ваша сметка, около {boxCrane} без ДДС',
+        'Монтажа на контейнерите',
+        'Документите: списък на материалите, CAD чертежи, CE сертификат',
+        'Застраховка и проследяване на транспорта, ако ги искате',
+      ],
+    },
+    you: {
+      title: 'Вие или вашият клиент',
+      items: [
+        'Плащането — 100% предварително, по договор',
+        'Продажбата — където и на каквато цена решите',
+        'Основата — каква е нужна, зависи от мястото',
+        'Достъп до мястото за камиона и крана',
+        'Нощувките на нашите двама работници ({nights} нощи) и пътя им — до {travel} без ДДС, ако контейнерът се сглобява на място',
+        'Транспорта, ако изберете собствена логистика',
+      ],
+    },
+  },
+
+  // The published Paralia Kariani case, as the delivery page draws it, and the delivery
+  // page's own words for it.
+  proof: {
+    heading: 'Реални доставки',
+    sub: 'Бокс къща, доставена и монтирана в Гърция.',
+    case: delivery.proof.case,
+    photo: delivery.proof.photo,
+    stars: delivery.proof.stars,
+    more: delivery.proof.more,
+    reviews: 'Отзиви от наши клиенти →',
+  },
+
+  form: {
+    heading: 'Запитване от фирма',
+    sub: 'Около минута. Полетата със * са задължителни.',
+    optional: 'по избор',
+    role: {
+      legend: 'Кое ви описва',
+      options: { reseller: 'Препродавам', ownSite: 'Купувам за свой обект', other: 'Друго' },
+      error: 'Изберете кое ви описва.',
+    },
+    sector: {
+      label: 'Сфера',
+      placeholder: 'Изберете',
+      options: {
+        glamping: 'Къмпинг или глемпинг',
+        hotel: 'Хотел или къща за гости',
+        construction: 'Строителна фирма',
+        farm: 'Стопанство',
+        investor: 'Инвеститор',
+        shop: 'Магазин',
+        realEstate: 'Агенция за имоти',
+        other: 'Друго',
+      },
+    },
+    products: {
+      legend: 'Продукти',
+      options: { container: 'Контейнери', box37: 'Бокс 37 м²', box58: 'Бокс 58 м²', box73: 'Бокс 73 м²', steel: 'Сглобяема къща по проект' },
+    },
+    quantity: {
+      legend: 'Колко броя в поръчката',
+      options: { '2-5': '2–5', '6-10': '6–10', '11-25': '11–25', '25+': '25+' },
+      hint: 'По-ниска цена: контейнери от {containerMin} бр., Бокс къщи от {boxMin} бр.',
+      error: 'Изберете броя.',
+    },
+    timing: {
+      label: 'Кога',
+      placeholder: 'Изберете',
+      options: { month: 'До 1 месец', '1-3m': '1–3 месеца', '3-6m': '3–6 месеца', season: 'За следващия сезон', exploring: 'Само проучвам' },
+    },
+    boxNote: 'Бокс къщата се изработва до {production} дни и е на адреса за около {months} месеца. Ако ви трябва до месец, изберете контейнер от склада.',
+    logistics: {
+      legend: 'Транспорт',
+      options: { ours: 'Доставка от нас', own: 'Собствена логистика — плащам директно на фабриката' },
+    },
+    country: {
+      label: 'Държава',
+      placeholder: 'Изберете',
+      options: { BG: 'България', GR: 'Гърция', MK: 'Северна Македония', RO: 'Румъния', EU: 'Друга държава в ЕС', nonEU: 'Извън ЕС' },
+      error: 'Изберете държава.',
+    },
+    region: 'Град или област',
+    company: 'Фирма',
+    vatId: 'ЕИК / ДДС номер',
+    name: { label: 'Име', error: 'Напишете името си.' },
+    phone: { label: 'Телефон', error: 'Напишете телефон — обаждаме се по фирмените запитвания.' },
+    email: { label: 'Имейл', error: 'Напишете имейл, на който да ви пишем.' },
+    message: { label: 'Съобщение', placeholder: 'Модели, размери, срокове, мястото на доставка…' },
+    privacy: 'Използваме данните само за да отговорим на запитването.',
+    privacyLink: 'Поверителност',
+    submit: 'Изпратете запитването',
+    invalid: 'Попълнете отбелязаните полета.',
+  },
+
+  // The header's offer and question forms, opened on this page, carry this line, so the
+  // enquiry reads as a partner's in Запитвания.
+  prefill: {
+    offer: 'Партньорско запитване — от страницата за партньори',
+    cargo: 'Въпрос за превоз на товар — от страницата за партньори',
+  },
+
+  faq: {
+    heading: 'Въпроси от търговци',
+    items: [
+      { q: 'Каква е цената за няколко броя?', a: 'По-ниска от цената на дребно — според броя: за контейнери от {containerMin} бр., за Бокс къщи от {boxMin} бр. в една поръчка. Точната цена е в офертата за вашето количество.' },
+      { q: 'Кой може да стане партньор?', a: 'Фирма, която поръчва поне {containerMin} контейнера или поне {boxMin} Бокс къщи в една поръчка.' },
+      { q: 'Как се плаща?', a: 'Цялата сума предварително, по договор с нас.' },
+      { q: 'Мога ли да продавам навсякъде и на своя цена?', a: 'Да. Продавате където искате и на цената, която определите вие.' },
+      { q: 'Доставяте ли до моя клиент или до моя склад? А извън България?', a: 'Да — до вас, до склада ви или направо до клиента. В България и Гърция по цените от калкулатора: контейнер {containerRate}/км, Бокс къща около {boxRate}/км и кран около {boxCrane}, км в двете посоки, без ДДС. За други държави — по запитване.' },
+      { q: 'Какви документи получавам?', a: 'Списък на материалите, CAD чертежи, CE сертификат и всички други нужни документи — за контейнерите и за къщите.' },
+      { q: 'Кой поема митницата?', a: 'Ние — за всичко, което доставяме.' },
+      { q: 'Колко време отнема?', a: 'Контейнер от склада е при вас до {days} дни. Бокс къщата се изработва до {production} дни и е на адреса за около {months} месеца.' },
+      { q: 'Мога ли да видя стоката?', a: 'Да. Складът ни е в Марикостиново — посещение с предварителна уговорка.' },
+      { q: 'Мога ли да използвам собствена логистика?', a: 'Да. Може да платите директно на фабриката и да организирате транспорта сами.' },
+      { q: 'Каква е гаранцията на контейнерите и Бокс къщите?', a: 'Носещата стоманена конструкция — {structureYears}\u00a0години; термопанелите — {panelYears}\u00a0години; дограмата (профили и стъклопакети) — {joineryYears}\u00a0години; санитарните уреди и ВиК арматурата — {sanitaryYears}\u00a0години. Останалите елементи се проверяват визуално при предаването. Гаранцията покрива фабрични дефекти и тече от датата на предаване — при нормална употреба, подходяща основа, добро отводняване и без неразрешена намеса от трети лица. Не покрива механични повреди, неправилен транспорт или разтоварване, които не са извършени от нас, неподходяща основа, липса на вентилация, лошо отводняване, течове от външни връзки, конденз, по-късни ремонти или промени от купувача или от трети лица, както и форсмажорни обстоятелства.' },
+    ],
+  },
+
+  cargo: {
+    heading: 'Организираме и вашия товар',
+    text: 'Ако внасяте сами, можем да организираме превоза — попитайте ни.',
+    ask: 'Задайте въпрос',
+    show: 'Покажи маршрутите',
+    loading: 'Картата се зарежда…',
+    unavailable: 'Картата не се зареди. Презаредете страницата, за да я видите.',
+  },
+
   logisticsWorld: {
     modeLabel: 'Транспорт:',
     modeSea: 'Море',
@@ -146,7 +282,9 @@ export default {
     legendShanghai: 'Шанхай',
     legendHoChiMinh: 'Хо Ши Мин',
     legendLaemChabang: 'Лаем Чабанг',
-    // The same route map as the logistics page, so the same names.
-    destinations: routeMapDestinations,
+    destinations: ROUTE_MAP.bg,
+    mapControls: ROUTE_CONTROLS.bg,
   },
+
+  finalTitle: 'Да обсъдим вашата поръчка?',
 }

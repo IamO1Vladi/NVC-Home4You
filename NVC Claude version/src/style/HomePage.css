@@ -47,8 +47,6 @@
 .hp-head-links{ display:flex; flex-wrap:wrap; gap:16px; font-weight:600; white-space:nowrap }
 .hp-card{ background:var(--hp-surface); border:1px solid var(--hp-line); border-radius:var(--hp-r-m) }
 .hp-ico{ width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round }
-.hp-desk{ display:inline }
-@media (max-width:767px){ .hp-desk{ display:none } }
 .hp #prices,.hp #catalogues{ scroll-margin-top:96px }
 
 /* Buttons: solid accent, 48px, no gradient, no halo. The global .btn is not used here. */

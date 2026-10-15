@@ -25,9 +25,9 @@ const MODELS = [
   { name: 'model-58', label: '58 m²' },
   { name: 'model-73', label: '73 m²' },
 ]
-// In menu order, the delivery page (2026-10-15) after the products. Their labels and their
-// empty-slot defaults are words, so they live in TEXT.
-const PAGES = ['page-modular-builds', 'page-modular-houses', 'page-steel-houses', 'page-delivery']
+// In menu order, the delivery page (2026-10-15) after the products and the partner page (the
+// same day) after it. Their labels and their empty-slot defaults are words, so they live in TEXT.
+const PAGES = ['page-modular-builds', 'page-modular-houses', 'page-steel-houses', 'page-delivery', 'page-partner']
 
 const TEXT = {
   bg: {
@@ -38,12 +38,13 @@ const TEXT = {
     modelsHeading: 'Снимки на трите модела',
     modelsHint: 'Снимката на картата на модела в началната страница. Празно място показва снимката от каталога.',
     pagesHeading: 'Продуктови страници и доставка',
-    pagesHint: 'Главната снимка на всяка продуктова страница и на страницата за доставка. Под всяко място пише какво показва страницата, докато то е празно.',
+    pagesHint: 'Главната снимка на всяка продуктова страница и на страниците за доставка и за партньори. Под всяко място пише какво показва страницата, докато то е празно.',
     pages: {
       'page-modular-builds': { label: 'Контейнерни модули', empty: 'Празно: снимка на контейнер от галерията.' },
       'page-modular-houses': { label: 'Модулни къщи', empty: 'Празно: снимката на къщата в Паралия Кариани (58 м²) от „Казуси и отзиви“.' },
       'page-steel-houses': { label: 'Сглобяеми къщи по проект', empty: 'Празно: страницата е без снимка.', thumb: 'Без снимка' },
       'page-delivery': { label: 'Доставка и монтаж', empty: 'Празно: кран вдига модул от камиона.' },
+      'page-partner': { label: 'Партньори — снимка', empty: 'Празно: кран вдига модул от камиона (снимката на доставката).' },
     },
     pageSaved: (label) => `Готово — снимката на „${label}“ е на сайта.`,
     pageCleared: (label) => `Снимката на „${label}“ е премахната — страницата се връща към вида по подразбиране.`,
@@ -75,12 +76,13 @@ const TEXT = {
     modelsHeading: 'Photos of the three models',
     modelsHint: 'The photo on the model card on the home page. An empty slot shows the catalogue photo.',
     pagesHeading: 'Product pages and delivery',
-    pagesHint: 'The main photo of each product page and of the delivery page. Under each slot: what the page shows while it is empty.',
+    pagesHint: 'The main photo of each product page and of the delivery and partner pages. Under each slot: what the page shows while it is empty.',
     pages: {
       'page-modular-builds': { label: 'Container units', empty: 'Empty: a container photo from the gallery.' },
       'page-modular-houses': { label: 'Modular houses', empty: 'Empty: the Paralia Kariani house (58 m²) from Cases & Reviews.' },
       'page-steel-houses': { label: 'Steel-frame prefab houses to your plan', empty: 'Empty: the page has no photo.', thumb: 'No photo' },
       'page-delivery': { label: 'Delivery and assembly', empty: 'Empty: a crane lifting a unit off the truck.' },
+      'page-partner': { label: 'Partners — photo', empty: "Empty: a crane lifting a unit off the truck (the delivery page's photo)." },
     },
     pageSaved: (label) => `Done — the photo for “${label}” is live.`,
     pageCleared: (label) => `The photo for “${label}” is removed — the page is back to its default.`,

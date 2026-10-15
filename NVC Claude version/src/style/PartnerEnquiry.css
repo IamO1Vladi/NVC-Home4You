@@ -1,0 +1,73 @@
+/* The partner page's enquiry form (PartnerEnquiry.jsx), on the home page's --hp-* tokens, so
+   it follows data-theme light and dark with no colours of its own. Every class is pe-.
+
+   PHONES FIRST: one column at 390px, every chip and field a thumb's height (44px+), the
+   paired fields side by side from 720px. The chips are real radio buttons and checkboxes,
+   hidden under a label that looks like a pill, so the keyboard and a screen reader get the
+   native group. */
+
+.pe{ scroll-margin-top:88px }
+.pe-card{ padding:28px; max-width:880px; margin-inline:auto }
+@media (max-width:599px){ .pe-card{ padding:20px 16px } }
+.pe-head{ margin-bottom:20px }
+.pe-head h2:focus{ outline:none }
+.pe-head h2:focus-visible{ outline:3px solid var(--hp-text); outline-offset:3px }
+
+.pe-form{ display:grid; gap:20px }
+.pe-row{ display:grid; gap:20px; grid-template-columns:minmax(0,1fr) }
+@media (min-width:720px){
+  .pe-row{ grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .pe-row--3{ grid-template-columns:repeat(3,minmax(0,1fr)) }
+}
+
+.pe-group{ margin:0; padding:0; border:0; min-width:0 }
+.pe-field{ display:grid; gap:6px; min-width:0 }
+.pe-label{ padding:0; font-size:15px; font-weight:600; line-height:1.4; color:var(--hp-text) }
+.pe-group > .pe-label{ margin-bottom:8px }
+.pe-optional{ font-weight:400; color:var(--hp-muted) }
+
+.pe-field input,
+.pe-field select,
+.pe-field textarea{
+  width:100%; min-height:48px; padding:10px 12px; border-radius:var(--hp-r-s);
+  border:1px solid var(--hp-line); background:var(--hp-surface); color:var(--hp-text);
+  font:inherit; font-size:16px; line-height:1.4;
+}
+.pe-field textarea{ min-height:112px; resize:vertical }
+.pe-field input:focus-visible,
+.pe-field select:focus-visible,
+.pe-field textarea:focus-visible{ outline:3px solid var(--hp-accent); outline-offset:1px; border-color:var(--hp-accent) }
+.pe-field [aria-invalid="true"]{ border-color:#C2410C }
+
+.pe-chips{ display:flex; flex-wrap:wrap; gap:8px }
+.pe-chip{ position:relative; display:inline-flex }
+.pe-chip input{ position:absolute; inset:0; margin:0; opacity:0; cursor:pointer }
+.pe-chip span{
+  display:inline-flex; align-items:center; min-height:44px; padding:8px 16px; border-radius:999px;
+  border:1px solid var(--hp-line); background:var(--hp-surface); color:var(--hp-text);
+  font-size:15px; font-weight:500; line-height:1.3; cursor:pointer;
+}
+.pe-chip:hover span{ border-color:var(--hp-muted) }
+.pe-chip input:checked + span{
+  background:color-mix(in srgb, var(--hp-accent) 14%, var(--hp-surface));
+  border-color:var(--hp-accent); color:var(--hp-text); font-weight:600;
+  box-shadow:inset 0 0 0 1px var(--hp-accent);
+}
+.pe-chip input:focus-visible + span{ outline:3px solid var(--hp-text); outline-offset:2px }
+.pe-group[aria-invalid="true"] .pe-chip span{ border-color:#C2410C }
+
+.pe-hint{ margin-top:8px; color:var(--hp-muted); font-size:14px; line-height:1.5 }
+.pe-error{ margin-top:6px; color:#B42318; font-size:14px; font-weight:600; line-height:1.45 }
+:root[data-theme='dark'] .pe-error{ color:#FF9C8A }
+:root[data-theme='dark'] .pe-field [aria-invalid="true"],
+:root[data-theme='dark'] .pe-group[aria-invalid="true"] .pe-chip span{ border-color:#FF9C8A }
+.pe-summary{ margin:0 }
+.pe-note{
+  padding:12px 14px; border-radius:var(--hp-r-s); border:1px solid var(--hp-line);
+  background:var(--hp-surface-2); font-size:15px; line-height:1.5;
+}
+
+.pe-foot{ display:grid; gap:12px; justify-items:start }
+.pe-privacy{ color:var(--hp-muted); font-size:14px; line-height:1.5 }
+.hp .pe-privacy a{ font-weight:600 }
+@media (max-width:599px){ .pe-foot .hp-btn{ width:100% } }

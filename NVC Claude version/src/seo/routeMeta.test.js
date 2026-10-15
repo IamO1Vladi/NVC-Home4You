@@ -14,6 +14,10 @@ import elSteel from '../content/el/steelHouses.js'
 import bgDelivery from '../content/bg/delivery.js'
 import enDelivery from '../content/en/delivery.js'
 import elDelivery from '../content/el/delivery.js'
+import bgPartner from '../content/bg/partner.js'
+import enPartner from '../content/en/partner.js'
+import elPartner from '../content/el/partner.js'
+import { PARTNER_MIN_UNITS } from '../content/shared/partnerTerms.js'
 
 // The search snippet and share card of the three product pages.
 //
@@ -185,5 +189,33 @@ describe('the delivery page', () => {
     for (const old of ['/bg/mejdunarodna-logistika', '/en/logistics', '/el/diethnis-efodiastiki']) {
       expect(getRouteSeo(old)).toBeNull()
     }
+  })
+})
+
+describe('the partner page', () => {
+  // The quantity thresholds are the snippet's figures, read from partnerTerms.js so a change
+  // there moves the snippet; nothing else is a number (no price, no percentage).
+  const CONTENT = { bg: bgPartner, en: enPartner, el: elPartner }
+
+  it.each(LOCALES)('%s: lengths a results page shows whole, and the thresholds from partnerTerms.js', (locale) => {
+    const seo = getRouteSeo(paths.partner[locale], locale)
+    expect(seo.title.length).toBeLessThanOrEqual(70)
+    expect(seo.title).toMatch(/\| NVC Home4You$/)
+    expect(seo.description.length).toBeLessThanOrEqual(160)
+    expect(seo.description).toContain(String(PARTNER_MIN_UNITS.container))
+    expect(seo.description).toContain(String(PARTNER_MIN_UNITS.box))
+    if (locale !== 'bg') expect(`${seo.title} ${seo.description}`).not.toMatch(CYRILLIC)
+  })
+
+  it.each(LOCALES)('%s: the share picture is the hero’s crane photo, with the hero’s alt', (locale) => {
+    const seo = getRouteSeo(paths.partner[locale], locale)
+    expect(seo.image).toBe(`${SITE}/delivery/crane-lift-1500.webp`)
+    expect(seo.imageAlt).toBe(CONTENT[locale].hero.photoAlt)
+  })
+
+  it.each(LOCALES)('%s: a self-canonical and the full hreflang cluster', (locale) => {
+    const seo = getRouteSeo(paths.partner[locale], locale)
+    expect(seo.canonical).toBe(`${SITE}${paths.partner[locale]}`)
+    expect(seo.hreflangs.map((h) => h.hrefLang)).toEqual(['bg', 'en', 'el', 'x-default'])
   })
 })

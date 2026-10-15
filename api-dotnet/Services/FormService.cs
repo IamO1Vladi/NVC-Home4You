@@ -33,8 +33,10 @@ public class FormService : ILeadStore
             [_env.F_OFFER_PHONE.ToString()] = new { value = dto.Phone },
             // The representative line (#38) goes into the Quickbase copy as it does into SQL
             // (SqlLeadService), resolved against the registry here too so only a registered
-            // slug, in its registered spelling, ever reaches a record.
-            [_env.F_OFFER_MESSAGE.ToString()] = new { value = RepresentativeLine.Prepend(dto.Project, _env.FindRepresentativeBySlug(dto.Rep)?.Slug) },
+            // slug, in its registered spelling, ever reaches a record. The partner line
+            // (2026-10-15) the same way, below it.
+            [_env.F_OFFER_MESSAGE.ToString()] = new { value = RepresentativeLine.Prepend(
+                PartnerEnquiry.Prepend(dto.Project, dto.Partner), _env.FindRepresentativeBySlug(dto.Rep)?.Slug) },
         };
         if (!string.IsNullOrWhiteSpace(dto.ModelId))
             rec[_env.F_OFFER_MODEL_ID.ToString()] = new { value = dto.ModelId };

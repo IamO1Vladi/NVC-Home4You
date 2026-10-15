@@ -14,7 +14,7 @@ export default {
       cases: 'Cases',
       faq: 'FAQ',
       about: 'About Us',
-      partner: 'Partner',
+      partner: 'Partners',
       planner: 'Planner',
       quote: 'Get a Quote',
       boxConfigurator: "Configurator",

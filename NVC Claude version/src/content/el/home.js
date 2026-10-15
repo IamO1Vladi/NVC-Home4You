@@ -13,7 +13,7 @@ export default {
       cases: 'Έργα',
       faq: 'Συχνές ερωτήσεις',
       about: 'Σχετικά',
-      partner: 'Συνεργάτης',
+      partner: 'Συνεργάτες',
       planner: 'Σχεδιαστής',
       quote: 'Ζητήστε προσφορά',
       boxConfigurator: 'Διαμορφωτής',

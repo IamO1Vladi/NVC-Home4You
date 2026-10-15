@@ -72,10 +72,11 @@ describe('Header planning dropdown', () => {
   })
 })
 
-// The phone drawer (owner's rule): no planner on phones, and a Call button beside the
+// The phone drawer (owner's rule): a few top rows, the planner right after the configurator
+// since the planner page works on phones (owner, 2026-10-15), and a Call button beside the
 // quote button so the one device that can dial gets a number it can tap.
 describe('Header phone drawer', () => {
-  it.each(['en', 'bg', 'el'])('%s: offers a tel: link and the quote button, and no planner link', (locale) => {
+  it.each(['en', 'bg', 'el'])('%s: offers the planner after the configurator, a tel: link and the quote button', (locale) => {
     const header = getHomeContent(locale).header
     const { container } = renderHeader(locale)
     fireEvent.click(screen.getByRole('button', { name: header.mobileMenuButtonAria }))
@@ -84,9 +85,18 @@ describe('Header phone drawer', () => {
     expect(drawer).not.toBeNull()
     const hrefs = [...drawer.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'))
     expect(hrefs.some((href) => href.startsWith('tel:'))).toBe(true)
-    expect(hrefs).not.toContain(paths.planner[locale])
-    expect(hrefs).toContain(paths.boxConfigurator[locale])
-    expect(within(drawer).queryByRole('link', { name: header.nav.planner })).toBeNull()
+
+    // The top rows, in order: the configurator, the planner, then gallery, prices, partners.
+    const top = [...drawer.querySelectorAll('.drawer-list > li > a')]
+    expect(top.map((a) => a.getAttribute('href'))).toEqual([
+      paths.boxConfigurator[locale],
+      paths.planner[locale],
+      paths.gallery[locale],
+      paths.prices[locale],
+      paths.partner[locale],
+    ])
+    expect(top[1]).toHaveTextContent(header.nav.planner)
+    expect(within(drawer).getAllByRole('link', { name: header.nav.planner })).toHaveLength(1)
     expect(within(drawer).getByRole('button', { name: header.nav.quote })).toBeInTheDocument()
   })
 })

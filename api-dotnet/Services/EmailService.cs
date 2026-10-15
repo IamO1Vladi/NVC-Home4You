@@ -76,16 +76,22 @@ public class EmailService
     // With an intake note (#38) the representative is copied in and the mail says what
     // became of the lead; Reply-To stays the customer, because the rep answering the
     // customer directly is the whole point of the link.
+    //
+    // With a partner line (the partner page, 2026-10-15) it goes to PartnerRecipients instead
+    // of the sales list, says "[Партньор]" first and opens with the line. The representative,
+    // if any, is still added.
     public async Task<bool> TrySendLeadNotificationAsync(
         bool isOffer, string name, string leadEmail, string? phone, string details,
-        CancellationToken ct = default, OfferModel? model = null, LeadIntakeNote? intake = null)
+        CancellationToken ct = default, OfferModel? model = null, LeadIntakeNote? intake = null,
+        string? partnerLine = null)
     {
         if (!IsConfigured) return false;
-        var recipients = WithRecipient(ParseRecipients(_env.LeadNotifyEmail), intake?.RepUpn);
+        var recipients = WithRecipient(
+            partnerLine is null ? ParseRecipients(_env.LeadNotifyEmail) : PartnerRecipients(_env), intake?.RepUpn);
         if (recipients.Count == 0) return false;
         try
         {
-            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model, intake);
+            var (subject, html) = BuildLeadNotification(isOffer, name, leadEmail, phone, details, model, intake, partnerLine);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(20));
             var replyTo = string.IsNullOrWhiteSpace(leadEmail) ? null : leadEmail.Trim();
@@ -212,6 +218,16 @@ public class EmailService
             .Where(x => x.Contains('@'))
             .Distinct()
             .ToArray();
+
+    // Who a partner enquiry's mail goes to: PARTNER_NOTIFY_EMAIL, or the sales list when that
+    // setting parses to no address. The mail is the safety net for a failed write (see
+    // EnvConfig.LeadNotifyEmail), so a typo in the one setting must not leave a partner's
+    // enquiry with nobody to reach; sales forwarding it is a far smaller fault.
+    public static IReadOnlyCollection<string> PartnerRecipients(EnvConfig env)
+    {
+        var partners = ParseRecipients(env.PartnerNotifyEmail);
+        return partners.Count > 0 ? partners : ParseRecipients(env.LeadNotifyEmail);
+    }
 
     // The configured list plus one more address — the representative an enquiry came
     // through (#38). Case-insensitive on purpose, unlike ParseRecipients' Distinct(): the
@@ -497,7 +513,7 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
     // Internal team notification (Bulgarian) with the lead's contact details and submission.
     private (string subject, string html) BuildLeadNotification(
         bool isOffer, string name, string leadEmail, string? phone, string details,
-        OfferModel? model = null, LeadIntakeNote? intake = null)
+        OfferModel? model = null, LeadIntakeNote? intake = null, string? partnerLine = null)
     {
         var trimmedName = (name ?? "").Trim();
         var trimmedEmail = (leadEmail ?? "").Trim();
@@ -519,6 +535,11 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         // the rep's own inbox rule can key on the slug. Safe in a header — the registry
         // only admits single-line slugs.
         if (intake is not null) subject += $" — представител: {intake.RepSlug}";
+        // The one PREFIX, against the rule above, because it is what the partner mail is for:
+        // the owner and nlekov see a partner's enquiry as one before they open it. It goes to
+        // their list rather than the sales inbox (TrySendLeadNotificationAsync), and a rule
+        // that matches "Ново запитване" anywhere in the subject still matches.
+        if (partnerLine is not null) subject = "[Партньор] " + subject;
 
         var phoneRow = string.IsNullOrEmpty(safePhone)
             ? ""
@@ -530,16 +551,30 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
 
         var representativeRows = intake is null ? "" : RepresentativeHtml(intake);
 
+        // First in the body, above the name: it is what the reader needs to decide how to
+        // answer. Built by PartnerEnquiry from fixed labels and three capped one-line boxes the
+        // visitor typed, so it is encoded like everything else from the form.
+        var partnerRow = partnerLine is null
+            ? ""
+            : $@"<p style=""margin:0 0 12px;padding:10px 14px;background:#eef6f0;border-radius:8px;font-weight:bold"">{System.Net.WebUtility.HtmlEncode(partnerLine)}</p>";
+
+        // The partner form's message is optional, so a partner enquiry can arrive with nothing
+        // typed: no empty box then, as in the autoresponder.
+        var detailsBlock = string.IsNullOrWhiteSpace(details)
+            ? ""
+            : $@"<p style=""font-size:13px;color:#555;margin-top:16px"">Детайли:</p>
+  <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>";
+
         var html =
 $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;line-height:1.6;max-width:600px"">
+  {partnerRow}
   <p style=""font-size:15px""><strong>Ново {kind} от сайта</strong></p>
   <p style=""margin:2px 0""><strong>Име:</strong> {(string.IsNullOrEmpty(safeName) ? "—" : safeName)}</p>
   <p style=""margin:2px 0""><strong>Имейл:</strong> <a href=""mailto:{safeEmail}"">{safeEmail}</a></p>
   {phoneRow}
   {modelRow}
   {representativeRows}
-  <p style=""font-size:13px;color:#555;margin-top:16px"">Детайли:</p>
-  <div style=""font-size:13px;color:#333;background:#f6f7f9;border-radius:8px;padding:12px 14px;white-space:pre-wrap;word-break:break-word"">{detailsHtml}</div>
+  {detailsBlock}
   <hr style=""border:none;border-top:1px solid #eee;margin:20px 0"" />
   <p style=""font-size:12px;color:#888"">Отговорете на този имейл, за да пишете директно на клиента.</p>
 </div>";

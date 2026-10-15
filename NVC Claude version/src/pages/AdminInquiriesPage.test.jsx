@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import AdminInquiriesPage from './AdminInquiriesPage.jsx'
+import AdminInquiriesPage, { isPartnerInquiry } from './AdminInquiriesPage.jsx'
 
 // The inquiry queue is the section sales works from every day, so these cover the things
 // that would cost a call: that the outstanding queue is what loads first, that ticking a
@@ -274,5 +274,107 @@ describe('AdminInquiriesPage', () => {
 
     await waitFor(() =>
       expect(calls.some((c) => c.url.includes('/api/admin/leads?reached=archived'))).toBe(true))
+  })
+
+  // --- Partner enquiries (2026-10-15) ---------------------------------------------------
+  // The partner page's form posts an ordinary offer; the server writes one Bulgarian line in
+  // front of the visitor's words, below any model and representative lines. That line is
+  // what marks the row, so these feed the page messages shaped exactly as the server stores.
+
+  const PARTNER_LINE = 'Партньорско запитване · Препродавач · Гърция, Солун · Контейнери, Бокс 58 · 6–10 бр.'
+
+  const partnerOffer = {
+    ...openOffer, id: 2, name: 'Nikos Dimitriou', email: 'nikos@example.gr', locale: 'el',
+    message: `${PARTNER_LINE}\n\nWe have a shop near Thessaloniki.`,
+  }
+
+  const repPartnerOffer = {
+    ...openOffer, id: 3, name: 'Georgi Rep', email: 'georgi@example.bg',
+    message: `Модел от сайта: Космическа къща\n\nПредставител: dtodorov\n\n${PARTNER_LINE}\n\nЗдравейте`,
+  }
+
+  // Typed by a customer into the ordinary form: below the visitor's words, it is not ours.
+  const lookalike = {
+    ...openOffer, id: 4, name: 'Copy Cat', email: 'cat@example.com',
+    message: `Здравейте\n\n${PARTNER_LINE}`,
+  }
+
+  it('badges an inquiry from the partner page, below a model and representative line too', async () => {
+    mockApi({ items: [openOffer, partnerOffer, repPartnerOffer, lookalike] })
+    render(<AdminInquiriesPage />)
+
+    await waitFor(() => expect(screen.getByText('Nikos Dimitriou')).toBeInTheDocument())
+
+    const badgeIn = (name) => screen.getByText(name).closest('li').querySelector('.adm-badge-partner')
+    expect(badgeIn('Nikos Dimitriou')).toHaveTextContent('Партньор')
+    expect(badgeIn('Georgi Rep')).toHaveTextContent('Партньор')
+    expect(badgeIn('Иван Петров')).toBeNull()
+    expect(badgeIn('Copy Cat')).toBeNull()
+  })
+
+  it('narrows the list to partner inquiries, counting them on the label', async () => {
+    mockApi({ items: [openOffer, partnerOffer, openQuestion] })
+    const user = userEvent.setup()
+    render(<AdminInquiriesPage />)
+
+    const box = await screen.findByRole('checkbox', { name: /Само партньори/ })
+    // Off by default, with the count beside it.
+    expect(box).not.toBeChecked()
+    await waitFor(() => expect(screen.getByText('Иван Петров')).toBeInTheDocument())
+    expect(box.closest('label')).toHaveTextContent('Само партньори1')
+
+    await user.click(box)
+    await waitFor(() => expect(screen.queryByText('Иван Петров')).not.toBeInTheDocument())
+    expect(screen.queryByText('Maria S')).not.toBeInTheDocument()
+    expect(screen.getByText('Nikos Dimitriou')).toBeInTheDocument()
+  })
+
+  it('says there are none rather than showing an empty queue message', async () => {
+    mockApi({ items: [openOffer] })
+    const user = userEvent.setup()
+    render(<AdminInquiriesPage />)
+
+    await user.click(await screen.findByRole('checkbox', { name: /Само партньори/ }))
+
+    expect(await screen.findByText('Тук няма партньорски запитвания.')).toBeInTheDocument()
+  })
+
+  it('says every partner already has a lead when both filters leave nothing', async () => {
+    mockApi({ items: [openOffer, { ...partnerOffer, leadCreated: true, dealId: 77 }] })
+    const user = userEvent.setup()
+    render(<AdminInquiriesPage />)
+
+    await user.click(await screen.findByRole('checkbox', { name: /Само партньори/ }))
+    await user.click(screen.getByRole('checkbox', { name: /Скрий тези с лийд/ }))
+
+    expect(await screen.findByText('Всяко запитване тук вече има лийд.')).toBeInTheDocument()
+    expect(screen.queryByText('Тук няма партньорски запитвания.')).not.toBeInTheDocument()
+  })
+
+  it('reads the line only where the server writes it', () => {
+    expect(isPartnerInquiry(partnerOffer.message)).toBe(true)
+    expect(isPartnerInquiry(repPartnerOffer.message)).toBe(true)
+    expect(isPartnerInquiry(lookalike.message)).toBe(false)
+    expect(isPartnerInquiry('Партньорско запитване')).toBe(false)
+    // The server's role labels only, as PartnerEnquiry.RoleIn reads them.
+    expect(isPartnerInquiry('Партньорско запитване · За свой обект · България · 2–5 бр.')).toBe(true)
+    expect(isPartnerInquiry('Партньорско запитване · Шефът · България · 2–5 бр.')).toBe(false)
+    expect(isPartnerInquiry('')).toBe(false)
+    expect(isPartnerInquiry(null)).toBe(false)
+  })
+
+  it('shows the English labels when the panel is in English', async () => {
+    window.localStorage.setItem('nvc_admin_lang_v1', 'en')
+    try {
+      mockApi({ items: [partnerOffer] })
+      render(<AdminInquiriesPage />)
+
+      expect(await screen.findByRole('checkbox', { name: /Partners only/ })).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByText('Nikos Dimitriou')).toBeInTheDocument())
+      expect(screen.getByText('Nikos Dimitriou').closest('li').querySelector('.adm-badge-partner'))
+        .toHaveTextContent('Partner')
+    } finally {
+      window.localStorage.removeItem('nvc_admin_lang_v1')
+    }
   })
 })

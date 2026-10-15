@@ -137,6 +137,8 @@ export default {
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
     galleryLink: 'Снимки на готовите модели в галерията →',
+    // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
+    partnerLink: 'Повече от един брой или за препродажба? →',
   },
 
   // The two priced lines, for a visitor who wants a figure today. The names are the other

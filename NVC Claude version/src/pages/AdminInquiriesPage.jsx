@@ -30,6 +30,10 @@ const TEXT = {
     writeHint: 'Създава лийд и отваря разговора — отговорът се изпраща оттам.',
     onlyNoLead: 'Скрий тези с лийд',
     noLeadNone: 'Всяко запитване тук вече има лийд.',
+    partner: 'Партньор',
+    partnerHint: 'От страницата за партньори',
+    onlyPartners: 'Само партньори',
+    partnersNone: 'Тук няма партньорски запитвания.',
     openLead: 'Отвори лийда',
     creating: 'Създавам…',
     archive: 'Архивирай',
@@ -68,6 +72,10 @@ const TEXT = {
     writeHint: 'Creates the lead and opens the conversation — the reply is sent from there.',
     onlyNoLead: 'Hide ones with a lead',
     noLeadNone: 'Every inquiry here already has a lead.',
+    partner: 'Partner',
+    partnerHint: 'From the partner page',
+    onlyPartners: 'Partners only',
+    partnersNone: 'No partner inquiries here.',
     openLead: 'Open lead',
     creating: 'Creating…',
     archive: 'Archive',
@@ -106,6 +114,28 @@ const TABS = [
   // daily — and separate from the three above, which all show the working queue.
   { key: 'archived', reached: 'archived' },
 ]
+
+// Whether an inquiry came from the partner page's form. The server writes one line for it —
+// "Партньорско запитване · Препродавач · …" — below the model and representative lines and
+// above the visitor's own words (PartnerEnquiry in the API), so that is the only place it is
+// looked for: a customer who types the words into the ordinary form does not become a partner.
+// As on the server (PartnerEnquiry.RoleIn), the next segment must be one of its role labels,
+// so the badge and the Source a promotion stamps agree about the same enquiry.
+const PARTNER_LINE = 'Партньорско запитване · '
+const ROLE_LABELS = ['Препродавач', 'За свой обект', 'Друго']
+const SERVER_LINES = ['Модел от сайта: ', 'Представител: ']
+
+export function isPartnerInquiry(message) {
+  if (!message) return false
+  for (const paragraph of String(message).split('\n\n').slice(0, 3)) {
+    if (paragraph.startsWith(PARTNER_LINE)) {
+      const role = paragraph.slice(PARTNER_LINE.length).split(' · ')[0]
+      return ROLE_LABELS.includes(role)
+    }
+    if (!SERVER_LINES.some((prefix) => paragraph.startsWith(prefix))) return false
+  }
+  return false
+}
 
 // How old an inquiry is, in the words someone would actually use. The outstanding queue
 // lives or dies on this being obvious at a glance.
@@ -165,6 +195,9 @@ export default function AdminInquiriesPage() {
   // and the count on the label already answers "how many still need doing?" without
   // anyone having to click anything.
   const [onlyNoLead, setOnlyNoLead] = React.useState(false)
+  // Off by default for the same reason. Partner inquiries are few and the owner and nlekov
+  // handle them, so this is the one-click way to see just theirs.
+  const [onlyPartners, setOnlyPartners] = React.useState(false)
   // Keyed by kind+id so the two id sequences cannot collide and disable the wrong row.
   const [busy, setBusy] = React.useState(() => new Set())
   const [actionError, setActionError] = React.useState('')
@@ -269,9 +302,18 @@ export default function AdminInquiriesPage() {
   // "Which of these still need me to do something?" — the question this page is opened
   // to answer once replying moved into the leads view.
   const needsLead = items.filter((l) => !l.dealId).length
-  const visible = onlyNoLead ? searched.filter((l) => !l.dealId) : searched
+  const partners = items.filter((l) => isPartnerInquiry(l.message)).length
+  const visible = searched
+    .filter((l) => !onlyNoLead || !l.dealId)
+    .filter((l) => !onlyPartners || isPartnerInquiry(l.message))
 
-  const emptyText = onlyNoLead && !needle
+  // Both boxes ticked and partners on the tab: they all have a lead, which is the
+  // no-lead box's answer, not "no partners here".
+  const emptyText = onlyPartners && onlyNoLead && !needle && partners > 0
+    ? t.noLeadNone
+    : onlyPartners && !needle
+    ? t.partnersNone
+    : onlyNoLead && !needle
     ? t.noLeadNone
     : needle
     ? t.emptySearch
@@ -330,6 +372,15 @@ export default function AdminInquiriesPage() {
           <span>{t.onlyNoLead}</span>
           {needsLead > 0 ? <span className="adm-count">{needsLead}</span> : null}
         </label>
+        <label className="adm-check adm-filter-check">
+          <input
+            type="checkbox"
+            checked={onlyPartners}
+            onChange={(e) => setOnlyPartners(e.target.checked)}
+          />
+          <span>{t.onlyPartners}</span>
+          {partners > 0 ? <span className="adm-count">{partners}</span> : null}
+        </label>
         <span className="adm-muted adm-small">{visible.length} {t.count}</span>
       </div>
 
@@ -363,6 +414,9 @@ export default function AdminInquiriesPage() {
                     <span className={`adm-badge adm-badge-${l.kind}`}>
                       {l.kind === 'offer' ? t.offer : t.question}
                     </span>
+                    {isPartnerInquiry(l.message) ? (
+                      <span className="adm-badge adm-badge-partner" title={t.partnerHint}>{t.partner}</span>
+                    ) : null}
                     {l.locale ? <span className="adm-muted adm-small">{l.locale.toUpperCase()}</span> : null}
                   </div>
                   <div className="adm-lead-when adm-small">

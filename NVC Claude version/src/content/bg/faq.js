@@ -1,8 +1,11 @@
 // src/content/bg/faq.js
 import { euro } from '../../lib/euro.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../shared/deliveryRates.js'
+import { WARRANTY_YEARS as W } from '../shared/warranty.js'
 
 // The crane and lead-time answers quote the owner's figures (2026-10-15) from deliveryRates.js.
+// The warranty answer is his too (2026-10-15), for containers and Box houses only, its years
+// from warranty.js.
 const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
 const crane = (product) => euro(product.crane.about, 'bg')
 
@@ -32,6 +35,10 @@ export default {
         {
           q: 'Мога ли да променям финалите?',
           a: 'Да, предлагаме пакети и индивидуални решения.',
+        },
+        {
+          q: 'Каква гаранция имат контейнерите и Бокс къщите?',
+          a: `За контейнерите и Бокс къщите: носещата стоманена конструкция — ${W.structure}\u00a0години; термопанелите — ${W.panels}\u00a0години; дограмата (профили и стъклопакети) — ${W.joinery}\u00a0години; санитарните уреди и ВиК арматурата — ${W.sanitary}\u00a0години. Останалите елементи се проверяват визуално при предаването. Гаранцията покрива фабрични дефекти и тече от датата на предаване — при нормална употреба, подходяща основа, добро отводняване и без неразрешена намеса от трети лица. Не покрива механични повреди, неправилен транспорт или разтоварване, които не са извършени от нас, неподходяща основа, липса на вентилация, лошо отводняване, течове от външни връзки, конденз, по-късни ремонти или промени от купувача или от трети лица, както и форсмажорни обстоятелства.`,
         },
       ],
     },

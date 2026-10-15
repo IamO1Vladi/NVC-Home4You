@@ -1,8 +1,11 @@
 // src/content/el/faq.js
 import { euro } from '../../lib/euro.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../shared/deliveryRates.js'
+import { WARRANTY_YEARS as W } from '../shared/warranty.js'
 
 // The crane and lead-time answers quote the owner's figures (2026-10-15) from deliveryRates.js.
+// The warranty answer is his too (2026-10-15), for containers and Box houses only, its years
+// from warranty.js.
 const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
 const crane = (product) => euro(product.crane.about, 'el')
 
@@ -32,6 +35,10 @@ export default {
         {
           q: 'Μπορώ να προσαρμόσω τα φινιρίσματα;',
           a: 'Ναι, προσφέρουμε επιμελημένα πακέτα φινιρίσματος και εξατομικευμένες επιλογές κατόπιν αιτήματος.',
+        },
+        {
+          q: 'Τι εγγύηση έχουν τα κοντέινερ και τα σπίτια Box;',
+          a: `Για τα κοντέινερ και τα σπίτια Box: ο φέρων χαλύβδινος σκελετός ${W.structure}\u00a0χρόνια· τα θερμομονωτικά πάνελ ${W.panels}\u00a0χρόνια· τα κουφώματα (προφίλ και υαλοπίνακες) ${W.joinery}\u00a0χρόνια· τα είδη υγιεινής και τα υδραυλικά εξαρτήματα ${W.sanitary}\u00a0χρόνια. Όλα τα υπόλοιπα ελέγχονται οπτικά κατά την παράδοση. Η εγγύηση καλύπτει εργοστασιακά ελαττώματα και ισχύει από την ημερομηνία παράδοσης, με κανονική χρήση, κατάλληλη θεμελίωση, σωστή αποστράγγιση και χωρίς μη εξουσιοδοτημένες επεμβάσεις τρίτων. Δεν καλύπτει μηχανικές ζημιές, λανθασμένη μεταφορά ή εκφόρτωση που δεν έγινε από εμάς, ακατάλληλη θεμελίωση, έλλειψη αερισμού, κακή αποστράγγιση, διαρροές από εξωτερικές συνδέσεις, συμπύκνωση υγρασίας, μεταγενέστερες επισκευές ή αλλαγές από τον αγοραστή ή από τρίτους, ούτε ανωτέρα βία.`,
         },
       ],
     },

@@ -13,7 +13,7 @@ export default {
       cases: 'Казуси',
       faq: 'Въпроси',
       about: 'За нас',
-      partner: 'Партньор',
+      partner: 'Партньори',
       planner: 'Планер',
       quote: 'Заяви оферта',
       boxConfigurator: "Конфигуратор",

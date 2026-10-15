@@ -89,7 +89,9 @@ public class LeadService
             HouseId = await ResolveHouseIdAsync(offer, ct),
             Status = LeadStatuses.New,
             OwnerUpn = actorUpn,
-            Source = source,
+            // A partner page enquiry says so in its stored message, and that is the only place
+            // it can: the panel's promote button sends no source. See PartnerEnquiry.SourceFor.
+            Source = PartnerEnquiry.SourceFor(offer.Message, source),
             // Born at the moment the customer asked, not the moment someone got round to
             // promoting it. Otherwise every lead looks brand new on the day sales opened it
             // and "how long did we sit on this?" becomes unanswerable.

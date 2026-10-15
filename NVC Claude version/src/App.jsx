@@ -47,8 +47,8 @@ const BgInteriorsRoute= lazy(()=> import('./routes/bg/BgInteriorsRoute.jsx'))
 const EnInternalDoorsRoute= lazy(()=> import('./routes/en/EnInternalDoorsRoute.jsx'))
 const BgInternalDoorsRoute= lazy(()=> import('./routes/bg/BgInternalDoorsRoute.jsx'))
 
-const EnParthnerRoute= lazy(()=> import('./routes/en/EnPartnerRoute.jsx'))
-const BgParthnerRoute= lazy(()=> import('./routes/bg/BgPartnerRoute.jsx'))
+const EnPartnerRoute= lazy(()=> import('./routes/en/EnPartnerRoute.jsx'))
+const BgPartnerRoute= lazy(()=> import('./routes/bg/BgPartnerRoute.jsx'))
 
 const EnPlannerRoute = lazy(()=> import('./routes/en/EnFloorPlannerRoute.jsx'))
 const BgPlannerRoute = lazy(()=> import('./routes/bg/BgFloorPlannerRoute.jsx'))
@@ -410,8 +410,8 @@ function AppShell() {
               <Route path={paths.interiors.bg} element={<BgInteriorsRoute />} />
               <Route path={paths.delivery.en} element={<EnDeliveryRoute />} />
               <Route path={paths.delivery.bg} element={<BgDeliveryRoute />} />
-              <Route path={paths.partner.en} element={<EnParthnerRoute />} />
-              <Route path={paths.partner.bg} element={<BgParthnerRoute />} />
+              <Route path={paths.partner.en} element={<EnPartnerRoute />} />
+              <Route path={paths.partner.bg} element={<BgPartnerRoute />} />
               <Route path={paths.planner.en} element={<EnPlannerRoute />} />
               <Route path={paths.planner.bg} element={<BgPlannerRoute />} />
               <Route path={paths.doors.en} element={<EnInternalDoorsRoute />} />

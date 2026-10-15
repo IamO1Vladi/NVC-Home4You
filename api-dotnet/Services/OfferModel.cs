@@ -218,6 +218,10 @@ public static class RepresentativeLine
 {
     private const string LinePrefix = "Представител: ";
 
+    /// <summary>Whether one paragraph of a stored enquiry is this line.</summary>
+    public static bool IsLine(string? paragraph) =>
+        paragraph is not null && paragraph.StartsWith(LinePrefix, StringComparison.Ordinal);
+
     /// <summary>
     /// The customer's text with the representative line in front of it, blank line between,
     /// mirroring OfferModel.WithModelLine. Null slug leaves the text untouched.

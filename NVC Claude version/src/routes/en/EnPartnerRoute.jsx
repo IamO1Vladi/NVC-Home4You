@@ -1,29 +1,42 @@
+// src/routes/en/EnPartnerRoute.jsx
 import React from 'react'
 import SEO from '../../components/SEO.jsx'
-import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
+import { BreadcrumbsJSONLD, ServiceJSONLD } from '../../components/StructuredData.jsx'
 import PartnerPage from '../../pages/PartnerPage.jsx'
 import content from '../../content/en/partner.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical, hreflangs (all three languages) and the share picture come
+// from routeMeta.js, as on the delivery and product routes; the content file has no seo block.
+// The FAQ markup is the page's own (PartnerPage renders it from the questions it shows).
+//
+// No Offer markup and no price: partners get an offer for their quantity. The page is a
+// Service of the site's Organization, as the delivery page is.
 export default function EnPartnerRoute() {
-  const pageUrl = content.seo.url
-  const alternateBg = 'https://nvc-home4you.eu/bg/stani-partnjor'
+  const seo = getRouteSeo(paths.partner.en, 'en')
 
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={pageUrl}
-        canonical={pageUrl}
-        locale="en"
-        hreflangs={[
-          { hrefLang: 'en', href: pageUrl },
-          { hrefLang: 'bg', href: alternateBg },
-          { hrefLang: 'x-default', href: pageUrl },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: content.home, url: 'https://nvc-home4you.eu/en' },
+          { name: content.breadcrumb, url: seo.url },
         ]}
       />
-      <BreadcrumbsJSONLD items={content.breadcrumbs} />
-      <PartnerPage content={content} />
+
+      <ServiceJSONLD
+        name={content.service.name}
+        serviceType={content.service.serviceType}
+        description={seo.description}
+        url={seo.url}
+        image={seo.image}
+        areaServed={['BG', 'GR']}
+      />
+
+      <PartnerPage locale="en" content={content} />
     </>
   )
 }

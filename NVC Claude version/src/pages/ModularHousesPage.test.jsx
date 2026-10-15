@@ -13,6 +13,7 @@ import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
+import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
 
 // The modular houses page, built on the gallery rows.
@@ -255,6 +256,37 @@ describe('ModularHousesPage', () => {
     }
   })
 
+  it.each(['bg', 'en', 'el'])('states the Box houses\' warranty after their arrival, every year read from warranty.js (%s)', async (locale) => {
+    // Changed in the module for this one render: a year typed into the content could not follow.
+    const c = CONTENT[locale]
+    const saved = { ...WARRANTY_YEARS }
+    Object.assign(WARRANTY_YEARS, { structure: 17, panels: 9, joinery: 8, sanitary: 5 })
+    try {
+      const { container } = renderPage(locale)
+      await ready(container)
+      const block = container.querySelector('#warranty')
+      expect(block.previousElementSibling.getAttribute('aria-labelledby')).toBe('mh-arrival-title')
+      expect(block.querySelector('h2#warranty-title').textContent).toBe(c.warranty.heading)
+      // It names the Box houses: the capsule on the same page is not covered by these terms.
+      expect(block.querySelector('.hp-sub').textContent).toBe(c.warranty.lead)
+      const rows = [...block.querySelectorAll('dl.pp-terms > div')]
+      expect(rows.map((row) => row.dataset.warranty)).toEqual(['structure', 'panels', 'joinery', 'sanitary'])
+      rows.forEach((row, i) => {
+        expect(row.querySelector('dt').textContent).toBe(c.warranty.rows[i].label)
+        expect(row.querySelector('dd').textContent).toBe(c.warranty.rows[i].text.replace('{years}', WARRANTY_YEARS[row.dataset.warranty]))
+      })
+      const text = block.textContent
+      // textContent runs a label into its figure ("Structure17"), so digits are delimited by
+      // what is not a digit rather than by \b.
+      for (const years of [17, 9, 8, 5]) expect(text).toMatch(new RegExp(`(?<!\\d)${years}(?!\\d)`))
+      expect(text).not.toMatch(/(?<!\d)(15|6|2)(?!\d)|\{\w+\}/)
+      expect(text).toContain(c.warranty.conditions)
+      expect(text).toContain(c.warranty.excluded)
+    } finally {
+      Object.assign(WARRANTY_YEARS, saved)
+    }
+  })
+
   it.each(['bg', 'en', 'el'])('says nothing about 78 m², leva or BGN (%s)', async (locale) => {
     const { container } = renderPage(locale)
     await ready(container)
@@ -268,7 +300,8 @@ describe('ModularHousesPage', () => {
 
   it.each(['bg', 'en', 'el'])('types no price into the content file (%s)', (locale) => {
     const hits = strings(CONTENT[locale])
-      .filter(([, s]) => /€|EUR|BGN|лв|\d[\d\s.,]{2,}\s?(€|евро|euro|ευρώ)/i.test(s))
+      // EUR as a word: "force majeure" has the letters in it.
+      .filter(([, s]) => /€|\bEUR\b|BGN|лв|\d[\d\s.,]{2,}\s?(€|евро|euro|ευρώ)/i.test(s))
       .map(([at, s]) => `${at}: ${s}`)
     expect(hits).toEqual([])
     // And no figure the gallery owns appears as text: the live prices of every house.

@@ -1,28 +1,42 @@
+// src/routes/bg/BgPartnerRoute.jsx
 import React from 'react'
 import SEO from '../../components/SEO.jsx'
-import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
+import { BreadcrumbsJSONLD, ServiceJSONLD } from '../../components/StructuredData.jsx'
 import PartnerPage from '../../pages/PartnerPage.jsx'
 import content from '../../content/bg/partner.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical, hreflangs (all three languages) and the share picture come
+// from routeMeta.js, as on the delivery and product routes; the content file has no seo block.
+// The FAQ markup is the page's own (PartnerPage renders it from the questions it shows).
+//
+// No Offer markup and no price: partners get an offer for their quantity. The page is a
+// Service of the site's Organization, as the delivery page is.
 export default function BgPartnerRoute() {
-  const pageUrl = content.seo.url
-  const alternateEn = 'https://nvc-home4you.eu/en/partner'
+  const seo = getRouteSeo(paths.partner.bg, 'bg')
 
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={pageUrl}
-        canonical={pageUrl}
-        hreflangs={[
-          { hrefLang: 'bg', href: pageUrl },
-          { hrefLang: 'en', href: alternateEn },
-          { hrefLang: 'x-default', href: alternateEn },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: content.home, url: 'https://nvc-home4you.eu/bg' },
+          { name: content.breadcrumb, url: seo.url },
         ]}
       />
-      <BreadcrumbsJSONLD items={content.breadcrumbs} />
-      <PartnerPage content={content} />
+
+      <ServiceJSONLD
+        name={content.service.name}
+        serviceType={content.service.serviceType}
+        description={seo.description}
+        url={seo.url}
+        image={seo.image}
+        areaServed={['BG', 'GR']}
+      />
+
+      <PartnerPage locale="bg" content={content} />
     </>
   )
 }

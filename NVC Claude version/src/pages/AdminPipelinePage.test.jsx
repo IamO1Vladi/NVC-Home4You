@@ -3,7 +3,7 @@ import { render as rtlRender, screen, waitFor, within, fireEvent } from '@testin
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import AdminPipelinePage from './AdminPipelinePage.jsx'
+import AdminPipelinePage, { isPartnerSource } from './AdminPipelinePage.jsx'
 import SubmitStatus from '../components/SubmitStatus.jsx'
 import { MAX_ATTEMPTS, _resetSubmissions, _setRetryDelays } from '../lib/backgroundSubmit.js'
 
@@ -1050,6 +1050,79 @@ describe('AdminPipelinePage', () => {
 
     expect(within(list()).getByText('Мария Димитрова')).toBeInTheDocument()
     expect(findByName()).toHaveValue('')
+  })
+
+  // --- Partner leads (2026-10-15) ---------------------------------------------------------
+  //
+  // The server stamps Source when a partner page enquiry is promoted: "Партньорска страница ·
+  // <role>", or a representative's own stamp with " · партньор" after it. The card shows any
+  // source as a chip, and "Само партньори" keeps just those two shapes.
+
+  const SOURCED_BOARD = [
+    { ...BOARD[0], id: 1, name: 'Nikos Reseller', source: 'Партньорска страница · Препродавач' },
+    { ...BOARD[1], id: 2, name: 'Rep Partner', source: 'Представител: dtodorov · партньор' },
+    { ...BOARD[1], id: 3, name: 'Rep Retail', source: 'Представител: dtodorov' },
+    { ...BOARD[1], id: 4, name: 'Walk In', source: '' },
+  ]
+
+  const card = (name) => within(list()).getByText(name).closest('button')
+
+  it('shows where a lead came from as a chip, tinted for the partner page', async () => {
+    boardRows = SOURCED_BOARD
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Walk In')).toBeInTheDocument())
+
+    const chip = within(card('Nikos Reseller')).getByText('Партньорска страница · Препродавач')
+    expect(chip).toHaveClass('adm-source', 'adm-badge-partner')
+    expect(within(card('Rep Partner')).getByText('Представител: dtodorov · партньор')).toHaveClass('adm-badge-partner')
+    const retail = within(card('Rep Retail')).getByText('Представител: dtodorov')
+    expect(retail).toHaveClass('adm-source')
+    expect(retail).not.toHaveClass('adm-badge-partner')
+    // No source, no empty chip.
+    expect(card('Walk In').querySelector('.adm-source')).toBeNull()
+  })
+
+  it('narrows the board to partner leads in the browser, and clearing the filters undoes it', async () => {
+    boardRows = SOURCED_BOARD
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Walk In')).toBeInTheDocument())
+
+    const before = calls.length
+    const box = screen.getByRole('checkbox', { name: /Само партньори|Partners only/ })
+    expect(box).not.toBeChecked()
+    await user.click(box)
+
+    expect(within(list()).getByText('Nikos Reseller')).toBeInTheDocument()
+    expect(within(list()).getByText('Rep Partner')).toBeInTheDocument()
+    expect(within(list()).queryByText('Rep Retail')).not.toBeInTheDocument()
+    expect(within(list()).queryByText('Walk In')).not.toBeInTheDocument()
+    expect(calls.length).toBe(before)
+
+    // Combined with another filter until nothing is left, the way back clears this one too.
+    await user.selectOptions(screen.getByRole('combobox', { name: /Статус|^Status$/ }), 'lost')
+    await user.click(within(list()).getByRole('button', { name: /Изчисти филтрите|Clear filters/ }))
+    expect(box).not.toBeChecked()
+    expect(within(list()).getByText('Walk In')).toBeInTheDocument()
+  })
+
+  it('a board with no partner leads says the filters hid everything', async () => {
+    const user = userEvent.setup()
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(within(list()).getByText('Maria Dimitrova')).toBeInTheDocument())
+
+    await user.click(screen.getByRole('checkbox', { name: /Само партньори|Partners only/ }))
+
+    expect(within(list()).getByText(/Няма лийдове, отговарящи|No leads match/)).toBeInTheDocument()
+  })
+
+  it('reads only the two shapes the server writes as a partner source', () => {
+    expect(isPartnerSource('Партньорска страница · За свой обект')).toBe(true)
+    expect(isPartnerSource('Представител: dtodorov · партньор')).toBe(true)
+    expect(isPartnerSource('Представител: dtodorov')).toBe(false)
+    expect(isPartnerSource('Facebook — питаше за партньорство')).toBe(false)
+    expect(isPartnerSource('')).toBe(false)
+    expect(isPartnerSource(null)).toBe(false)
   })
 
   // --- The merged "what they want" box ------------------------------------------------

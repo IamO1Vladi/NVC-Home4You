@@ -102,6 +102,8 @@ export default {
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
     galleryLink: 'Φωτογραφίες των έτοιμων μοντέλων στη γκαλερί →',
+    // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
+    partnerLink: 'Περισσότερα από ένα τεμάχιο ή για μεταπώληση; →',
   },
 
   ready: {

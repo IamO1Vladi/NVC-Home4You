@@ -38,6 +38,15 @@ public class OfferController : ControllerBase
         if (LeadResponse.HoneypotTripped(dto.Website))
             return LeadResponse.Decoy(this, _logger, "offer", dto.Email);
 
+        // The partner page's block (2026-10-15): every choice from a fixed list, and a phone
+        // with it. Refused with the fields named rather than stored half-understood — the
+        // only sender is our own form, so a refusal here is a form out of step with this
+        // list, and the 400 is what makes that visible. After the honeypot, so a bot still
+        // gets its decoy whatever else it filled in. See PartnerEnquiry.Validate.
+        var partnerErrors = PartnerEnquiry.Validate(dto);
+        if (partnerErrors.Count > 0)
+            return BadRequest(new ValidationProblemDetails(partnerErrors));
+
         // The slug the browser remembered from a /r/{slug} link is untrusted; only the
         // registry's own spelling, or nothing, goes any further (#38).
         var rep = _env.FindRepresentativeBySlug(dto.Rep);
@@ -69,7 +78,8 @@ public class OfferController : ControllerBase
         // link that a stranger typed into the form. The representative goes the same way.
         var autoresponder = _email.TrySendLeadAutoresponderAsync(dto.Email, dto.Name, isOffer: true, dto.Project, dto.Locale, ct);
         var notification = _email.TrySendLeadNotificationAsync(
-            isOffer: true, dto.Name, dto.Email, dto.Phone, dto.Project, ct, model: OfferModel.From(dto), intake: intake);
+            isOffer: true, dto.Name, dto.Email, dto.Phone, dto.Project, ct, model: OfferModel.From(dto), intake: intake,
+            partnerLine: PartnerEnquiry.Line(dto.Partner));
         await Task.WhenAll(autoresponder, notification);
 
         return LeadResponse.For(this, _logger, "offer", dto.Email, write, salesNotified: await notification);

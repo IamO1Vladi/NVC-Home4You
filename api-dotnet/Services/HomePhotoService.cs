@@ -29,14 +29,14 @@ public sealed class HomePhotoService
     private readonly ILogger<HomePhotoService> _log;
     private readonly IGalleryStore? _gallery;
 
-    // The public read is one twelve-row query, but the home page is the busiest page on the
+    // The public read is one thirteen-row query, but the home page is the busiest page on the
     // site and the prerenderer hits it once per locale for the home page and again for each
     // product page, so it is cached like the gallery is. Every write path below evicts by
     // this name. The version moves whenever the body's shape does (v2 added "pages", v3
-    // added "from", both 2026-10-12; v4 added pages.delivery, 2026-10-15): the cache is in-process today and dies with a publish
-    // anyway, but a key that names its shape is what keeps an entry of the old shape from
+    // added "from", both 2026-10-12; v4 added pages.delivery and v5 pages.partner, both
+    // 2026-10-15): the cache is in-process today and dies with a publish anyway, but a key that names its shape is what keeps an entry of the old shape from
     // ever being read back as the new one.
-    public const string CacheKey = "home:photos:v4";
+    public const string CacheKey = "home:photos:v5";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     // When the table cannot be read, the empty answer is kept for a minute, not ten: long
@@ -386,7 +386,7 @@ public sealed record HomePhotoDto(string Url, string Alt);
 
 /// <summary>
 /// The body of GET /api/home/photos. Models always carries all three model keys and Pages
-/// all four page keys (modularBuilds, modularHouses, steelHouses, delivery), null when empty, so the
+/// all five page keys (modularBuilds, modularHouses, steelHouses, delivery, partner), null when empty, so the
 /// SPA never has to tell "no photo" from "an older API that did not know the key". From is
 /// always there too, with null figures when they are unknown.
 /// </summary>

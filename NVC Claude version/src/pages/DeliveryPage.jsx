@@ -248,7 +248,11 @@ export default function DeliveryPage({ locale = 'bg', content }) {
               {c.included.foundation}
               {callHref ? <> <a href={callHref}>{c.included.call}</a></> : null}
             </p>
-            <p>{c.included.several}</p>
+            <p>
+              {c.included.several}
+              {/* Several units are the partner page's: its enquiry form asks for the quantity. */}
+              {c.included.partnerLink ? <> <Link to={`${paths.partner[locale] || paths.partner.en}#zapitvane`}>{c.included.partnerLink}</Link></> : null}
+            </p>
           </div>
         </div>
       </section>

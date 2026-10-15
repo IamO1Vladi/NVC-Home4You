@@ -56,6 +56,8 @@ export default {
     loadError: 'We could not load the prices.',
     pricesLink: 'Full price table →',
     galleryLink: 'Photos of every container →',
+    // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
+    partnerLink: 'More than one, or for resale? →',
   },
 
   specs: {
@@ -92,6 +94,20 @@ export default {
     deliveryLink: 'Work out delivery to you →',
     ask: 'Ask a Question',
     call: 'Call us',
+  },
+
+  // The warranty as the owner gave it on 2026-10-15 for containers and Box houses. {years} is
+  // the row's figure from shared/warranty.js, by its key.
+  warranty: {
+    heading: 'Warranty',
+    rows: [
+      { key: 'structure', label: 'Structure', text: '{years}\u00a0years: the load-bearing steel frame' },
+      { key: 'panels', label: 'Panels', text: '{years}\u00a0years: the thermal (sandwich) panels' },
+      { key: 'joinery', label: 'Windows and doors', text: '{years}\u00a0years: the profiles and the glazing' },
+      { key: 'sanitary', label: 'Sanitary ware', text: '{years}\u00a0years: the sanitary ware and plumbing fittings in the bathroom' },
+    ],
+    conditions: 'The warranty covers factory defects and runs from the day of handover, with normal use, a suitable foundation, proper drainage and no unauthorised work by third parties. Everything else is checked visually at handover against the factory standard.',
+    excluded: 'The warranty does not cover mechanical damage, improper transport or unloading not carried out by us, an unsuitable foundation, lack of ventilation, poor drainage, leaks from external connections, condensation, later repairs or changes by the buyer or third parties, or force majeure.',
   },
 
   reviewsHeading: 'What buyers say',

@@ -143,6 +143,8 @@ const TEXT = {
     },
     filteredEmpty: 'Няма лийдове, отговарящи на филтрите.',
     clearFilters: 'Изчисти филтрите',
+    onlyPartners: 'Само партньори',
+    sourceHint: 'Откъде е дошъл лийдът',
   },
   en: {
     title: 'Leads',
@@ -246,6 +248,8 @@ const TEXT = {
     },
     filteredEmpty: 'No leads match the filters.',
     clearFilters: 'Clear filters',
+    onlyPartners: 'Partners only',
+    sourceHint: 'Where the lead came from',
   },
 }
 
@@ -265,6 +269,16 @@ const nameMatches = (name, query, mode) => {
   if (needle === '') return true
   const hay = foldName(name)
   return mode === 'equals' ? hay === needle : hay.includes(needle)
+}
+
+// A lead the partner page brought in. The server stamps its Source when the enquiry is
+// promoted (PartnerEnquiry.SourceFor in the API): "Партньорска страница · Препродавач", or a
+// representative's own stamp with " · партньор" after it, when the enquiry came through his
+// link. Those two shapes and nothing else, so a source someone typed by hand that merely
+// mentions partners is not one.
+export function isPartnerSource(source) {
+  const s = (source ?? '').trim()
+  return s.startsWith('Партньорска страница · ') || s.endsWith(' · партньор')
 }
 
 const MODIFIED_WINDOWS = {
@@ -655,6 +669,9 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
   // of the five queries behind them learning a new parameter.
   const [nameFilter, setNameFilter] = React.useState('')
   const [nameMode, setNameMode] = React.useState('contains')
+  // Just the partner page's leads, on every tab. Client-side like the filters above: it reads
+  // the source every card already carries.
+  const [onlyPartners, setOnlyPartners] = React.useState(false)
   // Narrowing За връзка or Активни to one person's leads. Unlike the filters above this
   // one asks the server, because the two kinds are not equivalent: both queries take a
   // thousand rows and stop, so narrowing in the browser would search one owner's leads
@@ -767,12 +784,13 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
     (!statusFilter || row.status === statusFilter)
     && (!modifiedFilter || MODIFIED_WINDOWS[modifiedFilter]?.(daysSince(row.lastActivityAt)))
     && nameMatches(row.name, nameFilter, nameMode)
-  ), [board, statusFilter, modifiedFilter, nameFilter, nameMode])
+    && (!onlyPartners || isPartnerSource(row.source))
+  ), [board, statusFilter, modifiedFilter, nameFilter, nameMode, onlyPartners])
 
   // The two kinds of narrowing are counted separately because the empty list cannot be read
   // the same way for both. These two hide rows the browser is still holding, so "the filters
   // hid everything" is provable — board still has the rows.
-  const narrowedHere = statusFilter !== '' || modifiedFilter !== '' || nameFilter.trim() !== ''
+  const narrowedHere = statusFilter !== '' || modifiedFilter !== '' || nameFilter.trim() !== '' || onlyPartners
   // The owner filter narrows at the SERVER, so a person with nothing overdue comes back as
   // an empty board rather than as a board filtered down to nothing. Testing board.length
   // would therefore report the whole team as up to date, which is the one sentence this
@@ -784,6 +802,7 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
   // claims to have cleared them is the same fault in a smaller place.
   const clearFilters = () => {
     setStatusFilter(''); setModifiedFilter(''); setOwnerFilter(''); setNameFilter('')
+    setOnlyPartners(false)
   }
 
   // What the model box is, for the category currently chosen: a picker over the catalogue,
@@ -1334,6 +1353,14 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
             ))}
           </select>
         </label>
+        <label className="adm-check adm-filter-check">
+          <input
+            type="checkbox"
+            checked={onlyPartners}
+            onChange={(e) => setOnlyPartners(e.target.checked)}
+          />
+          <span>{t.onlyPartners}</span>
+        </label>
         {/* The hint for the new-lead button belongs to the button: where there is none,
             a line about calls and trade fairs would be about nothing on screen. */}
         {tab === 'due' || scope.canCreate ? (
@@ -1495,6 +1522,17 @@ export default function AdminPipelinePage({ scope: scopeKey = 'admin' }) {
                   </span>
                 ) : null}
                 {row.modelLabel ? <span className="adm-muted adm-small">{row.modelLabel}</span> : null}
+                {/* Where it came from, when anything recorded that: a representative's link,
+                    the partner page. A chip rather than another grey line, so a partner's lead
+                    is told apart from a walk-in at a glance down the list. */}
+                {row.source ? (
+                  <span
+                    className={`adm-badge adm-source${isPartnerSource(row.source) ? ' adm-badge-partner' : ''}`}
+                    title={t.sourceHint}
+                  >
+                    {row.source}
+                  </span>
+                ) : null}
                 <DueLabel iso={row.nextContactAt} t={t} className="adm-small" />
                 {row.lastActivityAt ? (
                   <span className="adm-small adm-muted">{t.quiet} {quietFor(row.lastActivityAt, t)}</span>

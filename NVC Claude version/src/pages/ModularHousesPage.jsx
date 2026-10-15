@@ -7,7 +7,8 @@
 // EVERY FIGURE COMES FROM THE GALLERY ROWS (useProductRows, the same call the prices page
 // makes), never from the content file: the hero's "from", each card's house price and its
 // assembly, the comparison row, the sibling link's container price and the Product markup.
-// The delivery line's rate, crane and lead times are the owner's, from deliveryRates.js.
+// The delivery line's rate, crane and lead times are the owner's, from deliveryRates.js, and
+// so are the warranty block's years (2026-10-15), from warranty.js.
 // A Box house is quoted the way the home strip quotes it since 2026-10-12, the house with
 // VAT and without its assembly, and the assembly is printed under it (prices.js grosses it
 // up from BOX_ASSEMBLY_NET_BY_ID), or "on request" where we do not know it yet.
@@ -27,6 +28,7 @@ import ProductHero from '../components/product/ProductHero.jsx'
 import UnitCard from '../components/product/UnitCard.jsx'
 import SpecTable from '../components/product/SpecTable.jsx'
 import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import WarrantyTerms from '../components/product/WarrantyTerms.jsx'
 import Catalogues from '../components/Catalogues.jsx'
 import FinalCta from '../components/FinalCta.jsx'
 import { ProductsJSONLD } from '../components/StructuredData.jsx'
@@ -220,6 +222,7 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
           <p className="pp-links">
             <Link to={pricesPath}>{c.sizes.allPrices}</Link>
             <Link to={`${galleryPath}?cat=modular`}>{c.sizes.allPhotos}</Link>
+            {c.sizes.partnerLink ? <Link to={`${paths.partner[locale] || paths.partner.en}#zapitvane`}>{c.sizes.partnerLink}</Link> : null}
           </p>
 
           <ProductsJSONLD items={jsonLdItems} listName={c.listName} listUrl={paths.modularHouses[locale]} />
@@ -280,6 +283,11 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
           </div>
         </div>
       </section>
+
+      {/* The owner's terms of 2026-10-15, after how the house arrives: what happens once it
+          is handed over. Grey only when the proof card is not drawn: that card is a grey band
+          of its own, and two would touch. */}
+      <WarrantyTerms id="warranty" content={c.warranty} className={published ? undefined : 'pp-band'} />
 
       {published ? (
         <section className="pp-band" aria-labelledby="mh-proof-title">

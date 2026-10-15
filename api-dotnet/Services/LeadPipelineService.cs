@@ -148,6 +148,7 @@ public class LeadPipelineService
             LastActivityAt = l.LastActivityAt is null ? null : Iso(l.LastActivityAt.Value),
             ActivityCount = counts.TryGetValue(l.Id, out var n) ? n : 0,
             AwaitingReply = awaiting.Contains(l.Id),
+            Source = l.Source ?? "",
         }).ToList();
     }
 

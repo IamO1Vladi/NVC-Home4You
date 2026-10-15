@@ -251,6 +251,14 @@ public class EnvConfig
     public string LeadNotifyEmail => (_cfg["LEAD_NOTIFY_EMAIL"]
         ?? "nlekov@nvc-home4you.eu,vvladimirov@nvc-home4you.eu,tbonin@nvc-home4you.eu").Trim();
 
+    // Who gets the internal mail for a PARTNER page enquiry, INSTEAD of the list above: the
+    // owner and nlekov handle partners themselves (owner, 2026-10-15). Same format, same
+    // override rule, and the same weight — for a partner enquiry this is the safety net the
+    // comment above describes. So a setting that parses to no address at all falls back to
+    // LEAD_NOTIFY_EMAIL rather than to nobody (EmailService.TrySendLeadNotificationAsync).
+    public string PartnerNotifyEmail => (_cfg["PARTNER_NOTIFY_EMAIL"]
+        ?? "vvladimirov@nvc-home4you.eu,nlekov@nvc-home4you.eu").Trim();
+
     // --- Audit log retention --------------------------------------------------------
     // The owner's decision (2026-08-18): entries older than six months are emailed to them
     // as a CSV and then removed. See AuditArchiveService for why the send has to succeed

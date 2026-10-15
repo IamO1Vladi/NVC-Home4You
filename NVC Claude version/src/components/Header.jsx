@@ -64,16 +64,14 @@ export default function Header({ locale = 'en', content, telephone, phone, onLan
         to: boxConfiguratorPath,
       }
     : null
-  const planningItems = [
-    plannerPath
-      ? {
-          key: 'planner',
-          label: content?.nav?.planner || (currentLocale === 'bg' ? 'Планировчик' : 'Planner'),
-          to: plannerPath,
-        }
-      : null,
-    configuratorItem,
-  ].filter(Boolean)
+  const plannerItem = plannerPath
+    ? {
+        key: 'planner',
+        label: content?.nav?.planner || (currentLocale === 'bg' ? 'Планировчик' : 'Planner'),
+        to: plannerPath,
+      }
+    : null
+  const planningItems = [plannerItem, configuratorItem].filter(Boolean)
   // From content alone: the old bg-or-English fallback is what put "Planning" on every
   // Greek page, because no locale had the key. All three do now.
   const planningLabel = content?.nav?.plannerGroup
@@ -91,11 +89,14 @@ export default function Header({ locale = 'en', content, telephone, phone, onLan
   ]
   const isAboutActive = aboutItems.some((item) => item.to === location.pathname)
 
-  // The drawer (owner's rule): the four rows a phone visitor acts on, then the homes and
-  // services as one collapsible group, then About. No planner on phones: the floor
-  // planner is a desktop tool.
+  // The drawer (owner's rule): the few rows a phone visitor acts on, then the homes and
+  // services as one collapsible group, then About, with the quote button still in sight.
+  // The planner is back after the configurator (owner, 2026-10-15): since the redesign its
+  // page works on a phone (the 3D unfold, the layouts as previews, send for an offer); only
+  // the editor itself waits for a 900px screen.
   const mobileItems = [
     configuratorItem,
+    plannerItem,
     { key: 'gallery', label: content?.nav?.gallery, to: pathFor('gallery') },
     { key: 'prices', label: content?.nav?.prices, to: pathFor('prices') },
     { key: 'partner', label: content?.nav?.partner, to: pathFor('partner') },

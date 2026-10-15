@@ -148,6 +148,8 @@ export default {
     },
     foundation: "The foundation isn't included: what you need depends on the site.",
     several: 'More than one container or Box house is quoted on request, and so is anywhere outside Bulgaria and Greece.',
+    // After `several`: a link to the partner page's enquiry form (#zapitvane).
+    partnerLink: 'An offer for several units →',
     call: 'Give us a call',
   },
 

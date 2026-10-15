@@ -46,7 +46,12 @@ public class SqlLeadService : ILeadStore
                 // The representative line (#38) goes in the same place for the same reason,
                 // BELOW the model line: the house is resolved off the first line, so the
                 // model must keep it. See RepresentativeLine.
-                Message = Trim(OfferModel.WithModelLine(OfferModel.From(dto), WithRepresentative(dto.Rep, dto.Project)), 4000),
+                //
+                // The partner page's line (2026-10-15) goes BELOW both, directly above the
+                // visitor's words, for the same reason: the lines above it are read off the
+                // top of the message. See PartnerEnquiry.
+                Message = Trim(OfferModel.WithModelLine(OfferModel.From(dto),
+                    WithRepresentative(dto.Rep, PartnerEnquiry.Prepend(dto.Project, dto.Partner))), 4000),
                 ModelId = Trim(dto.ModelId, 100),
                 Locale = Trim(dto.Locale, 10),
                 CreatedAt = DateTimeOffset.UtcNow,

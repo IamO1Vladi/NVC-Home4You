@@ -104,9 +104,25 @@ const el = {
 
 export const routeMapDestinations = { bg, en, el }
 
-export const routeMapControls = { el: {
-  zoomIn: 'Μεγέθυνση',
-  zoomOut: 'Σμίκρυνση',
-  attributionTitle: 'Βιβλιοθήκη JavaScript για διαδραστικούς χάρτες',
-  marker: 'Σημείο στον χάρτη',
-} }
+// Leaflet's own control wording, which it writes in English. bg and en were left to Leaflet
+// until 2026-10-15; now every locale names them, bg as the delivery calculator's map does.
+export const routeMapControls = {
+  bg: {
+    zoomIn: 'Приближи',
+    zoomOut: 'Отдалечи',
+    attributionTitle: 'JavaScript библиотека за интерактивни карти',
+    marker: 'Точка на картата',
+  },
+  en: {
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    attributionTitle: 'A JavaScript library for interactive maps',
+    marker: 'Map pin',
+  },
+  el: {
+    zoomIn: 'Μεγέθυνση',
+    zoomOut: 'Σμίκρυνση',
+    attributionTitle: 'Βιβλιοθήκη JavaScript για διαδραστικούς χάρτες',
+    marker: 'Σημείο στον χάρτη',
+  },
+}

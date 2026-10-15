@@ -1,3 +1,7 @@
+// The partner page's route map: sea, air and rail routes from three Asian ports to the chosen
+// destination, under „Организираме и вашия товар". The page loads this module lazily (React.lazy,
+// once the section nears the screen, and on a phone only after a tap), so Leaflet and its tiles
+// are not part of a visit that never scrolls that far.
 import React from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -32,7 +36,7 @@ const ORIGINS = [
 ]
 
 // Where each destination IS lives here; what it is CALLED lives in content, under
-// `destinations.{sea,air,rail}.<id>` (en/bg/el logistics.js, shared by partner.js), so the
+// `destinations.{sea,air,rail}.<id>` (shared/routeMap.js, read by partner.js), so the
 // Greek page can say Πειραιάς instead of Piraeus. An id with no name shows as its code.
 const SEA_PORTS = [
   { id: 'rtm', lat: 51.92, lon: 4.48, type: 'EU_W' },
@@ -216,14 +220,20 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
   return (
     <div className="wr-card" style={{ '--wr-map-h': height }}>
       <div className="wr-controls">
-        <div className="wr-row">
-          <span className="wr-label">{labels.mode}</span>
+        <div className="wr-row" role="group" aria-label={labels.mode}>
+          <span className="wr-label" aria-hidden="true">{labels.mode}</span>
           {[
             { key: 'sea', label: labels.sea },
             { key: 'air', label: labels.air },
             { key: 'rail', label: labels.rail },
           ].map((m) => (
-            <button key={m.key} className={['wr-chip', mode === m.key && 'is-on'].filter(Boolean).join(' ')} onClick={() => setMode(m.key)}>
+            <button
+              key={m.key}
+              type="button"
+              className={['wr-chip', mode === m.key && 'is-on'].filter(Boolean).join(' ')}
+              aria-pressed={mode === m.key}
+              onClick={() => setMode(m.key)}
+            >
               {m.label}
             </button>
           ))}
@@ -257,9 +267,16 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
         )}
       </div>
 
-      <MapContainer className="wr-map" center={[25, 15]} zoom={2} minZoom={2} worldCopyJump zoomControl={false}>
+      {/* minZoom 1 in quarter steps: on a phone-wide box FitAll cannot fit Rotterdam to
+          Shanghai at zoom 2, so it settles between 1 and 2 rather than cutting an origin off. */}
+      <MapContainer className="wr-map" center={[25, 15]} zoom={2} minZoom={1} zoomSnap={0.25} worldCopyJump zoomControl={false}>
         <MapControlText text={content.mapControls} />
-        <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        {/* The plain tile address OpenStreetMap asks for (the {s} subdomains are deprecated),
+            credited as its tile policy requires. */}
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
         {mode === 'sea' && <Marker position={[sea.lat, sea.lon]} icon={iconDEST} {...markerAlt} />}
         {mode === 'air' && <Marker position={[air.lat, air.lon]} icon={iconDEST} {...markerAlt} />}
         {mode === 'rail' && <Marker position={[rail.lat, rail.lon]} icon={iconDEST} {...markerAlt} />}
@@ -274,10 +291,11 @@ export default function LogisticsWorld({ content = {}, region, height = '560px' 
         <FitAll groups={lines} />
       </MapContainer>
 
+      {/* Each dot held with its name, so a wrapping legend never leaves a dot at a line's end. */}
       <div className="wr-legend" aria-label={labels.legendLabel}>
-        <span className="wr-dot" style={{ '--c': '#6366f1' }} /> {labels.shanghai}
-        <span className="wr-dot" style={{ '--c': '#10b981' }} /> {labels.hoChiMinh}
-        <span className="wr-dot" style={{ '--c': '#f59e0b' }} /> {labels.laemChabang}
+        <span className="wr-key"><span className="wr-dot" style={{ '--c': '#6366f1' }} />{labels.shanghai}</span>
+        <span className="wr-key"><span className="wr-dot" style={{ '--c': '#10b981' }} />{labels.hoChiMinh}</span>
+        <span className="wr-key"><span className="wr-dot" style={{ '--c': '#f59e0b' }} />{labels.laemChabang}</span>
       </div>
     </div>
   )

@@ -15,9 +15,23 @@ namespace Models;
 // stores it. Website is the honeypot: a field no human ever sees, so a value in it means a
 // bot filled in every box it found. Both trailing and optional for the same reason as the
 // two above — the doors page and any older tab keep posting the old shape.
+//
+// Partner comes from the partner page's own form only (2026-10-15) and is null for every
+// other form. Trailing and optional for the same reason again. UNTRUSTED like the rest: the
+// controller checks it against PartnerEnquiry's fixed lists before anything is stored, and
+// only the Bulgarian line built from those lists reaches staff.
 public record OfferDto(
     string Name, string Email, string? Phone, string Project, string? ModelId, string? Locale = null,
-    string? ModelTitle = null, string? ModelPath = null, string? Rep = null, string? Website = null);
+    string? ModelTitle = null, string? ModelPath = null, string? Rep = null, string? Website = null,
+    PartnerDto? Partner = null);
+
+// What the partner form asked, as the keys the SPA sends. Role, Quantity and Country are the
+// required three; every other field may be absent. Products is a set of keys rather than one,
+// because a reseller usually wants containers AND a Box size. See PartnerEnquiry for the lists.
+public record PartnerDto(
+    string? Role, string? Sector = null, string[]? Products = null, string? Quantity = null,
+    string? Timing = null, string? Country = null, string? Region = null, string? Company = null,
+    string? VatId = null, string? Logistics = null);
 public record QuestionDto(
     string Name, string Email, string Question, string? Locale = null, string? Rep = null, string? Website = null);
 
@@ -341,6 +355,10 @@ public class LeadSummaryDto
     // LeadPipelineService.AwaitingReplyAsync for how that is decided and why this is
     // deliberately not an unread flag.
     public bool AwaitingReply { get; set; }
+
+    // Where the lead came from (Lead.Source), shown on the card. Empty for most leads; a
+    // representative's link and the partner page fill it in when the lead is made.
+    public string Source { get; set; } = "";
 }
 
 // Counts of the enquiry queue. Everything except Archived counts the WORKING queue only —

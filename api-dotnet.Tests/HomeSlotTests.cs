@@ -14,8 +14,8 @@ using Xunit;
 namespace ApiDotnet.Tests;
 
 // The home page's photo slots (2026-10 redesign), and the product pages' main photos that
-// joined them on 2026-10-12 (the delivery page on 2026-10-15). Two things carry the design and
-// both live here: the twelve slot names are an allow-list the write paths enforce, and the
+// joined them on 2026-10-12 (the delivery and partner pages on 2026-10-15). Two things carry the
+// design and both live here: the thirteen slot names are an allow-list the write paths enforce, and the
 // public read of the busiest page on the site must keep answering — an empty answer — when the table
 // behind it is not there yet, because migrations are applied by hand before a publish and
 // nothing stops the order being reversed once.
@@ -56,6 +56,8 @@ public class HomeSlotTests
                 "page-modular-builds", "page-modular-houses", "page-steel-houses",
                 // Appended 2026-10-15 for the delivery page, after every slot that may hold uploads.
                 "page-delivery",
+                // And the partner page's, the same day, after the delivery page's.
+                "page-partner",
             },
             HomeSlotNames.All);
     }
@@ -80,6 +82,7 @@ public class HomeSlotTests
         Assert.Equal(10, HomeSlotNames.IndexOf("page-modular-houses"));
         Assert.Equal(11, HomeSlotNames.IndexOf("page-steel-houses"));
         Assert.Equal(12, HomeSlotNames.IndexOf("page-delivery"));
+        Assert.Equal(13, HomeSlotNames.IndexOf("page-partner"));
         Assert.Equal(0, HomeSlotNames.IndexOf("hero-6"));
         Assert.Equal(0, HomeSlotNames.IndexOf(null));
     }
@@ -105,21 +108,23 @@ public class HomeSlotTests
         Assert.Null(HomeSlotNames.ModelKeyOf("page-modular-houses"));
         Assert.Equal(0, HomeSlotNames.HeroNumberOf("page-modular-houses"));
 
-        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery" }, HomeSlotNames.PageKeys);
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, HomeSlotNames.PageKeys);
         Assert.Equal("modularBuilds", HomeSlotNames.PageKeyOf("page-modular-builds"));
         Assert.Equal("modularHouses", HomeSlotNames.PageKeyOf("page-modular-houses"));
         Assert.Equal("steelHouses", HomeSlotNames.PageKeyOf("page-steel-houses"));
         Assert.Equal("delivery", HomeSlotNames.PageKeyOf("page-delivery"));
+        Assert.Equal("partner", HomeSlotNames.PageKeyOf("page-partner"));
         Assert.Null(HomeSlotNames.PageKeyOf("hero-1"));
         Assert.Null(HomeSlotNames.PageKeyOf("page-gallery"));
 
         Assert.Equal("page-steel-houses", HomeSlotNames.SlotOfPage("steelHouses"));
         Assert.Equal("page-delivery", HomeSlotNames.SlotOfPage("delivery"));
+        Assert.Equal("page-partner", HomeSlotNames.SlotOfPage("partner"));
         Assert.Null(HomeSlotNames.SlotOfPage("gallery"));
         Assert.Null(HomeSlotNames.SlotOfPage(null));
 
         Assert.Equal(
-            new[] { "page-modular-builds", "page-modular-houses", "page-steel-houses", "page-delivery" },
+            new[] { "page-modular-builds", "page-modular-houses", "page-steel-houses", "page-delivery", "page-partner" },
             HomeSlotNames.OfKind(HomeSlotNames.PageKind));
         // The other kinds did not grow by accident.
         Assert.Equal(5, HomeSlotNames.OfKind(HomeSlotNames.HeroKind).Count());
@@ -491,8 +496,8 @@ public class HomeSlotTests
         Assert.Equal("/api/img/" + GalleryKey, dto.Models["58"]!.Url);
         Assert.Equal("Box 58", dto.Models["58"]!.Alt);
 
-        // No page slot was touched: all four keys, all null.
-        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery" }, dto.Pages.Keys);
+        // No page slot was touched: all five keys, all null.
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
         Assert.All(dto.Pages.Values, v => Assert.Null(v));
     }
 
@@ -504,12 +509,13 @@ public class HomeSlotTests
             new HomeSlot { Name = "page-modular-houses", ImageKey = CaseKey, Alt = "Paralia Kariani, 58 m²" },
             new HomeSlot { Name = "page-steel-houses", ImageKey = "home/11/abc.webp" },
             new HomeSlot { Name = "page-modular-builds", ImageKey = null, Alt = "cleared" },
-            new HomeSlot { Name = "page-delivery", ImageKey = "home/12/crane.webp", Alt = "Crane lifting a container" });
+            new HomeSlot { Name = "page-delivery", ImageKey = "home/12/crane.webp", Alt = "Crane lifting a container" },
+            new HomeSlot { Name = "page-partner", ImageKey = "home/13/yard.webp", Alt = "Units waiting in the yard" });
         await db.SaveChangesAsync();
 
         var dto = await Svc(db).ReadPublicAsync(CancellationToken.None);
 
-        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery" }, dto.Pages.Keys);
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
         Assert.Null(dto.Pages["modularBuilds"]);
         Assert.Equal("/api/img/" + CaseKey, dto.Pages["modularHouses"]!.Url);
         Assert.Equal("Paralia Kariani, 58 m²", dto.Pages["modularHouses"]!.Alt);
@@ -517,6 +523,8 @@ public class HomeSlotTests
         Assert.Equal("", dto.Pages["steelHouses"]!.Alt);
         Assert.Equal("/api/img/home/12/crane.webp", dto.Pages["delivery"]!.Url);
         Assert.Equal("Crane lifting a container", dto.Pages["delivery"]!.Alt);
+        Assert.Equal("/api/img/home/13/yard.webp", dto.Pages["partner"]!.Url);
+        Assert.Equal("Units waiting in the yard", dto.Pages["partner"]!.Alt);
 
         // A page photo is not a hero slide and not a model card.
         Assert.Empty(dto.Hero);
@@ -532,7 +540,7 @@ public class HomeSlotTests
         Assert.Empty(dto.Hero);
         Assert.Equal(new[] { "37", "58", "73" }, dto.Models.Keys);
         Assert.All(dto.Models.Values, v => Assert.Null(v));
-        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery" }, dto.Pages.Keys);
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
         Assert.All(dto.Pages.Values, v => Assert.Null(v));
     }
 
@@ -541,7 +549,7 @@ public class HomeSlotTests
     {
         // What the public route answers on a machine with no database at all.
         var dto = HomePhotosDto.Empty();
-        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery" }, dto.Pages.Keys);
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
         Assert.All(dto.Pages.Values, v => Assert.Null(v));
     }
 

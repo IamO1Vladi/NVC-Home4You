@@ -1230,6 +1230,20 @@ label.btn { cursor: pointer; }
 
 .adm-badge-offer    { background: var(--adm-accent-soft, #e6f6f8); color: var(--adm-accent-ink); }
 .adm-badge-question { background: var(--adm-line); color: var(--adm-muted); }
+/* A partner page enquiry, beside its Оферта badge, and the same tint on a pipeline card's
+   source when that source is the partner page. Green rather than the accent, so it never
+   reads as the offer badge it sits next to. */
+.adm-badge-partner  { background: var(--adm-ok-bg); color: var(--adm-ok); }
+/* A pipeline card's source. Free text up to 60 characters, so not shouted in capitals like
+   the stage, and allowed to wrap rather than widen the list. */
+.adm-badge.adm-source {
+  justify-self: start;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* Age only appears on unhandled leads, where it is the reason to act. */
 .adm-age { color: var(--adm-warn); font-weight: 700; }

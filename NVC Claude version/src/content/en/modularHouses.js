@@ -54,6 +54,8 @@ export default {
     sub: 'The house price includes VAT; assembly is extra and shown beneath it. The 37, 58 and 73 m² models can be built in the configurator.',
     allPrices: 'The full price table →',
     allPhotos: 'Photos of every modular house →',
+    // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
+    partnerLink: 'More than one, or for resale? →',
     basis: 'incl. VAT, assembly extra',
     assembly: '+ assembly {price} incl. VAT',
     assemblyOnRequest: 'Assembly on request',
@@ -112,6 +114,22 @@ export default {
     includedHeading: 'What assembly covers',
     excludedHeading: 'What is not included',
     foundationAsk: 'The foundation you need depends on the site. Call us or ask us.',
+  },
+
+  // The warranty as the owner gave it on 2026-10-15, from the annex to our Box-house sales
+  // contract. The lead names the Box houses: the capsule on this page is not covered by it.
+  // {years} is the row's figure from shared/warranty.js, by its key.
+  warranty: {
+    heading: 'Warranty',
+    lead: 'For the expandable (Box) houses.',
+    rows: [
+      { key: 'structure', label: 'Structure', text: '{years}\u00a0years: the load-bearing steel frame' },
+      { key: 'panels', label: 'Panels', text: '{years}\u00a0years: the thermal (sandwich) panels' },
+      { key: 'joinery', label: 'Windows and doors', text: '{years}\u00a0years: the profiles and the glazing' },
+      { key: 'sanitary', label: 'Sanitary ware', text: '{years}\u00a0years: the sanitary ware and plumbing fittings in the bathroom and kitchen' },
+    ],
+    conditions: 'The warranty covers factory defects and runs from the day of handover, with normal use, a suitable foundation, proper drainage and no unauthorised work by third parties. Everything else is checked visually at handover against the factory standard.',
+    excluded: 'The warranty does not cover mechanical damage, improper transport or unloading not carried out by us, an unsuitable foundation, lack of ventilation, poor drainage, leaks from external connections, condensation, later repairs or changes by the buyer or third parties, or force majeure.',
   },
 
   proof: {

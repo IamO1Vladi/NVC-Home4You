@@ -13,6 +13,7 @@ import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { WAGON_ASSEMBLY_GROSS } from '../content/shared/prices.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
+import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
 
 // The container units page as the rebuild left it: one H1, six cards built from the
@@ -209,6 +210,34 @@ describe.each(['bg', 'en', 'el'])('ModularBuildsPage (%s)', (locale) => {
       for (const key of ['crane', 'noCrane', 'delivery']) expect(c.assembly[key]).toContain(vat)
     } finally {
       Object.assign(CONTAINER, saved)
+    }
+  })
+
+  it('states the warranty after assembly and delivery, every year read from warranty.js', async () => {
+    // Changed in the module for this one render, as the delivery figures above: the real 15, 6,
+    // 6 and 2, typed into the content, would print here instead.
+    const saved = { ...WARRANTY_YEARS }
+    Object.assign(WARRANTY_YEARS, { structure: 17, panels: 9, joinery: 8, sanitary: 5 })
+    try {
+      const { container } = await renderLoaded(locale)
+      const block = container.querySelector('#warranty')
+      expect(block.previousElementSibling.id).toBe('assembly')
+      expect(block.querySelector('h2#warranty-title').textContent).toBe(c.warranty.heading)
+      const rows = [...block.querySelectorAll('dl.pp-terms > div')]
+      expect(rows.map((row) => row.dataset.warranty)).toEqual(['structure', 'panels', 'joinery', 'sanitary'])
+      rows.forEach((row, i) => {
+        expect(row.querySelector('dt').textContent).toBe(c.warranty.rows[i].label)
+        expect(row.querySelector('dd').textContent).toBe(fillIn(c.warranty.rows[i].text, { years: WARRANTY_YEARS[row.dataset.warranty] }))
+      })
+      const text = block.textContent
+      // textContent runs a label into its figure ("Structure17"), so digits are delimited by
+      // what is not a digit rather than by \b.
+      for (const years of [17, 9, 8, 5]) expect(text).toMatch(new RegExp(`(?<!\\d)${years}(?!\\d)`))
+      expect(text).not.toMatch(/(?<!\d)(15|6|2)(?!\d)|\{\w+\}/)
+      expect(text).toContain(c.warranty.conditions)
+      expect(text).toContain(c.warranty.excluded)
+    } finally {
+      Object.assign(WARRANTY_YEARS, saved)
     }
   })
 

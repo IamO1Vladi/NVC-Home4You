@@ -163,6 +163,8 @@ export default {
     },
     foundation: 'Основата не е включена — каква е нужна, зависи от мястото.',
     several: 'Повече от един контейнер или Бокс къща — оферта по запитване. Извън България и Гърция — също.',
+    // After `several`: a link to the partner page's enquiry form (#zapitvane).
+    partnerLink: 'Оферта за няколко броя →',
     call: 'Обадете се',
   },
 
