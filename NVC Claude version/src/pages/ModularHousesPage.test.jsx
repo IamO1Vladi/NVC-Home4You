@@ -12,6 +12,7 @@ import elContent from '../content/el/modularHouses.js'
 import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
+import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
 
 // The modular houses page, built on the gallery rows.
@@ -216,6 +217,40 @@ describe('ModularHousesPage', () => {
     const copy = getPricesCopy(locale)
     for (const line of [...copy.included, ...copy.excluded, copy.foundationNote]) {
       expect(container.textContent).toContain(line)
+    }
+  })
+
+  it.each(['bg', 'en', 'el'])('says what delivery and the crane cost, without VAT, how long the house takes, and links the estimator (%s)', async (locale) => {
+    const { container } = renderPage(locale)
+    await ready(container)
+    const BOX = DELIVERY_RATES.products.box
+    const arrival = CONTENT[locale].arrival
+    const line = arrival.delivery
+      .replace('{rate}', euro(BOX.perKm, locale))
+      .replace('{crane}', euro(BOX.crane.about, locale))
+      .replace('{production}', LEAD_TIMES.boxProductionDays)
+      .replace('{months}', LEAD_TIMES.boxToAddressMonths)
+    const section = container.querySelector('[aria-labelledby="mh-arrival-title"]')
+    expect(flat(section.textContent)).toContain(flat(line))
+    expect(line).toContain({ bg: 'без ДДС', en: 'exclude VAT', el: 'ΦΠΑ' }[locale])
+    expect(line).not.toMatch(/\{\w+\}/)
+    const link = within(section).getByRole('link', { name: arrival.deliveryLink })
+    expect(link.getAttribute('href')).toBe(paths.delivery[locale])
+  })
+
+  it('reads the Box delivery figures from deliveryRates.js', async () => {
+    // Changed in the module for one render: a figure typed anywhere else could not follow.
+    const BOX = DELIVERY_RATES.products.box
+    const saved = JSON.parse(JSON.stringify(BOX))
+    Object.assign(BOX, { perKm: 9, crane: { required: true, about: 777, canBeMore: true } })
+    try {
+      const { container } = renderPage('bg')
+      await ready(container)
+      const section = flat(container.querySelector('[aria-labelledby="mh-arrival-title"]').textContent)
+      expect(section).toContain(flat('около ' + euro(9, 'bg') + ' на километър'))
+      expect(section).toContain(flat('около ' + euro(777, 'bg')))
+    } finally {
+      Object.assign(BOX, saved)
     }
   })
 

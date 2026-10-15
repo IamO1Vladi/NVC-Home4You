@@ -166,17 +166,17 @@ const META = {
     en: {
       title: 'Door-to-Door Delivery | NVC Home4You',
       description:
-        'Door-to-door delivery and installation of modular homes across Bulgaria and the EU. See how delivery works.',
+        'Door-to-door delivery and installation of modular homes in Bulgaria and Greece. See how delivery works.',
     },
     bg: {
       title: 'Доставка до врата | NVC Home4You',
       description:
-        'Доставка до врата и монтаж на модулни къщи в България и ЕС. Вижте как протича доставката.',
+        'Доставка до врата и монтаж на модулни къщи в България и Гърция. Вижте как протича доставката.',
     },
     el: {
       title: 'Παράδοση έως την Πόρτα | NVC Home4You',
       description:
-        'Παράδοση έως την πόρτα και τοποθέτηση δομικών σπιτιών σε Βουλγαρία και ΕΕ. Δείτε πώς λειτουργεί η παράδοση.',
+        'Παράδοση έως την πόρτα και τοποθέτηση δομικών σπιτιών σε Βουλγαρία και Ελλάδα. Δείτε πώς λειτουργεί η παράδοση.',
     },
   },
   logistics: {

@@ -282,20 +282,6 @@ delivery: {
     clear: 'Clear reporting at every stage',
   },
 
-   map:{
-    mapHeader: 'Approximate price for delivery on the territory of Bulgaria',
-    mapSubHeader: 'Base: Marikostinovo. Fee: 0.8 EUR/km, both directions.',
-    mapAddress: 'Address:',
-    mapDistanceOneWay: 'Distance (one way):',
-    mapDistanceInKm: 'Distance (two way):',
-    mapEstimatePrice: 'Approximate price:',
-    mapPlaceholderAddress: 'Enter an address (example: Sofia, 1 Cherni Vrah Blvd.',
-    mapHelpText: 'Click on the map or drag the marker to change the address.',
-    mapButtonHelpText1: 'Calculate',
-    mapButtonHelpText2: 'Searching…',
-    mapSearchNote:'* Approximate distance (straight line). Try another address for a more accurate route.'
-  },
-
   process: {
     h2: 'How it works',
     aria: 'Delivery process',
@@ -1016,20 +1002,6 @@ delivery: {
     track: 'Проследяване в реално време през нашата система',
     insure: 'Застраховка, временно складиране при нужда и гъвкаво изпращане по ваш график',
     clear: 'Ясна отчетност на всички етапи',
-  },
-
-  map:{
-    mapHeader: 'Ориентировачна цена за доставка на територията на България',
-    mapSubHeader: 'База: Марикостиново. Такса: 0.8 евро/км, в двете посоки.',
-    mapAddress: 'Адрес:',
-    mapDistanceOneWay: 'Разстояние (еднопосочно):',
-    mapDistanceInKm: 'Общо километри (двупосочно):',
-    mapEstimatePrice: 'Ориентировъчна цена:',
-    mapPlaceholderAddress: 'Въведете адрес (пример: София, бул. Черни връх 1',
-    mapHelpText: 'Кликнете върху картата или плъзнете маркера, за да промените адреса',
-    mapButtonHelpText1: 'Изчисли',
-    mapButtonHelpText2: 'Търсене…',
-    mapSearchNote:'* Приблизително разстояние (пряка линия). Опитайте друг адрес за по-точен маршрут.'
   },
 
   process: {

@@ -2,13 +2,14 @@
 //
 // The words on the «Μονάδες-κοντέινερ» page (/el/domikes-kataskeves). No price lives here:
 // the prices, the "from" figure, the assembly share of a price and the delivery rate come
-// from the gallery (/api/gallery), prices.js and delivery.js, and are filled into {amount},
-// {rate} and {price}. The title and description search engines read are in
+// from the gallery (/api/gallery), prices.js and deliveryRates.js, and are filled into
+// {amount}, {rate}, {crane}, {travel} and {price}. The title and description search engines read are in
 // src/seo/routeMeta.js.
 //
 // The table states only what the six gallery descriptions state. The kitchen, the crane,
 // the accommodation, the foundation and the made-to-order sizes are the owner's words
-// (2026-10-12). Drafted Greek; a native read is still to come.
+// (2026-10-12; the crane's cost, the 3–4 nights and the workers' travel are his 2026-10-15
+// figures, in deliveryRates.js). Drafted Greek; a native read is still to come.
 export default {
   hero: {
     eyebrow: 'Μονάδες-κοντέινερ',
@@ -81,13 +82,13 @@ export default {
     includedLabel: 'Συναρμολόγηση',
     included: 'Περιλαμβάνεται στην τιμή κάθε μοντέλου: τα {amount} από αυτήν αφορούν τη συναρμολόγηση.',
     craneLabel: 'Με γερανό',
-    crane: 'Αν προτιμάτε, το κοντέινερ τοποθετείται στη θέση του με γερανό, με δικά σας έξοδα.',
+    crane: 'Αν προτιμάτε, το κοντέινερ τοποθετείται στη θέση του με γερανό, με δικά σας έξοδα: περίπου {crane} χωρίς ΦΠΑ. Τότε το συναρμολογούμε στην αποθήκη μας και φτάνει έτοιμο, χωρίς έξοδα μετακίνησης ή διαμονής τεχνικών.',
     noCraneLabel: 'Χωρίς γερανό',
-    noCrane: 'Αν δεν θέλετε γερανό, δύο τεχνικοί μας συναρμολογούν το κοντέινερ επί τόπου, στον χώρο σας. Σε αυτή την περίπτωση τους εξασφαλίζετε διαμονή για τρεις νύχτες.',
+    noCrane: 'Αν δεν θέλετε γερανό, δύο τεχνικοί μας συναρμολογούν το κοντέινερ επί τόπου, στον χώρο σας. Η εργασία απαιτεί {nights} διανυκτερεύσεις, για τις οποίες τους εξασφαλίζετε διαμονή. Ανάλογα με την τοποθεσία, τα έξοδα μετακίνησής τους φτάνουν έως {travel} χωρίς ΦΠΑ.',
     foundationLabel: 'Θεμελίωση',
     foundation: 'Η θεμελίωση που χρειάζεται εξαρτάται από την τοποθεσία. Καλέστε μας ή ρωτήστε μας για το δικό σας οικόπεδο.',
     deliveryLabel: 'Παράδοση',
-    delivery: 'Παραδίδουμε από το Μαρικοστίνοβο της Βουλγαρίας: {rate} ανά χιλιόμετρο, και για τις δύο κατευθύνσεις.',
+    delivery: 'Παραδίδουμε από το Μαρικοστίνοβο της Βουλγαρίας: {rate} ανά χιλιόμετρο, και για τις δύο κατευθύνσεις, χωρίς ΦΠΑ. Ένα κοντέινερ από απόθεμα φτάνει σε έως {days} ημέρες.',
     deliveryLink: 'Υπολογίστε το κόστος παράδοσης στη διεύθυνσή σας →',
     ask: 'Κάντε μια ερώτηση',
     call: 'Καλέστε μας',

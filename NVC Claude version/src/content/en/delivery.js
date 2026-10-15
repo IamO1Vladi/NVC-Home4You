@@ -1,3 +1,11 @@
+import { euro } from '../../lib/euro.js'
+import { DELIVERY_BASES, DELIVERY_RATES } from '../shared/deliveryRates.js'
+
+// The estimator still computes one rate, the container's, from Marikostinovo; the heading
+// above it names both products. Every figure comes from deliveryRates.js.
+const CONTAINER = DELIVERY_RATES.products.container
+const BOX = DELIVERY_RATES.products.box
+
 export default {
   seo: {
     title: 'Door-to-door delivery for modular and prefab homes | NVC Home4You',
@@ -58,35 +66,33 @@ export default {
         meta: 'Final delivery',
       },
     ],
-    windows: {
-      chips: [
-        'Western Europe: ~30–35 days',
-        'Eastern Europe: ~40–45 days',
-      ],
-      sub: 'Actual lead time depends on production, seasonality, ports, and the final address.',
-    },
+    // No lead-time chips: the owner is still confirming lead times (2026-10-15).
   },
   estimator: {
     locale: 'en-GB',
     acceptLanguage: 'en,bg',
-    base: { lat: 41.43165, lon: 23.33813 },
-    ratePerKm: 0.8,
-    currency: 'EUR',
+    base: DELIVERY_BASES.marikostinovo,
+    ratePerKm: CONTAINER.perKm,
     strings: {
       heading: 'Estimated delivery price',
-      subheading: 'Base: Marikostinovo. Rate: 0.8 EUR / km, both directions included.',
+      subheading: `Container: ${euro(CONTAINER.perKm, 'en')}/km from Marikostinovo, counted both ways. Box house: about ${euro(BOX.perKm, 'en')}/km, counted both ways, from Marikostinovo or Varna (whichever is closer), plus a crane, about ${euro(BOX.crane.about, 'en')}, or more depending on the location. Prices exclude VAT.`,
+      // Owner, 2026-10-15: abroad only Greece so far, at the same rates; other countries on request.
+      countriesNote: 'Bulgaria and Greece, same rates. Other countries: on request.',
       placeholder: 'Enter an address (example: Sofia, Cherni Vrah Blvd 1)',
       buttonIdle: 'Calculate',
       buttonLoading: 'Searching…',
       addressLabel: 'Address:',
       oneWayLabel: 'One-way distance:',
       billableLabel: 'Billable distance:',
-      estimateLabel: 'Estimated price:',
+      estimateLabel: 'Estimated price for a container:',
+      vatLabel: 'excl. VAT',
       searchNote: 'Fallback straight-line estimate shown when road routing is unavailable.',
       helpText: 'Enter an address or click the map to drop a destination pin.',
       droppedPin: 'Dropped pin',
       geocodeError: 'Geocoding failed',
       notFoundError: 'Address not found',
+      // A map pin outside the countries above gets this in place of a price.
+      outsideError: 'Outside Bulgaria and Greece, delivery is quoted on request.',
       genericError: 'Something went wrong',
       emptyValue: '—',
       km: 'km',

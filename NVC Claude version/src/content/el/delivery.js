@@ -1,3 +1,11 @@
+import { euro } from '../../lib/euro.js'
+import { DELIVERY_BASES, DELIVERY_RATES } from '../shared/deliveryRates.js'
+
+// The estimator still computes one rate, the container's, from Marikostinovo; the heading
+// above it names both products. Every figure comes from deliveryRates.js.
+const CONTAINER = DELIVERY_RATES.products.container
+const BOX = DELIVERY_RATES.products.box
+
 export default {
   seo: {
     title: 'Παράδοση έως την πόρτα για δομικά και προκατασκευασμένα σπίτια | NVC Home4You',
@@ -58,23 +66,18 @@ export default {
         meta: 'Τελική παράδοση',
       },
     ],
-    windows: {
-      chips: [
-        'Δυτική Ευρώπη: ~30–35 ημέρες',
-        'Ανατολική Ευρώπη: ~40–45 ημέρες',
-      ],
-      sub: 'Ο πραγματικός χρόνος εξαρτάται από την παραγωγή, την εποχικότητα, τα λιμάνια και την τελική διεύθυνση.',
-    },
+    // No lead-time chips: the owner is still confirming lead times (2026-10-15).
   },
   estimator: {
     locale: 'el-GR',
     acceptLanguage: 'el,en',
-    base: { lat: 41.43165, lon: 23.33813 },
-    ratePerKm: 0.8,
-    currency: 'EUR',
+    base: DELIVERY_BASES.marikostinovo,
+    ratePerKm: CONTAINER.perKm,
     strings: {
       heading: 'Εκτιμώμενη τιμή παράδοσης',
-      subheading: 'Βάση: Μαρικοστίνοβο. Χρέωση: 0,8 EUR / χλμ, περιλαμβάνονται και οι δύο κατευθύνσεις.',
+      subheading: `Κοντέινερ: ${euro(CONTAINER.perKm, 'el')}/χλμ από το Μαρικοστίνοβο, και για τις δύο κατευθύνσεις. Σπίτι Box: περίπου ${euro(BOX.perKm, 'el')}/χλμ, και για τις δύο κατευθύνσεις, από το Μαρικοστίνοβο ή τη Βάρνα (όποιο είναι πιο κοντά), συν γερανός περίπου ${euro(BOX.crane.about, 'el')}, ή και περισσότερο ανάλογα με την τοποθεσία. Οι τιμές δεν περιλαμβάνουν ΦΠΑ.`,
+      // Owner, 2026-10-15: abroad only Greece so far, at the same rates; other countries on request.
+      countriesNote: 'Βουλγαρία και Ελλάδα, με τις ίδιες τιμές. Άλλες χώρες: κατόπιν αιτήματος.',
       // A Greek address, not the Sofia one en/bg show: the example is meant to be typed, and
       // the geocoder finds no Bulgarian street spelled in Greek letters ("Σόφια, Τσέρνι Βραχ 1"
       // returns nothing; "Θεσσαλονίκη, Εγνατία 1" resolves). Checked against Nominatim 2026-10-01.
@@ -84,12 +87,15 @@ export default {
       addressLabel: 'Διεύθυνση:',
       oneWayLabel: 'Απόσταση μονής διαδρομής:',
       billableLabel: 'Χρεώσιμη απόσταση:',
-      estimateLabel: 'Εκτιμώμενη τιμή:',
+      estimateLabel: 'Εκτιμώμενη τιμή για κοντέινερ:',
+      vatLabel: 'χωρίς ΦΠΑ',
       searchNote: 'Εμφανίζεται εκτίμηση ευθείας γραμμής όταν η δρομολόγηση οδικού δικτύου δεν είναι διαθέσιμη.',
       helpText: 'Εισαγάγετε μια διεύθυνση ή κάντε κλικ στον χάρτη για να τοποθετήσετε πινέζα προορισμού.',
       droppedPin: 'Τοποθετημένη πινέζα',
       geocodeError: 'Η γεωκωδικοποίηση απέτυχε',
       notFoundError: 'Η διεύθυνση δεν βρέθηκε',
+      // A map pin outside the countries above gets this in place of a price.
+      outsideError: 'Εκτός Βουλγαρίας και Ελλάδας, η παράδοση κοστολογείται κατόπιν αιτήματος.',
       genericError: 'Κάτι πήγε στραβά',
       emptyValue: '—',
       km: 'χλμ',

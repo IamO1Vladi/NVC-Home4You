@@ -13,7 +13,7 @@ describe('SpecTable', () => {
         caption="What every container has"
         rows={[
           { label: 'Frame', value: 'Galvanised steel, 2.3 mm' },
-          { label: 'Delivery', value: <a href="/en/delivery">€0.80/km</a> },
+          { label: 'Delivery', value: <a href="/en/delivery">€1/km</a> },
         ]}
       />,
     )
@@ -24,7 +24,7 @@ describe('SpecTable', () => {
     const headers = within(table).getAllByRole('rowheader')
     expect(headers.map((th) => th.textContent)).toEqual(['Frame', 'Delivery'])
     headers.forEach((th) => expect(th).toHaveAttribute('scope', 'row'))
-    expect(within(table).getByRole('link', { name: '€0.80/km' })).toHaveAttribute('href', '/en/delivery')
+    expect(within(table).getByRole('link', { name: '€1/km' })).toHaveAttribute('href', '/en/delivery')
   })
 
   it('takes its name from a heading when one already names it', () => {

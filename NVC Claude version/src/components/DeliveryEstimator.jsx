@@ -4,6 +4,8 @@ import './DeliveryEstimator.css'
 import { MapContainer, TileLayer, Marker, Polyline, ZoomControl, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { euro } from '../lib/euro.js'
+import { DELIVERY_BASES, DELIVERY_RATES } from '../content/shared/deliveryRates.js'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
@@ -90,11 +92,14 @@ function haversineKm(a, b) {
 }
 
 export default function DeliveryEstimator({ content }) {
-  const base = content?.base || { lat: 41.43165, lon: 23.33813 }
-  const ratePerKm = typeof content?.ratePerKm === 'number' ? content.ratePerKm : 1.5
-  const currency = content?.currency || 'BGN'
+  // Content that names no base or rate gets the container's, from deliveryRates.js: the
+  // old fallbacks here (1.5 "BGN" per km) were a third price nobody had ever quoted.
+  const base = content?.base || DELIVERY_BASES.marikostinovo
+  const ratePerKm = typeof content?.ratePerKm === 'number' ? content.ratePerKm : DELIVERY_RATES.products.container.perKm
   const strings = content?.strings || {}
   const locale = content?.locale || 'en-GB'
+  // euro() takes the site's short locale ('bg', 'en', 'el'), the content gives 'bg-BG'.
+  const moneyLocale = locale.slice(0, 2)
   const acceptLanguage = content?.acceptLanguage || 'en,bg'
 
   const [query, setQuery] = useState('')
@@ -119,13 +124,46 @@ export default function DeliveryEstimator({ content }) {
   }
 
   async function geocode(q) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&addressdetails=1`
+    // Only the countries we deliver to, so "Бургас" is Burgas and not Burgos in Spain.
+    const countries = DELIVERY_RATES.countries.join(',')
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=${countries}&limit=1&addressdetails=1`
     const res = await fetch(url, { headers: { 'Accept-Language': acceptLanguage } })
     if (!res.ok) throw new EstimatorError(strings.geocodeError || 'Geocoding failed')
     const data = await res.json()
     if (!data?.length) throw new EstimatorError(strings.notFoundError || 'Address not found')
     const { lat, lon, display_name } = data[0]
     return { lat: parseFloat(lat), lon: parseFloat(lon), label: display_name }
+  }
+
+  // The country a map pin falls in, or null when the reverse geocoder cannot say (offline, the
+  // sea): the text search is already limited to these countries, but a click or a drag on the
+  // map is not, and outside them the owner quotes delivery on request, not per kilometre.
+  async function countryOf(p) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${p.lat}&lon=${p.lon}&zoom=3&addressdetails=1`
+      const res = await fetch(url, { headers: { 'Accept-Language': acceptLanguage } })
+      if (!res.ok) return null
+      const data = await res.json()
+      return data?.address?.country_code?.toLowerCase() || null
+    } catch {
+      return null
+    }
+  }
+
+  // A pin set by a click or a drag. The old route and price go at once, so they never stand
+  // next to the new pin; a pin in a country we do not price gets the "on request" line instead.
+  async function pickOnMap(p) {
+    setError('')
+    setDest(p)
+    setRoute(null)
+    setLoading(true)
+    const country = await countryOf(p)
+    if (country && !DELIVERY_RATES.countries.includes(country)) {
+      setLoading(false)
+      setError(strings.outsideError || 'Delivery to this country is quoted on request')
+      return
+    }
+    await compute(p)
   }
 
   async function osrmRouteKm(a, b) {
@@ -168,6 +206,10 @@ export default function DeliveryEstimator({ content }) {
       setDest(p)
       await compute(p)
     } catch (err) {
+      // The error stands alone: the last address and its price must not stay under it, as
+      // if they were the answer to this search.
+      setDest(null)
+      setRoute(null)
       setError(
         err instanceof EstimatorError && err.message
           ? err.message
@@ -191,6 +233,7 @@ export default function DeliveryEstimator({ content }) {
         <div className="est-head">
           <h2 className="est-h">{strings.heading}</h2>
           <p className="est-sub">{strings.subheading}</p>
+          {strings.countriesNote ? <p className="est-sub">{strings.countriesNote}</p> : null}
         </div>
 
         <div className="est-grid">
@@ -215,7 +258,7 @@ export default function DeliveryEstimator({ content }) {
               <div><span className="est-k">{strings.addressLabel}</span> <span className="est-v">{dest?.label || dash}</span></div>
               <div><span className="est-k">{strings.oneWayLabel}</span> <span className="est-v">{route ? `${numberFormatter.format(round(oneWayKm))} ${kmLabel}` : dash}</span></div>
               <div><span className="est-k">{strings.billableLabel}</span> <span className="est-v">{route ? `${numberFormatter.format(billableKm)} ${kmLabel}` : dash}</span></div>
-              <div><span className="est-k">{strings.estimateLabel}</span> <span className="est-v est-price">{route ? `${numberFormatter.format(estimate)} ${currency}` : dash}</span></div>
+              <div><span className="est-k">{strings.estimateLabel}</span> <span className="est-v est-price">{route ? `${euro(estimate, moneyLocale)}${strings.vatLabel ? ` ${strings.vatLabel}` : ''}` : dash}</span></div>
               {route?.source === 'haversine' ? <small className="est-note">{strings.searchNote}</small> : null}
             </div>
           </div>
@@ -236,9 +279,8 @@ export default function DeliveryEstimator({ content }) {
                   eventHandlers={{
                     dragend: (e) => {
                       const m = e.target.getLatLng()
-                      const p = { lat: m.lat, lon: m.lng, label: dest.label }
-                      setDest(p)
-                      compute(p)
+                      // The searched address no longer describes the pin once it has moved.
+                      pickOnMap({ lat: m.lat, lon: m.lng, label: strings.droppedPin || 'Dropped pin' })
                     },
                   }}
                 />
@@ -249,10 +291,7 @@ export default function DeliveryEstimator({ content }) {
               ) : null}
 
               <ClickToSet
-                onPick={(p) => {
-                  setDest(p)
-                  compute(p)
-                }}
+                onPick={pickOnMap}
               />
             </MapContainer>
 

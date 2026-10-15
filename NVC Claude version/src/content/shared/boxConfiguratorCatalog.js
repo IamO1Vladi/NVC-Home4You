@@ -47,17 +47,9 @@ const codeFor = (code, locale) => (locale === 'el' ? latinCode(code) : code)
 const INTERNAL_WALLS_BASE_37 = 1300
 const scaleInternalWallsPrice = (area) => Math.round((INTERNAL_WALLS_BASE_37 * area) / 37)
 
-// el-GR prints "14.840 €". en-GB's "€14,840" would put a comma where Greek
-// writes its DECIMAL separator, so the Greek reader sees fourteen euros.
-const EURO_NUMBER_LOCALES = { bg: 'bg-BG', el: 'el-GR' }
-
-export function euro(value, locale = 'en') {
-  return new Intl.NumberFormat(EURO_NUMBER_LOCALES[locale] || 'en-GB', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0))
-}
+// euro() lives in src/lib/euro.js, a module with no imports, so the pages that only format a
+// delivery or crane figure do not load this catalogue; it is re-exported here for its importers.
+export { euro } from '../../lib/euro.js'
 
 const STEEL_FRAME_COLORS = [
   { key: 'black', en: 'Black', bg: 'Черно', el: 'Μαύρο', swatch: '#22262b', thumb: 'thumbs/frame-colours/black.webp' },

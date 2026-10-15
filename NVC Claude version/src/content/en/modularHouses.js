@@ -102,10 +102,13 @@ export default {
   arrival: {
     heading: 'How an expandable house arrives',
     paragraphs: [
-      'An expandable house is made in the factory together with the bathroom, kitchen, windows and installations you chose. It travels folded and only opens out where it will stand, which is why some call it a folding house, some an extendable house and some simply a box house. We deliver it in Bulgaria and to other EU countries.',
+      'An expandable house is made in the factory together with the bathroom, kitchen, windows and installations you chose. It travels folded and only opens out where it will stand, which is why some call it a folding house, some an extendable house and some simply a box house. We deliver it in Bulgaria and Greece; other countries on request.',
       'In transit the 37 m² model is {folded} m wide; unfolded it is {open} m. On site the house is lifted by crane onto the prepared foundation and unfolded. The installations inside are already built in at the factory.',
     ],
+    // {rate}, {crane}, {production} and {months} come from deliveryRates.js, the owner's figures of 2026-10-15.
+    delivery: 'Delivery to your plot: about {rate} per kilometre, counted both ways, from Marikostinovo or from Varna, whichever is closer to you. The crane is required and costs about {crane}, or more depending on the location. Delivery and crane exclude VAT. The house is made in up to {production} days and reaches your address in about {months} months.',
     pricesLink: 'Prices with assembly →',
+    deliveryLink: 'Check the distance to your address →',
     includedHeading: 'What assembly covers',
     excludedHeading: 'What is not included',
     foundationAsk: 'The foundation you need depends on the site. Call us or ask us.',

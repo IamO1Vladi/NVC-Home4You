@@ -12,6 +12,7 @@ import el from '../content/el/modularBuilds.js'
 import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { WAGON_ASSEMBLY_GROSS } from '../content/shared/prices.js'
+import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
 
 // The container units page as the rebuild left it: one H1, six cards built from the
@@ -48,6 +49,9 @@ const BY_PRICE = [13, 6, 12, 14, 7, 8]
 const priceOf = (id) => GALLERY.find((item) => item.id === id).price
 
 const CONTENT = { bg, en, el }
+// Intl writes a no-break space inside "550 €"; compare with the spaces made alike.
+const flatSpaces = (s) => String(s).replace(/\s/g, ' ')
+const fillIn = (text, values) => Object.entries(values).reduce((t, [k, v]) => t.replaceAll(`{${k}}`, v), text)
 const CYRILLIC = /\p{Script=Cyrillic}/u
 
 let photosBody = null
@@ -173,14 +177,38 @@ describe.each(['bg', 'en', 'el'])('ModularBuildsPage (%s)', (locale) => {
   it('states assembly, crane, accommodation, foundation and delivery, with the figures computed', async () => {
     const { container } = await renderLoaded(locale)
     const block = container.querySelector('#assembly').textContent
-    expect(block).toContain(c.assembly.crane)
-    expect(block).toContain(c.assembly.noCrane)
+    const CONTAINER = DELIVERY_RATES.products.container
+    expect(block).toContain(fillIn(c.assembly.crane, { crane: euro(CONTAINER.crane.about, locale) }))
+    expect(block).toContain(fillIn(c.assembly.noCrane, { nights: CONTAINER.noCrane.nights, travel: euro(CONTAINER.noCrane.travelMax, locale) }))
     expect(block).toContain(c.assembly.foundation)
     expect(block).toContain(euro(WAGON_ASSEMBLY_GROSS, locale))
-    // 0.80 €/km, the estimator's own rate, with its cents.
-    expect(block).toMatch(/0[.,]80/)
+    // The owner's fixed 1 €/km, in whole euros (the old 0.80 and its cents are gone), and a
+    // stock container within 7 days.
+    expect(block).toContain(fillIn(c.assembly.delivery, { rate: euro(CONTAINER.perKm, locale), days: LEAD_TIMES.containerInStockDays }))
+    expect(block).not.toMatch(/0[.,]80?\b/)
+    expect(block).not.toMatch(/\{\w+\}/)
     const link = within(container.querySelector('#assembly')).getByRole('link', { name: c.assembly.deliveryLink })
     expect(link.getAttribute('href')).toBe(paths.delivery[locale])
+  })
+
+  it('takes the rate, the crane, the nights and the travel from deliveryRates.js', async () => {
+    // Changed in the module for this one render: the page must follow, which a figure typed
+    // into the content or the page could not.
+    const CONTAINER = DELIVERY_RATES.products.container
+    const saved = JSON.parse(JSON.stringify(CONTAINER))
+    Object.assign(CONTAINER, { perKm: 7, crane: { optional: true, about: 1234 }, noCrane: { workers: 2, nights: '9–10', travelMax: 321 } })
+    try {
+      const { container } = await renderLoaded(locale)
+      const block = flatSpaces(container.querySelector('#assembly').textContent)
+      for (const figure of [euro(7, locale), euro(1234, locale), '9–10', euro(321, locale)]) {
+        expect(block).toContain(flatSpaces(figure))
+      }
+      // Every figure carries the VAT label, since house prices elsewhere include VAT.
+      const vat = { bg: 'без ДДС', en: 'excl. VAT', el: 'χωρίς ΦΠΑ' }[locale]
+      for (const key of ['crane', 'noCrane', 'delivery']) expect(c.assembly[key]).toContain(vat)
+    } finally {
+      Object.assign(CONTAINER, saved)
+    }
   })
 
   it('links the prices table, the gallery filter, the catalogues and the two other lines', async () => {

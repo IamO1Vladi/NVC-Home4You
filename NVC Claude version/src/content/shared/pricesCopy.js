@@ -4,12 +4,16 @@
 // labels around it: the three versions are the same twelve strings and keeping them side by
 // side is what stops a price caveat being corrected in Bulgarian and left wrong in Greek.
 // The FIGURES are not here at all — they come from prices.js, which imports them from the
-// catalogue.
+// catalogue, and the crane and delivery figures in the "not included" list from
+// deliveryRates.js (filled into {containerRate}, {boxRate}, {containerCrane}, {boxCrane}).
 //
 // The "not included" section is the point of the page, not a disclaimer. Every competitor
 // publishes a number that turns out to exclude things; saying plainly that the crane and the
 // foundation are extra is what makes the rest of the table believable, and it is what a
 // visitor is actually trying to find out before they call.
+
+import { euro } from '../../lib/euro.js'
+import { DELIVERY_RATES } from './deliveryRates.js'
 
 const SHARED = {
   vatRatePercent: 20,
@@ -52,9 +56,11 @@ export const PRICES_COPY = {
       'Довършителни работи до ключ — готова за нанасяне.',
     ],
     excludedTitle: 'Какво не включва',
+    // The list sits under both tables, so the crane line says which product needs one.
     excluded: [
-      'Кранът, който поставя къщата на място.',
+      'Кранът, който поставя къщата на място: за Бокс къща е задължителен — около {boxCrane} без ДДС, а според мястото може и повече; за контейнер е по ваш избор — около {containerCrane} без ДДС.',
       'Основата, върху която стъпва къщата.',
+      'Доставката до вашия парцел: за контейнер {containerRate} на километър, за Бокс къща около {boxRate}, в двете посоки, без ДДС.',
     ],
     foundationNote: 'За основа препоръчваме Siana Burgas, ако изберете наземни винтове.',
 
@@ -108,8 +114,9 @@ export const PRICES_COPY = {
     ],
     excludedTitle: 'What it does not cover',
     excluded: [
-      'The crane that lifts the house into place.',
+      'The crane that lifts the house into place: required for a Box house, about {boxCrane} excl. VAT, or more depending on the location; your choice for a container, about {containerCrane} excl. VAT.',
       'The foundation the house stands on.',
+      'Delivery to your plot: {containerRate} per kilometre for a container, about {boxRate} for a Box house, counted both ways, excl. VAT.',
     ],
     foundationNote: 'For the foundation we recommend Siana Burgas, if you go with ground screws.',
 
@@ -160,8 +167,9 @@ export const PRICES_COPY = {
     ],
     excludedTitle: 'Τι δεν περιλαμβάνει',
     excluded: [
-      'Τον γερανό που τοποθετεί το σπίτι.',
+      'Τον γερανό που τοποθετεί το σπίτι: για σπίτι Box είναι απαραίτητος, περίπου {boxCrane} χωρίς ΦΠΑ, ή και περισσότερο ανάλογα με την τοποθεσία· για κοντέινερ είναι προαιρετικός, περίπου {containerCrane} χωρίς ΦΠΑ.',
       'Τη βάση πάνω στην οποία στέκεται το σπίτι.',
+      'Την παράδοση στο οικόπεδό σας: {containerRate} ανά χιλιόμετρο για κοντέινερ, περίπου {boxRate} για σπίτι Box, και για τις δύο κατευθύνσεις, χωρίς ΦΠΑ.',
     ],
     foundationNote: 'Για τη βάση προτείνουμε τη Siana Burgas, αν επιλέξετε βίδες εδάφους.',
 
@@ -176,6 +184,25 @@ export const PRICES_COPY = {
   },
 }
 
+// The owner's crane and delivery figures, written into the "not included" lines once, so the
+// prices page and the Box houses page (which prints the same list) read the same sentence.
+const { container, box } = DELIVERY_RATES.products
+
+function withDeliveryFigures(copy, locale) {
+  const figures = {
+    containerRate: euro(container.perKm, locale),
+    boxRate: euro(box.perKm, locale),
+    containerCrane: euro(container.crane.about, locale),
+    boxCrane: euro(box.crane.about, locale),
+  }
+  const fill = (line) => Object.entries(figures).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), line)
+  return { ...copy, excluded: copy.excluded.map(fill) }
+}
+
+const FILLED = Object.fromEntries(
+  Object.entries(PRICES_COPY).map(([locale, copy]) => [locale, withDeliveryFigures(copy, locale)]),
+)
+
 export function getPricesCopy(locale = 'en') {
-  return PRICES_COPY[locale] || PRICES_COPY.en
+  return FILLED[locale] || FILLED.en
 }

@@ -10,8 +10,8 @@
 // states, or one the owner gave us (2026-10-12): the Box house sizes, frame, walls and glazing
 // are the gallery descriptions'; the capsule lines are gallery item 100015's and nothing more;
 // the hero photo and the proof card are the Paralia Kariani case on /api/cases-page; the
-// delivery line (Bulgaria and the EU) is what the site has always said, and what that case in
-// Greece shows. It also carries the page's place name for search, with the title. Do not
+// delivery line (Bulgaria and Greece, other countries on request) is the owner's answer of
+// 2026-10-15, and what that case in Greece shows. It also carries the page's place name for search, with the title. Do not
 // add a lead time, a permit or a foundation recommendation here; there is none we can stand
 // behind yet. The "not included" list is NOT here either: the page reads it from pricesCopy so
 // this page and /bg/ceni say it in the same words.
@@ -104,10 +104,13 @@ export default {
   arrival: {
     heading: 'Как пристига разгъваемата къща',
     paragraphs: [
-      'Разгъваемата къща се произвежда във фабрика заедно с банята, кухнята, дограмата и инсталациите, които сте избрали. Пътува сгъната и се разгъва едва на мястото си — затова едни я наричат сгъваема, други разтегателна, а трети просто „бокс“ къща. Доставяме я в България и в други страни от ЕС.',
+      'Разгъваемата къща се произвежда във фабрика заедно с банята, кухнята, дограмата и инсталациите, които сте избрали. Пътува сгъната и се разгъва едва на мястото си — затова едни я наричат сгъваема, други разтегателна, а трети просто „бокс“ къща. Доставяме я в България и в Гърция, а за други страни — при запитване.',
       'При транспорт моделът от 37 м² е широк {folded} м, а разгънат — {open} м. На място къщата се поставя с кран върху подготвената основа и се разгъва. Инсталациите вътре са изградени още във фабриката.',
     ],
+    // {rate}, {crane}, {production} and {months} come from deliveryRates.js, the owner's figures of 2026-10-15.
+    delivery: 'Доставка до вашия парцел: около {rate} на километър, в двете посоки, от Марикостиново или от Варна — откъдето е по-близо до вас. Кранът е задължителен и струва около {crane}, а според мястото може и повече. Доставката и кранът са без ДДС. Къщата се произвежда до {production} дни и пристига на вашия адрес за около {months} месеца.',
     pricesLink: 'Цени с монтажа →',
+    deliveryLink: 'Вижте разстоянието до вашия адрес →',
     includedHeading: 'Какво включва монтажът',
     excludedHeading: 'Какво не е включено',
     foundationAsk: 'Каква основа е нужна, зависи от мястото. Обадете се или ни попитайте.',

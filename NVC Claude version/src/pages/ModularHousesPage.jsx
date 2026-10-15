@@ -7,6 +7,7 @@
 // EVERY FIGURE COMES FROM THE GALLERY ROWS (useProductRows, the same call the prices page
 // makes), never from the content file: the hero's "from", each card's house price and its
 // assembly, the comparison row, the sibling link's container price and the Product markup.
+// The delivery line's rate, crane and lead times are the owner's, from deliveryRates.js.
 // A Box house is quoted the way the home strip quotes it since 2026-10-12, the house with
 // VAT and without its assembly, and the assembly is printed under it (prices.js grosses it
 // up from BOX_ASSEMBLY_NET_BY_ID), or "on request" where we do not know it yet.
@@ -35,6 +36,7 @@ import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, disp
 import { usePagePhoto } from '../lib/homePhotos.js'
 import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
+import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
@@ -52,6 +54,9 @@ const SIZES = [
   { id: 17 },
 ]
 const CAPSULE_ID = 100015
+
+// The truck leg and the crane a Box house needs, the owner's figures shared with every page.
+const BOX_DELIVERY = DELIVERY_RATES.products.box
 
 const NUMBER_LOCALES = { bg: 'bg-BG', en: 'en-GB', el: 'el-GR' }
 
@@ -282,7 +287,11 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
             {c.arrival.paragraphs
               .filter((text) => (widths.folded && widths.open) || !text.includes('{folded}'))
               .map((text) => <p key={text}>{fill(text, widths)}</p>)}
-            <p className="pp-links"><Link to={pricesPath}>{c.arrival.pricesLink}</Link></p>
+            <p>{fill(c.arrival.delivery, { rate: euro(BOX_DELIVERY.perKm, locale), crane: euro(BOX_DELIVERY.crane.about, locale), production: LEAD_TIMES.boxProductionDays, months: LEAD_TIMES.boxToAddressMonths })}</p>
+            <p className="pp-links">
+              <Link to={pricesPath}>{c.arrival.pricesLink}</Link>
+              <Link to={paths.delivery[locale]}>{c.arrival.deliveryLink}</Link>
+            </p>
           </div>
 
           {/* The same words /bg/ceni uses for what the price covers and what it does not

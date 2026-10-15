@@ -1,4 +1,11 @@
 // src/content/en/faq.js
+import { euro } from '../../lib/euro.js'
+import { DELIVERY_RATES, LEAD_TIMES } from '../shared/deliveryRates.js'
+
+// The crane and lead-time answers quote the owner's figures (2026-10-15) from deliveryRates.js.
+const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
+const crane = (product) => euro(product.crane.about, 'en')
+
 export default {
   seo: {
     title: 'Frequently Asked Questions about Modular Homes and Containers | NVC Home4You',
@@ -20,7 +27,7 @@ export default {
       items: [
         {
           q: 'What is the typical timeline?',
-          a: '6–10 weeks depending on configuration and location.',
+          a: `A container in stock is delivered within ${LEAD_TIMES.containerInStockDays} days. A Box house takes up to ${LEAD_TIMES.boxProductionDays} days to make and reaches your address in about ${LEAD_TIMES.boxToAddressMonths} months. For containers made to order and custom houses, ask us.`,
         },
         {
           q: 'Can I customize finishes?',
@@ -36,8 +43,8 @@ export default {
           a: 'Yes. We manage declarations, duties, and import compliance.',
         },
         {
-          q: 'Who arranges cranes?',
-          a: 'We can coordinate cranes and site access as part of delivery.',
+          q: 'Do I need a crane, and what does it cost?',
+          a: `It depends on the product. A Box house needs one: about ${crane(BOX)} excl. VAT, or more depending on the location. For a container it is your choice and at your cost, about ${crane(CONTAINER)} excl. VAT; we then assemble it in our warehouse and it arrives finished, with no travel or accommodation for workers to pay. Without a crane, two of our workers assemble the container on site. They stay ${CONTAINER.noCrane.nights} nights, and you arrange their accommodation; depending on the location, their travel adds up to ${euro(CONTAINER.noCrane.travelMax, 'en')} excl. VAT.`,
         },
       ],
     },

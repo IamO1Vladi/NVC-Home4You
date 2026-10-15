@@ -2,13 +2,14 @@
 //
 // The words on the "Container units" page (/en/modular-builds). No price lives here: the
 // prices, the "from" figure, the assembly share of a price and the delivery rate come from
-// the gallery (/api/gallery), prices.js and delivery.js, and are filled into {amount},
-// {rate} and {price}. The title and description search engines read are in
+// the gallery (/api/gallery), prices.js and deliveryRates.js, and are filled into {amount},
+// {rate}, {crane}, {travel} and {price}. The title and description search engines read are in
 // src/seo/routeMeta.js.
 //
 // The table states only what the six gallery descriptions state. The kitchen, the crane,
 // the accommodation, the foundation and the made-to-order sizes are the owner's words
-// (2026-10-12).
+// (2026-10-12); the crane's cost, the 3–4 nights and the workers' travel are his 2026-10-15
+// figures, in deliveryRates.js.
 export default {
   hero: {
     eyebrow: 'Container units',
@@ -81,13 +82,13 @@ export default {
     includedLabel: 'Assembly',
     included: 'Included in the price of every model: {amount} of it is the assembly.',
     craneLabel: 'With a crane',
-    crane: 'If you prefer, the container is set in place by crane, which you pay for.',
+    crane: 'If you prefer, the container is set in place by crane, which you pay for: about {crane} excl. VAT. We then assemble it in our warehouse and it arrives finished, with no travel or accommodation for workers to pay.',
     noCraneLabel: 'Without a crane',
-    noCrane: 'If you do not want a crane, two of our workers build the container on site at your place. You then arrange their accommodation for three nights.',
+    noCrane: 'If you do not want a crane, two of our workers build the container on site at your place. They stay {nights} nights, and you arrange their accommodation. Depending on the location, their travel adds up to {travel} excl. VAT.',
     foundationLabel: 'Foundation',
     foundation: 'The foundation it needs depends on the location. Call us or ask us about your plot.',
     deliveryLabel: 'Delivery',
-    delivery: 'We deliver from Marikostinovo, Bulgaria: {rate} per kilometre, counted both ways.',
+    delivery: 'We deliver from Marikostinovo, Bulgaria: {rate} per kilometre, counted both ways, excl. VAT. A container in stock arrives within {days} days.',
     deliveryLink: 'Estimate delivery to your address →',
     ask: 'Ask a Question',
     call: 'Call us',

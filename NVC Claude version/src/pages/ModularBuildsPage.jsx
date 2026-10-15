@@ -5,14 +5,16 @@
 // button and no link anywhere on the site, while Product markup told Google the cheapest
 // unit cost 4,240 leva. Now every figure on it is read from the gallery: the cards are the
 // gallery's wagon rows (useProductRows, the same call /bg/ceni makes), the hero's "from" is
-// the cheapest of them, the assembly share is prices.js's, the delivery rate is the one the
-// delivery estimator charges, and the Product markup is built from the very rows the cards
-// print. Nothing the visitor reads as a price is typed in the content file, so nothing here
-// can go stale the way the brochures' 4,240 and 5,370 did.
+// the cheapest of them, the assembly share is prices.js's, the delivery rate and the crane
+// are deliveryRates.js's (the module the delivery estimator charges from), and the Product
+// markup is built from the very rows the cards print. Nothing the visitor reads as a price
+// is typed in the content file, so nothing here can go stale the way the brochures' 4,240
+// and 5,370 did.
 //
 // The spec table says only what all six gallery descriptions say. The crane, the
 // accommodation, the kitchen, the foundation and the made-to-order sizes are the owner's
-// answers (2026-10-12) and are worded in the content file exactly as he gave them; nothing
+// answers (2026-10-12; the crane's cost, the 3–4 nights and the workers' travel are his
+// 2026-10-15 figures in deliveryRates.js) and are worded in the content file exactly as he gave them; nothing
 // about permits, lead times or what foundation to pour is said, because nobody has.
 //
 // The hero photo is the admin's "page-modular-builds" slot when one is set, otherwise a real
@@ -36,29 +38,11 @@ import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { usePagePhoto } from '../lib/homePhotos.js'
 import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, displayTitle } from '../lib/productRows.js'
 import { paths } from '../routes/paths.js'
-import bgDelivery from '../content/bg/delivery.js'
-import enDelivery from '../content/en/delivery.js'
-import elDelivery from '../content/el/delivery.js'
+import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 
-// The rate the delivery estimator charges in each language, read from its own content so
-// the sentence here and the calculator one tap away cannot quote two different figures.
-const RATE_PER_KM = {
-  bg: bgDelivery?.estimator?.ratePerKm,
-  en: enDelivery?.estimator?.ratePerKm,
-  el: elDelivery?.estimator?.ratePerKm,
-}
-
-const NUMBER_LOCALES = { bg: 'bg-BG', en: 'en-GB', el: 'el-GR' }
-
-// euro() rounds to whole euros, which would print the 0.80 rate as "€1".
-function centsEuro(value, locale) {
-  return new Intl.NumberFormat(NUMBER_LOCALES[locale] || 'en-GB', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value))
-}
+// The container's rate, crane and no-crane terms: the same module the delivery estimator
+// charges from, so the sentence here and the calculator one tap away cannot disagree.
+const CONTAINER = DELIVERY_RATES.products.container
 
 const fill = (pattern, values) => Object.entries(values).reduce(
   (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
@@ -83,7 +67,6 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
   // rows so a page without rows prints no figure).
   const assemblyGross = lowest(wagon, (row) => row.assemblyGross)
   const housesFrom = lowest(box, (row) => row.house)
-  const rate = RATE_PER_KM[locale]
 
   // The admin types one alt, in Bulgarian, so it is used on the Bulgarian page only; a blank
   // one, and every other language, get the page's generic adminAlt. Not the default photo's
@@ -109,10 +92,13 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
 
   const assemblyLines = [
     assemblyGross != null && { label: c.assembly.includedLabel, text: fill(c.assembly.included, { amount: euro(assemblyGross, locale) }) },
-    { label: c.assembly.craneLabel, text: c.assembly.crane },
-    { label: c.assembly.noCraneLabel, text: c.assembly.noCrane },
+    { label: c.assembly.craneLabel, text: fill(c.assembly.crane, { crane: euro(CONTAINER.crane.about, locale) }) },
+    {
+      label: c.assembly.noCraneLabel,
+      text: fill(c.assembly.noCrane, { nights: CONTAINER.noCrane.nights, travel: euro(CONTAINER.noCrane.travelMax, locale) }),
+    },
     { label: c.assembly.foundationLabel, text: c.assembly.foundation },
-    rate != null && { label: c.assembly.deliveryLabel, text: fill(c.assembly.delivery, { rate: centsEuro(rate, locale) }) },
+    { label: c.assembly.deliveryLabel, text: fill(c.assembly.delivery, { rate: euro(CONTAINER.perKm, locale), days: LEAD_TIMES.containerInStockDays }) },
   ].filter(Boolean)
 
   const siblings = [

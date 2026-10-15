@@ -1,3 +1,11 @@
+import { euro } from '../../lib/euro.js'
+import { DELIVERY_BASES, DELIVERY_RATES } from '../shared/deliveryRates.js'
+
+// The estimator still computes one rate, the container's, from Marikostinovo; the heading
+// above it names both products. Every figure comes from deliveryRates.js.
+const CONTAINER = DELIVERY_RATES.products.container
+const BOX = DELIVERY_RATES.products.box
+
 export default {
   seo: {
     title: 'Доставка до адрес на модулни и сглобяеми къщи | NVC Home4You',
@@ -58,35 +66,33 @@ export default {
         meta: 'Крайна доставка',
       },
     ],
-    windows: {
-      chips: [
-        'Западна Европа: ~30–35 дни',
-        'Източна Европа: ~40–45 дни',
-      ],
-      sub: 'Реалният срок зависи от производството, сезона, пристанищата и крайния адрес.',
-    },
+    // No lead-time chips: the owner is still confirming lead times (2026-10-15).
   },
   estimator: {
     locale: 'bg-BG',
     acceptLanguage: 'bg,en',
-    base: { lat: 41.43165, lon: 23.33813 },
-    ratePerKm: 0.8,
-    currency: 'евро',
+    base: DELIVERY_BASES.marikostinovo,
+    ratePerKm: CONTAINER.perKm,
     strings: {
       heading: 'Ориентировъчна цена за доставка',
-      subheading: 'База: Марикостиново. Такса: 0.8 евро / км, в двете посоки.',
+      subheading: `Контейнер: ${euro(CONTAINER.perKm, 'bg')}/км от Марикостиново, в двете посоки. Бокс къща: около ${euro(BOX.perKm, 'bg')}/км, в двете посоки, от Марикостиново или от Варна (откъдето е по-близо), плюс кран около ${euro(BOX.crane.about, 'bg')}, а според мястото може и повече. Цените са без ДДС.`,
+      // Owner, 2026-10-15: abroad only Greece so far, at the same rates; other countries on request.
+      countriesNote: 'България и Гърция, на същите цени. Други държави — по запитване.',
       placeholder: 'Въведете адрес (пример: София, бул. Черни връх 1)',
       buttonIdle: 'Изчисли',
       buttonLoading: 'Търсене…',
       addressLabel: 'Адрес:',
       oneWayLabel: 'Разстояние в една посока:',
       billableLabel: 'Разстояние за таксуване:',
-      estimateLabel: 'Ориентировъчна цена:',
+      estimateLabel: 'Ориентировъчна цена за контейнер:',
+      vatLabel: 'без ДДС',
       searchNote: 'Показана е ориентировъчна права линия, когато пътният маршрут не е наличен.',
       helpText: 'Въведете адрес или кликнете върху картата, за да поставите маркер.',
       droppedPin: 'Поставен маркер',
       geocodeError: 'Грешка при геокодиране',
       notFoundError: 'Не е намерен адрес',
+      // A map pin outside the countries above gets this in place of a price.
+      outsideError: 'Извън България и Гърция доставката е по запитване.',
       genericError: 'Нещо се обърка',
       emptyValue: '—',
       km: 'км',
