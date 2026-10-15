@@ -38,6 +38,29 @@ export default {
     adminAlt: 'Κοντέινερ ή σπίτι Box κατά την παράδοση',
   },
 
+  // The journey drawing in the hero (PartnerJourney.jsx); the same facts as bg/partner.js: one
+  // factory, by air only smaller shipments in crates, no transit times or speed comparisons.
+  journey: {
+    summary: 'Πώς φτάνει η παραγγελία: από το εργοστάσιό μας στην Κίνα δια θαλάσσης, σιδηροδρομικώς ή αεροπορικώς (αεροπορικώς μόνο μικρότερα φορτία, σε κιβώτια) και μετά με φορτηγό στην αποθήκη σας ή στην αποθήκη μας στο Μαρικοστίνοβο.',
+    captions: {
+      factory: 'Το εργοστάσιό μας στην Κίνα',
+      sea: 'Δια θαλάσσης',
+      rail: 'Σιδηροδρομικώς',
+      air: 'Αεροπορικώς · μικρότερα φορτία',
+      yours: 'Η αποθήκη σας',
+      ours: 'Η αποθήκη μας στο Μαρικοστίνοβο',
+    },
+    steps: ['Εργοστάσιο', 'Μεταφορά', 'Αποθήκη'],
+    stepLabel: 'Βήμα {n}: {name}',
+    transport: 'Μεταφορά',
+    modes: { sea: 'Θαλάσσια', rail: 'Σιδηροδρομική', air: 'Αεροπορική' },
+    arrival: 'Άφιξη',
+    places: { yours: 'Η αποθήκη σας', ours: 'Η αποθήκη μας', oursWhere: ' στο Μαρικοστίνοβο' },
+    pause: 'Παύση',
+    play: 'Αναπαραγωγή',
+    storyboard: 'Η διαδρομή της παραγγελίας σε τρία βήματα',
+  },
+
   doors: {
     heading: 'Μεταπωλείτε ή αγοράζετε για δικό σας έργο;',
     resell: {

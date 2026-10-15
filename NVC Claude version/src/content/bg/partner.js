@@ -47,6 +47,32 @@ export default {
     adminAlt: 'Контейнер или Бокс къща при доставка',
   },
 
+  // The journey drawing in the hero's right column (components/partner/PartnerJourney.jsx):
+  // factory, transport, warehouse. The FACTS it keeps: ONE factory, ours; by air only smaller
+  // shipments, in crates, never a whole house; no transit times and no "faster than";
+  // it arrives at your warehouse or ours at Marikostinovo. The hero photo now sits beside „Накратко".
+  journey: {
+    summary: 'Как пристига поръчката: от нашата фабрика в Китай по море, с влак или по въздух (по въздух само по-малки пратки, в каси), после с камион до вашия склад или до нашия склад в Марикостиново.',
+    captions: {
+      factory: 'Нашата фабрика в Китай',
+      sea: 'По море',
+      rail: 'С влак',
+      air: 'По въздух · по-малки пратки',
+      yours: 'Вашият склад',
+      ours: 'Нашият склад в Марикостиново',
+    },
+    steps: ['Фабрика', 'Транспорт', 'Склад'],
+    stepLabel: 'Стъпка {n}: {name}',
+    transport: 'Транспорт',
+    modes: { sea: 'Море', rail: 'ЖП', air: 'Въздух' },
+    arrival: 'Пристигане',
+    // On a narrow screen the button drops oursWhere.
+    places: { yours: 'Вашият склад', ours: 'Нашият склад', oursWhere: ' в Марикостиново' },
+    pause: 'Пауза',
+    play: 'Пусни',
+    storyboard: 'Пътят на поръчката в три стъпки',
+  },
+
   doors: {
     heading: 'Препродавате или купувате за свой обект?',
     resell: {

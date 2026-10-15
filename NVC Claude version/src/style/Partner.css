@@ -9,8 +9,11 @@
    It replaces 876 lines of ppr- rules (a full-bleed PNG hero, glass pills and a scroll-driven
    road) that nothing renders any more. Phones first: one column at 390px, nothing sideways. */
 
-/* The hero photo: the crane lift is a 4:3 photo whose subject sits low. */
-.ptn .pp-hero-media img{ object-position:50% 70% }
+/* The hero's right column: the journey drawing (PartnerJourney.css), about 560px wide as
+   designed, narrower with the column; once it is under the words (below 900px), the full width
+   of the container, so its cut edge lines up with the container's as on a desktop. */
+.ptn-journey{ width:100%; max-width:560px }
+@media (max-width:899px){ .ptn-journey{ max-width:none } }
 /* Four facts, longer than a product page's: one per line at every width, the tick at the
    first line of one that wraps. */
 .ptn .pp-hero .hp-facts{ flex-direction:column; gap:6px }
@@ -38,8 +41,20 @@
   .ptn-door .hp-btn{ align-self:stretch }
 }
 
-/* At a glance: the product pages' term list, a little wider for the delivery row. */
+/* At a glance: the product pages' term list, a little wider for the delivery row. From 1100px
+   the page photo (the admin's page-partner slot, the crane lift by default) stands beside it,
+   sticky, in the room the narrow table leaves; below that it is not shown (nor fetched: lazy). */
 .ptn-terms{ max-width:900px }
+.ptn-photo{ display:none }
+@media (min-width:1100px){
+  .ptn-glance{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,400px); gap:48px; align-items:start }
+  .ptn-photo{
+    display:block; position:sticky; top:96px; margin:0; overflow:hidden;
+    border:1px solid var(--hp-line); border-radius:var(--hp-r-l); background:var(--hp-surface-2);
+  }
+  /* The crane lift is a 4:3 photo whose subject sits low. */
+  .ptn-photo img{ width:100%; height:auto; aspect-ratio:4/5; object-fit:cover; object-position:50% 70% }
+}
 .ptn-terms dd a{ font-weight:600; white-space:nowrap }
 @media (min-width:720px){ .ptn-terms > div{ grid-template-columns:220px minmax(0,1fr) } }
 

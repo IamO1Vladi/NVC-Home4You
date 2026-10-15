@@ -37,6 +37,29 @@ export default {
     adminAlt: 'A container or Box house being delivered',
   },
 
+  // The journey drawing in the hero (PartnerJourney.jsx); the same facts as bg/partner.js: one
+  // factory, by air only smaller shipments in crates, no transit times or speed comparisons.
+  journey: {
+    summary: 'How an order travels: from our factory in China by sea, by rail or by air (by air only smaller shipments, in crates), then by truck to your warehouse or to our warehouse in Marikostinovo.',
+    captions: {
+      factory: 'Our factory in China',
+      sea: 'By sea',
+      rail: 'By rail',
+      air: 'By air · smaller shipments',
+      yours: 'Your warehouse',
+      ours: 'Our warehouse in Marikostinovo',
+    },
+    steps: ['Factory', 'Transport', 'Warehouse'],
+    stepLabel: 'Step {n}: {name}',
+    transport: 'Transport',
+    modes: { sea: 'Sea', rail: 'Rail', air: 'Air' },
+    arrival: 'Arrival',
+    places: { yours: 'Your warehouse', ours: 'Our warehouse', oursWhere: ' in Marikostinovo' },
+    pause: 'Pause',
+    play: 'Play',
+    storyboard: 'The journey of an order in three steps',
+  },
+
   doors: {
     heading: 'Reselling, or buying for your own site?',
     resell: {

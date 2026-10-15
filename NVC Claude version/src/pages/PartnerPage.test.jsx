@@ -252,7 +252,7 @@ describe('PartnerPage', () => {
       const near = mapObservers()
       expect(near).toHaveLength(1)
       act(() => { near[0].callback([{ target: near[0].targets[0], isIntersecting: true }], near[0]) })
-      expect(await screen.findByRole('button', { name: bgContent.logisticsWorld.modeSea }, { timeout: 4000 })).toBeInTheDocument()
+      expect(await within(container.querySelector('#ptn-cargo')).findByRole('button', { name: bgContent.logisticsWorld.modeSea }, { timeout: 4000 })).toBeInTheDocument()
       expect(container.querySelector('.leaflet-container')).not.toBeNull()
     })
 
@@ -263,7 +263,7 @@ describe('PartnerPage', () => {
       expect(mapObservers()).toHaveLength(0)
       expect(container.querySelector('.leaflet-container')).toBeNull()
       fireEvent.click(screen.getByRole('button', { name: bgContent.cargo.show }))
-      expect(await screen.findByRole('button', { name: bgContent.logisticsWorld.modeSea }, { timeout: 4000 })).toBeInTheDocument()
+      expect(await within(container.querySelector('#ptn-cargo')).findByRole('button', { name: bgContent.logisticsWorld.modeSea }, { timeout: 4000 })).toBeInTheDocument()
     })
 
     it('asks its question tagged as cargo, then tags the page again', async () => {
@@ -320,14 +320,52 @@ describe('PartnerPage', () => {
     expect(within(container.querySelector('#ptn-proof')).getByRole('link', { name: bgContent.proof.reviews })).toHaveAttribute('href', paths.cases.bg)
   })
 
-  it('opens on the default crane photo with its 800px crop, eager', async () => {
+  it('draws the journey in the hero, the words first, and nothing of it waits on a script', async () => {
     const { container } = renderPage('bg')
     await ready(container)
-    const img = container.querySelector('.pp-hero-media img')
+    const hero = container.querySelector('.pp-hero')
+    const grid = hero.querySelector('.pp-hero-grid')
+    // Copy first, then the drawing (on a phone they stack in this order).
+    expect([...grid.children].map((el) => el.className)).toEqual(['pp-hero-copy', 'pp-hero-aside ptn-journey'])
+    expect(within(hero).getByRole('img', { name: bgContent.journey.summary })).toBeInTheDocument()
+    expect(hero.querySelector('.pj-cap').textContent).toContain(bgContent.journey.captions.factory)
+    for (const name of bgContent.journey.steps) expect(hero.querySelector('.pj-steps').textContent).toContain(name)
+    expect(within(hero).getByRole('button', { name: bgContent.journey.modes.sea })).toHaveAttribute('aria-pressed', 'true')
+    // No photo in the hero any more, and nothing hidden until a script reveals it: the
+    // drawing's world is fully opaque and no label carries a style.
+    expect(hero.querySelector('img')).toBeNull()
+    const hidden = /opacity:\s*0(?![.\d])|display:\s*none|visibility:\s*hidden/
+    for (const el of [hero.querySelector('[data-k="w"]'), ...hero.querySelectorAll('.pj-cap, .pj-cap *, .pj-steps, .pj-ctl, .pj-ctl *')]) {
+      expect(el.getAttribute('style') || '').not.toMatch(hidden)
+    }
+  })
+
+  it('puts the crane photo beside „Накратко", with its 800px crop, lazy (it is not shown below 1100px)', async () => {
+    const { container } = renderPage('bg')
+    await ready(container)
+    expect(container.querySelectorAll('main img[src*="crane-lift"]')).toHaveLength(1)
+    const img = container.querySelector('#ptn-terms .ptn-glance > .ptn-photo img')
     expect(img).toHaveAttribute('src', '/delivery/crane-lift-800.webp')
     expect(img.getAttribute('srcset')).toContain('/delivery/crane-lift-1500.webp 1500w')
-    expect(img).toHaveAttribute('loading', 'eager')
+    expect(img).toHaveAttribute('loading', 'lazy')
+    expect(img).not.toHaveAttribute('fetchpriority')
     expect(img).toHaveAttribute('alt', bgContent.hero.photoAlt)
+    // The table and its note are the other column.
+    const text = container.querySelector('#ptn-terms .ptn-glance > .ptn-glance-text')
+    expect(text.querySelector('dl.ptn-terms')).not.toBeNull()
+    expect(text.querySelector('.pp-note')).not.toBeNull()
     expect(container.innerHTML).not.toContain('partner/hero.png')
+  })
+
+  it('puts the admin page photo in the same place', async () => {
+    vi.stubGlobal('fetch', vi.fn((url) => {
+      if (String(url).includes('/api/cases-page')) return json({ cases, reviews: [] })
+      if (String(url).includes('/api/home/photos')) return json({ hero: [], models: {}, pages: { partner: { url: '/api/img/home/abc.webp', alt: 'Склад' } } })
+      return Promise.resolve({ ok: false, status: 404 })
+    }))
+    const { container } = renderPage('bg')
+    await ready(container)
+    await waitFor(() => expect(container.querySelector('#ptn-terms .ptn-photo img').getAttribute('src')).toContain('abc'))
+    expect(container.querySelector('.pp-hero img')).toBeNull()
   })
 })

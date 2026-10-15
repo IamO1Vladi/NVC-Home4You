@@ -14,6 +14,10 @@
 // the one place they are filled. A row or question marked `pending` waits for the owner's
 // answer and is never drawn, nor sent to Google as FAQ markup.
 //
+// The hero's right column is the journey drawing (PartnerJourney.jsx: factory, sea, rail or air,
+// a warehouse); the admin's page-partner photo (the crane lift by default) sits beside
+// „Накратко" on a wide screen, where the narrow table leaves room, and is not shown below that.
+//
 // Sections, in order: the hero; the two doors (resell / buy for your own site); „Накратко";
 // what you can order (the product pages, with their live prices); how we work (four steps,
 // every step and photo in the markup); who takes care of what; real deliveries (the published
@@ -35,6 +39,7 @@ import SiblingLinks from '../components/product/SiblingLinks.jsx'
 import ProcessSteps from '../components/product/ProcessSteps.jsx'
 import FinalCta from '../components/FinalCta.jsx'
 import PartnerEnquiry from '../components/partner/PartnerEnquiry.jsx'
+import PartnerJourney from '../components/partner/PartnerJourney.jsx'
 import { FAQJSONLD } from '../components/StructuredData.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
@@ -55,7 +60,7 @@ const LogisticsWorld = lazy(() => import('../components/LogisticsWorld.jsx'))
 const CONTAINER = DELIVERY_RATES.products.container
 const BOX = DELIVERY_RATES.products.box
 
-// The default hero photo, the delivery page's crane lift, in its 800 and 1500 wide crops
+// The default page photo, the delivery page's crane lift, in its 800 and 1500 wide crops
 // (scripts/delivery/clips.mjs). The admin's page-partner slot replaces it.
 const BASE = import.meta.env.BASE_URL || '/'
 const CRANE = { wide: PAGE_PHOTO_DEFAULTS.partner || PAGE_PHOTO_DEFAULTS.delivery, small: `${BASE}delivery/crane-lift-800.webp` }
@@ -102,21 +107,22 @@ function Tick() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
 }
 
-function HeroPhoto({ admin, locale, c }) {
-  // The photo is the hero's right column on a wide screen and sits above the heading on a
-  // phone (ProductPage.css), so it is the largest thing in the first screen either way: eager.
+// The page photo beside „Накратко": shown from 1100px only (Partner.css), and lazy, so a
+// narrower screen, where it is display:none, never fetches it.
+const PHOTO_SIZES = '(min-width: 1100px) 400px, 1px'
+
+function PagePhoto({ admin, locale, c }) {
   if (admin) {
     return (
       <img
         src={cdnImage(admin.url, { width: 800 })}
-        srcSet={cdnSrcSet(admin.url, [480, 640, 800, 1200, 1600])}
-        sizes="(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 600px"
+        srcSet={cdnSrcSet(admin.url, [480, 640, 800, 1200])}
+        sizes={PHOTO_SIZES}
         alt={(locale === 'bg' && admin.alt) || c.hero.adminAlt}
         width="1200"
         height="900"
-        loading="eager"
+        loading="lazy"
         decoding="async"
-        fetchpriority="high"
       />
     )
   }
@@ -124,13 +130,12 @@ function HeroPhoto({ admin, locale, c }) {
     <img
       src={CRANE.small}
       srcSet={`${CRANE.small} 800w, ${CRANE.wide.url} ${CRANE.wide.width}w`}
-      sizes="(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 600px"
+      sizes={PHOTO_SIZES}
       alt={c.hero.photoAlt}
       width={CRANE.wide.width}
       height={CRANE.wide.height}
-      loading="eager"
+      loading="lazy"
       decoding="async"
-      fetchpriority="high"
     />
   )
 }
@@ -268,8 +273,8 @@ export default function PartnerPage({ locale = 'bg', content }) {
 
   return (
     <main className="hp pp ptn">
-      {/* The product pages' hero (ProductHero's markup and classes), with the photo written
-          here so the default can carry its 800px crop in a srcset. */}
+      {/* The product pages' hero (ProductHero's markup and classes), the journey drawing in
+          the photo's place: after the words on a phone. */}
       <section className="pp-hero" aria-labelledby="ptn-hero-title">
         <div className="hp-container pp-hero-grid">
           <div className="pp-hero-copy">
@@ -284,10 +289,9 @@ export default function PartnerPage({ locale = 'bg', content }) {
               {facts.map((fact) => <li key={fact}><Tick />{fact}</li>)}
             </ul>
           </div>
-          <figure className="pp-hero-media">
-            {/* undefined while the first photo answer is on its way: the default shows. */}
-            <HeroPhoto admin={adminPhoto} locale={locale} c={c} />
-          </figure>
+          <div className="pp-hero-aside ptn-journey">
+            <PartnerJourney content={c.journey} />
+          </div>
         </div>
       </section>
 
@@ -326,18 +330,26 @@ export default function PartnerPage({ locale = 'bg', content }) {
               <h2 id="ptn-terms-title">{c.terms.heading}</h2>
             </div>
           </div>
-          <dl className="pp-terms ptn-terms" aria-labelledby="ptn-terms-title">
-            {terms.map((row) => (
-              <div key={row.key} data-term={row.key}>
-                <dt>{row.label}</dt>
-                <dd>
-                  {fill(row.text, v)}
-                  {row.link ? <> <Link to={pathOf(row.link.pathKey)}>{row.link.label}</Link></> : null}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className="pp-note">{c.terms.note}</p>
+          <div className="ptn-glance">
+            <div className="ptn-glance-text">
+              <dl className="pp-terms ptn-terms" aria-labelledby="ptn-terms-title">
+                {terms.map((row) => (
+                  <div key={row.key} data-term={row.key}>
+                    <dt>{row.label}</dt>
+                    <dd>
+                      {fill(row.text, v)}
+                      {row.link ? <> <Link to={pathOf(row.link.pathKey)}>{row.link.label}</Link></> : null}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="pp-note">{c.terms.note}</p>
+            </div>
+            <figure className="ptn-photo">
+              {/* undefined while the first photo answer is on its way: the default shows. */}
+              <PagePhoto admin={adminPhoto} locale={locale} c={c} />
+            </figure>
+          </div>
         </div>
       </section>
 

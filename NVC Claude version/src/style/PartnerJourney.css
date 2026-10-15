@@ -1,0 +1,112 @@
+/* The partner hero's journey drawing (components/partner/PartnerJourney.jsx). Every colour is a
+   --hp-* token (HomePage.css), so data-theme light and dark both hold. The strokes scale by --u,
+   which the script sets so a line stays about 2px at any width and zoom; the defaults below
+   already match it, so the poster does not thicken when the engine starts. The drawing is its
+   own container: what changes on a narrow one is a container query, right at the first paint. */
+.pj{
+  container-type:inline-size;
+  --pj-ink:var(--hp-text); --pj-mut:var(--hp-muted); --pj-acc:var(--hp-accent-text); --pj-ok:var(--hp-sage);
+  --pj-paper:var(--hp-bg); --pj-fill:var(--hp-surface-2); --pj-ln:var(--hp-line);
+  color:var(--pj-ink); max-width:100%; -webkit-tap-highlight-color:transparent;
+}
+.pj-stage{ position:relative; background:var(--pj-paper); border-radius:14px; overflow:hidden }
+.pj svg{ display:block; width:100%; height:auto; overflow:hidden; --u:.8 }
+/* --u is 450 / the drawing's width: .8 at the 560px it is designed for */
+@container (min-width:640px){ .pj svg{ --u:.65 } }
+@container (min-width:720px){ .pj svg{ --u:.58 } }
+@container (max-width:519px){ .pj svg{ --u:.95 } }
+@container (max-width:439px){ .pj svg{ --u:1.1 } }
+@container (max-width:379px){ .pj svg{ --u:1.25 } }
+@container (max-width:329px){ .pj svg{ --u:1.45 } }
+.pj .ln{ fill:none; stroke:var(--pj-ink); stroke-width:calc(2px*var(--u)); stroke-linecap:round; stroke-linejoin:round }
+.pj .mu{ fill:none; stroke:var(--pj-mut); stroke-width:calc(1.4px*var(--u)); stroke-linecap:round; stroke-linejoin:round; stroke-opacity:.7 }
+.pj .ac{ fill:none; stroke:var(--pj-acc); stroke-width:calc(2.2px*var(--u)); stroke-linejoin:round; stroke-linecap:round }
+.pj .th{ stroke-width:calc(1.3px*var(--u)) }
+.pj .f{ fill:var(--pj-fill) }
+.pj .pf{ fill:var(--pj-paper) }
+.pj .cf{ fill:var(--pj-fill); fill:color-mix(in srgb, var(--pj-acc) 13%, var(--pj-paper)) }
+.pj .ds{ stroke-dasharray:3 3 }
+.pj .rd{ stroke-dasharray:10 9 }
+.pj .sg{ fill:none; stroke:var(--pj-ok); stroke-width:calc(2.6px*var(--u)); stroke-linecap:round; stroke-linejoin:round }
+.pj .sg.pf{ fill:var(--pj-paper) }
+.pj .bt{ stroke-linecap:butt }
+.pj .bo{ stroke:var(--pj-ink); stroke-width:calc(6px*var(--u)) }
+.pj .bi{ stroke:var(--pj-fill); stroke-width:calc(2.4px*var(--u)) }
+
+/* the caption pill over the drawing */
+.pj-cap{
+  position:absolute; left:10px; top:10px; display:flex; align-items:center; gap:8px; max-width:calc(100% - 20px);
+  padding:5px 13px 5px 5px; border-radius:999px; background:var(--hp-surface); border:1px solid var(--pj-ln);
+  box-shadow:var(--hp-shadow-1); font-size:15px; line-height:1.25; font-weight:600; white-space:nowrap; pointer-events:none;
+}
+.hp .pj-cap{ margin:0 }
+.pj-k{
+  display:inline-grid; place-items:center; flex:none; min-width:36px; height:24px; padding:0 7px; border-radius:999px; white-space:nowrap;
+  background:var(--pj-ink); color:var(--pj-paper); font-size:12px; font-weight:600; font-variant-numeric:tabular-nums;
+}
+.pj-n{ overflow:hidden; text-overflow:ellipsis; transition:opacity .18s }
+.pj-cap.is-out .pj-n{ opacity:0 }
+
+/* the steps, the switches, pause */
+.pj button{
+  font:inherit; font-size:13px; line-height:1.2; color:var(--pj-mut); background:none; border:0; cursor:pointer;
+  -webkit-appearance:none; appearance:none;
+}
+.hp .pj button:focus-visible{ outline:2px solid var(--pj-acc); outline-offset:2px; border-radius:8px }
+.pj-steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px }
+.pj-step{ display:flex; flex-direction:column; align-items:stretch; gap:7px; padding:4px 0 6px; text-align:left; min-width:0 }
+.pj-step > i{ display:block; height:3px; border-radius:3px; background:var(--pj-ln); overflow:hidden }
+.pj-step > i > i{ display:block; height:100%; background:var(--pj-acc); transform-origin:0 50%; transform:scaleX(0) }
+.pj-step span{ display:flex; align-items:center; gap:7px; min-width:0 }
+.pj-step b{
+  display:inline-grid; place-items:center; flex:none; width:22px; height:22px; border-radius:50%;
+  border:1px solid var(--pj-ln); font-weight:600; font-size:12px; transition:background .3s, color .3s;
+}
+.pj .pj-step[aria-current]{ color:var(--pj-ink) }
+.pj-step[aria-current] b{ background:var(--pj-ink); border-color:var(--pj-ink); color:var(--pj-paper) }
+.pj-ctl{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:4px }
+.pj-seg{ display:inline-flex; flex-wrap:wrap; border:1px solid var(--pj-ln); border-radius:999px; padding:2px; background:var(--hp-surface) }
+.pj .pj-seg button{ padding:7px 9px; border-radius:999px; min-height:32px }
+.pj .pj-seg button[aria-pressed='true']{ background:var(--pj-ink); color:var(--pj-paper) }
+.pj .pj-pp{
+  margin-left:auto; width:34px; height:34px; border-radius:50%; border:1px solid var(--pj-ln);
+  display:inline-grid; place-items:center; flex:none;
+}
+.pj-pp svg{ width:12px; height:12px; fill:currentColor }
+
+/* reduced motion: three still panels instead of the stage, two side by side and the wide third
+   under them at every width. They are in the markup from the start; this media query, not the
+   script, decides, so the first paint is already the right one. */
+.pj-sb{ display:none; grid-template-columns:1fr 1fr; gap:10px 12px }
+.pj-sb figure{ margin:0; min-width:0 }
+.pj-sb figure:nth-child(3){ grid-column:1 / -1 }
+.pj-sb svg{ background:var(--pj-paper); border:1px solid var(--pj-ln); border-radius:12px }
+.pj-sb figcaption{ font-size:13px; line-height:1.3; margin-top:6px; display:flex; gap:7px; align-items:center; font-weight:600 }
+.pj-sb figcaption b{
+  display:inline-grid; place-items:center; flex:none; width:20px; height:20px; border-radius:50%;
+  background:var(--pj-ink); color:var(--pj-paper); font-size:11px;
+}
+@media (prefers-reduced-motion:reduce){
+  .pj .pj-stage, .pj .pj-steps, .pj .pj-pp{ display:none }
+  .pj-sb{ display:grid; margin-bottom:8px }
+}
+
+/* narrow: the short arrival label, a caption that wraps rather than losing its words */
+@container (max-width:479px){
+  .pj-long{ display:none }
+  .pj-cap{ font-size:14px; left:8px; top:8px; white-space:normal; border-radius:16px; align-items:flex-start }
+  .pj-n{ overflow:visible; text-overflow:clip; padding-top:3px }
+  .pj .pj-seg button{ padding:7px 8px }
+}
+/* At 320 px a third of the width is ~95 px: the Greek „Εργοστάσιο" did not fit beside its number. */
+@container (max-width:359px){
+  .pj-step span{ gap:5px; font-size:13px; overflow-wrap:anywhere }
+  .pj-step b{ width:20px; height:20px; font-size:11px }
+}
+
+/* a finger: every target 44px */
+@media (max-width:767px), (pointer:coarse){
+  .pj .pj-seg button{ min-height:44px }
+  .pj .pj-pp{ width:44px; height:44px }
+  .pj-step{ min-height:44px; justify-content:center }
+}
