@@ -98,9 +98,12 @@ if (!string.IsNullOrWhiteSpace(sqlConnectionString))
             .AddInterceptors(serviceProvider.GetRequiredService<Services.AuditInterceptor>())
             .UseSqlServer(sqlConnectionString, sql =>
         {
-            // Serverless Azure SQL auto-pauses when idle and returns error 40613 for the
-            // 30-60s it takes to resume. The default retry budget expires before then, so
-            // the first request after a quiet period would fail. Retry longer instead.
+            // The database is Standard S0 (DTU) and never pauses, but Azure still drops its
+            // connections for a few seconds during maintenance, failovers and tier changes
+            // (error 40613 and friends) — the switch to S0 on 2026-10-16 cost one request
+            // 5.7s and none an error. The default retry budget is shorter than that, so
+            // retry longer. Until that switch the database was serverless, and this same
+            // budget also carried the first request through a 30-60s resume from auto-pause.
             sql.EnableRetryOnFailure(
                 maxRetryCount: 12,
                 maxRetryDelay: TimeSpan.FromSeconds(30),

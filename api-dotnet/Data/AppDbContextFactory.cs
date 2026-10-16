@@ -45,10 +45,12 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlServer(connectionString, sql =>
             {
-                // A serverless database that has auto-paused answers with error 40613
-                // ("not currently available") for the 30-60s it takes to resume, and a
-                // newly created one can take longer. The default retry budget gives up
-                // before that, so widen it: 12 attempts backing off to 30s apart.
+                // Same budget as Program.cs. The S0 database never pauses, but it answers
+                // error 40613 ("not currently available") for a few seconds during Azure
+                // maintenance, failovers and tier changes, and a newly created one can take
+                // longer. The default retry budget gives up before that, so widen it: 12
+                // attempts backing off to 30s apart. The long command timeout is for
+                // migrations, which run slowly on S0's 10 DTU — see DEPLOY.md 5b.
                 sql.EnableRetryOnFailure(
                     maxRetryCount: 12,
                     maxRetryDelay: TimeSpan.FromSeconds(30),

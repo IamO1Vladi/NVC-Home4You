@@ -73,6 +73,14 @@ the old tracker (now `ROADMAP.md`).
    Skip it altogether and nothing errors. The site serves, the panel opens, and one part of
    it is quietly empty until somebody notices.
 
+   The production database is **Standard S0 (10 DTU)** since 2026-10-16. Ordinary schema
+   migrations are quick on it; a heavy one (a big backfill, an index over many rows) or a
+   bulk import verb can crawl. For those, scale up first — portal → SQL database
+   `nvc-home4you` → Compute + storage → S2 or S3 — run it, then scale back to S0. Each
+   change takes a minute or two with a few seconds of dropped connections that the app's
+   retries absorb, and billing is per hour at the highest tier used, so an hour of S3 costs
+   about €0.18.
+
    **The exception: when the LIVE code cannot run on the migrated schema.** Before choosing
    the order, ask both questions: does the new code work on the old schema, and does the old
    code work on the new one? deploy-2026-10-15 was the case where only the first held.
@@ -168,9 +176,10 @@ the old tracker (now `ROADMAP.md`).
    at the end, where N is 1 + the distinct paths in `src/routes/paths.js` (49 as of
    deploy-2026-10-15b, when the logistics page was retired into the delivery page; 52 before). A partial run, or a local app that cannot serve its own catalogue,
    exits non-zero; do not publish over it. The script first warms the API up (gallery,
-   cases, reviews; up to 150s, since a paused database plus the app's retry backoff can take
-   ~90s), then each page waits for its own `/api/` calls (up to `PRERENDER_DATA_TIMEOUT`,
-   60s), so a cold database makes the start slow rather than freezing pages on their loading
+   cases, reviews; up to 150s — generous since the database moved to Standard S0 on
+   2026-10-16 and stopped pausing, but it still covers a slow first start or a failover
+   blip), then each page waits for its own `/api/` calls (up to `PRERENDER_DATA_TIMEOUT`,
+   60s), so a slow start makes the run slow rather than freezing pages on their loading
    text. It writes to `api-dotnet/prerendered/`,
    which the publish picks up (`StagePrerenderedForPublish`). Then stop the local app and
    publish (step 6). The publish output must say

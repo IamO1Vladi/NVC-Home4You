@@ -15,8 +15,8 @@ namespace Services;
 /// than split between a registration and a runtime check.
 ///
 /// A day is the right cadence for a six-month window: the job is idempotent, missing a run
-/// costs nothing (tomorrow's picks up the same rows), and running it hourly would be twelve
-/// pointless queries a day against a serverless database that bills for being awake.
+/// costs nothing (tomorrow's picks up the same rows), and running it hourly would only add
+/// two dozen pointless queries a day to a small (Standard S0, 10 DTU) database.
 ///
 /// The first pass is delayed rather than run at startup. App Service restarts on deploys, on
 /// scaling, and on its own schedule; without the delay, an archive — a DESTRUCTIVE operation

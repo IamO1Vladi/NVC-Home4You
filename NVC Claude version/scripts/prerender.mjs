@@ -48,14 +48,17 @@ const BASE = process.env.PRERENDER_BASE || 'http://localhost:5178'
 const NAV_TIMEOUT = Number(process.env.PRERENDER_TIMEOUT || 20000)
 
 // How long a page may wait on its own API calls (gallery, prices, reviews, cases), once the
-// warm-up below has woken the database.
+// warm-up below has run.
 const DATA_TIMEOUT = Number(process.env.PRERENDER_DATA_TIMEOUT || 60000)
 
-// The data endpoints the pages call, hit once before anything renders. Serverless Azure SQL
-// auto-pauses, and the app retries through the resume with backoff (Program.cs,
-// EnableRetryOnFailure: 12 tries up to 30s apart), so a cold first answer can take ~90s.
-// Paying that here, once, keeps it out of the first routes' DATA_TIMEOUT and out of the data
-// check's 20s read, where a cold start used to be reported as a wrong data store.
+// The data endpoints the pages call, hit once before anything renders. A freshly started local
+// app answers its first data call slowly: EF builds its model, the connection pool opens, and
+// the gallery and cases caches fill. Until 2026-10-16 the database was serverless and could be
+// paused as well, and resuming it under the app's retry backoff (Program.cs,
+// EnableRetryOnFailure: 12 tries up to 30s apart) took ~90s. It is Standard S0 now and never
+// pauses, so 150s is generous, but it still rides out a failover or maintenance blip.
+// Paying the slow start here, once, keeps it out of the first routes' DATA_TIMEOUT and out of
+// the data check's 20s read, where a cold start used to be reported as a wrong data store.
 const WARM_UP = ['/api/gallery', '/api/cases-page', '/api/reviews/featured?take=3']
 const WARM_UP_TIMEOUT = Number(process.env.PRERENDER_WARMUP_TIMEOUT || 150000)
 
@@ -349,7 +352,7 @@ if (!(await isUp())) {
   process.exit(1)
 }
 
-console.log('Prerender: warming up the local API (a paused database can take a minute or more)…')
+console.log('Prerender: warming up the local API (the first answers can take several seconds)…')
 const warm = await warmUp()
 if (warm.failures.length) refuseBrokenLocalApp(warm.failures)
 console.log(`Prerender: local API answered in ${warm.seconds}s.`)
