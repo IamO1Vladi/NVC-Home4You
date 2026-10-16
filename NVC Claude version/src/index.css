@@ -462,8 +462,13 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+  /* The dock's box is as tall as the three hidden actions above the pill, and it caught taps
+     meant for whatever sat under it (the gallery model page's "Задай въпрос" on a phone).
+     Only the pill and, while open, the actions take taps. */
+  pointer-events: none;
 }
 .contact-launcher{
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;

@@ -64,27 +64,33 @@ describe('gallery product page', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ items: [ITEM] }) }))
   })
 
-  it('names the category in Greek under the title, not the API key', async () => {
+  // Since 2026-10-17 the chip above the title is the gallery filters' own word for the line
+  // (filters.shown), as on the index, not the old singular category name.
+  it('names the line in Greek above the title, in the gallery chips’ words, not the API key', async () => {
     const { container } = renderGallery('el', '/el/gkaleri/test-house')
 
     expect(await screen.findByRole('heading', { name: 'Δομικό σπίτι 37 m²' })).toBeInTheDocument()
-    expect(container.querySelector('.gdetail-kicker')).toHaveTextContent('Δομικό σπίτι')
-    expect(container.querySelector('.gdetail-kicker')).not.toHaveTextContent(/modular/i)
+    expect(container.querySelector('.gi-chip')).toHaveTextContent(elGallery.filters.shown.modular)
+    expect(container.querySelector('.gi-chip')).not.toHaveTextContent(/modular/i)
   })
 
+  // The card's price and words (no "from": the price is the model's), the Greek way.
   it('formats a Greek price the Greek way', async () => {
     const { container } = renderGallery('el', '/el/gkaleri/test-house')
 
     await screen.findByRole('heading', { name: 'Δομικό σπίτι 37 m²' })
-    expect(container.querySelector('.gdetail-price').textContent.replace(/\s/g, ' ')).toBe('Από 14.840 €')
+    expect(container.querySelector('.gi-price').textContent.replace(/\s/g, ' ')).toBe('14.840 €')
+    expect(container.querySelector('.gi-cost')).not.toHaveTextContent('Από')
   })
 
-  it('keeps the English price exactly as it was', async () => {
+  it('prints the English price as the card does', async () => {
     const { container } = renderGallery('en', '/en/gallery/test-house')
 
     await screen.findByRole('heading', { name: 'Modular house 37 m²' })
-    expect(container.querySelector('.gdetail-price')).toHaveTextContent(`${enGallery.detail.pricePrefix}€14,840`)
-    expect(container.querySelector('.gdetail-kicker')).toHaveTextContent('Modular house')
+    expect(container.querySelector('.gi-price')).toHaveTextContent('€14,840')
+    // Gallery id 7 has no assembly figure in the prices table: "with VAT" only.
+    expect(container.querySelector('.gi-basis')).toHaveTextContent(enGallery.card.basis.vat)
+    expect(container.querySelector('.gi-chip')).toHaveTextContent(enGallery.filters.shown.modular)
   })
 
   it('gives the Product JSON-LD the Greek category too', async () => {

@@ -80,14 +80,58 @@ export default {
     backToGallery: '← Обратно към галерията',
     descriptionTitle: 'Описание',
     requestCta: 'Поискай оферта',
-    pricePrefix: 'От ',
     priceOnRequest: 'Цена по запитване',
-    // A steel-frame project (prefab): its own price with no "От", or none at all, and the
-    // enquiry is for a house like it.
-    projectPrice: '{price} · с ДДС, за този проект',
-    priceByProject: 'Цена по проект',
+    // A steel-frame project (prefab): the enquiry is for a house like it.
     requestLikeCta: 'Поискай оферта за подобна къща',
     imageThumb: 'Изображение',
+    // The model's page and its modal (src/gallery/GalleryItemView.jsx, 2026-10-17). The price
+    // reads the cards' words (card.basis); a Box house's assembly figure goes beside it
+    // ({price}: the prices table's, with VAT).
+    breadcrumbsAria: 'Навигационна пътека',
+    askCta: 'Задай въпрос',
+    basisAssembly: '+ монтаж {price} с ДДС',
+    // The photos: {n} of {total}; the full-screen view is named after the model ({title}).
+    photos: {
+      label: 'Снимки',
+      prev: 'Предишна снимка',
+      next: 'Следваща снимка',
+      open: 'Цял екран',
+      counter: '{n} / {total}',
+      viewer: '{title}: снимки',
+    },
+    // The key facts (src/gallery/itemFacts.js). Every figure is filled in from its module:
+    // {days}, {months} and {production} from shared/deliveryRates.js LEAD_TIMES, {years} from
+    // shared/warranty.js, {price} from the prices table's row, {workers} and {days} of the
+    // assembly from shared/prices.js BOX_ASSEMBLY_CREW. A steel-frame house's lead time, warranty
+    // and assembly depend on its project (the owner, 2026-10-17), and its delivery and customs
+    // are in the project's quote.
+    facts: {
+      lead: 'Срок',
+      containerLead: 'до {days} дни',
+      containerLeadNote: 'от склада до вашия адрес',
+      boxLead: 'около {months} месеца',
+      boxLeadNote: 'до вашия адрес; изработка до {production} дни',
+      capsuleLeadNote: 'до вашия адрес',
+      perProject: 'по проект',
+      warranty: 'Гаранция',
+      warrantyYears: '{years} години',
+      warrantyNote: 'на носещата конструкция',
+      assembly: 'Монтаж',
+      assemblyIncluded: 'включен в цената',
+      assemblyPrice: '{price} с ДДС',
+      assemblyCrew: '{workers} наши работници, {days} дни',
+      assemblyOnRequest: 'по запитване',
+      assemblyNone: 'не е нужен',
+      assemblyNoneNote: 'пристига готова',
+      delivery: 'Доставка',
+      deliveryLink: 'Сметнете доставката →',
+      deliveryProject: 'в офертата за проекта',
+      deliveryProjectLink: 'Доставка и митница →',
+    },
+    // Up to three other models of the same line, as the gallery's cards.
+    similar: {
+      heading: 'Подобни модели',
+    },
     closeLabel: 'Затвори',
     loading: 'Зареждане на модела…',
     error: 'Моделът не можа да бъде зареден. Опитайте отново.',

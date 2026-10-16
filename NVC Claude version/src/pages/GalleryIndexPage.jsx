@@ -19,7 +19,9 @@
 // - A card is the photo uncovered, the model's name, its price with VAT and what it includes,
 //   and a cue to its page. The name is the card's one link, stretched over the card (as on
 //   /bg/ceni), so a screen reader hears each model once. It opens the model over the list (the
-//   route modal, state.backgroundLocation), as it always has.
+//   route modal, state.backgroundLocation), as it always has. The card and its price helpers
+//   live in src/gallery/GalleryCard.jsx, which the item page's "similar models" and its price
+//   block read too.
 // - The price and its words come from the prices table's own rows (shared/prices.js
 //   buildPriceSections, the call /bg/ceni and the product pages make): a container's price
 //   includes its assembly, a Box house's does not, and a model whose assembly figure the table
@@ -36,21 +38,17 @@ import '../style/ProductPage.css'
 import '../style/Gallery.css'
 import ProductHero from '../components/product/ProductHero.jsx'
 import { GalleryListJSONLD } from '../components/GalleryStructuredData.jsx'
-import { buildPriceSections } from '../content/shared/prices.js'
 import {
   LOADING_FILTER_IDS,
   PAGE_SIZE,
   catFromItemCategory,
   indexFilterIds,
-  isPrefabItem,
   pageModel,
   resolveIndexFilter,
   resolvePageParam,
   useLocalizedGalleryItems,
 } from '../gallery/galleryUtils.js'
-import { euro } from '../lib/euro.js'
-import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
-import { displayTitle } from '../lib/productRows.js'
+import GalleryCard, { priceEntries } from '../gallery/GalleryCard.jsx'
 
 // As many placeholders as fill a first screen: two rows of four on a wide screen, four rows
 // of two on a phone.
@@ -87,65 +85,6 @@ function searchFor(params, cat, page) {
   else next.set('page', String(page))
   const query = next.toString()
   return query ? `?${query}` : ''
-}
-
-/**
- * The words beside a card's price: what the price includes, as the prices table says it. A
- * container's includes its assembly; a Box house's does not when the table has its assembly
- * figure; a house that arrives ready (the capsule, in either of its categories) has none to
- * add; a steel-frame project's is that project's price; anything else says only that VAT is
- * in, rather than guess.
- */
-function priceBasis(item, entry, basis) {
-  if (isPrefabItem(item) && basis.project) return basis.project
-  if (entry?.kind === 'wagon') return basis.wagon
-  if (entry?.kind === 'box' && entry.row.arrivesReady && basis.ready) return basis.ready
-  if (entry?.kind === 'box' && entry.row.assemblyGross != null) return basis.box
-  return basis.vat
-}
-
-function GalleryCard({ item, entry, content, locale, location, eager }) {
-  const base = import.meta.env.BASE_URL || '/'
-  const title = displayTitle(item.title)
-  const price = Number(item.price) > 0 ? euro(item.price, locale) : null
-  // With no price, a steel-frame project is priced per project, not "on request".
-  const noPrice = (isPrefabItem(item) && content.card.basis.projectOnRequest) || content.detail.priceOnRequest
-
-  return (
-    <article className="hp-card gl-card">
-      {item.coverUrl ? (
-        <img
-          className="gl-photo"
-          src={cdnImage(item.coverUrl, { width: 480 })}
-          srcSet={cdnSrcSet(item.coverUrl, [240, 320, 480, 640, 800])}
-          sizes="(max-width: 759px) 50vw, (max-width: 1099px) 33vw, 290px"
-          alt={title}
-          width="1024"
-          height="1024"
-          loading={eager ? 'eager' : 'lazy'}
-          fetchpriority={eager ? 'high' : 'low'}
-          decoding="async"
-          onError={imageFallback(`${base}modular-builds/card.svg`)}
-        />
-      ) : (
-        <div className="gl-photo" aria-hidden="true" />
-      )}
-
-      <div className="gl-body">
-        <h2 className="gl-title">
-          <Link to={item.slug} state={{ backgroundLocation: location }} className="gl-link">
-            {title}
-          </Link>
-        </h2>
-        <p className="gl-cost">
-          {price ? <strong className="gl-price">{price}</strong> : null}
-          <span className="gl-basis">{price ? priceBasis(item, entry, content.card.basis) : noPrice}</span>
-        </p>
-        {/* The link above already names the model; this only shows where the card leads. */}
-        <span className="gl-go" aria-hidden="true">{content.card.more}</span>
-      </div>
-    </article>
-  )
 }
 
 function SkeletonCard() {
@@ -207,13 +146,7 @@ export default function GalleryIndexPage({ locale, content, basePath }) {
 
   // Each model's row in the prices table, keyed by the item itself rather than its id: two
   // items can share an id (App.galleryEnquiry.test.jsx keeps a pair on purpose).
-  const entries = useMemo(() => {
-    const { box, wagon } = buildPriceSections(items)
-    const map = new Map()
-    for (const row of box) map.set(row.item, { kind: 'box', row })
-    for (const row of wagon) map.set(row.item, { kind: 'wagon', row })
-    return map
-  }, [items])
+  const entries = useMemo(() => priceEntries(items), [items])
 
   const filtered = useMemo(() => (
     activeCat === 'all'

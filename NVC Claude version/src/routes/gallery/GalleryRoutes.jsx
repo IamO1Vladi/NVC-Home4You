@@ -11,13 +11,18 @@ export default function GalleryRoutes({ locale, content, basePath, homeUrl, onRe
   const location = useLocation()
   const backgroundLocation = location.state?.backgroundLocation
   const indexSeo = getRouteSeo(paths.gallery[locale] || paths.gallery.en, locale)
-  // The detail page names an item's category with the same labels the index filters show.
+  // The detail page names an item's category with the same labels the index filters show:
+  // `categories` (the singular names) in its Product markup, `shown` (the chips' words) on the
+  // page. Its price reads the index cards' words (`card`), so a model's price says the same
+  // thing on its card and on its page.
   const detailContent = {
     ...content.detail,
     altBase: content.altBase,
     homeUrl,
     breadcrumbs: content.breadcrumbs,
     categories: content.filters?.categories,
+    shown: content.filters?.shown,
+    card: content.card,
   }
 
   return (

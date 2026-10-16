@@ -80,14 +80,58 @@ export default {
     backToGallery: '← Επιστροφή στην γκαλερί',
     descriptionTitle: 'Περιγραφή',
     requestCta: 'Ζητήστε προσφορά',
-    pricePrefix: 'Από ',
     priceOnRequest: 'Τιμή κατόπιν αιτήματος',
-    // A steel-frame project (prefab): its own price with no "Από", or none at all, and the
-    // enquiry is for a house like it.
-    projectPrice: '{price} · με ΦΠΑ, για αυτό το έργο',
-    priceByProject: 'Τιμή ανά έργο',
+    // A steel-frame project (prefab): the enquiry is for a house like it.
     requestLikeCta: 'Ζητήστε προσφορά για παρόμοιο σπίτι',
     imageThumb: 'Εικόνα',
+    // The model's page and its modal (src/gallery/GalleryItemView.jsx, 2026-10-17). The price
+    // reads the cards' words (card.basis); a Box house's assembly figure goes beside it
+    // ({price}: the prices table's, with VAT).
+    breadcrumbsAria: 'Διαδρομή πλοήγησης',
+    askCta: 'Κάντε μια ερώτηση',
+    basisAssembly: '+ συναρμολόγηση {price} με ΦΠΑ',
+    // The photos: {n} of {total}; the full-screen view is named after the model ({title}).
+    photos: {
+      label: 'Φωτογραφίες',
+      prev: 'Προηγούμενη φωτογραφία',
+      next: 'Επόμενη φωτογραφία',
+      open: 'Πλήρης οθόνη',
+      counter: '{n} / {total}',
+      viewer: '{title}: φωτογραφίες',
+    },
+    // The key facts (src/gallery/itemFacts.js). Every figure is filled in from its module:
+    // {days}, {months} and {production} from shared/deliveryRates.js LEAD_TIMES, {years} from
+    // shared/warranty.js, {price} from the prices table's row, {workers} and {days} of the
+    // assembly from shared/prices.js BOX_ASSEMBLY_CREW. A steel-frame house's lead time, warranty
+    // and assembly depend on its project (the owner, 2026-10-17), and its delivery and customs
+    // are in the project's quote.
+    facts: {
+      lead: 'Χρόνος παράδοσης',
+      containerLead: 'έως {days} ημέρες',
+      containerLeadNote: 'από το απόθεμα έως τη διεύθυνσή σας',
+      boxLead: 'περίπου {months} μήνες',
+      boxLeadNote: 'έως τη διεύθυνσή σας· κατασκευή έως {production} ημέρες',
+      capsuleLeadNote: 'έως τη διεύθυνσή σας',
+      perProject: 'ανά έργο',
+      warranty: 'Εγγύηση',
+      warrantyYears: '{years} χρόνια',
+      warrantyNote: 'στον φέροντα σκελετό',
+      assembly: 'Συναρμολόγηση',
+      assemblyIncluded: 'περιλαμβάνεται στην τιμή',
+      assemblyPrice: '{price} με ΦΠΑ',
+      assemblyCrew: '{workers} τεχνικοί μας, {days} ημέρες',
+      assemblyOnRequest: 'κατόπιν αιτήματος',
+      assemblyNone: 'δεν χρειάζεται',
+      assemblyNoneNote: 'φτάνει έτοιμη',
+      delivery: 'Παράδοση',
+      deliveryLink: 'Υπολογίστε την παράδοση →',
+      deliveryProject: 'στην προσφορά για το έργο',
+      deliveryProjectLink: 'Παράδοση και εκτελωνισμός →',
+    },
+    // Up to three other models of the same line, as the gallery's cards.
+    similar: {
+      heading: 'Παρόμοια μοντέλα',
+    },
     closeLabel: 'Κλείσιμο',
     loading: 'Φόρτωση μοντέλου…',
     error: 'Το μοντέλο δεν ήταν δυνατό να φορτωθεί. Παρακαλούμε δοκιμάστε ξανά.',

@@ -104,256 +104,278 @@
 .gl .gl-page:focus-visible{ border-radius:999px }
 .gl-gap{ padding:0 4px; color:var(--hp-muted) }
 
-/* ===== Detail page / modal ===== */
-.gdetail-page{
-  padding: 18px 0 26px;
-}
+/* ===== One model: its page and its modal (src/gallery/GalleryItemView.jsx) ============
+   Rebuilt 2026-10-17 on the same system as the index: the page is <main class="hp pp gi-page">,
+   the modal's sheet is .gmodal-card.hp.pp, so the tokens, the buttons and the cards are the
+   product pages', in both themes. Every class here is gi- (the view), gmodal- (the dialog
+   shell) or one of the few gdetail- names the tests and the links read (.gdetail-back,
+   .gdetail-more, .gdetail-links, .gdetail-richtext, .gdetail-state).
 
-.gdetail-panel{
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 16px 24px;
-}
+   The layout. From 768px (a tablet up): the photos and, under them, the description and the
+   onward links on the left; the summary (category, title, price, actions, key facts) on the
+   right, sticky, so the price and "request an offer" travel with the visitor down a long
+   description and no column is left with a void under it. Two equal columns to 959px, 7:5 from
+   960px. "Подобни модели" follows, under the grid (the summary's stickiness ends with the grid,
+   so it never slides over the cards).
+   A phone (under 768px): one column, photo first; on the page the actions become a bar along
+   the bottom of the screen (sticky, inside the model's content, so it never covers the site
+   footer), with a third column left free for the "Обади се или пиши" pill, which keeps its
+   corner as its icon (its name stays its label); in the modal they are its footer.
 
-.gdetail-panel--modal{
-  padding: 0;
-}
+   The photo is shown whole at its own shape on a 4:3 stage (fixed, so nothing moves as the
+   photos load), the screen's height at most; a narrower photo sits on a calm neutral ground at
+   its sides. */
 
-.gdetail-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin-bottom: 14px;
-}
+.pp.gi-page{ padding:4px 0 56px }
+@media (max-width:767px){ .pp.gi-page{ padding-bottom:40px } }
 
-.gdetail-back{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  font-weight:800;
-  text-decoration:none;
-}
-
-.gdetail-grid{
-  display:grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
-  gap: 18px;
-}
-
-.gdetail-mediaCard,
-.gdetail-card{
-  border:1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--anth) 72%, transparent);
-  box-shadow: 0 18px 44px rgba(0,0,0,.12);
-}
-
-.gdetail-mediaCard{
-  padding: 14px;
-}
-
-.gdetail-mediaFrame{
-  border-radius: 18px;
-  overflow:hidden;
-  background: color-mix(in srgb, #000 6%, transparent);
-}
-
-.gdetail-mainimg{
-  width:100%;
-  height: clamp(320px, 52vw, 680px);
-  object-fit: contain;
-  display:block;
-  background: rgba(255,255,255,.04);
-}
-
-.gdetail-thumbs{
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
-  gap:10px;
-  margin-top:12px;
-}
-
-.gthumb{
-  padding:0;
-  border:1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  border-radius:14px;
-  overflow:hidden;
-  cursor:pointer;
-  background: transparent;
-}
-
-.gthumb img{
-  display:block;
-  width:100%;
-  height:72px;
-  object-fit: cover;
-}
-
-.gthumb.is-active{
-  outline: 2px solid color-mix(in srgb, var(--brand-blue) 55%, #fff);
-}
-
-.gdetail-card{
-  padding: 18px 20px 20px;
-}
-
-.gdetail-titleRow{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap: 14px;
-}
-
-/* A steel-frame project's price pill (GalleryItemPage.jsx) is longer than a model's "От …":
-   it goes under the title rather than past the card's edge. */
-.gdetail-titleRow--wrap{
-  flex-wrap: wrap;
-}
-
-.gdetail-kicker{
-  margin-top: 6px;
-  font-weight: 800;
-  opacity: .72;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-.gdetail-title{
-  margin:0;
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.06;
-  letter-spacing: -.02em;
-}
-
-.gdetail-price{
-  display:inline-flex;
-  align-items:center;
-  white-space:nowrap;
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-weight: 900;
-  color:#fff;
-  background-image: linear-gradient(90deg, var(--brand-teal), var(--brand-blue));
-}
-
-.gdetail-section{
-  margin-top: 18px;
-}
-
-/* An h2 since 2026-10-16 (the outline: the product's h1, this, then the h3s inside the
-   description), drawn as the label it was. */
-.gdetail-sectionTitle{
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: 900;
-  margin: 0 0 8px;
-}
-
-.gdetail-richtext,
-.gdetail-copy{
-  line-height: 1.62;
-  opacity: .92;
-}
-
-.gdetail-richtext p:first-child{ margin-top: 0; }
-.gdetail-richtext p:last-child{ margin-bottom: 0; }
-.gdetail-richtext ul,
-.gdetail-richtext ol{ padding-left: 18px; }
-
-.gdetail-actions{
-  display:flex;
-  gap:10px;
-  margin-top: 20px;
-}
-
-/* Onward links under the request button: one per line, the page's accent, an underline on
-   hover; 44px rows on a phone (below) so a thumb finds each. */
-.gdetail-more{
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
-}
-.gdetail-more .gdetail-sectionTitle{
-  margin: 0 0 6px;
-  font-size: 16px;
-  line-height: 1.3;
-}
-.gdetail-links{
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.gdetail-links li{ padding: 3px 0; }
-.gdetail-links a{
-  display: inline-block;
-  padding: 2px 0;
-  color: var(--brand-blue);
-  font-weight: 600;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-  /* No arrow alone on the last line of a wrapped link. */
-  text-wrap: pretty;
-}
-:root[data-theme='light'] .gdetail-links a{ color: #2B63C9; }
-.gdetail-links a:hover{ text-decoration: underline; }
-/* Phones: 44px rows, the product pages' tap target. */
+/* The trail and the back link, on one row */
+.gi-top{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0 20px; margin:8px 0 12px }
+.gi-crumbs{ min-width:0 }
+.gi-crumbs ol{ display:flex; flex-wrap:wrap; align-items:center; margin:0; padding:0; list-style:none; font-size:14px; line-height:1.4; color:var(--hp-muted) }
+.gi-crumbs li{ display:inline-flex; align-items:center; min-width:0; max-width:100% }
+.gi-crumbs li + li::before{ content:"›"; padding:0 8px; color:var(--hp-muted) }
+.pp .gi-crumbs a{ display:inline-flex; align-items:center; min-height:44px; color:var(--hp-muted); text-decoration:underline; text-decoration-color:color-mix(in srgb, currentColor 40%, transparent); text-underline-offset:3px }
+.pp .gi-crumbs a:hover{ color:var(--hp-text) }
+.gi-crumbs [aria-current] span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--hp-text); max-width:56ch }
+.pp .gdetail-back{ display:inline-flex; align-items:center; min-height:44px; font-size:15px; font-weight:600; color:var(--hp-accent-text) }
 @media (max-width:767px){
-  .gdetail-links li{ padding: 0; }
-  .gdetail-links a{ display: inline-flex; align-items: center; min-height: 44px; padding: 0; }
+  /* The H1 right under it names the model: on a phone the trail stops at the gallery, and
+     the back link keeps its row. */
+  .gi-crumbs li[aria-current]{ display:none }
+  .gi-top{ margin:4px 0 8px }
 }
 
-.gdetail-state{
-  border:1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--anth) 72%, transparent);
-  box-shadow: 0 18px 44px rgba(0,0,0,.12);
-  padding: 24px;
+/* The grid */
+.gi-layout{ display:grid; grid-template-columns:minmax(0,1fr); align-items:start }
+.gi-media-col,.gi-summary,.gi-details,.gi-similar{ min-width:0 }
+@media (min-width:768px){
+  .gi-layout{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:28px;
+    grid-template-areas:"media summary" "details summary";
+  }
+  .gi-media-col{ grid-area:media }
+  .gi-details{ grid-area:details }
+  .gi-summary{ grid-area:summary; position:sticky; top:88px }
+  .gi--modal .gi-summary{ top:0 }
+}
+@media (min-width:960px){
+  .gi-layout{ grid-template-columns:minmax(0,7fr) minmax(0,5fr); column-gap:48px }
+  .gi--modal .gi-layout{ column-gap:36px }
+}
+@media (min-width:1200px){ .gi--page .gi-layout{ column-gap:56px } }
+/* A screen too short for the summary (a phone on its side): it scrolls with the page, or its
+   facts would stay below the screen until the end of the description. */
+@media (min-width:768px) and (max-height:600px){ .gi-summary{ position:static } }
+
+/* The summary */
+.gi-chip{
+  display:inline-flex; align-items:center; align-self:start; justify-self:start; width:max-content; max-width:100%;
+  min-height:28px; padding:3px 12px; border-radius:999px;
+  border:1px solid var(--hp-line); background:var(--hp-surface-2); color:var(--hp-text);
+  font-size:13px; font-weight:600; line-height:1.3; letter-spacing:.02em;
+}
+.pp .gi-title{ font-size:clamp(28px, 1.1rem + 1.5vw, 40px); line-height:1.12; font-weight:600; letter-spacing:-.015em; text-wrap:balance; overflow-wrap:break-word }
+.gi-chip + .gi-title{ margin-top:12px }
+.gi-keep{ white-space:nowrap }
+.pp .gi--modal .gi-title{ font-size:clamp(24px, 1rem + 1.1vw, 32px) }
+/* Focused by the modal when it opens, as a place to start reading, not as a control. */
+.pp .gi-title:focus{ outline:none }
+.gi-cost{ display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; margin-top:14px; font-variant-numeric:tabular-nums }
+.gi-price{ font-size:clamp(28px, 1.2rem + 1.1vw, 36px); font-weight:600; line-height:1.15; white-space:nowrap }
+.gi-basis{ color:var(--hp-muted); font-size:16px; line-height:1.4 }
+.gi-extra{ flex-basis:100%; margin-top:2px; font-size:15px; line-height:1.45 }
+.gi-actions{ display:flex; flex-wrap:wrap; gap:10px; margin-top:20px }
+.gi-actions .hp-btn{ flex:1 1 auto; min-width:0; white-space:normal; text-align:center; line-height:1.2; padding:10px 18px }
+
+/* The key facts: a two-by-two block of short answers */
+.gi-facts{
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); margin:24px 0 0; overflow:hidden;
+  border:1px solid var(--hp-line); border-radius:var(--hp-r-m); background:var(--hp-surface);
+}
+.gi--modal .gi-facts{ background:var(--hp-bg) }
+.gi-fact{ padding:12px 14px 13px; border-top:1px solid var(--hp-line); min-width:0 }
+.gi-fact:nth-child(-n+2){ border-top:0 }
+.gi-fact:nth-child(odd){ border-right:1px solid var(--hp-line) }
+.gi-fact:last-child:nth-child(odd){ grid-column:1 / -1; border-right:0 }
+.gi-fact dt{ color:var(--hp-muted); font-size:13px; font-weight:600; line-height:1.35; letter-spacing:.02em }
+.gi-fact dd{ display:grid; gap:1px; margin:3px 0 0 }
+.gi-fact-value{ font-size:16px; font-weight:600; line-height:1.35 }
+.gi-fact-note{ color:var(--hp-muted); font-size:14px; line-height:1.4 }
+.pp .gi-fact-link{ display:inline-flex; align-items:center; min-height:44px; font-size:15px; font-weight:600; line-height:1.3; color:var(--hp-accent-text) }
+@media (max-width:767px){
+  .gi-fact{ padding:10px 12px 11px }
+  .gi-fact-value{ font-size:15px }
+  .gi-fact-note{ font-size:13px }
+  .pp .gi-fact-link{ font-size:14px }
 }
 
-/* ===== Route-driven modal ===== */
-.gmodal-portal{
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
+/* The description and the onward links */
+.gi-section{ margin-top:36px }
+.pp .gi-h2{ font-size:22px; line-height:1.3; font-weight:600; letter-spacing:-.005em; margin:0 0 12px; text-wrap:balance }
+.gdetail-richtext{ max-width:70ch; font-size:16px; line-height:1.65; color:var(--hp-text); overflow-wrap:break-word }
+.gi .gdetail-richtext p{ margin:0 0 .7em }
+.gi .gdetail-richtext :is(h3,h4,h5,h6){ margin:1.5em 0 .45em; font-size:18px; line-height:1.35; font-weight:600; letter-spacing:0 }
+.gi .gdetail-richtext :is(h4,h5,h6){ font-size:17px }
+.gi .gdetail-richtext :is(ul,ol){ margin:0 0 .8em; padding-left:1.3em }
+.gi .gdetail-richtext li{ margin:.2em 0 }
+.gi .gdetail-richtext li > p{ margin:0 }
+.gi .gdetail-richtext strong,.gi .gdetail-richtext b{ font-weight:600 }
+.gi .gdetail-richtext > :first-child{ margin-top:0 }
+.gi .gdetail-richtext > :last-child{ margin-bottom:0 }
+.gi .gdetail-richtext img{ height:auto; border-radius:var(--hp-r-s) }
+.gdetail-links{ display:grid; gap:2px; margin:0; padding:0; list-style:none }
+.pp .gdetail-links a{ display:inline-flex; align-items:center; min-height:44px; font-weight:600; color:var(--hp-accent-text); overflow-wrap:anywhere; text-wrap:pretty }
+@media (max-width:767px){
+  .gi-section{ margin-top:28px }
+  .pp .gi-h2{ font-size:20px }
+  .pp .gdetail-links a{ line-height:1.35 }
 }
 
-.gmodal-backdrop{
-  position:absolute;
-  inset:0;
-  background: rgba(2,6,23,.72);
-  backdrop-filter: blur(4px);
+/* Similar models: the gallery's own cards, three at most, so three columns at most */
+.gi-similar{ margin-top:48px; padding-top:32px; border-top:1px solid var(--hp-line) }
+.gi-similar-grid{ display:grid; gap:12px; grid-template-columns:repeat(2,minmax(0,1fr)); margin:0; padding:0; list-style:none }
+@media (min-width:760px){ .gi-similar-grid{ gap:16px; grid-template-columns:repeat(3,minmax(0,1fr)) } }
+@media (min-width:1100px){ .gi-similar-grid{ gap:20px } }
+.gi-similar-grid > li{ display:flex; min-width:0 }
+@media (max-width:767px){ .gi-similar{ margin-top:36px; padding-top:24px } }
+
+/* The photos */
+.gi-media{ position:relative; min-width:0 }
+.gi-stage{
+  position:relative; overflow:hidden; width:100%; aspect-ratio:4 / 3; max-height:min(72vh, 640px);
+  border:1px solid var(--hp-line); border-radius:var(--hp-r-l); background:var(--hp-surface-2); touch-action:pan-y;
+}
+.gi--modal .gi-stage{ max-height:min(60vh, 560px) }
+.pp .gi-photo{ width:100%; height:100%; object-fit:contain; cursor:zoom-in }
+.gi-nav,.gi-zoom{
+  position:absolute; display:grid; place-items:center; width:44px; height:44px; padding:0; border-radius:999px;
+  border:1px solid var(--hp-line); background:color-mix(in srgb, var(--hp-surface) 92%, transparent); color:var(--hp-text);
+  box-shadow:var(--hp-shadow-1); cursor:pointer;
+}
+.gi-nav:hover,.gi-zoom:hover{ border-color:var(--hp-muted) }
+.gi-nav{ top:50%; translate:0 -50% }
+.gi-nav--prev{ left:12px }
+.gi-nav--next{ right:12px }
+.gi-zoom{ right:12px; bottom:12px }
+.gi-count{
+  position:absolute; left:12px; bottom:12px; padding:4px 10px; border-radius:999px;
+  background:color-mix(in srgb, var(--hp-surface) 92%, transparent); color:var(--hp-text); box-shadow:var(--hp-shadow-1);
+  font-size:13px; font-weight:600; line-height:1.4; font-variant-numeric:tabular-nums;
+}
+/* The strip's padding holds the whole focus ring (3px at a 4px offset), which its scrolling
+   would otherwise clip. */
+.gi-thumbs{ position:relative; display:flex; gap:8px; margin:6px 0 0; padding:7px; list-style:none; overflow-x:auto; scrollbar-width:thin }
+.gi-thumbs > li{ flex:none }
+.gi-thumb{ display:block; width:72px; height:72px; padding:0; overflow:hidden; border:1px solid var(--hp-line); border-radius:10px; background:var(--hp-surface-2); cursor:pointer; opacity:.72 }
+.gi-thumb:hover{ opacity:1 }
+/* The current photo's thumbnail: a blue edge of its own (a shadow, not the outline), so the
+   site's focus ring still shows round it when the arrow keys move focus with the photo. */
+.pp .gi-thumb[aria-current='true']{ opacity:1; outline:none; border-color:var(--hp-accent); box-shadow:0 0 0 2px var(--hp-accent) }
+.pp .gi-thumb img{ width:100%; height:100%; object-fit:cover }
+.pp .gi-nav:focus-visible,.pp .gi-zoom:focus-visible{ border-radius:999px }
+.pp .gi-thumb:focus-visible{ border-radius:10px }
+.pp .gi-thumb[aria-current='true']:focus-visible{ outline:3px solid var(--hp-text); outline-offset:4px }
+@media (max-width:767px){
+  .gi-stage{ max-height:min(62vh, 520px); border-radius:var(--hp-r-m) }
+  .gi--modal .gi-stage{ max-height:min(52vh, 440px) }
+  .gi-nav--prev{ left:8px }
+  .gi-nav--next{ right:8px }
+  .gi-zoom{ right:8px; bottom:8px }
+  .gi-count{ left:8px; bottom:8px }
+  .gi-thumb{ width:52px; height:52px; border-radius:8px }
+  .gi-thumbs{ gap:6px; margin-top:4px }
+  .pp .gi-title{ font-size:26px; line-height:1.15 }
+  .pp .gi--modal .gi-title{ font-size:24px }
+  .gi-chip + .gi-title{ margin-top:8px }
+  .gi-cost{ margin-top:10px }
+  .gi-price{ font-size:28px }
 }
 
-.gmodal-card{
-  position: absolute;
-  inset: clamp(12px, 2vw, 24px);
-  overflow:auto;
-  border-radius: 24px;
-  background: var(--bg, #0f1115);
-  box-shadow: 0 32px 80px rgba(0,0,0,.38);
+/* A phone (under 768px): photo, summary, facts, description; similar models after. On the
+   page the summary's own box steps aside so its parts sit in the column, the actions last: a
+   sticky bar along the bottom of the screen for as long as the model's own content runs. */
+@media (max-width:767px){
+  .gi--page .gi-summary{ display:contents }
+  .gi--page .gi-media-col{ order:1 }
+  .gi--page .gi-chip{ order:2; margin-top:14px }
+  .gi--page .gi-title{ order:3 }
+  .gi--page .gi-cost{ order:4 }
+  .gi--page .gi-facts{ order:5 }
+  .gi--page .gi-details{ order:6 }
+  /* Its third column is left free for the "Обади се или пиши" pill, which stays in its own
+     corner (where the footer leaves room for it) as its 44px icon, its name kept as its label:
+     raised above the bar it covered the facts' links and, past the bar, the footer. */
+  .gi--page .gi-bar{
+    order:7; position:sticky; bottom:0; z-index:20;
+    display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) 44px; gap:8px;
+    margin:28px -16px 0; padding:10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background:color-mix(in srgb, var(--hp-surface) 96%, transparent); border-top:1px solid var(--hp-line);
+    box-shadow:0 -8px 20px rgba(15,23,42,.08);
+  }
+  .gi--page .gi-bar .hp-btn{ padding:8px 12px; font-size:15px }
+  :root:has(.gi-bar) .contact-launcher{ width:44px; padding:0; justify-content:center }
+  :root:has(.gi-bar) .contact-launcher__label{ position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap }
+  /* A link reached with Tab is scrolled clear of the bar, not left under it. */
+  html:has(.gi-bar){ scroll-padding-bottom:calc(104px + env(safe-area-inset-bottom, 0px)) }
+  .gi--modal .gi-summary{ margin-top:18px }
 }
 
+/* Loading, failed, not found */
+.gdetail-state{ display:grid; gap:12px; justify-items:start; max-width:640px; margin:8px 0 24px; padding:24px }
+.gdetail-copy{ color:var(--hp-muted) }
+
+/* The full-screen view (a portal on <body>, outside .hp: its own colours, dark in both themes) */
+.gi-viewer{ position:fixed; inset:0; z-index:1200; display:grid; grid-template-rows:auto minmax(0,1fr); background:#0c0c0e; color:#fff }
+.gi-viewer-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px }
+.gi-viewer-count{ font-size:15px; font-weight:600; font-variant-numeric:tabular-nums }
+.gi-viewer-close,.gi-viewer-nav{
+  display:grid; place-items:center; width:48px; height:48px; padding:0; border-radius:999px;
+  border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.1); color:#fff; cursor:pointer;
+}
+.gi-viewer-close:hover,.gi-viewer-nav:hover{ background:rgba(255,255,255,.18) }
+.gi-viewer :focus-visible{ outline:3px solid #fff; outline-offset:3px }
+.gi-viewer-stage{ position:relative; display:flex; align-items:center; justify-content:center; min-height:0; padding:0 80px 24px; touch-action:pan-y }
+.gi-viewer-img{ width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain }
+.gi-viewer-nav{ position:absolute; top:50%; translate:0 -50% }
+.gi-viewer-nav--prev{ left:16px }
+.gi-viewer-nav--next{ right:16px }
+@media (max-width:767px){
+  .gi-viewer-stage{ padding:0 0 84px }
+  .gi-viewer-nav{ top:auto; bottom:calc(20px + env(safe-area-inset-bottom, 0px)); translate:none }
+  .gi-viewer-nav--prev{ left:calc(50% - 60px) }
+  .gi-viewer-nav--next{ right:calc(50% - 60px) }
+}
+
+/* ===== The route modal's shell (GalleryModal.jsx) ===== */
+.gmodal-portal{ position:fixed; inset:0; z-index:1100; display:flex; align-items:center; justify-content:center; padding:24px }
+.gmodal-backdrop{ position:absolute; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(2px) }
+:root[data-theme='dark'] .gmodal-backdrop{ background:rgba(0,0,0,.66) }
+.gmodal-card.hp{
+  position:relative; display:flex; flex-direction:column; width:min(1160px, 100%); max-height:100%; overflow:hidden;
+  border:1px solid var(--hp-line); border-radius:var(--hp-r-l); background:var(--hp-surface); color:var(--hp-text);
+  box-shadow:0 24px 64px rgba(15,23,42,.3);
+}
+.gmodal-card:focus{ outline:none }
+.gmodal-head{ flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:60px; padding:8px 12px 8px 24px; border-bottom:1px solid var(--hp-line) }
+.gmodal-head-main{ min-width:0 }
 .gmodal-close{
-  position: sticky;
-  top: 14px;
-  float: right;
-  margin: 14px 14px 0 0;
-  z-index: 3;
-  width: 42px;
-  height: 42px;
-  border-radius: 999px;
-  border:1px solid color-mix(in srgb, var(--text) 18%, transparent);
-  background: color-mix(in srgb, var(--anth) 72%, transparent);
-  cursor:pointer;
+  flex:none; display:grid; place-items:center; width:44px; height:44px; padding:0; border-radius:999px;
+  border:1px solid var(--hp-line); background:var(--hp-surface); color:var(--hp-text); cursor:pointer;
 }
-
-@media (max-width: 960px){
-  .gdetail-grid{
-    grid-template-columns: 1fr;
-  }
-  .gdetail-titleRow{
-    flex-direction: column;
-  }
+.gmodal-close:hover{ border-color:var(--hp-muted) }
+.pp .gmodal-close:focus-visible{ border-radius:999px }
+/* scroll-padding: a control reached with Tab at the body's edge shows its whole focus ring. */
+.gmodal-body{ flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:24px; scroll-padding-block:24px }
+.gmodal-foot{ flex:none; padding:12px 24px; border-top:1px solid var(--hp-line); background:var(--hp-surface) }
+.gmodal-foot .gi-actions{ justify-content:flex-end; margin:0 }
+.gmodal-foot .gi-actions .hp-btn{ flex:0 1 auto }
+@media (max-width:767px){
+  .gmodal-portal{ padding:0 }
+  .gmodal-card.hp{ width:100%; height:100%; max-height:none; border:0; border-radius:0 }
+  .gmodal-head{ min-height:56px; padding:6px 8px 6px 16px }
+  .gmodal-body{ padding:12px 16px 24px }
+  .gmodal-foot{ padding:10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) }
+  .gmodal-foot .gi-actions{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:8px }
+  .gmodal-foot .gi-actions .hp-btn{ padding:8px 12px; font-size:15px }
 }

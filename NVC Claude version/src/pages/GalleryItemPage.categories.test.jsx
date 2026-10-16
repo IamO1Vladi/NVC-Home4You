@@ -77,20 +77,24 @@ describe('the capsule\'s page, before and after staff move it', () => {
     ['bg', 'capsule-b', 'Космическа капсула'],
     ['en', 'capsule-a', 'Modular house'],
     ['en', 'capsule-b', 'Space capsule'],
-  ])('%s %s: names its category and links to its own card on the Box houses page', async (locale, slug, category) => {
+  ])('%s %s: names its line and links to its own card on the Box houses page', async (locale, slug, category) => {
     const { content } = ROUTES[locale]
     const title = locale === 'bg' ? CAPSULE_A.titleBg : CAPSULE_A.title
     const { container } = renderItem(locale, slug)
 
     await screen.findByRole('heading', { level: 1, name: title })
-    expect(container.querySelector('.gdetail-kicker')).toHaveTextContent(category)
+    // The chip is the capsules' filter word in either category (2026-10-17); the Product markup
+    // keeps the category's own name.
+    expect(container.querySelector('.gi-chip')).toHaveTextContent(content.filters.shown.capsule)
     expect(moreLinks(container)).toEqual([
       { to: `${paths.modularHouses[locale]}#item-100015`, label: content.detail.links.capsule },
       { to: `${paths.prices[locale]}#item-100015`, label: content.detail.links.pricesNoAssembly },
       { to: `${paths.delivery[locale]}?product=box`, label: content.detail.links.delivery },
     ])
-    // Its price reads as before: a model's price, from.
-    expect(container.querySelector('.gdetail-price')).toHaveTextContent(content.detail.pricePrefix.trim())
+    // Its price is the card's: the capsule's own, with VAT, arriving ready; no "from".
+    expect(container.querySelector('.gi-price')).toHaveTextContent(locale === 'bg' ? '55 000 €' : '€55,000')
+    expect(container.querySelector('.gi-basis')).toHaveTextContent(content.card.basis.ready)
+    expect(container.querySelector('.gi-cost')).not.toHaveTextContent(locale === 'bg' ? 'От' : 'From')
     expect(screen.getByRole('button', { name: content.detail.requestCta })).toBeInTheDocument()
 
     const product = productJsonLd()
@@ -113,10 +117,11 @@ describe('a steel-frame project\'s page (prefab)', () => {
     const { container } = renderItem(locale, 'project')
 
     await screen.findByRole('heading', { level: 1, name: locale === 'bg' ? PROJECT.titleBg : PROJECT.title })
-    const price = container.querySelector('.gdetail-price').textContent.replace(/\s/g, ' ')
-    expect(price).toBe(content.detail.projectPrice.replace('{price}', locale === 'bg' ? '42 000 €' : '€42,000'))
-    expect(price.startsWith(content.detail.pricePrefix)).toBe(false)
-    expect(container.querySelector('.gdetail-kicker')).toHaveTextContent(content.filters.categories.prefab)
+    const price = container.querySelector('.gi-price').textContent.replace(/\s/g, ' ')
+    expect(price).toBe(locale === 'bg' ? '42 000 €' : '€42,000')
+    expect(container.querySelector('.gi-basis')).toHaveTextContent(content.card.basis.project)
+    expect(container.querySelector('.gi-cost')).not.toHaveTextContent(locale === 'bg' ? 'От' : 'From')
+    expect(container.querySelector('.gi-chip')).toHaveTextContent(content.filters.shown.prefab)
   })
 
   it.each(['bg', 'en'])('%s: links to the steel-frame houses page and the project delivery, and to no prices row', async (locale) => {
@@ -134,8 +139,9 @@ describe('a steel-frame project\'s page (prefab)', () => {
     const { container } = renderItem('bg', 'project-no-price')
 
     await screen.findByRole('heading', { level: 1, name: PROJECT_NO_PRICE.titleBg })
-    expect(container.querySelector('.gdetail-price')).toHaveTextContent(bgGallery.detail.priceByProject)
-    expect(container.querySelector('.gdetail-price')).not.toHaveTextContent(bgGallery.detail.priceOnRequest)
+    expect(container.querySelector('.gi-price')).toBeNull()
+    expect(container.querySelector('.gi-cost')).toHaveTextContent(bgGallery.card.basis.projectOnRequest)
+    expect(container.querySelector('.gi-cost')).not.toHaveTextContent(bgGallery.detail.priceOnRequest)
     expect(productJsonLd().offers).toBeUndefined()
   })
 
@@ -143,7 +149,7 @@ describe('a steel-frame project\'s page (prefab)', () => {
     const { container } = renderItem('en', 'project')
     await screen.findByRole('heading', { level: 1, name: PROJECT.title })
     // The page still shows the project's price; only the markup leaves it out.
-    expect(container.querySelector('.gdetail-price')).toHaveTextContent('€42,000')
+    expect(container.querySelector('.gi-price')).toHaveTextContent('€42,000')
     const product = productJsonLd()
     expect(product.category).toBe(enGallery.filters.categories.prefab)
     expect(product.offers).toBeUndefined()

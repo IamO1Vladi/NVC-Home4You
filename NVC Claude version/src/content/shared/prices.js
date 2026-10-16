@@ -138,6 +138,12 @@ export function boxAssemblyNet(id) {
   return BOX_ASSEMBLY_NET_BY_ID[id] ?? null
 }
 
+/** A Box house's assembly cost WITH VAT, by gallery id; null where it is not known. */
+export function boxAssemblyGross(id) {
+  const net = boxAssemblyNet(id)
+  return net == null ? null : addVat(net)
+}
+
 /** The cheapest Box-house assembly, without VAT, across every house that has one. */
 export function boxAssemblyFromNet() {
   return Math.min(...Object.values(BOX_ASSEMBLY_NET_BY_ID))

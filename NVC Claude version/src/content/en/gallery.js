@@ -80,14 +80,58 @@ export default {
     backToGallery: '← Back to gallery',
     descriptionTitle: 'Description',
     requestCta: 'Request an offer',
-    pricePrefix: 'From ',
     priceOnRequest: 'Price on request',
-    // A steel-frame project (prefab): its own price with no "From", or none at all, and the
-    // enquiry is for a house like it.
-    projectPrice: '{price} · incl. VAT, for this project',
-    priceByProject: 'Priced per project',
+    // A steel-frame project (prefab): the enquiry is for a house like it.
     requestLikeCta: 'Request an offer for a similar house',
     imageThumb: 'Image',
+    // The model's page and its modal (src/gallery/GalleryItemView.jsx, 2026-10-17). The price
+    // reads the cards' words (card.basis); a Box house's assembly figure goes beside it
+    // ({price}: the prices table's, with VAT).
+    breadcrumbsAria: 'Breadcrumb',
+    askCta: 'Ask a question',
+    basisAssembly: '+ assembly {price} incl. VAT',
+    // The photos: {n} of {total}; the full-screen view is named after the model ({title}).
+    photos: {
+      label: 'Photos',
+      prev: 'Previous photo',
+      next: 'Next photo',
+      open: 'Full screen',
+      counter: '{n} / {total}',
+      viewer: '{title}: photos',
+    },
+    // The key facts (src/gallery/itemFacts.js). Every figure is filled in from its module:
+    // {days}, {months} and {production} from shared/deliveryRates.js LEAD_TIMES, {years} from
+    // shared/warranty.js, {price} from the prices table's row, {workers} and {days} of the
+    // assembly from shared/prices.js BOX_ASSEMBLY_CREW. A steel-frame house's lead time, warranty
+    // and assembly depend on its project (the owner, 2026-10-17), and its delivery and customs
+    // are in the project's quote.
+    facts: {
+      lead: 'Lead time',
+      containerLead: 'up to {days} days',
+      containerLeadNote: 'from stock to your address',
+      boxLead: 'about {months} months',
+      boxLeadNote: 'to your address; made in up to {production} days',
+      capsuleLeadNote: 'to your address',
+      perProject: 'per project',
+      warranty: 'Warranty',
+      warrantyYears: '{years} years',
+      warrantyNote: 'on the load-bearing structure',
+      assembly: 'Assembly',
+      assemblyIncluded: 'included in the price',
+      assemblyPrice: '{price} incl. VAT',
+      assemblyCrew: '{workers} of our workers, {days} days',
+      assemblyOnRequest: 'on request',
+      assemblyNone: 'not needed',
+      assemblyNoneNote: 'arrives ready',
+      delivery: 'Delivery',
+      deliveryLink: 'Work out the delivery →',
+      deliveryProject: 'in the quote for the project',
+      deliveryProjectLink: 'Delivery and customs →',
+    },
+    // Up to three other models of the same line, as the gallery's cards.
+    similar: {
+      heading: 'Similar models',
+    },
     closeLabel: 'Close',
     loading: 'Loading model…',
     error: 'The model could not be loaded. Please try again.',
