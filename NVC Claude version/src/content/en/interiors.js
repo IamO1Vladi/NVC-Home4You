@@ -22,6 +22,8 @@ export default {
     ],
     photoAlt: 'Bathroom in black marble and wood-look tiles: black shower set, basin on a wooden vanity unit, window',
     photoCaption: 'A bathroom renovated by our team',
+    adminAlt: 'A room after a renovation by our team',
+    adminCaption: 'A renovation by our team',
   },
 
   works: {
@@ -60,8 +62,8 @@ export default {
       { key: 'bathWhite', title: 'White tiled bathroom', text: 'Lit niches in a wood-look tile column, a glass screen and a chrome shower set.' },
     ],
     photos: [
-      { key: 'kitchen', title: 'The kitchen after fitting', alt: 'The apartment kitchen after the cabinets were fitted: fridge, tall unit, white wall cabinets and dark base units with washing machine and oven' },
-      { key: 'kitchenFitting', title: 'Fitting the cabinets', alt: 'Fitting the kitchen cabinets: open wall units, a stepladder, the worktop being finished' },
+      { key: 'kitchen', title: 'The kitchen after fitting', alt: 'The apartment kitchen after the cabinets were fitted: fridge, tall unit, white wall cabinets and dark base units with washing machine and oven', adminAlt: 'A kitchen fitted by our team' },
+      { key: 'kitchenFitting', title: 'Fitting the cabinets', alt: 'Fitting the kitchen cabinets: open wall units, a stepladder, the worktop being finished', adminAlt: 'A renovation in progress by our team', adminTitle: 'Our team at work' },
     ],
     pairsHeading: 'Before and after',
     pairs: [

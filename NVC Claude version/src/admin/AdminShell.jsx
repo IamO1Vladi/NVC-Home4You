@@ -41,7 +41,7 @@ const TEXT = {
       home: 'Начало', leads: 'Запитвания', pipeline: 'Лийдове', customers: 'Клиенти',
       factories: 'Фабрики', orders: 'Поръчки',
       reviews: 'Отзиви', gallery: 'Галерия', cases: 'Проекти', documents: 'Брошури',
-      homePhotos: 'Начална страница',
+      homePhotos: 'Снимки на сайта',
       factorySheets: 'Фабрични поръчки', audit: 'Одит',
       // The representatives' panel's one section (#38).
       myLeads: 'Моите лийдове',
@@ -71,7 +71,7 @@ const TEXT = {
       home: 'Home', leads: 'Inquiries', pipeline: 'Leads', customers: 'Customers',
       factories: 'Factories', orders: 'Orders',
       reviews: 'Reviews', gallery: 'Gallery', cases: 'Cases', documents: 'Brochures',
-      homePhotos: 'Home page',
+      homePhotos: 'Site photos',
       factorySheets: 'Factory orders', audit: 'Audit',
       myLeads: 'My leads',
     },

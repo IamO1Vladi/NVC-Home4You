@@ -36,6 +36,10 @@ export default {
     ],
     photoAlt: 'Баня с черен мрамор и плочки имитация на дърво: черен душ комплект, мивка върху дървен шкаф, прозорец',
     photoCaption: 'Баня, ремонтирана от нашия екип',
+    // For a photo the owner sets in "Снимки на сайта": general words, since his photo may show
+    // another room than the black bathroom (the alt when he types no description, and the chip).
+    adminAlt: 'Помещение след ремонт от нашия екип',
+    adminCaption: 'Ремонт от нашия екип',
   },
 
   works: {
@@ -74,8 +78,10 @@ export default {
       { key: 'bathWhite', title: 'Баня с бели плочки', text: 'Осветени ниши в колона от плочки имитация на дърво, стъклен параван и хромиран душ.' },
     ],
     photos: [
-      { key: 'kitchen', title: 'Кухнята след монтажа', alt: 'Кухнята в апартамент след монтажа на шкафовете: хладилник, висок шкаф, бели горни и тъмни долни шкафове с пералня и фурна' },
-      { key: 'kitchenFitting', title: 'Монтаж на шкафовете', alt: 'Монтаж на кухненските шкафове: отворени горни шкафове, стълба, плотът в довършване' },
+      // adminAlt (and adminTitle, the caption beside the works) are for a photo the owner sets
+      // in "Снимки на сайта", which may not show what the default one does.
+      { key: 'kitchen', title: 'Кухнята след монтажа', alt: 'Кухнята в апартамент след монтажа на шкафовете: хладилник, висок шкаф, бели горни и тъмни долни шкафове с пералня и фурна', adminAlt: 'Кухня след монтажа от нашия екип' },
+      { key: 'kitchenFitting', title: 'Монтаж на шкафовете', alt: 'Монтаж на кухненските шкафове: отворени горни шкафове, стълба, плотът в довършване', adminAlt: 'Ремонт в процес от нашия екип', adminTitle: 'Нашият екип на работа' },
     ],
     pairsHeading: 'Преди и след',
     pairs: [

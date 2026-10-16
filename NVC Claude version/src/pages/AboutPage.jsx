@@ -24,6 +24,10 @@
 // published Paralia Kariani case); what we take on and what stays with you; the warranty; the
 // reviews; where next; the closing card. The offer and question buttons carry the lead source 'about-page' (App.jsx
 // reports it to GA and Meta). The breadcrumbs and AboutPage markup are the route's.
+//
+// The hero, the factory floor and each person's picture are admin slots (since 2026-10-16): the
+// owner can replace them in "Снимки на сайта", and an empty slot shows exactly the photo (or the
+// initials) named above. The share picture and the markup's primaryImageOfPage stay the crane.
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -43,23 +47,27 @@ import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 import { useReviewSummary } from '../lib/useReviewSummary.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { slotAlt, slotHeroPhoto, useSlotPhotos } from '../lib/homePhotos.js'
+import { photoSlotOf, teamSlotName } from '../lib/photoSlotNames.js'
+import SlotImg from '../components/SlotImg.jsx'
 import { paths } from '../routes/paths.js'
 import { COMPANY, TEAM_PHOTOS } from '../content/shared/company.js'
+import { ABOUT_PHOTO, FACTORY_PHOTO } from '../content/shared/aboutMedia.js'
 
 /** The lead source the page's offer and question buttons report. */
 export const ABOUT_LEAD_SOURCE = 'about-page'
 export const ABOUT_ORIGIN = 'about'
 
 const BASE = import.meta.env.BASE_URL || '/'
-// The owner's crane lift, the delivery page's photo, in its 800 and 1500 wide crops. The share
-// picture (routeMeta PAGE_IMAGES.about) is the 1500 one.
-export const ABOUT_PHOTO = {
-  url: `${BASE}delivery/crane-lift-1500.webp`,
-  srcSet: `${BASE}delivery/crane-lift-800.webp 800w, ${BASE}delivery/crane-lift-1500.webp 1500w`,
-}
-// The factory floor the partner page shows, "our factory in China".
-export const FACTORY_PHOTO = { url: `${BASE}partner/factory-floor.webp`, width: 1200, height: 891 }
+// The crane lift (the hero) and the factory floor: content/shared/aboutMedia.js, where the admin
+// panel finds them too as the defaults of the about-hero and factory-floor slots. Re-exported
+// here because the page's tests import them from the page.
+export { ABOUT_PHOTO, FACTORY_PHOTO }
 
+// The page's photos the owner can change in "Снимки на сайта" (photoSlotNames.js): the hero, the
+// factory floor and one per person. An empty slot shows exactly what the page showed before.
+export const ABOUT_HERO_SLOT = 'about-hero'
+export const FACTORY_SLOT = 'factory-floor'
 
 export const fill = (pattern, values = {}) => String(pattern ?? '').replace(
   /\{(\w+)\}/g,
@@ -95,10 +103,46 @@ export const initials = (name) => String(name || '')
   .toUpperCase()
 
 /**
- * A person's picture: the photo once TEAM_PHOTOS lists one, else (or if it fails to load) the
- * initials in a circle. Either is decorative: the name is the card's heading, right beside it.
+ * The photo the owner set for a person in "Снимки на сайта" (their about-team-<slug> slot), or,
+ * should it fail to load, `children`: what the card shows without it. Avatar keys it by the
+ * photo's URL, so a new photo starts afresh even after the last one failed.
  */
-function Avatar({ slug, name }) {
+function AdminAvatar({ slug, admin, children }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return children
+  // An upright phone portrait cropped into a circle from its centre loses the top of the head;
+  // the slot says where to crop instead.
+  return (
+    <img
+      className="ab-avatar"
+      src={cdnImage(admin.url, { width: 160 })}
+      srcSet={cdnSrcSet(admin.url, [160, 240, 320])}
+      sizes="72px"
+      alt=""
+      width="160"
+      height="160"
+      loading="lazy"
+      decoding="async"
+      style={{ objectPosition: photoSlotOf(teamSlotName(slug))?.adminPosition || '50% 50%' }}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
+/**
+ * A person's picture, the first of these that is there and loads: the photo the owner set in
+ * "Снимки на сайта" (`admin`), the file TEAM_PHOTOS lists, the initials in a circle. Each is
+ * decorative: the name is the card's heading, right beside it. Without an admin photo it is
+ * exactly the picture the card had before the slots.
+ */
+function Avatar({ slug, name, admin }) {
+  const own = <OwnAvatar slug={slug} name={name} />
+  if (!admin?.url) return own
+  return <AdminAvatar key={admin.url} slug={slug} admin={admin}>{own}</AdminAvatar>
+}
+
+/** The file TEAM_PHOTOS lists for a person, or (without one, or if it fails) their initials. */
+function OwnAvatar({ slug, name }) {
   const [failed, setFailed] = useState(false)
   const photo = TEAM_PHOTOS[slug]
   if (photo && !failed) {
@@ -123,6 +167,11 @@ export default function AboutPage({ locale = 'bg', content }) {
   const reviews = useReviewSummary()
   const c = content
   const published = usePublishedCase(c?.proof?.case?.id)
+  const slots = useSlotPhotos([
+    ABOUT_HERO_SLOT,
+    FACTORY_SLOT,
+    ...(c?.team?.people || []).map((person) => teamSlotName(person.slug)),
+  ])
   if (!c) return null
 
   const home = getHomeContent(locale)?.home || {}
@@ -173,7 +222,11 @@ export default function AboutPage({ locale = 'bg', content }) {
         lead={c.hero.lead}
         primary={{ label: c.hero.offer, onClick: offer }}
         secondary={telephone ? { label: c.hero.call, href: `tel:${telephone}` } : null}
-        photo={{ url: ABOUT_PHOTO.url, srcSet: ABOUT_PHOTO.srcSet, alt: c.hero.photoAlt }}
+        photo={slotHeroPhoto(
+          slots[ABOUT_HERO_SLOT],
+          { url: ABOUT_PHOTO.url, srcSet: ABOUT_PHOTO.srcSet, alt: c.hero.photoAlt },
+          { locale, adminAlt: c.hero.adminAlt },
+        )}
       />
 
       <section className="pp-band" id="facts" aria-labelledby="ab-facts-title">
@@ -260,7 +313,7 @@ export default function AboutPage({ locale = 'bg', content }) {
           <ul className="ab-team">
             {c.team.people.map((person) => (
               <li key={person.slug} className="hp-card ab-person" data-person={person.slug}>
-                <Avatar slug={person.slug} name={person.name} />
+                <Avatar slug={person.slug} name={person.name} admin={slots[teamSlotName(person.slug)]} />
                 <div className="ab-person-text">
                   <h3>{person.name}</h3>
                   <p className="ab-person-role">{person.role}</p>
@@ -282,7 +335,10 @@ export default function AboutPage({ locale = 'bg', content }) {
           </div>
 
           <figure className="hp-card ab-factory">
-            <img
+            <SlotImg
+              admin={slots[FACTORY_SLOT]}
+              adminAlt={slotAlt(slots[FACTORY_SLOT], { locale, adminAlt: c.journey.factory.adminAlt })}
+              adminSizes="(max-width: 719px) 100vw, (max-width: 899px) 50vw, 780px"
               src={FACTORY_PHOTO.url}
               alt={c.journey.factory.alt}
               width={FACTORY_PHOTO.width}

@@ -28,6 +28,9 @@ export default {
     offer: 'Заяви оферта',
     call: 'Обадете се',
     photoAlt: 'Кран сваля дълъг модул от камион върху бетонна площадка',
+    // For a photo the owner sets in "Снимки на сайта" without a description: general words,
+    // since his photo may show something other than the crane.
+    adminAlt: 'NVC Home4You на работа',
   },
 
   // The tiles, each a figure and what it is; the reviews tile is left out until the reviews
@@ -101,6 +104,7 @@ export default {
       title: 'В нашата фабрика в Китай',
       text: 'Тук се изработват контейнерите и Бокс къщите, които продаваме.',
       alt: 'Производствен цех с рамки и стенни панели на модули',
+      adminAlt: 'Производството в нашата фабрика в Китай',
     },
     // In this order, each beside its clip in public/delivery/journey-<id>.mp4.
     clips: [

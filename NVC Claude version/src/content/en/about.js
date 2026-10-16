@@ -13,6 +13,7 @@ export default {
     offer: 'Request an offer',
     call: 'Call us',
     photoAlt: 'A crane lifting a long module off a truck onto a concrete yard',
+    adminAlt: 'NVC Home4You at work',
   },
 
   facts: {
@@ -78,6 +79,7 @@ export default {
       title: 'At our factory in China',
       text: 'This is where the containers and Box houses we sell are made.',
       alt: 'A production hall with module frames and wall panels',
+      adminAlt: 'Production at our factory in China',
     },
     clips: [
       { id: 'port', title: 'At the port', text: 'The folded Box house arrives by ship; we handle customs.' },

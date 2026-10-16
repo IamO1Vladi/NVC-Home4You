@@ -96,7 +96,10 @@ export default function ProductHero({
 
         {hasPhoto ? (
           <figure className="pp-hero-media">
+            {/* Keyed by the photo, so the owner's photo arriving after the default mounts a fresh
+                element rather than inheriting the default's inline crop as an empty style="". */}
             <img
+              key={photo.url}
               src={cdnImage(photo.url, { width: 800 })}
               srcSet={photo.srcSet || cdnSrcSet(photo.url, [480, 640, 800, 1200, 1600])}
               sizes="(max-width: 767px) 100vw, (max-width: 1199px) 50vw, 600px"

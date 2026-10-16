@@ -481,8 +481,8 @@ public class AppDbContext : DbContext
 
         b.Entity<HomeSlot>(e =>
         {
-            // Every read and write is "the row for this slot name", and the allow-list is
-            // eight names long, so there must be at most one row per name: two rows for
+            // Every read and write is "the row for this slot name", and the names come from a
+            // fixed allow-list (HomeSlotNames.All), so there must be at most one row per name: two rows for
             // hero-1 would make the public read a coin-flip between photos. Unique rather
             // than merely indexed for that reason; the service looks up by Name only.
             e.HasIndex(s => s.Name).IsUnique();

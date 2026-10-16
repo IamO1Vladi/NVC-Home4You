@@ -13,6 +13,12 @@
 // photographs and nothing else. Nothing here throws; a failure is `null`, and
 // mergeHomePhotos(defaults, null) is the defaults unchanged.
 //
+// Since 2026-10-16 the same body also carries "slots": the page photos of kind "photo" (About's
+// main photo, team and factory floor, the Interiors and doors photos, the home tiles; names in
+// photoSlotNames.js), keyed by slot name, and ONLY the filled ones. A page reads them with
+// useSlotPhotos / useSlotPhoto; a missing name, an empty map and a body without "slots" at all
+// (an older API, or an older body kept in a snapshot's <head>) all mean "show today's photo".
+//
 // THE ANSWER IS WRITTEN INTO <head> SO THE NEXT LOAD STARTS WITH IT. The app mounts with
 // createRoot over the prerendered snapshot, not hydrate, so whatever the snapshot drew is
 // thrown away and the first client render is all that counts. If that render had to wait for
@@ -123,31 +129,47 @@ export function forgetHomePhotos() {
 
 const isUrl = (value) => typeof value === 'string' && value.trim().length > 0
 
+const HERO_SLOT = /^hero-([1-9][0-9]*)$/
+
 /**
  * The slides and model photos the page should show: the API's where it has them, the
  * content defaults otherwise.
  *
- * A hero slide from the API keeps the pathKey (and the caption label) of the default in
- * the same position, because the admin picks a photo per slot and the slots are ordered the
- * same way as the defaults; it carries no `frame`, since the crop hints were made for the
- * default photographs. The models map holds a URL string or null per model key.
+ * The slideshow always has the defaults' slides, as many and in the same order. The API sends
+ * only the hero slots that HAVE a photo, each named ("hero-3"), so each one replaces the photo
+ * of ITS position and no other: filling hero-5 alone changes slide 5 and leaves slides 1-4 as
+ * they were. (Until 2026-10-16 the API's list replaced the whole deck, so filling one slot
+ * left a one-slide slideshow.) A replaced slide keeps the pathKey and the caption label of its
+ * position, because the link belongs to the place, not to the photo; it carries no `frame`,
+ * since the crop hints were made for the default photographs. An entry without a usable slot
+ * name or url, or for a position the defaults do not have, is ignored. The models map holds a
+ * URL string or null per model key.
  */
 export function mergeHomePhotos(defaults = [], api = null) {
   const defaultSlides = Array.isArray(defaults) ? defaults : []
-  const hero = Array.isArray(api?.hero) ? api.hero.filter((h) => h && isUrl(h.url)) : []
 
-  const slides = hero.length
-    ? hero.map((h, i) => {
-      const fallback = defaultSlides[i] || defaultSlides[0] || {}
-      return {
-        src: h.url,
-        alt: typeof h.alt === 'string' ? h.alt : '',
-        pathKey: fallback.pathKey || 'modularBuilds',
-        label: fallback.label || fallback.alt || '',
-        frame: undefined,
-      }
-    })
-    : defaultSlides.map((s) => ({ ...s, label: s.label || s.alt || '' }))
+  const byPosition = new Map()
+  for (const h of Array.isArray(api?.hero) ? api.hero : []) {
+    if (!h || typeof h !== 'object' || !isUrl(h.url)) continue
+    const match = typeof h.slot === 'string' ? HERO_SLOT.exec(h.slot) : null
+    if (!match) continue
+    const at = Number(match[1]) - 1
+    if (!byPosition.has(at)) byPosition.set(at, h)
+  }
+
+  const slides = defaultSlides.map((slide, i) => {
+    const s = slide && typeof slide === 'object' ? slide : {}
+    const label = s.label || s.alt || ''
+    const h = byPosition.get(i)
+    if (!h) return { ...s, label }
+    return {
+      src: h.url,
+      alt: typeof h.alt === 'string' ? h.alt : '',
+      pathKey: s.pathKey,
+      label,
+      frame: undefined,
+    }
+  })
 
   const models = {}
   for (const key of MODEL_KEYS) {
@@ -168,6 +190,54 @@ export function pagePhotoOf(api, pageKey) {
   const slot = pages ? pages[pageKey] : null
   if (!slot || !isUrl(slot.url)) return null
   return { url: slot.url, alt: typeof slot.alt === 'string' ? slot.alt : '' }
+}
+
+/**
+ * One page photo from an API body, by slot name ("about-hero"): `{ url, alt }`, or null when
+ * the slot is empty (the API leaves an empty slot out of "slots"), when the body has no "slots"
+ * (an API or a kept body from before 2026-10-16), or when anything is not the shape we expect.
+ * Never throws.
+ */
+export function slotPhotoOf(api, name) {
+  if (typeof name !== 'string' || !name) return null
+  const slots = api && typeof api === 'object' && api.slots && typeof api.slots === 'object' && !Array.isArray(api.slots)
+    ? api.slots
+    : null
+  if (!slots || !Object.prototype.hasOwnProperty.call(slots, name)) return null
+  const slot = slots[name]
+  if (!slot || typeof slot !== 'object' || !isUrl(slot.url)) return null
+  return { url: slot.url, alt: typeof slot.alt === 'string' ? slot.alt : '' }
+}
+
+/**
+ * The alt text for an admin photo, the rule every page follows: none for a decorative picture
+ * (the words beside it say what it shows); otherwise, on the Bulgarian site the description the
+ * owner typed in the panel, and in English and Greek, or when the owner left it empty, the
+ * page's own general description (`adminAlt`, a content key that never describes the default
+ * photo, since the owner's photo may show something else).
+ */
+export function slotAlt(admin, { locale, adminAlt = '', decorative = false } = {}) {
+  if (decorative) return ''
+  const own = locale === 'bg' && typeof admin?.alt === 'string' ? admin.alt.trim() : ''
+  return own || (typeof adminAlt === 'string' ? adminAlt : '') || ''
+}
+
+/**
+ * ProductHero's `photo` for a page whose main photo is a slot: today's photo object, untouched,
+ * while the slot is empty; the owner's photo once it is filled, with the alt as slotAlt gives it,
+ * the default's file as the fallback should the owner's fail to load, and `adminCaption` for
+ * the chip (undefined for none, as a chip that names the default photo would be false). No
+ * position (the default's crop hint was made for the default) and no srcSet (ProductHero builds
+ * the resizer's ladder for an /api/img URL).
+ */
+export function slotHeroPhoto(admin, defaultPhoto, { locale, adminAlt = '', adminCaption } = {}) {
+  if (!admin || !isUrl(admin.url)) return defaultPhoto
+  return {
+    url: admin.url,
+    alt: slotAlt(admin, { locale, adminAlt }),
+    fallback: defaultPhoto?.url,
+    caption: adminCaption,
+  }
 }
 
 const UNKNOWN_FROM = Object.freeze({ wagon: null, modular: null })
@@ -265,23 +335,70 @@ export function usePagePhoto(pageKey) {
 }
 
 /**
+ * Several page photos at once, by slot name: `{ [name]: { url, alt } | null | undefined }`,
+ * with the same meaning as usePagePhoto's answer — the owner's photo; null once the answer is
+ * in and the slot is empty, or the API failed with nothing kept; undefined while the first
+ * answer of a visit with nothing kept is on its way. A page shows today's photo for both null
+ * and undefined (SlotImg, slotHeroPhoto), so an empty slot never changes how a page looks.
+ *
+ * It starts from the kept body (the live one, or the one the snapshot carried in its <head>),
+ * so a prerendered page paints the owner's photo in its first render. It asks for the body
+ * through loadHomePhotos, so every hook on a page shares one request, and every answer goes
+ * through fetchHomePhotos, which writes it into <head> for the next snapshot. It also hears
+ * the bodies other hooks fetch, so a page never shows two answers at once.
+ */
+export function useSlotPhotos(names) {
+  const key = (Array.isArray(names) ? names : []).filter((n) => typeof n === 'string' && n).join('|')
+  const [body, setBody] = useState(() => lastBody ?? undefined)
+
+  useEffect(() => {
+    if (!key) return undefined
+    let active = true
+    // A failed refresh keeps what is on screen; with nothing kept it settles to null.
+    loadHomePhotos().then((next) => {
+      if (active) setBody((prev) => next || prev || null)
+    })
+    const listener = (next) => {
+      if (active && next) setBody(next)
+    }
+    listeners.add(listener)
+    return () => {
+      active = false
+      listeners.delete(listener)
+    }
+  }, [key])
+
+  return useMemo(() => {
+    const photos = {}
+    for (const name of key ? key.split('|') : []) {
+      photos[name] = body === undefined ? undefined : slotPhotoOf(body, name)
+    }
+    return photos
+  }, [body, key])
+}
+
+/** One page photo by slot name, as useSlotPhotos answers for it. */
+export function useSlotPhoto(name) {
+  return useSlotPhotos([name])[name]
+}
+
+/**
  * The merged photos for the page: the kept body's at first, the API's once it answers, and the
  * defaults while there is neither.
+ *
+ * It shares the open request (loadHomePhotos) with every other hook on the page, so the home
+ * page makes ONE call for its hero, its model cards, its tiles and its "from" figure.
  */
 export function useHomePhotos(defaults = []) {
   // Starts from the kept body, so a home page whose owner has set photos paints them first.
   const [api, setApi] = useState(() => lastBody)
 
   useEffect(() => {
-    const controller = typeof AbortController === 'function' ? new AbortController() : null
     let active = true
-    fetchHomePhotos(controller?.signal).then((body) => {
+    loadHomePhotos().then((body) => {
       if (active && body) setApi(body)
     })
-    return () => {
-      active = false
-      controller?.abort()
-    }
+    return () => { active = false }
   }, [])
 
   return useMemo(() => mergeHomePhotos(defaults, api), [defaults, api])

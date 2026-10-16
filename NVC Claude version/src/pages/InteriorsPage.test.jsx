@@ -2,7 +2,7 @@ import React from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ModalActionsProvider } from '../context/ModalActions.jsx'
 import InteriorsPage, { faqItems } from './InteriorsPage.jsx'
@@ -10,8 +10,10 @@ import { STAFF_LINES, WORKS, composeProject, projectLabels } from '../components
 import bgContent from '../content/bg/interiors.js'
 import enContent from '../content/en/interiors.js'
 import elContent from '../content/el/interiors.js'
-import { INTERIORS_MEDIA_PATHS, INTERIORS_PHOTOS } from '../content/shared/interiorsMedia.js'
+import { INTERIORS_MEDIA_PATHS, INTERIORS_PHOTOS, photoSrcSet } from '../content/shared/interiorsMedia.js'
 import { _resetSubmissions } from '../lib/backgroundSubmit.js'
+import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { paths } from '../routes/paths.js'
 import { getRouteSeo } from '../seo/routeMeta.js'
 
@@ -64,6 +66,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   delete window.dataLayer
+  // The photo body is kept for the visit; each test starts as a first visit (no admin
+  // photo carried over from the test before).
+  forgetHomePhotos()
 })
 
 function renderPage(locale = 'bg', { onOpenOffer = () => {}, onOpenQuestion = () => {} } = {}) {
@@ -356,6 +361,166 @@ describe('only the owner\'s own pictures', () => {
     expect(seo.imageAlt).toBe(CONTENT[locale].hero.photoAlt)
     expect(seo.canonical).toBe(`${SITE}${paths.interiors[locale]}`)
     expect(seo.hreflangs.map((h) => h.hrefLang)).toEqual(['bg', 'en', 'el', 'x-default'])
+  })
+})
+
+// The page's photos the owner can change in "Снимки на сайта" (since 2026-10-16): the hero
+// (interiors-hero), the photo beside the works (interiors-works) and the finished kitchen tile
+// (interiors-kitchen). An empty slot draws exactly today's photo; a filled one shows the owner's
+// through the resizer, cropped from its centre, with his description on the Bulgarian page and
+// the content's general words otherwise, and the words that named the default photo give way.
+describe('the owner\'s photos from the panel', () => {
+  const HERO = { url: '/api/img/home/23/bath.webp', alt: 'Баня в Петрич' }
+  const WORKS = { url: '/api/img/home/24/team.webp', alt: 'Екипът реди плочки' }
+  const KITCHEN = { url: '/api/img/home/22/kitchen.webp', alt: 'Готовата кухня' }
+  const withSlots = (slots) => ({ hero: [], models: {}, pages: {}, slots })
+
+  /** fetch that answers the photos call by URL, and every other call with {} as before. */
+  const answer = (body) => vi.fn((url) => Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(String(url).includes('/api/home/photos') ? body : {}),
+  }))
+
+  const heroImg = (container) => container.querySelector('.pp-hero-media img')
+  const worksImg = (container) => container.querySelector('.ir-works-photo img')
+  const kitchenImg = (container) => container.querySelector('.ir-tile--wide img')
+  const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
+  const attrs = (img) => [...img.attributes].map((a) => `${a.name}=${a.value}`).sort()
+  const job = (locale, key) => CONTENT[locale].jobs.photos.find((p) => p.key === key)
+
+  function expectToday(container, locale) {
+    const c = CONTENT[locale]
+    const hero = heroImg(container)
+    expect(hero.getAttribute('src')).toBe(INTERIORS_PHOTOS.bathBlack.large)
+    expect(hero.getAttribute('srcset')).toBe(photoSrcSet(INTERIORS_PHOTOS.bathBlack))
+    expect(hero.getAttribute('alt')).toBe(c.hero.photoAlt)
+    expect(hero.style.objectPosition).toBe('50% 62%')
+    expect(container.querySelector('.pp-hero-chip').textContent).toBe(c.hero.photoCaption)
+    for (const [img, photo, key, sizes] of [
+      [worksImg(container), INTERIORS_PHOTOS.kitchenFitting, 'kitchenFitting', '(max-width: 899px) 100vw, 440px'],
+      [kitchenImg(container), INTERIORS_PHOTOS.kitchen, 'kitchen', '(max-width: 599px) 100vw, (max-width: 899px) 100vw, 580px'],
+    ]) {
+      expect(attrs(img)).toEqual([
+        `alt=${job(locale, key).alt}`, 'decoding=async', `height=${photo.height}`, 'loading=lazy',
+        `sizes=${sizes}`, `src=${photo.large}`, `srcset=${photoSrcSet(photo)}`, `width=${photo.width}`,
+      ])
+    }
+    expect(container.querySelector('.ir-works-photo figcaption').textContent).toBe(job(locale, 'kitchenFitting').title)
+    expect(container.querySelector('.ir-tile--wide .ir-tile-title').textContent).toBe(job(locale, 'kitchen').title)
+  }
+
+  it.each(LOCALES)('%s: with every slot empty the photos, the chip and the captions are today\'s, whatever the API answers', async (locale) => {
+    for (const body of [{}, withSlots({}), { hero: [], models: {}, pages: {} }]) {
+      vi.stubGlobal('fetch', answer(body))
+      const { container, unmount } = renderPage(locale)
+      expectToday(container, locale)
+      await waitFor(() => expect(photosCalls()).toHaveLength(1))
+      await act(async () => {})
+      expectToday(container, locale)
+      unmount()
+      forgetHomePhotos()
+    }
+  })
+
+  it.each(LOCALES)('%s: the owner\'s three photos, through the resizer, with words that fit any photo', async (locale) => {
+    const c = CONTENT[locale]
+    vi.stubGlobal('fetch', answer(withSlots({ 'interiors-hero': HERO, 'interiors-works': WORKS, 'interiors-kitchen': KITCHEN })))
+    const { container } = renderPage(locale)
+    await waitFor(() => expect(heroImg(container).getAttribute('src')).toContain(HERO.url))
+
+    const hero = heroImg(container)
+    expect(hero.getAttribute('src')).toBe(cdnImage(HERO.url, { width: 800 }))
+    expect(hero.getAttribute('srcset')).toBe(cdnSrcSet(HERO.url, [480, 640, 800, 1200, 1600]))
+    expect(hero.getAttribute('alt')).toBe(locale === 'bg' ? HERO.alt : c.hero.adminAlt)
+    // The crop hint was the bathroom's; the owner's photo is cropped from its centre.
+    expect(hero.style.objectPosition).toBe('')
+    // "A bathroom renovated by our team" named the default photo.
+    expect(container.querySelector('.pp-hero-chip').textContent).toBe(c.hero.adminCaption)
+
+    const works = worksImg(container)
+    expect(works.getAttribute('src')).toBe(cdnImage(WORKS.url, { width: 1200 }))
+    expect(works.getAttribute('srcset')).toBe(cdnSrcSet(WORKS.url, [480, 640, 800, 1200, 1600]))
+    expect(works.getAttribute('sizes')).toBe('(max-width: 899px) 100vw, 440px')
+    expect(works.getAttribute('alt')).toBe(locale === 'bg' ? WORKS.alt : job(locale, 'kitchenFitting').adminAlt)
+    // Inline, so it beats the stylesheet's crop for the cabinets (50% 60%, 50% 78%).
+    expect(works.style.objectPosition).toBe('50% 50%')
+    expect(container.querySelector('.ir-works-photo figcaption').textContent).toBe(job(locale, 'kitchenFitting').adminTitle)
+
+    const kitchen = kitchenImg(container)
+    expect(kitchen.getAttribute('src')).toBe(cdnImage(KITCHEN.url, { width: 1200 }))
+    expect(kitchen.getAttribute('sizes')).toBe('(max-width: 599px) 100vw, (max-width: 899px) 100vw, 580px')
+    expect(kitchen.getAttribute('alt')).toBe(locale === 'bg' ? KITCHEN.alt : job(locale, 'kitchen').adminAlt)
+    // "The kitchen after fitting" is true of any finished kitchen: the title stays.
+    expect(container.querySelector('.ir-tile--wide .ir-tile-title').textContent).toBe(job(locale, 'kitchen').title)
+
+    // Every other picture is still one of interiorsMedia.js; the owner's are his uploads.
+    const others = [...container.querySelectorAll('img')]
+      .map((img) => img.getAttribute('src').replace(/\?.*$/, ''))
+      .filter((url) => !INTERIORS_MEDIA_PATHS.includes(url))
+    expect(others.sort()).toEqual([HERO.url, KITCHEN.url, WORKS.url].sort())
+  })
+
+  it('a blank description in the panel gives the page\'s general words, never the default photo\'s', async () => {
+    vi.stubGlobal('fetch', answer(withSlots({
+      'interiors-hero': { ...HERO, alt: '' },
+      'interiors-works': { ...WORKS, alt: ' ' },
+      'interiors-kitchen': { ...KITCHEN, alt: '' },
+    })))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(kitchenImg(container).getAttribute('src')).toContain(KITCHEN.url))
+    expect(heroImg(container).getAttribute('alt')).toBe(bgContent.hero.adminAlt)
+    expect(worksImg(container).getAttribute('alt')).toBe(job('bg', 'kitchenFitting').adminAlt)
+    expect(kitchenImg(container).getAttribute('alt')).toBe(job('bg', 'kitchen').adminAlt)
+  })
+
+  it('falls back to today\'s photo if the owner\'s fails to load', async () => {
+    vi.stubGlobal('fetch', answer(withSlots({ 'interiors-hero': HERO, 'interiors-works': WORKS, 'interiors-kitchen': KITCHEN })))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(heroImg(container).getAttribute('src')).toContain(HERO.url))
+    for (const [img, fallback] of [
+      [heroImg(container), INTERIORS_PHOTOS.bathBlack.large],
+      [worksImg(container), INTERIORS_PHOTOS.kitchenFitting.large],
+      [kitchenImg(container), INTERIORS_PHOTOS.kitchen.large],
+    ]) {
+      // One retry of the owner's photo, then today's.
+      fireEvent.error(img)
+      fireEvent.error(img)
+      expect(img.getAttribute('src')).toBe(fallback)
+      expect(img.hasAttribute('srcset')).toBe(false)
+      expect(img.dataset.imgFallback).toBe(fallback)
+    }
+  })
+
+  it('opens on the owner\'s photos from the first render once an answer is kept', async () => {
+    // What the snapshot's <head> copy gives a fresh load (homePhotos.test.js reads that path);
+    // here an earlier answer on the same visit stands in for it.
+    vi.stubGlobal('fetch', answer(withSlots({ 'interiors-hero': HERO, 'interiors-kitchen': KITCHEN })))
+    await fetchHomePhotos()
+    expect(document.getElementById(HOME_PHOTOS_SEED_ID)).not.toBeNull()
+
+    const { container } = renderPage('bg')
+    // No waiting: the very first render has them.
+    expect(heroImg(container).getAttribute('src')).toBe(cdnImage(HERO.url, { width: 800 }))
+    expect(container.querySelector('.pp-hero-chip').textContent).toBe(bgContent.hero.adminCaption)
+    expect(kitchenImg(container).getAttribute('src')).toBe(cdnImage(KITCHEN.url, { width: 1200 }))
+    // The works slot is empty: today's photo and caption.
+    expect(worksImg(container).getAttribute('src')).toBe(INTERIORS_PHOTOS.kitchenFitting.large)
+    expect(container.querySelector('.ir-works-photo figcaption').textContent).toBe(job('bg', 'kitchenFitting').title)
+  })
+
+  it.each(LOCALES)('%s: the general words are there and describe no default photo', (locale) => {
+    const c = CONTENT[locale]
+    for (const [words, defaultWords] of [
+      [c.hero.adminAlt, c.hero.photoAlt],
+      [c.hero.adminCaption, c.hero.photoCaption],
+      [job(locale, 'kitchen').adminAlt, job(locale, 'kitchen').alt],
+      [job(locale, 'kitchenFitting').adminAlt, job(locale, 'kitchenFitting').alt],
+      [job(locale, 'kitchenFitting').adminTitle, job(locale, 'kitchenFitting').title],
+    ]) {
+      expect(words).toBeTruthy()
+      expect(words).not.toBe(defaultWords)
+    }
   })
 })
 

@@ -9,9 +9,11 @@ using Services;
 
 namespace Controllers;
 
-// The home-page photo screen's API (2026-10): thirteen fixed slots — the home page's eight, the
-// three product pages' main photos and the delivery and partner pages' (2026-10-15) — and for each one upload, pick from the gallery,
-// clear, swap with a neighbour (hero and model slots only), or caption. The allow-list of names
+// The home-page photo screen's API (2026-10): twenty-nine fixed slots — the home page's eight, the
+// three product pages' main photos, the delivery and partner pages' (2026-10-15), and the sixteen
+// page photos of 2026-10-16 (About, Interiors, Internal doors, the home service tiles) — and for
+// each one upload, pick from the gallery, clear, swap with a neighbour (hero and model slots
+// only), or caption. The allow-list of names
 // lives in HomeSlotNames and every verb refuses anything outside it HERE, not merely in the
 // panel, because a rule that lives only in the panel is one rebuild away from disappearing.
 //
@@ -81,12 +83,28 @@ public class AdminHomePhotosController : ControllerBase
 
         using var buffer = new MemoryStream();
         await file.CopyToAsync(buffer, ct);
+        var bytes = buffer.ToArray();
+
+        // An iPhone's HEIC is told so in words the owner can act on (the decoder here has no
+        // HEIF support, so it would only ever be "could not be read"). The bytes decide first;
+        // the file name only explains a file that will not decode at all, so a JPEG that kept
+        // a ".heic" name is still accepted.
+        if (ImageProcessor.IsHeif(bytes))
+            return BadRequest(new { errors = new[] { ImageProcessor.HeifRefusal } });
 
         // Rejected rather than stored as-is: an upload that will not decode is not an image,
         // and storing it would put a broken picture on the home page.
-        var processed = _processor.TryProcess(buffer.ToArray());
+        var processed = _processor.TryProcess(bytes);
         if (processed is null)
-            return BadRequest(new { errors = new[] { "That file could not be read as an image." } });
+            return BadRequest(new
+            {
+                errors = new[]
+                {
+                    ImageProcessor.HasHeifName(file.FileName)
+                        ? ImageProcessor.HeifRefusal
+                        : "That file could not be read as an image.",
+                },
+            });
 
         // Blob first, row second. A failure between the two costs an orphaned blob nobody
         // can reach; the other order shows the public page a photo that cannot load.

@@ -14,6 +14,14 @@
 // work and the terms at a glance; the enquiry form at #zapitvane (origin 'interiors'); the
 // questions (FaqList: #q-{id} links, also FAQ JSON-LD; the FAQ hub shows them too); the sibling
 // pages; the closing card. The breadcrumbs and the Service markup are the route's.
+//
+// Three photos are admin slots (since 2026-10-16), replaced in "Снимки на сайта": the hero
+// (interiors-hero), the photo beside the works (interiors-works) and the finished kitchen tile
+// (interiors-kitchen). An empty slot shows exactly today's photo. A filled one takes the
+// content's general words (adminAlt; the owner's own description on the Bulgarian page), and
+// the words that named the default photo give way: the hero's chip becomes adminCaption, the
+// works photo's caption adminTitle. The kitchen tile's title stays, as it is true of any
+// finished kitchen. The share picture stays the bathroom.
 import React, { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -32,8 +40,14 @@ import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
 import { INTERIORS_CLIPS, INTERIORS_PAIRS, INTERIORS_PHOTOS, photoSrcSet } from '../content/shared/interiorsMedia.js'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
+import { slotAlt, slotHeroPhoto, useSlotPhotos } from '../lib/homePhotos.js'
+import SlotImg from '../components/SlotImg.jsx'
 import { paths } from '../routes/paths.js'
 import { markedUp, pageQuestions } from '../lib/questions.js'
+
+// The page's admin slots (photoSlotNames.js).
+export const INTERIORS_SLOTS = Object.freeze({ hero: 'interiors-hero', works: 'interiors-works', kitchen: 'interiors-kitchen' })
+const SLOT_NAMES = Object.values(INTERIORS_SLOTS)
 
 /** The questions as the FAQ markup publishes them: every one the page prints (lib/questions.js). */
 export function faqItems(c) {
@@ -62,10 +76,15 @@ function WorkIcon({ name }) {
   )
 }
 
-/** A photo from /public/interiors, in its 600 and 1200 wide files. */
-function Photo({ photo, alt, sizes, className }) {
+/**
+ * A photo from /public/interiors, in its 600 and 1200 wide files; or, once the owner has filled
+ * its slot (`admin`), his photo with `adminAlt`, falling back to this one should it fail.
+ */
+function Photo({ photo, alt, sizes, className, admin, adminAlt }) {
   return (
-    <img
+    <SlotImg
+      admin={admin}
+      adminAlt={adminAlt}
       className={className}
       src={photo.large}
       srcSet={photoSrcSet(photo)}
@@ -117,6 +136,7 @@ function AreaLine({ from, to, label }) {
 export default function InteriorsPage({ locale = 'bg', content }) {
   const { openQuestion } = useModalActions()
   const formHeadingRef = useRef(null)
+  const slots = useSlotPhotos(SLOT_NAMES)
   const c = content
   if (!c) return null
 
@@ -141,6 +161,8 @@ export default function InteriorsPage({ locale = 'bg', content }) {
   const photoAlt = (key) => c.jobs.photos.find((p) => p.key === key) || {}
   const kitchen = photoAlt('kitchen')
   const fitting = photoAlt('kitchenFitting')
+  const worksAdmin = slots[INTERIORS_SLOTS.works]
+  const kitchenAdmin = slots[INTERIORS_SLOTS.kitchen]
 
   const siblings = [
     { to: pathOf('doors'), ...c.siblings.doors },
@@ -158,13 +180,17 @@ export default function InteriorsPage({ locale = 'bg', content }) {
         primary={{ label: c.hero.primary, onClick: toForm }}
         secondary={telephone ? { label: c.hero.call, href: `tel:${telephone}` } : null}
         facts={c.hero.facts}
-        photo={{
-          url: INTERIORS_PHOTOS.bathBlack.large,
-          srcSet: photoSrcSet(INTERIORS_PHOTOS.bathBlack),
-          alt: c.hero.photoAlt,
-          caption: c.hero.photoCaption,
-          position: '50% 62%',
-        }}
+        photo={slotHeroPhoto(
+          slots[INTERIORS_SLOTS.hero],
+          {
+            url: INTERIORS_PHOTOS.bathBlack.large,
+            srcSet: photoSrcSet(INTERIORS_PHOTOS.bathBlack),
+            alt: c.hero.photoAlt,
+            caption: c.hero.photoCaption,
+            position: '50% 62%',
+          },
+          { locale, adminAlt: c.hero.adminAlt, adminCaption: c.hero.adminCaption },
+        )}
       />
 
       <section className="pp-band" id="raboti" aria-labelledby="ir-works-title">
@@ -189,8 +215,15 @@ export default function InteriorsPage({ locale = 'bg', content }) {
               ))}
             </ul>
             <figure className="ir-works-photo">
-              <Photo photo={INTERIORS_PHOTOS.kitchenFitting} alt={fitting.alt} sizes="(max-width: 899px) 100vw, 440px" />
-              <figcaption>{fitting.title}</figcaption>
+              <Photo
+                photo={INTERIORS_PHOTOS.kitchenFitting}
+                alt={fitting.alt}
+                sizes="(max-width: 899px) 100vw, 440px"
+                admin={worksAdmin}
+                adminAlt={slotAlt(worksAdmin, { locale, adminAlt: fitting.adminAlt })}
+              />
+              {/* "Fitting the cabinets" is what the default photo shows; the owner's may not. */}
+              <figcaption>{worksAdmin?.url ? fitting.adminTitle : fitting.title}</figcaption>
             </figure>
           </div>
 
@@ -232,7 +265,13 @@ export default function InteriorsPage({ locale = 'bg', content }) {
             ))}
             <li className="ir-tile ir-tile--wide" data-photo="kitchen">
               <div className="ir-tile-media">
-                <Photo photo={INTERIORS_PHOTOS.kitchen} alt={kitchen.alt} sizes="(max-width: 599px) 100vw, (max-width: 899px) 100vw, 580px" />
+                <Photo
+                  photo={INTERIORS_PHOTOS.kitchen}
+                  alt={kitchen.alt}
+                  sizes="(max-width: 599px) 100vw, (max-width: 899px) 100vw, 580px"
+                  admin={kitchenAdmin}
+                  adminAlt={slotAlt(kitchenAdmin, { locale, adminAlt: kitchen.adminAlt })}
+                />
               </div>
               <h3 className="ir-tile-title">{kitchen.title}</h3>
             </li>

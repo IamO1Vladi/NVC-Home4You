@@ -11,6 +11,7 @@ import bgGallery from './content/bg/gallery.js'
 import enGallery from './content/en/gallery.js'
 import { paths } from './routes/paths.js'
 import { _resetSubmissions } from './lib/backgroundSubmit.js'
+import { forgetHomePhotos } from './lib/homePhotos.js'
 
 // Sales could not tell which house a gallery "request an offer" enquiry was about
 // (owner, 2026-10-02). Three things stood in the way, and this file walks the real App
@@ -120,6 +121,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  // The photo body is kept for the visit; each test starts as a first visit.
+  forgetHomePhotos()
   // The language is remembered in localStorage, so it would carry into the next test.
   localStorage.removeItem('lang')
 })

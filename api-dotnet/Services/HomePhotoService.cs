@@ -29,14 +29,15 @@ public sealed class HomePhotoService
     private readonly ILogger<HomePhotoService> _log;
     private readonly IGalleryStore? _gallery;
 
-    // The public read is one thirteen-row query, but the home page is the busiest page on the
-    // site and the prerenderer hits it once per locale for the home page and again for each
-    // product page, so it is cached like the gallery is. Every write path below evicts by
-    // this name. The version moves whenever the body's shape does (v2 added "pages", v3
-    // added "from", both 2026-10-12; v4 added pages.delivery and v5 pages.partner, both
-    // 2026-10-15): the cache is in-process today and dies with a publish anyway, but a key that names its shape is what keeps an entry of the old shape from
-    // ever being read back as the new one.
-    public const string CacheKey = "home:photos:v5";
+    // The public read is one query over at most twenty-nine rows, but the home page is the
+    // busiest page on the site and the prerenderer hits it once per locale for the home page
+    // and again for each page that reads a slot, so it is cached like the gallery is. Every
+    // write path below evicts by this name. The version moves whenever the body's shape does
+    // (v2 added "pages", v3 added "from", both 2026-10-12; v4 added pages.delivery and v5
+    // pages.partner, both 2026-10-15; v6 added "slots", the page photos, 2026-10-16): the
+    // cache is in-process today and dies with a publish anyway, but a key that names its shape
+    // is what keeps an entry of the old shape from ever being read back as the new one.
+    public const string CacheKey = "home:photos:v6";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     // When the table cannot be read, the empty answer is kept for a minute, not ten: long
@@ -163,6 +164,8 @@ public sealed class HomePhotoService
     /// model, a hero slide is neither, so moving one into the other is never what anyone
     /// meant. A product page's photo is not swapped at all, not even with another page's:
     /// it shows THAT product, so a container on the houses page is a mistake, not an order.
+    /// A page photo (kind "photo": a team portrait, a tile, an About or Interiors picture) is
+    /// not swapped either, for the same reason: it belongs to one place on one page.
     /// </summary>
     public async Task<Result> SwapAsync(string a, string b, string? actorUpn, CancellationToken ct)
     {
@@ -170,6 +173,8 @@ public sealed class HomePhotoService
         if (a == b) return Result.Refuse("Choose two different slots to swap.");
         if (HomeSlotNames.KindOf(a) == HomeSlotNames.PageKind || HomeSlotNames.KindOf(b) == HomeSlotNames.PageKind)
             return Result.Refuse("A product page's photo belongs to that page and cannot be swapped.");
+        if (HomeSlotNames.KindOf(a) == HomeSlotNames.PhotoKind || HomeSlotNames.KindOf(b) == HomeSlotNames.PhotoKind)
+            return Result.Refuse("This photo belongs to its place and cannot be swapped.");
         if (HomeSlotNames.KindOf(a) != HomeSlotNames.KindOf(b))
             return Result.Refuse("Hero slides and model photos cannot be swapped with each other.");
 
@@ -207,10 +212,11 @@ public sealed class HomePhotoService
 
     /// <summary>
     /// What the home page and the product pages fetch: the hero slides that have a photo,
-    /// in slot order; the three model cards keyed by configurator model; the three product
-    /// pages' main photos keyed by the SPA's route key — null where a slot is empty; and the
-    /// cheapest published price per category, which the home hero's "from" figure quotes.
-    /// The SPA merges this over its content defaults, so an empty answer is a working page.
+    /// in slot order; the three model cards keyed by configurator model; the five product
+    /// pages' main photos keyed by the SPA's route key — null where a slot is empty; the page
+    /// photos of kind "photo" that have one, keyed by slot name; and the cheapest published
+    /// price per category, which the home hero's "from" figure quotes. The SPA merges this
+    /// over its content defaults, so an empty answer is a working page.
     /// </summary>
     public async Task<HomePhotosDto> ReadPublicAsync(CancellationToken ct)
     {
@@ -302,7 +308,21 @@ public sealed class HomePhotoService
                 pages[key] = url is null ? null : new HomePhotoDto(url, r!.Alt ?? "");
             }
 
-            return (new HomePhotosDto(hero, models, pages, HomeFromDto.Unknown), true);
+            // The page photos, by slot name, and ONLY the filled ones: a missing name means
+            // "show the default", which the SPA already treats exactly like null, and the whole
+            // body is copied into the <head> of every prerendered page that reads it, so the
+            // empty slots are not worth their bytes. Only kind "photo": the hero, model and
+            // page slots already travel in their own fields above, and repeating them here
+            // would double their share of every snapshot for nothing.
+            var slots = new Dictionary<string, HomePhotoDto>(StringComparer.Ordinal);
+            foreach (var name in HomeSlotNames.OfKind(HomeSlotNames.PhotoKind))
+            {
+                var r = byName.GetValueOrDefault(name);
+                var url = r is null ? null : _imageUrls.ForKey(r.ImageKey);
+                if (url is not null) slots[name] = new HomePhotoDto(url, r!.Alt ?? "");
+            }
+
+            return (new HomePhotosDto(hero, models, pages, HomeFromDto.Unknown, slots), true);
         }
         // Keyed on the token, not the exception type: a request the client abandoned
         // mid-query must not be logged as a fault or cached as "no photos" for everyone.
@@ -355,18 +375,29 @@ public sealed class HomePhotoService
     private HomeSlotAdminDto ToDto(string name, HomeSlot? row) => new(
         name,
         HomeSlotNames.KindOf(name)!,
-        HomeSlotNames.ModelKeyOf(name) ?? HomeSlotNames.PageKeyOf(name) ?? HomeSlotNames.HeroNumberOf(name).ToString(),
+        PanelIndexOf(name),
         row?.ImageKey,
         row?.ImageKey is null ? null : _imageUrls.ForKey(row.ImageKey),
         row?.Alt,
         row?.UpdatedAt.ToString("o"),
         row?.UpdatedByUpn);
+
+    // Read off the kind, so a slot of a kind with no number of its own gets its name
+    // rather than a "0" that would read as a hero slide nobody has.
+    private static string PanelIndexOf(string name) => HomeSlotNames.KindOf(name) switch
+    {
+        HomeSlotNames.HeroKind => HomeSlotNames.HeroNumberOf(name).ToString(),
+        HomeSlotNames.ModelKind => HomeSlotNames.ModelKeyOf(name)!,
+        HomeSlotNames.PageKind => HomeSlotNames.PageKeyOf(name)!,
+        _ => name,
+    };
 }
 
 /// <summary>
 /// One slot as the panel sees it. Index is "1".."5" for a hero slide, the model key ("37")
-/// for a model card and the SPA route key ("modularHouses") for a product page — a string
-/// every way, so the panel does not have to know which kind it is holding to print it.
+/// for a model card, the SPA route key ("modularHouses") for a product page and the slot's
+/// own name ("about-hero") for a page photo — a string every way, so the panel does not have
+/// to know which kind it is holding to print it.
 /// </summary>
 public sealed record HomeSlotAdminDto(
     string Name,
@@ -381,7 +412,7 @@ public sealed record HomeSlotAdminDto(
 /// <summary>A hero slide that has a photo. Slot is the name ("hero-2"), kept so the SPA can key its merge.</summary>
 public sealed record HomeHeroPhotoDto(string Slot, string Url, string Alt);
 
-/// <summary>A model card's photo, or a product page's main photo.</summary>
+/// <summary>A model card's photo, a product page's main photo, or a page photo.</summary>
 public sealed record HomePhotoDto(string Url, string Alt);
 
 /// <summary>
@@ -389,18 +420,26 @@ public sealed record HomePhotoDto(string Url, string Alt);
 /// all five page keys (modularBuilds, modularHouses, steelHouses, delivery, partner), null when empty, so the
 /// SPA never has to tell "no photo" from "an older API that did not know the key". From is
 /// always there too, with null figures when they are unknown.
+///
+/// Slots (2026-10-16) is the other way round: only the page photos (kind "photo") that HAVE
+/// a photo, keyed by slot name ("about-hero"), and an empty object when none has. An older
+/// API (or an older body seeded into a prerendered page's head) is told apart by the field being absent
+/// altogether, which a reader must take as "every page photo shows its default", the same
+/// thing an empty slot means.
 /// </summary>
 public sealed record HomePhotosDto(
     List<HomeHeroPhotoDto> Hero,
     Dictionary<string, HomePhotoDto?> Models,
     Dictionary<string, HomePhotoDto?> Pages,
-    HomeFromDto From)
+    HomeFromDto From,
+    Dictionary<string, HomePhotoDto> Slots)
 {
     public static HomePhotosDto Empty() => new(
         new List<HomeHeroPhotoDto>(),
         HomeSlotNames.ModelKeys.ToDictionary(k => k, _ => (HomePhotoDto?)null, StringComparer.Ordinal),
         HomeSlotNames.PageKeys.ToDictionary(k => k, _ => (HomePhotoDto?)null, StringComparer.Ordinal),
-        HomeFromDto.Unknown);
+        HomeFromDto.Unknown,
+        new Dictionary<string, HomePhotoDto>(StringComparer.Ordinal));
 }
 
 /// <summary>

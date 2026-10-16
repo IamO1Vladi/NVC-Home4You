@@ -17,6 +17,7 @@ export default {
       'Priced on request, by quantity',
     ],
     chip: 'Photo from our catalogue',
+    adminAlt: 'Internal WPC doors',
   },
 
   features: {

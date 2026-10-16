@@ -12,9 +12,14 @@ import {
   loadHomePhotos,
   mergeHomePhotos,
   pagePhotoOf,
+  slotAlt,
+  slotHeroPhoto,
+  slotPhotoOf,
   useHomeFrom,
   useHomePhotos,
   usePagePhoto,
+  useSlotPhoto,
+  useSlotPhotos,
 } from './homePhotos.js'
 
 // The merge decides what the hero and the model cards show; the failure paths decide that a
@@ -46,7 +51,10 @@ describe('mergeHomePhotos', () => {
     expect(slides.map((s) => s.src)).toEqual(DEFAULTS.map((s) => s.src))
   })
 
-  it('uses the API hero slides, taking each default pathKey by position and no frame', () => {
+  // 2026-10-16: each API slide goes to ITS position (hero-N is slide N), and the deck keeps all
+  // of the defaults' slides. Until then the API's list replaced the whole deck, so filling
+  // only hero-5 left ONE slide, labelled and linked as slide 1 (the containers page).
+  it('puts each API slide in its own position, keeping that position pathKey and label, and no frame', () => {
     const api = {
       hero: [
         { slot: 'hero-1', url: '/api/img/home/1/x.webp', alt: 'A porch' },
@@ -55,23 +63,51 @@ describe('mergeHomePhotos', () => {
       models: {},
     }
     const { slides } = mergeHomePhotos(DEFAULTS, api)
-    expect(slides).toHaveLength(2)
+    expect(slides).toHaveLength(3)
     expect(slides[0]).toMatchObject({ src: '/api/img/home/1/x.webp', alt: 'A porch', pathKey: 'modularBuilds', label: 'Modular builds' })
     expect(slides[0].frame).toBeUndefined()
-    expect(slides[1]).toMatchObject({ src: '/api/img/home/3/y.webp', alt: '', pathKey: 'modularHouses' })
+    // Position 2 has no photo of the owner's: its default, as the content gives it.
+    expect(slides[1]).toEqual({ ...DEFAULTS[1], label: 'Modular houses' })
+    // Position 3's photo, and position 3's link and label — not position 2's.
+    expect(slides[2]).toMatchObject({ src: '/api/img/home/3/y.webp', alt: '', pathKey: 'steelHouses', label: 'Steel houses' })
   })
 
-  it('falls back to modularBuilds when the API has more slides than there are defaults', () => {
+  it('filling only hero-5 changes slide 5 and keeps all five slides, links and labels', () => {
+    const five = [
+      ...DEFAULTS,
+      { src: '/api/img/content/d.webp', alt: 'Steel houses', pathKey: 'steelHouses' },
+      { src: '/api/img/content/e.webp', alt: 'Interiors', pathKey: 'interiors' },
+    ]
+    const { slides } = mergeHomePhotos(five, { hero: [{ slot: 'hero-5', url: '/api/img/home/5/kitchen.webp', alt: '' }] })
+
+    expect(slides).toHaveLength(5)
+    expect(slides.map((s) => s.src)).toEqual([...five.slice(0, 4).map((s) => s.src), '/api/img/home/5/kitchen.webp'])
+    expect(slides.map((s) => s.pathKey)).toEqual(five.map((s) => s.pathKey))
+    expect(slides.map((s) => s.label)).toEqual(five.map((s) => s.alt))
+    expect(slides[0].frame).toEqual(five[0].frame)
+  })
+
+  it('never grows or shrinks the deck: a slot past the defaults is ignored', () => {
     const api = { hero: [1, 2, 3, 4, 5].map((n) => ({ slot: `hero-${n}`, url: `/api/img/home/${n}/p.webp`, alt: '' })) }
     const { slides } = mergeHomePhotos(DEFAULTS.slice(0, 1), api)
-    expect(slides).toHaveLength(5)
-    expect(slides[4].pathKey).toBe('modularBuilds')
+    expect(slides).toHaveLength(1)
+    expect(slides[0]).toMatchObject({ src: '/api/img/home/1/p.webp', pathKey: 'modularBuilds' })
   })
 
-  it('drops hero entries without a url', () => {
-    const api = { hero: [{ slot: 'hero-1', url: '' }, null, { slot: 'hero-2', url: '/api/img/home/2/ok.webp' }] }
+  it('ignores entries without a url or a slot name, and keeps the first of a repeated slot', () => {
+    const api = {
+      hero: [
+        { slot: 'hero-1', url: '' },
+        null,
+        { slot: 'hero-2', url: '/api/img/home/2/ok.webp' },
+        { url: '/api/img/home/x/no-slot.webp' },
+        { slot: 'hero-0', url: '/api/img/home/0/zero.webp' },
+        { slot: 'model-37', url: '/api/img/home/6/model.webp' },
+        { slot: 'hero-2', url: '/api/img/home/2/second.webp' },
+      ],
+    }
     const { slides } = mergeHomePhotos(DEFAULTS, api)
-    expect(slides.map((s) => s.src)).toEqual(['/api/img/home/2/ok.webp'])
+    expect(slides.map((s) => s.src)).toEqual([DEFAULTS[0].src, '/api/img/home/2/ok.webp', DEFAULTS[2].src])
   })
 
   it('maps the model slots to a url or null', () => {
@@ -346,7 +382,8 @@ describe('the copy in <head>', () => {
     expect(empty.result.current).toBeNull()
 
     const home = renderHook(() => fresh.useHomePhotos(DEFAULTS))
-    expect(home.result.current.slides.map((s) => s.src)).toEqual(['/api/img/home/1/porch.webp'])
+    // The seeded slide in its own position; the other positions keep their defaults.
+    expect(home.result.current.slides.map((s) => s.src)).toEqual(['/api/img/home/1/porch.webp', DEFAULTS[1].src, DEFAULTS[2].src])
     fresh.forgetHomePhotos()
   })
 
@@ -379,7 +416,221 @@ describe('useHomePhotos', () => {
 
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     const second = renderHook(() => useHomePhotos(DEFAULTS))
-    expect(second.result.current.slides.map((s) => s.src)).toEqual(['/api/img/home/1/porch.webp'])
+    expect(second.result.current.slides.map((s) => s.src)).toEqual(['/api/img/home/1/porch.webp', DEFAULTS[1].src, DEFAULTS[2].src])
+  })
+
+  it('takes the answer a moment later', async () => {
+    const body = { hero: [{ slot: 'hero-2', url: '/api/img/home/2/porch.webp', alt: '' }], models: {} }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(body) }))
+    const { result } = renderHook(() => useHomePhotos(DEFAULTS))
+    expect(result.current.slides[1].src).toBe(DEFAULTS[1].src)
+    await waitFor(() => expect(result.current.slides[1].src).toBe('/api/img/home/2/porch.webp'))
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+// The page photos of 2026-10-16: the body's "slots" map, by slot name, only the filled ones.
+
+const SLOTS_BODY = {
+  hero: [],
+  models: { 37: null, 58: null, 73: null },
+  pages: { modularBuilds: null, modularHouses: { url: '/api/img/cases/3/kariani.webp', alt: 'Kariani' }, steelHouses: null, delivery: null, partner: null },
+  from: { wagon: null, modular: null },
+  slots: {
+    'about-hero': { url: '/api/img/home/14/team.webp', alt: 'Екипът пред склада' },
+    'about-team-radina-ivanova': { url: '/api/img/home/18/radina.webp', alt: '' },
+    'home-tile-interiors': { url: '/api/img/home/29/kitchen.webp' },
+  },
+}
+
+describe('slotPhotoOf', () => {
+  it('returns the url and alt of a filled slot', () => {
+    expect(slotPhotoOf(SLOTS_BODY, 'about-hero')).toEqual({ url: '/api/img/home/14/team.webp', alt: 'Екипът пред склада' })
+    expect(slotPhotoOf(SLOTS_BODY, 'about-team-radina-ivanova')).toEqual({ url: '/api/img/home/18/radina.webp', alt: '' })
+    // An alt the API left out reads as no alt, not "undefined".
+    expect(slotPhotoOf(SLOTS_BODY, 'home-tile-interiors')).toEqual({ url: '/api/img/home/29/kitchen.webp', alt: '' })
+  })
+
+  it('is null for a slot the map leaves out, which is how the API says "empty"', () => {
+    expect(slotPhotoOf(SLOTS_BODY, 'factory-floor')).toBeNull()
+    expect(slotPhotoOf({ ...SLOTS_BODY, slots: {} }, 'about-hero')).toBeNull()
+  })
+
+  it('is null for a body from before the slots existed: an older API, or an older body kept in <head>', () => {
+    const { slots, ...older } = SLOTS_BODY
+    expect(slots).toBeTruthy()
+    expect(slotPhotoOf(older, 'about-hero')).toBeNull()
+    expect(slotPhotoOf({ hero: [], models: {} }, 'about-hero')).toBeNull()
+  })
+
+  it('never throws, and is null for anything not of the expected shape', () => {
+    const bodies = [
+      null, undefined, 'text', 42, [], {},
+      { slots: null }, { slots: 'no' }, { slots: [] }, { slots: [{ url: '/x.webp' }] },
+      { slots: { 'about-hero': null } }, { slots: { 'about-hero': 'url' } }, { slots: { 'about-hero': { url: '' } } },
+      { slots: { 'about-hero': { url: '   ' } } }, { slots: { 'about-hero': { url: 7 } } },
+    ]
+    for (const body of bodies) expect(slotPhotoOf(body, 'about-hero')).toBeNull()
+    for (const name of [undefined, null, '', 42, 'toString', '__proto__', 'constructor']) {
+      expect(slotPhotoOf(SLOTS_BODY, name)).toBeNull()
+    }
+  })
+})
+
+describe('slotAlt', () => {
+  const admin = { url: '/api/img/home/14/a.webp', alt: '  Екипът пред склада  ' }
+
+  it('is the owner description on the Bulgarian site, and the page general one in English and Greek', () => {
+    expect(slotAlt(admin, { locale: 'bg', adminAlt: 'The NVC team' })).toBe('Екипът пред склада')
+    expect(slotAlt(admin, { locale: 'en', adminAlt: 'The NVC team' })).toBe('The NVC team')
+    expect(slotAlt(admin, { locale: 'el', adminAlt: 'Η ομάδα της NVC' })).toBe('Η ομάδα της NVC')
+  })
+
+  it('falls back to the general description when the owner left it empty', () => {
+    expect(slotAlt({ url: '/x.webp', alt: '' }, { locale: 'bg', adminAlt: 'Екипът на NVC' })).toBe('Екипът на NVC')
+    expect(slotAlt({ url: '/x.webp', alt: '   ' }, { locale: 'bg', adminAlt: 'Екипът на NVC' })).toBe('Екипът на NVC')
+    expect(slotAlt({ url: '/x.webp' }, { locale: 'bg' })).toBe('')
+  })
+
+  it('is empty for a decorative picture, whatever was typed', () => {
+    expect(slotAlt(admin, { locale: 'bg', adminAlt: 'x', decorative: true })).toBe('')
+  })
+})
+
+describe('slotHeroPhoto', () => {
+  const DEFAULT_PHOTO = { url: '/delivery/crane-lift-1500.webp', srcSet: '/delivery/crane-lift-800.webp 800w', alt: 'Кран', caption: 'Chip', position: '30% 50%' }
+
+  it('is the page photo object itself, untouched, while the slot is empty', () => {
+    expect(slotHeroPhoto(null, DEFAULT_PHOTO, { locale: 'bg' })).toBe(DEFAULT_PHOTO)
+    expect(slotHeroPhoto(undefined, DEFAULT_PHOTO, { locale: 'bg' })).toBe(DEFAULT_PHOTO)
+    expect(slotHeroPhoto({ url: '' }, DEFAULT_PHOTO, { locale: 'bg' })).toBe(DEFAULT_PHOTO)
+  })
+
+  it("is the owner's photo once filled: its alt by slotAlt, the default as the fallback, the admin caption, no crop and no srcSet", () => {
+    const admin = { url: '/api/img/home/14/a.webp', alt: 'Екипът' }
+    expect(slotHeroPhoto(admin, DEFAULT_PHOTO, { locale: 'bg', adminAlt: 'NVC', adminCaption: 'Наш монтаж' })).toEqual({
+      url: '/api/img/home/14/a.webp',
+      alt: 'Екипът',
+      fallback: '/delivery/crane-lift-1500.webp',
+      caption: 'Наш монтаж',
+    })
+    const en = slotHeroPhoto(admin, DEFAULT_PHOTO, { locale: 'en', adminAlt: 'The NVC team' })
+    expect(en.alt).toBe('The NVC team')
+    // No admin caption: no chip, since the default's chip names the default photo.
+    expect(en.caption).toBeUndefined()
+    expect(en.position).toBeUndefined()
+    expect(en.srcSet).toBeUndefined()
+  })
+})
+
+describe('useSlotPhotos', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const answer = (body, ok = true) => vi.fn().mockResolvedValue({ ok, status: ok ? 200 : 503, json: () => Promise.resolve(body) })
+  const NAMES = ['about-hero', 'factory-floor']
+
+  it('is undefined while the first answer is on its way, then each slot: the photo, or null when empty', async () => {
+    vi.stubGlobal('fetch', answer(SLOTS_BODY))
+    const { result } = renderHook(() => useSlotPhotos(NAMES))
+
+    expect(result.current).toEqual({ 'about-hero': undefined, 'factory-floor': undefined })
+    await waitFor(() => expect(result.current['about-hero']).toEqual({ url: '/api/img/home/14/team.webp', alt: 'Екипът пред склада' }))
+    expect(result.current['factory-floor']).toBeNull()
+  })
+
+  it('settles to null for every slot when the API fails with nothing kept, and for an API without slots', async () => {
+    vi.stubGlobal('fetch', answer({}, false))
+    const failed = renderHook(() => useSlotPhotos(NAMES))
+    await waitFor(() => expect(failed.result.current['about-hero']).toBeNull())
+    expect(failed.result.current['factory-floor']).toBeNull()
+
+    forgetHomePhotos()
+    const { slots, ...older } = SLOTS_BODY
+    expect(slots).toBeTruthy()
+    vi.stubGlobal('fetch', answer(older))
+    const old = renderHook(() => useSlotPhotos(NAMES))
+    await waitFor(() => expect(old.result.current['about-hero']).toBeNull())
+  })
+
+  it('keeps the photo on screen when a refresh fails', async () => {
+    vi.stubGlobal('fetch', answer(SLOTS_BODY))
+    await loadHomePhotos()
+
+    vi.stubGlobal('fetch', answer({}, false))
+    const { result } = renderHook(() => useSlotPhoto('about-hero'))
+    expect(result.current?.url).toBe('/api/img/home/14/team.webp')
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    await loadHomePhotos()
+    expect(result.current?.url).toBe('/api/img/home/14/team.webp')
+  })
+
+  it('follows a body another hook fetched, so a page never shows two answers', async () => {
+    vi.stubGlobal('fetch', answer(SLOTS_BODY))
+    const { result } = renderHook(() => useSlotPhoto('about-hero'))
+    await waitFor(() => expect(result.current?.url).toBe('/api/img/home/14/team.webp'))
+
+    // The owner cleared it; the next answer (fetched by some other hook) says so.
+    vi.stubGlobal('fetch', answer({ ...SLOTS_BODY, slots: {} }))
+    await fetchHomePhotos()
+    await waitFor(() => expect(result.current).toBeNull())
+  })
+
+  it('asks nothing for no names', () => {
+    vi.stubGlobal('fetch', vi.fn())
+    const { result } = renderHook(() => useSlotPhotos([]))
+    expect(result.current).toEqual({})
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('writes the answer into <head>, so the snapshot of a page that only reads slots carries them', async () => {
+    vi.stubGlobal('fetch', answer(SLOTS_BODY))
+    const { result } = renderHook(() => useSlotPhoto('about-hero'))
+    await waitFor(() => expect(result.current?.url).toBe('/api/img/home/14/team.webp'))
+
+    const seed = document.getElementById(HOME_PHOTOS_SEED_ID)
+    expect(seed?.parentNode).toBe(document.head)
+    expect(JSON.parse(seed.textContent).slots['about-hero'].url).toBe('/api/img/home/14/team.webp')
+  })
+
+  it("paints the seeded owner's photo in the first render of a prerendered load", async () => {
+    const el = document.createElement('script')
+    el.type = 'application/json'
+    el.id = HOME_PHOTOS_SEED_ID
+    el.textContent = JSON.stringify(SLOTS_BODY)
+    document.head.appendChild(el)
+    vi.resetModules()
+    const fresh = await import('./homePhotos.js')
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+
+    const { result } = renderHook(() => fresh.useSlotPhotos(NAMES))
+    expect(result.current['about-hero']).toEqual({ url: '/api/img/home/14/team.webp', alt: 'Екипът пред склада' })
+    expect(result.current['factory-floor']).toBeNull()
+    // The refresh still goes out.
+    expect(fetch).toHaveBeenCalledTimes(1)
+    fresh.forgetHomePhotos()
+  })
+})
+
+describe('one request per page', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('the home page hooks (slides and models, tiles, a page photo, the "from" figure) share a single call', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(SLOTS_BODY) }))
+    const { result } = renderHook(() => ({
+      home: useHomePhotos(DEFAULTS),
+      tiles: useSlotPhotos(['home-tile-interiors', 'home-tile-modular-builds']),
+      page: usePagePhoto('modularHouses'),
+      from: useHomeFrom(),
+    }))
+
+    await waitFor(() => expect(result.current.tiles['home-tile-interiors']?.url).toBe('/api/img/home/29/kitchen.webp'))
+    await waitFor(() => expect(result.current.page?.url).toBe('/api/img/cases/3/kariani.webp'))
+    expect(result.current.tiles['home-tile-modular-builds']).toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })
 

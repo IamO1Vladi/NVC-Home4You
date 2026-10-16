@@ -32,6 +32,9 @@ export default {
       'Цена по запитване според количеството',
     ],
     chip: 'Снимка от каталога ни',
+    // For a photo the owner sets in "Снимки на сайта" without a description (the chip above is
+    // then left out, as his photo is not the catalogue's).
+    adminAlt: 'Интериорни врати от WPC',
   },
 
   features: {

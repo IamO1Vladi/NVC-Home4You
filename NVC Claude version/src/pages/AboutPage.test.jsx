@@ -2,11 +2,11 @@ import React from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { ModalActionsProvider } from '../context/ModalActions.jsx'
-import AboutPage, { ABOUT_LEAD_SOURCE, ABOUT_PHOTO } from './AboutPage.jsx'
+import AboutPage, { ABOUT_LEAD_SOURCE, ABOUT_PHOTO, FACTORY_PHOTO } from './AboutPage.jsx'
 import bgContent from '../content/bg/about.js'
 import enContent from '../content/en/about.js'
 import elContent from '../content/el/about.js'
@@ -18,6 +18,8 @@ import { LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { getRouteSeo } from '../seo/routeMeta.js'
 import { ORGANIZATION_ID } from '../components/StructuredData.jsx'
+import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { COMPANY, TEAM_PHOTOS } from '../content/shared/company.js'
 import bgHome from '../content/bg/home.js'
 import enHome from '../content/en/home.js'
@@ -69,6 +71,8 @@ const json = (body) => Promise.resolve({ ok: true, json: () => Promise.resolve(b
 let feed = { reviews: true, cases: true }
 let caseBody = CASE
 let reviewsBody = REVIEWS
+// The /api/home/photos answer; null answers 503, as every other unknown call does.
+let photosBody = null
 
 class FakeObserver {
   observe() {}
@@ -80,12 +84,14 @@ beforeEach(() => {
   feed = { reviews: true, cases: true }
   caseBody = CASE
   reviewsBody = REVIEWS
+  photosBody = null
   vi.stubGlobal('IntersectionObserver', FakeObserver)
   vi.stubGlobal('matchMedia', (query) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
     if (u.includes('/api/cases-page') && feed.cases) return json({ cases: [caseBody], reviews: [] })
     if (u.includes('/api/reviews/featured') && feed.reviews) return json(reviewsBody)
+    if (u.includes('/api/home/photos') && photosBody) return json(photosBody)
     return Promise.resolve({ ok: false, status: 503 })
   }))
 })
@@ -93,6 +99,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  // The photo body is kept for the visit; each test starts as a first visit (no admin
+  // photo carried over from the test before).
+  forgetHomePhotos()
 })
 
 function renderPage(locale = 'bg', actions = {}) {
@@ -432,6 +441,191 @@ describe('AboutPage', () => {
   })
 })
 
+// The page's photos the owner can change in "Снимки на сайта" (since 2026-10-16): the hero
+// (about-hero), the factory floor (factory-floor) and one per person (about-team-<slug>). An
+// empty slot draws exactly what the page drew before; a filled one shows the owner's photo
+// through the resizer, with his description on the Bulgarian page and the content's general
+// words otherwise, and falls back to today's picture if it fails to load.
+describe('the About page\'s photo slots', () => {
+  const HERO = { url: '/api/img/home/14/base.webp', alt: 'Нашата база в Марикостиново' }
+  const FLOOR = { url: '/api/img/home/21/floor.webp', alt: 'Цехът отблизо' }
+  const VLADIMIR = { url: '/api/img/home/15/vladimir.webp', alt: 'не се чете' }
+  const RADINA = { url: '/api/img/home/18/radina.webp', alt: '' }
+  const withSlots = (slots) => ({ hero: [], models: {}, pages: {}, slots })
+
+  const heroImg = (container) => container.querySelector('.pp-hero-media img')
+  const floorImg = (container) => container.querySelector('.ab-factory img')
+  const person = (container, slug) => container.querySelector(`[data-person="${slug}"]`)
+  const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
+
+  /** What the page drew before the slots, piece by piece. */
+  function expectToday(container, locale) {
+    const c = CONTENT[locale]
+    const hero = heroImg(container)
+    expect(hero.getAttribute('src')).toBe(ABOUT_PHOTO.url)
+    expect(hero.getAttribute('srcset')).toBe(ABOUT_PHOTO.srcSet)
+    expect(hero.getAttribute('alt')).toBe(c.hero.photoAlt)
+    expect(hero.hasAttribute('style')).toBe(false)
+    expect(container.querySelector('.pp-hero-chip')).toBeNull()
+    // The factory figure had no srcset, sizes, style or handler of its own, and still has none.
+    const floor = floorImg(container)
+    expect([...floor.attributes].map((a) => `${a.name}=${a.value}`).sort()).toEqual([
+      `alt=${c.journey.factory.alt}`, 'decoding=async', 'height=891', 'loading=lazy', 'src=/partner/factory-floor.webp', 'width=1200',
+    ])
+    for (const slug of ['vladimir-vladimirov', 'tsvetelin-bonin', 'nikolay-lekov']) {
+      const img = person(container, slug).querySelector('img.ab-avatar')
+      expect([...img.attributes].map((a) => `${a.name}=${a.value}`).sort()).toEqual([
+        'alt=', 'class=ab-avatar', 'decoding=async', 'height=160', 'loading=lazy', `src=/${TEAM_PHOTOS[slug]}`, 'width=160',
+      ])
+    }
+    for (const slug of ['radina-ivanova', 'vasil-vasilev', 'ivan-vasilev']) {
+      expect(person(container, slug).querySelector('img')).toBeNull()
+      expect(person(container, slug).querySelector('.ab-monogram')).not.toBeNull()
+    }
+  }
+
+  it.each(LOCALES)('%s: with every slot empty the page is exactly as before, whatever the API answers', async (locale) => {
+    for (const body of [null, {}, withSlots({}), { hero: [], models: {}, pages: {} }]) {
+      photosBody = body
+      const { container, unmount } = renderPage(locale)
+      expectToday(container, locale)
+      await waitFor(() => expect(photosCalls().length).toBeGreaterThan(0))
+      await act(async () => {})
+      expectToday(container, locale)
+      // No error handler was added to the factory figure either: a failed load stays as it was.
+      fireEvent.error(floorImg(container))
+      fireEvent.error(floorImg(container))
+      expect(floorImg(container).getAttribute('src')).toBe('/partner/factory-floor.webp')
+      expect(Object.keys(floorImg(container).dataset)).toEqual([])
+      unmount()
+      forgetHomePhotos()
+      fetch.mockClear()
+    }
+  })
+
+  it.each(LOCALES)('%s: the owner\'s hero and factory photos, through the resizer, with the right words', async (locale) => {
+    const c = CONTENT[locale]
+    photosBody = withSlots({ 'about-hero': HERO, 'factory-floor': FLOOR })
+    const { container } = await ready(locale)
+    await waitFor(() => expect(heroImg(container).getAttribute('src')).toContain(HERO.url))
+
+    const hero = heroImg(container)
+    expect(hero.getAttribute('src')).toBe(cdnImage(HERO.url, { width: 800 }))
+    expect(hero.getAttribute('srcset')).toBe(cdnSrcSet(HERO.url, [480, 640, 800, 1200, 1600]))
+    expect(hero.getAttribute('srcset')).not.toContain('crane-lift')
+    // The owner types Bulgarian; the other languages get the page's general words.
+    expect(hero.getAttribute('alt')).toBe(locale === 'bg' ? HERO.alt : c.hero.adminAlt)
+    expect(hero.hasAttribute('style')).toBe(false)
+
+    const floor = floorImg(container)
+    expect(floor.getAttribute('src')).toBe(cdnImage(FLOOR.url, { width: 1200 }))
+    expect(floor.getAttribute('srcset')).toBe(cdnSrcSet(FLOOR.url, [480, 640, 800, 1200, 1600]))
+    expect(floor.getAttribute('sizes')).toBe('(max-width: 719px) 100vw, (max-width: 899px) 50vw, 780px')
+    expect(floor.getAttribute('alt')).toBe(locale === 'bg' ? FLOOR.alt : c.journey.factory.adminAlt)
+    expect(floor.getAttribute('width')).toBe('1200')
+    expect(floor.getAttribute('height')).toBe('891')
+    expect(floor.style.objectPosition).toBe('50% 50%')
+
+    // Still only the owner's own photos: his uploads are under /api/img/home/.
+    for (const img of container.querySelectorAll('main img')) {
+      expect(img.getAttribute('src')).toMatch(/^\/(delivery\/|partner\/factory-floor\.webp$|api\/img\/cases\/|api\/img\/home\/|about\/team\/)/)
+    }
+  })
+
+  it('a blank description in the panel gives the page\'s general words, never the crane\'s', async () => {
+    photosBody = withSlots({ 'about-hero': { ...HERO, alt: '  ' }, 'factory-floor': { ...FLOOR, alt: '' } })
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(heroImg(container).getAttribute('src')).toContain(HERO.url))
+    expect(heroImg(container).getAttribute('alt')).toBe(bgContent.hero.adminAlt)
+    expect(floorImg(container).getAttribute('alt')).toBe(bgContent.journey.factory.adminAlt)
+  })
+
+  it('falls back to the crane and the factory floor if the owner\'s photos fail to load', async () => {
+    photosBody = withSlots({ 'about-hero': HERO, 'factory-floor': FLOOR })
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(floorImg(container).getAttribute('src')).toContain(FLOOR.url))
+    for (const [img, fallback] of [[heroImg(container), ABOUT_PHOTO.url], [floorImg(container), FACTORY_PHOTO.url]]) {
+      // One retry of the owner's photo, then today's.
+      fireEvent.error(img)
+      fireEvent.error(img)
+      expect(img.getAttribute('src')).toBe(fallback)
+      expect(img.hasAttribute('srcset')).toBe(false)
+      expect(img.dataset.imgFallback).toBe(fallback)
+    }
+  })
+
+  it.each(LOCALES)('%s: a person\'s photo from the panel first, then the file, then the initials; always decorative', async (locale) => {
+    photosBody = withSlots({ 'about-team-vladimir-vladimirov': VLADIMIR, 'about-team-radina-ivanova': RADINA })
+    const { container } = renderPage(locale)
+    await waitFor(() => expect(person(container, 'radina-ivanova').querySelector('img')).not.toBeNull())
+
+    const vladimir = person(container, 'vladimir-vladimirov').querySelector('img.ab-avatar')
+    expect(vladimir.getAttribute('src')).toBe(cdnImage(VLADIMIR.url, { width: 160 }))
+    expect(vladimir.getAttribute('src')).toContain('?w=160')
+    expect(vladimir.getAttribute('srcset')).toBe(cdnSrcSet(VLADIMIR.url, [160, 240, 320]))
+    expect(vladimir.getAttribute('sizes')).toBe('72px')
+    expect(vladimir.getAttribute('alt')).toBe('')
+    // An upright phone portrait keeps the head in the circle.
+    expect(vladimir.style.objectPosition).toBe('50% 30%')
+    fireEvent.error(vladimir)
+    const file = person(container, 'vladimir-vladimirov').querySelector('img.ab-avatar')
+    expect(file.getAttribute('src')).toBe(`/${TEAM_PHOTOS['vladimir-vladimirov']}`)
+    expect(file.hasAttribute('srcset')).toBe(false)
+    expect(file.hasAttribute('style')).toBe(false)
+    fireEvent.error(file)
+    expect(person(container, 'vladimir-vladimirov').querySelector('img')).toBeNull()
+    expect(person(container, 'vladimir-vladimirov').querySelector('.ab-monogram')).not.toBeNull()
+
+    // Radina has no file: her photo, then her initials.
+    const radina = person(container, 'radina-ivanova').querySelector('img.ab-avatar')
+    expect(radina.getAttribute('src')).toBe(cdnImage(RADINA.url, { width: 160 }))
+    expect(radina.getAttribute('alt')).toBe('')
+    expect(person(container, 'radina-ivanova').querySelector('.ab-monogram')).toBeNull()
+    fireEvent.error(radina)
+    expect(person(container, 'radina-ivanova').querySelector('img')).toBeNull()
+    expect(person(container, 'radina-ivanova').querySelector('.ab-monogram').getAttribute('aria-hidden')).toBe('true')
+
+    // The others as before.
+    expect(person(container, 'tsvetelin-bonin').querySelector('img').getAttribute('src')).toBe(`/${TEAM_PHOTOS['tsvetelin-bonin']}`)
+    expect(person(container, 'ivan-vasilev').querySelector('img')).toBeNull()
+  })
+
+  it('a new photo for a person starts afresh, even after the last one failed', async () => {
+    photosBody = withSlots({ 'about-team-radina-ivanova': RADINA })
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(person(container, 'radina-ivanova').querySelector('img')).not.toBeNull())
+    fireEvent.error(person(container, 'radina-ivanova').querySelector('img'))
+    expect(person(container, 'radina-ivanova').querySelector('.ab-monogram')).not.toBeNull()
+
+    // The owner uploads another; the next answer brings it.
+    photosBody = withSlots({ 'about-team-radina-ivanova': { url: '/api/img/home/18/radina-2.webp', alt: '' } })
+    await act(async () => { await fetchHomePhotos() })
+    await waitFor(() => expect(person(container, 'radina-ivanova').querySelector('img')?.getAttribute('src')).toContain('radina-2.webp'))
+  })
+
+  it('opens on the owner\'s photos from the first render once an answer is kept', async () => {
+    // What the snapshot's <head> copy gives a fresh load (homePhotos.test.js reads that path);
+    // here an earlier answer on the same visit stands in for it.
+    photosBody = withSlots({ 'about-hero': HERO, 'factory-floor': FLOOR, 'about-team-radina-ivanova': RADINA })
+    await fetchHomePhotos()
+    expect(document.getElementById(HOME_PHOTOS_SEED_ID)).not.toBeNull()
+
+    const { container } = renderPage('bg')
+    // No waiting: the very first render has them, so nothing swaps from the default.
+    expect(heroImg(container).getAttribute('src')).toBe(cdnImage(HERO.url, { width: 800 }))
+    expect(floorImg(container).getAttribute('src')).toBe(cdnImage(FLOOR.url, { width: 1200 }))
+    expect(person(container, 'radina-ivanova').querySelector('img').getAttribute('src')).toBe(cdnImage(RADINA.url, { width: 160 }))
+  })
+
+  it.each(LOCALES)('%s: the general words for the owner\'s photos are there and describe no default photo', (locale) => {
+    const c = CONTENT[locale]
+    expect(c.hero.adminAlt).toBeTruthy()
+    expect(c.hero.adminAlt).not.toBe(c.hero.photoAlt)
+    expect(c.journey.factory.adminAlt).toBeTruthy()
+    expect(c.journey.factory.adminAlt).not.toBe(c.journey.factory.alt)
+  })
+})
+
 describe('the About routes', () => {
   function renderRoute(locale) {
     const Route = ROUTES[locale]
@@ -487,6 +681,15 @@ describe('the About routes', () => {
     for (const field of ['taxID', 'numberOfEmployees', 'aggregateRating', 'openingHours']) {
       expect(raw).not.toContain(field)
     }
+  })
+
+  it('keeps the crane as the markup\'s main picture when the owner has set his own hero', async () => {
+    photosBody = { hero: [], models: {}, pages: {}, slots: { 'about-hero': { url: '/api/img/home/14/base.webp', alt: '' } } }
+    const { container } = renderRoute('bg')
+    await waitFor(() => expect(container.querySelector('.pp-hero-media img')?.getAttribute('src')).toContain('/api/img/home/14/'))
+    const data = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent))
+    expect(data.find((d) => d['@type'] === 'AboutPage').primaryImageOfPage.url).toBe(`${SITE}${ABOUT_PHOTO.url}`)
+    expect(getRouteSeo(paths.about.bg, 'bg').image).toBe(`${SITE}${ABOUT_PHOTO.url}`)
   })
 
   it('index.html\'s Organization carries the same legal name, VAT number and founding year', () => {

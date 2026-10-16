@@ -20,6 +20,12 @@
 // wall panels; how ordering works; the form; the questions (FaqList: #q-{id} links, also FAQ
 // JSON-LD; the FAQ hub shows them too); the other pages;
 // the closing card. No price anywhere: none exists.
+//
+// The hero's photo is an admin slot (doors-hero, since 2026-10-16), for a photo of doors the team
+// has fitted once there is one. While it is empty the hero is the catalogue's cover as before;
+// with the owner's photo the "photo from our catalogue" chip goes (it would no longer be true)
+// and the alt is his description on the Bulgarian page, the content's general words otherwise.
+// The share picture stays the cover.
 import React, { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -43,6 +49,10 @@ import {
 } from '../content/shared/doorsCatalogue.js'
 import { paths } from '../routes/paths.js'
 import { markedUp, pageQuestions } from '../lib/questions.js'
+import { slotHeroPhoto, useSlotPhoto } from '../lib/homePhotos.js'
+
+/** The hero's admin slot (photoSlotNames.js). */
+export const DOORS_HERO_SLOT = 'doors-hero'
 
 // The features in the order the page shows them: the owner-confirmed four (fire, sound, water,
 // WPC), then the two the catalogue adds (eco, termite). Sound and WPC are the owner's, not in
@@ -149,6 +159,7 @@ export default function InternalDoorsPage({ locale = 'bg', content }) {
   const [filled, setFilled] = useState(false)
   const formHeadingRef = useRef(null)
   const builderRef = useRef(null)
+  const heroAdmin = useSlotPhoto(DOORS_HERO_SLOT)
 
   if (!c) return null
   const lang = (o) => (o ? o[locale] || o.en : '')
@@ -210,7 +221,12 @@ export default function InternalDoorsPage({ locale = 'bg', content }) {
         primary={{ label: c.hero.primary, onClick: toForm }}
         secondary={{ label: c.hero.secondary, onClick: toBuilder }}
         facts={c.hero.facts}
-        photo={{ url: DOORS_COVER.src, alt: lang(DOORS_COVER.alt), caption: c.hero.chip, position: '30% 50%' }}
+        photo={slotHeroPhoto(
+          heroAdmin,
+          { url: DOORS_COVER.src, alt: lang(DOORS_COVER.alt), caption: c.hero.chip, position: '30% 50%' },
+          // No adminCaption: the owner's photo carries no chip.
+          { locale, adminAlt: c.hero.adminAlt },
+        )}
       />
 
       <section className="pp-band" id="idp-features" aria-labelledby="idp-features-title">

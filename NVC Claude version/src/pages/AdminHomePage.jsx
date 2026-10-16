@@ -55,8 +55,8 @@ const TEXT = {
         blurb: 'PDF каталозите на сайта. Замяната е веднага — адресът не се променя.',
       },
       homePhotos: {
-        name: 'Начална страница',
-        blurb: 'Снимките в началото на сайта, на трите модела и на продуктовите страници. Промяната се вижда веднага.',
+        name: 'Снимки на сайта',
+        blurb: 'Снимките по страниците на сайта: началната, продуктовите, доставката, партньорите, „За нас“, ремонтите и вратите. Промяната се вижда до 2 минути.',
       },
     },
     stats: {
@@ -121,8 +121,8 @@ const TEXT = {
         blurb: 'The PDF catalogues the site serves. Replacing is instant — the address never changes.',
       },
       homePhotos: {
-        name: 'Home page',
-        blurb: 'The photos at the top of the site, on the three model cards and on the product pages. Changes show immediately.',
+        name: 'Site photos',
+        blurb: 'The photos on the site’s pages: home, the product pages, delivery, partners, About us, interiors and doors. Changes show within 2 minutes.',
       },
     },
     stats: {

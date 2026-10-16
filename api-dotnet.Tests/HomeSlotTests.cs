@@ -14,8 +14,9 @@ using Xunit;
 namespace ApiDotnet.Tests;
 
 // The home page's photo slots (2026-10 redesign), and the product pages' main photos that
-// joined them on 2026-10-12 (the delivery and partner pages on 2026-10-15). Two things carry the
-// design and both live here: the thirteen slot names are an allow-list the write paths enforce, and the
+// joined them on 2026-10-12 (the delivery and partner pages on 2026-10-15), and the sixteen page
+// photos of 2026-10-16 (About, Interiors, Internal doors, the home service tiles). Two things carry the
+// design and both live here: the twenty-nine slot names are an allow-list the write paths enforce, and the
 // public read of the busiest page on the site must keep answering — an empty answer — when the table
 // behind it is not there yet, because migrations are applied by hand before a publish and
 // nothing stops the order being reversed once.
@@ -45,7 +46,7 @@ public class HomeSlotTests
     // --- The allow-list -----------------------------------------------------------------
 
     [Fact]
-    public void The_slots_are_the_hero_slides_then_the_models_then_the_product_pages_appended()
+    public void The_slots_are_the_hero_slides_then_the_models_then_the_product_pages_then_the_page_photos_appended()
     {
         // The product pages come LAST, not grouped elsewhere: the position is the upload
         // key's owner id, so the eight home slots that may already hold uploads keep theirs.
@@ -58,8 +59,44 @@ public class HomeSlotTests
                 "page-delivery",
                 // And the partner page's, the same day, after the delivery page's.
                 "page-partner",
+                // The page photos of 2026-10-16, after all thirteen, in the decided order:
+                // About (main photo, the six team portraits, the factory floor), Interiors,
+                // Internal doors, then the four home service tiles.
+                "about-hero",
+                "about-team-vladimir-vladimirov", "about-team-tsvetelin-bonin", "about-team-nikolay-lekov",
+                "about-team-radina-ivanova", "about-team-vasil-vasilev", "about-team-ivan-vasilev",
+                "factory-floor",
+                "interiors-kitchen", "interiors-hero", "interiors-works",
+                "doors-hero",
+                "home-tile-modular-builds", "home-tile-modular-houses", "home-tile-steel-houses", "home-tile-interiors",
             },
             HomeSlotNames.All);
+    }
+
+    [Fact]
+    public void The_first_thirteen_slots_never_move()
+    {
+        // Separate from the full list above so that a future edit to the tail can never pass
+        // by "updating the expected list" over the head. Not because a move would corrupt a
+        // stored photo — every row stores its full key and is found by Name, and keys are
+        // home/{index}/{guid}, so nothing can collide — but because two things read the
+        // position itself: a hero slot's slide number IS its position (HeroNumberOf, the Index
+        // the panel's list reports for it), and every home/{index}/ folder already in Blob
+        // names the slot it was uploaded for, which a reorder would turn into a lie.
+        var expected = new[]
+        {
+            "hero-1", "hero-2", "hero-3", "hero-4", "hero-5",
+            "model-37", "model-58", "model-73",
+            "page-modular-builds", "page-modular-houses", "page-steel-houses", "page-delivery", "page-partner",
+        };
+
+        for (var i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], HomeSlotNames.All[i]);
+            Assert.Equal(i + 1, HomeSlotNames.IndexOf(expected[i]));
+        }
+        for (var n = 1; n <= 5; n++)
+            Assert.Equal(n, HomeSlotNames.HeroNumberOf($"hero-{n}"));
     }
 
     [Fact]
@@ -83,8 +120,90 @@ public class HomeSlotTests
         Assert.Equal(11, HomeSlotNames.IndexOf("page-steel-houses"));
         Assert.Equal(12, HomeSlotNames.IndexOf("page-delivery"));
         Assert.Equal(13, HomeSlotNames.IndexOf("page-partner"));
+        // The page photos of 2026-10-16: 14-29.
+        Assert.Equal(14, HomeSlotNames.IndexOf("about-hero"));
+        Assert.Equal(15, HomeSlotNames.IndexOf("about-team-vladimir-vladimirov"));
+        Assert.Equal(16, HomeSlotNames.IndexOf("about-team-tsvetelin-bonin"));
+        Assert.Equal(17, HomeSlotNames.IndexOf("about-team-nikolay-lekov"));
+        Assert.Equal(18, HomeSlotNames.IndexOf("about-team-radina-ivanova"));
+        Assert.Equal(19, HomeSlotNames.IndexOf("about-team-vasil-vasilev"));
+        Assert.Equal(20, HomeSlotNames.IndexOf("about-team-ivan-vasilev"));
+        Assert.Equal(21, HomeSlotNames.IndexOf("factory-floor"));
+        Assert.Equal(22, HomeSlotNames.IndexOf("interiors-kitchen"));
+        Assert.Equal(23, HomeSlotNames.IndexOf("interiors-hero"));
+        Assert.Equal(24, HomeSlotNames.IndexOf("interiors-works"));
+        Assert.Equal(25, HomeSlotNames.IndexOf("doors-hero"));
+        Assert.Equal(26, HomeSlotNames.IndexOf("home-tile-modular-builds"));
+        Assert.Equal(27, HomeSlotNames.IndexOf("home-tile-modular-houses"));
+        Assert.Equal(28, HomeSlotNames.IndexOf("home-tile-steel-houses"));
+        Assert.Equal(29, HomeSlotNames.IndexOf("home-tile-interiors"));
         Assert.Equal(0, HomeSlotNames.IndexOf("hero-6"));
         Assert.Equal(0, HomeSlotNames.IndexOf(null));
+    }
+
+    private static readonly string[] PagePhotoNames =
+    {
+        "about-hero",
+        "about-team-vladimir-vladimirov", "about-team-tsvetelin-bonin", "about-team-nikolay-lekov",
+        "about-team-radina-ivanova", "about-team-vasil-vasilev", "about-team-ivan-vasilev",
+        "factory-floor",
+        "interiors-kitchen", "interiors-hero", "interiors-works",
+        "doors-hero",
+        "home-tile-modular-builds", "home-tile-modular-houses", "home-tile-steel-houses", "home-tile-interiors",
+    };
+
+    [Fact]
+    public void The_page_photos_are_their_own_kind_and_no_other_kind_grew()
+    {
+        Assert.Equal("photo", HomeSlotNames.PhotoKind);
+        Assert.Equal(PagePhotoNames, HomeSlotNames.OfKind(HomeSlotNames.PhotoKind));
+        Assert.All(PagePhotoNames, n => Assert.Equal("photo", HomeSlotNames.KindOf(n)));
+
+        // Under the old prefix rule every one of these would have been a model card.
+        Assert.Equal(5, HomeSlotNames.OfKind(HomeSlotNames.HeroKind).Count());
+        Assert.Equal(3, HomeSlotNames.OfKind(HomeSlotNames.ModelKind).Count());
+        Assert.Equal(5, HomeSlotNames.OfKind(HomeSlotNames.PageKind).Count());
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, HomeSlotNames.PageKeys);
+
+        // Every name has exactly one kind, and the kinds cover the whole list.
+        Assert.All(HomeSlotNames.All, n => Assert.NotNull(HomeSlotNames.KindOf(n)));
+        Assert.Equal(
+            HomeSlotNames.All.Count,
+            new[] { HomeSlotNames.HeroKind, HomeSlotNames.ModelKind, HomeSlotNames.PageKind, HomeSlotNames.PhotoKind }
+                .Sum(k => HomeSlotNames.OfKind(k).Count()));
+    }
+
+    [Fact]
+    public void No_slot_name_makes_a_helper_throw_and_a_page_photo_has_no_key_of_another_kind()
+    {
+        // PageKeyOf used .First() over the page list, so a page-* name that list lacked threw
+        // inside the panel's list and turned it into a 500. Every helper over every name:
+        foreach (var name in HomeSlotNames.All)
+        {
+            var model = HomeSlotNames.ModelKeyOf(name);
+            var page = HomeSlotNames.PageKeyOf(name);
+            var hero = HomeSlotNames.HeroNumberOf(name);
+
+            switch (HomeSlotNames.KindOf(name))
+            {
+                case HomeSlotNames.HeroKind:
+                    Assert.Null(model); Assert.Null(page); Assert.InRange(hero, 1, 5); break;
+                case HomeSlotNames.ModelKind:
+                    Assert.NotNull(model); Assert.Null(page); Assert.Equal(0, hero); break;
+                case HomeSlotNames.PageKind:
+                    Assert.Null(model); Assert.NotNull(page); Assert.Equal(0, hero); break;
+                case HomeSlotNames.PhotoKind:
+                    Assert.Null(model); Assert.Null(page); Assert.Equal(0, hero); break;
+                default:
+                    Assert.Fail($"{name} has no kind");
+                    break;
+            }
+        }
+
+        // A name that only LOOKS like a page photo is still nobody's.
+        Assert.False(HomeSlotNames.IsValid("about-team-someone-new"));
+        Assert.False(HomeSlotNames.IsValid("About-hero"));
+        Assert.Null(HomeSlotNames.KindOf("partner-step-yard"));   // phase 2, not in this release
     }
 
     [Fact]
@@ -182,6 +301,14 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public void An_uploaded_page_photo_is_minted_under_its_own_position_after_the_first_thirteen()
+    {
+        var key = ImageKey.NewOwnedKey(ImageKey.HomeScope, HomeSlotNames.IndexOf("about-team-radina-ivanova"), "radina.jpg", ".webp");
+        Assert.Matches("^home/18/[0-9a-f]{32}\\.webp$", key);
+        Assert.True(ImageKey.IsValid(key));
+    }
+
+    [Fact]
     public void Adding_the_home_scope_did_not_open_the_door_to_any_other()
     {
         // The guard is widened by one name, not removed.
@@ -223,6 +350,67 @@ public class HomeSlotTests
         Assert.Equal("page", steel.Kind);
         Assert.Equal("steelHouses", steel.Index);
         Assert.Null(steel.Url);
+    }
+
+    [Fact]
+    public async Task The_list_carries_every_page_photo_indexed_by_its_own_name()
+    {
+        using var db = NewDb();
+        db.HomeSlots.Add(new HomeSlot { Name = "factory-floor", ImageKey = "home/21/abc.webp", Alt = "Цехът" });
+        await db.SaveChangesAsync();
+
+        var slots = await Svc(db).ListAdminAsync(CancellationToken.None);
+
+        Assert.Equal(29, slots.Count);
+        Assert.Equal(PagePhotoNames, slots.Where(s => s.Kind == "photo").Select(s => s.Name));
+
+        // Index is the name, not the "0" a hero number would have printed for it.
+        var filled = slots.Single(s => s.Name == "factory-floor");
+        Assert.Equal("photo", filled.Kind);
+        Assert.Equal("factory-floor", filled.Index);
+        Assert.Equal("/api/img/home/21/abc.webp", filled.Url);
+        Assert.Equal("Цехът", filled.Alt);
+
+        var empty = slots.Single(s => s.Name == "about-team-radina-ivanova");
+        Assert.Equal("photo", empty.Kind);
+        Assert.Equal("about-team-radina-ivanova", empty.Index);
+        Assert.Null(empty.Url);
+    }
+
+    [Fact]
+    public async Task A_page_photo_takes_an_upload_a_pick_an_alt_and_a_clear_like_any_other_slot()
+    {
+        using var db = NewDb();
+        db.Houses.Add(new House
+        {
+            Id = 8, Title = "Box 37", CategoryKey = HouseCategories.Prefab, IsPublished = true,
+            Images = { new HouseImage { ImageKey = GalleryKey } },
+        });
+        db.Cases.Add(new Case { Id = 3, CompanyName = "Family house", Images = { new CaseImage { ImageKey = CaseKey } } });
+        await db.SaveChangesAsync();
+        var svc = Svc(db);
+
+        var key = ImageKey.NewOwnedKey(ImageKey.HomeScope, HomeSlotNames.IndexOf("about-hero"), "team.jpg", ".webp");
+        Assert.True((await svc.RecordImageAsync("about-hero", key, alt: null, "owner@nvc.eu", default)).Ok);
+        Assert.True((await svc.SetAltAsync("about-hero", "Екипът пред склада", null, default)).Ok);
+
+        // The pick rule is the same for every kind: gallery, case and content keys only.
+        Assert.True((await svc.PickAsync("home-tile-modular-builds", GalleryKey, null, default)).Ok);
+        Assert.True((await svc.PickAsync("interiors-works", CaseKey, null, default)).Ok);
+        Assert.True((await svc.PickAsync("doors-hero", ContentKey, null, default)).Ok);
+        var refused = await svc.PickAsync("factory-floor", "home/1/abc.webp", null, default);
+        Assert.Equal(HomePhotoService.Outcome.Refused, refused.Outcome);
+        Assert.Equal("That image is not in the gallery.", refused.Error);
+
+        var about = await db.HomeSlots.SingleAsync(s => s.Name == "about-hero");
+        Assert.Equal(key, about.ImageKey);
+        Assert.Equal("Екипът пред склада", about.Alt);
+        Assert.Null(await db.HomeSlots.SingleOrDefaultAsync(s => s.Name == "factory-floor"));
+
+        Assert.Equal(HomePhotoService.Outcome.Ok, await svc.ClearAsync("about-hero", null, default));
+        about = await db.HomeSlots.SingleAsync(s => s.Name == "about-hero");
+        Assert.Null(about.ImageKey);
+        Assert.Null(about.Alt);
     }
 
     [Fact]
@@ -421,6 +609,46 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public async Task A_page_photo_is_never_swapped_with_anything()
+    {
+        // A team portrait in a home tile, or the kitchen in the doors hero, is a mistake, not
+        // an order: each page photo belongs to one place. Swap stays what it was — hero with
+        // hero, model with model — and the photo kind joins the page kind in refusing it.
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "about-team-radina-ivanova", ImageKey = "home/18/a.webp", Alt = "Радина" },
+            new HomeSlot { Name = "about-team-ivan-vasilev", ImageKey = "home/20/b.webp", Alt = "Иван" },
+            new HomeSlot { Name = "hero-1", ImageKey = GalleryKey });
+        await db.SaveChangesAsync();
+        var svc = Svc(db);
+
+        foreach (var (a, b) in new[]
+        {
+            ("about-team-radina-ivanova", "about-team-ivan-vasilev"),   // photo with photo
+            ("about-team-radina-ivanova", "hero-1"),                    // photo with hero
+            ("hero-1", "home-tile-interiors"),                          // hero with photo
+            ("model-37", "factory-floor"),                              // model with photo
+            ("doors-hero", "page-partner"),                             // photo with page
+        })
+        {
+            var result = await svc.SwapAsync(a, b, null, CancellationToken.None);
+            Assert.Equal(HomePhotoService.Outcome.Refused, result.Outcome);
+        }
+
+        var both = await svc.SwapAsync("about-team-radina-ivanova", "about-team-ivan-vasilev", null, default);
+        Assert.Equal("This photo belongs to its place and cannot be swapped.", both.Error);
+
+        // Nothing moved and nothing was created.
+        Assert.Equal("home/18/a.webp", (await db.HomeSlots.SingleAsync(s => s.Name == "about-team-radina-ivanova")).ImageKey);
+        Assert.Equal("home/20/b.webp", (await db.HomeSlots.SingleAsync(s => s.Name == "about-team-ivan-vasilev")).ImageKey);
+        Assert.Equal(GalleryKey, (await db.HomeSlots.SingleAsync(s => s.Name == "hero-1")).ImageKey);
+        Assert.Equal(3, await db.HomeSlots.CountAsync());
+
+        // And the hero still reorders exactly as before.
+        Assert.True((await svc.SwapAsync("hero-1", "hero-2", null, default)).Ok);
+    }
+
+    [Fact]
     public async Task Swapping_a_slot_with_itself_is_refused()
     {
         using var db = NewDb();
@@ -532,6 +760,44 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public async Task The_public_read_lists_the_filled_page_photos_by_slot_name_and_nothing_else_in_slots()
+    {
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "about-hero", ImageKey = "home/14/team.webp", Alt = "Екипът" },
+            new HomeSlot { Name = "about-team-radina-ivanova", ImageKey = "home/18/radina.webp" },
+            new HomeSlot { Name = "home-tile-interiors", ImageKey = CaseKey, Alt = "Кухня" },
+            new HomeSlot { Name = "interiors-kitchen", ImageKey = null, Alt = "cleared" },
+            // The legacy kinds, filled, to prove they stay in their own fields only.
+            new HomeSlot { Name = "hero-2", ImageKey = ContentKey, Alt = "two" },
+            new HomeSlot { Name = "model-37", ImageKey = GalleryKey, Alt = "Box 37" },
+            new HomeSlot { Name = "page-delivery", ImageKey = "home/12/crane.webp", Alt = "Кран" });
+        await db.SaveChangesAsync();
+
+        var dto = await Svc(db).ReadPublicAsync(CancellationToken.None);
+
+        // Filled page photos only, in slot order; the cleared one and the untouched ones are
+        // absent rather than null, and no hero, model or page slot is repeated here.
+        Assert.Equal(new[] { "about-hero", "about-team-radina-ivanova", "home-tile-interiors" }, dto.Slots.Keys);
+        Assert.Equal("/api/img/home/14/team.webp", dto.Slots["about-hero"].Url);
+        Assert.Equal("Екипът", dto.Slots["about-hero"].Alt);
+        Assert.Equal("/api/img/home/18/radina.webp", dto.Slots["about-team-radina-ivanova"].Url);
+        Assert.Equal("", dto.Slots["about-team-radina-ivanova"].Alt);
+        Assert.Equal("/api/img/" + CaseKey, dto.Slots["home-tile-interiors"].Url);
+        Assert.Equal("Кухня", dto.Slots["home-tile-interiors"].Alt);
+
+        // The old fields read exactly as they did before "slots" existed.
+        Assert.Equal(new[] { "hero-2" }, dto.Hero.Select(h => h.Slot));
+        Assert.Equal("two", dto.Hero[0].Alt);
+        Assert.Equal(new[] { "37", "58", "73" }, dto.Models.Keys);
+        Assert.Equal("/api/img/" + GalleryKey, dto.Models["37"]!.Url);
+        Assert.Null(dto.Models["58"]);
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
+        Assert.Equal("/api/img/home/12/crane.webp", dto.Pages["delivery"]!.Url);
+        Assert.Null(dto.Pages["partner"]);
+    }
+
+    [Fact]
     public async Task With_no_rows_the_public_read_is_the_empty_shape_not_an_error()
     {
         using var db = NewDb();
@@ -542,6 +808,8 @@ public class HomeSlotTests
         Assert.All(dto.Models.Values, v => Assert.Null(v));
         Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
         Assert.All(dto.Pages.Values, v => Assert.Null(v));
+        Assert.NotNull(dto.Slots);
+        Assert.Empty(dto.Slots);
     }
 
     [Fact]
@@ -551,6 +819,46 @@ public class HomeSlotTests
         var dto = HomePhotosDto.Empty();
         Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
         Assert.All(dto.Pages.Values, v => Assert.Null(v));
+        // And an empty slots map, never a missing one: absent means "an API older than slots".
+        Assert.NotNull(dto.Slots);
+        Assert.Empty(dto.Slots);
+        Assert.NotSame(dto.Slots, HomePhotosDto.Empty().Slots);
+    }
+
+    [Fact]
+    public void The_cache_key_names_the_shape_with_slots()
+    {
+        // v5 entries have no "slots"; a v5 entry read back as v6 would serve a body without it.
+        Assert.Equal("home:photos:v6", HomePhotoService.CacheKey);
+    }
+
+    [Fact]
+    public async Task The_public_body_serialises_to_the_shape_the_spa_reads()
+    {
+        // ASP.NET's defaults (Program.cs sets no JSON options): camelCase members, dictionary
+        // keys exactly as stored — so "about-team-radina-ivanova", not a renamed key.
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "about-team-radina-ivanova", ImageKey = "home/18/r.webp", Alt = "Радина" },
+            new HomeSlot { Name = "page-partner", ImageKey = "home/13/y.webp", Alt = "Двор" });
+        await db.SaveChangesAsync();
+
+        var dto = await Svc(db).ReadPublicAsync(CancellationToken.None);
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            dto, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        Assert.Equal(
+            new[] { "hero", "models", "pages", "from", "slots" },
+            root.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("/api/img/home/13/y.webp", root.GetProperty("pages").GetProperty("partner").GetProperty("url").GetString());
+
+        var slots = root.GetProperty("slots");
+        Assert.Equal(new[] { "about-team-radina-ivanova" }, slots.EnumerateObject().Select(p => p.Name));
+        var radina = slots.GetProperty("about-team-radina-ivanova");
+        Assert.Equal("/api/img/home/18/r.webp", radina.GetProperty("url").GetString());
+        Assert.Equal("Радина", radina.GetProperty("alt").GetString());
     }
 
     [Fact]
@@ -573,6 +881,16 @@ public class HomeSlotTests
         // A product page's photo goes through the same eviction.
         await svc.PickAsync("page-modular-builds", ContentKey, null, default);
         Assert.NotNull((await svc.ReadPublicAsync(default)).Pages["modularBuilds"]);
+
+        // And so does a page photo, on every verb.
+        await svc.PickAsync("doors-hero", ContentKey, null, default);
+        Assert.Equal("/api/img/" + ContentKey, (await svc.ReadPublicAsync(default)).Slots["doors-hero"].Url);
+        await svc.SetAltAsync("doors-hero", "Врата", null, default);
+        Assert.Equal("Врата", (await svc.ReadPublicAsync(default)).Slots["doors-hero"].Alt);
+        await svc.RecordImageAsync("doors-hero", "home/25/abc.webp", null, null, default);
+        Assert.Equal("/api/img/home/25/abc.webp", (await svc.ReadPublicAsync(default)).Slots["doors-hero"].Url);
+        await svc.ClearAsync("doors-hero", null, default);
+        Assert.False((await svc.ReadPublicAsync(default)).Slots.ContainsKey("doors-hero"));
     }
 
     // The migration is applied before the publish (DEPLOY §5b). If that order is ever
@@ -602,11 +920,87 @@ public class HomeSlotTests
         Assert.Equal(new[] { "37", "58", "73" }, dto.Models.Keys);
         Assert.All(dto.Models.Values, v => Assert.Null(v));
         Assert.All(dto.Pages.Values, v => Assert.Null(v));
+        Assert.Empty(dto.Slots);
 
         // Cached — the database is not asked again per request — but for the short TTL,
         // which is the part a test can only see as "an entry exists".
         Assert.True(cache.TryGetValue(HomePhotoService.CacheKey, out HomePhotosDto? cached));
         Assert.Same(dto, cached);
+    }
+
+    // --- Upload refusals that need no storage -------------------------------------------
+
+    // The controller as the site builds it. The blob client points nowhere real and is never
+    // reached: every upload below is refused before the blob write.
+    private static Controllers.AdminHomePhotosController UploadController(AppDbContext db) => new(
+        Svc(db),
+        new ImageProcessor(Microsoft.Extensions.Logging.Abstractions.NullLogger<ImageProcessor>.Instance),
+        new BlobImageSource(
+            new Azure.Storage.Blobs.BlobContainerClient(new Uri("https://example.blob.core.windows.net/images")),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<BlobImageSource>.Instance))
+    {
+        ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+        {
+            HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext(),
+        },
+    };
+
+    private static Microsoft.AspNetCore.Http.IFormFile FileOf(byte[] bytes, string fileName) =>
+        new Microsoft.AspNetCore.Http.FormFile(new System.IO.MemoryStream(bytes), 0, bytes.Length, "file", fileName);
+
+    // How an iPhone's .HEIC begins: a 24-byte ftyp box naming the heic brand, then the meta box.
+    private static readonly byte[] HeicBytes =
+        new byte[] { 0, 0, 0, 24 }
+            .Concat(System.Text.Encoding.ASCII.GetBytes("ftypheic"))
+            .Concat(new byte[] { 0, 0, 0, 0 })
+            .Concat(System.Text.Encoding.ASCII.GetBytes("mif1heic"))
+            .Concat(new byte[] { 0, 0, 0, 0x22 })
+            .Concat(System.Text.Encoding.ASCII.GetBytes("meta"))
+            .Concat(new byte[64])
+            .ToArray();
+
+    // The sentences a refusal carries, as the panel shows them ({ errors: [...] }).
+    private static string[] ErrorsOf(Microsoft.AspNetCore.Mvc.IActionResult result)
+    {
+        var bad = Assert.IsType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>(result);
+        var errors = bad.Value!.GetType().GetProperty("errors")!.GetValue(bad.Value);
+        return Assert.IsType<string[]>(errors);
+    }
+
+    [Theory]
+    [InlineData("IMG_2041.HEIC")]
+    [InlineData("photo.jpg")]   // the bytes decide, not the name
+    public async Task A_heic_upload_is_refused_in_words_the_owner_can_act_on(string fileName)
+    {
+        using var db = NewDb();
+
+        var result = await UploadController(db).Upload("about-team-radina-ivanova", FileOf(HeicBytes, fileName), default);
+
+        Assert.Equal(new[] { ImageProcessor.HeifRefusal }, ErrorsOf(result));
+        Assert.Empty(await db.HomeSlots.ToListAsync());
+    }
+
+    [Fact]
+    public async Task An_undecodable_file_is_called_heic_only_when_its_name_says_so()
+    {
+        using var db = NewDb();
+        var junk = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+        var named = await UploadController(db).Upload("doors-hero", FileOf(junk, "IMG_0007.heif"), default);
+        Assert.Equal(new[] { ImageProcessor.HeifRefusal }, ErrorsOf(named));
+
+        var plain = await UploadController(db).Upload("doors-hero", FileOf(junk, "notes.txt"), default);
+        Assert.Equal(new[] { "That file could not be read as an image." }, ErrorsOf(plain));
+
+        Assert.Empty(await db.HomeSlots.ToListAsync());
+    }
+
+    [Fact]
+    public async Task An_upload_to_a_name_outside_the_list_is_not_found_before_anything_is_read()
+    {
+        using var db = NewDb();
+        var result = await UploadController(db).Upload("partner-step-yard", FileOf(HeicBytes, "x.heic"), default);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(result);
     }
 
     // --- The paper trail ----------------------------------------------------------------

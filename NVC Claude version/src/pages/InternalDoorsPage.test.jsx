@@ -2,7 +2,7 @@ import React from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { ModalActionsProvider } from '../context/ModalActions.jsx'
@@ -35,6 +35,8 @@ import {
   quantityOf,
 } from '../components/doors/doorOptions.js'
 import { _resetSubmissions } from '../lib/backgroundSubmit.js'
+import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { clearRep, saveRep } from '../lib/repAttribution.js'
 
 // The internal doors page as rebuilt on 2026-10-15: the catalogue of a SEPARATE product, read
@@ -69,6 +71,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  // The photo body is kept for the visit; each test starts as a first visit (no admin
+  // photo carried over from the test before).
+  forgetHomePhotos()
 })
 
 function renderPage(locale = 'bg') {
@@ -461,6 +466,92 @@ describe('the page', () => {
         : typeof value)
     expect(shape(enContent)).toEqual(shape(bgContent))
     expect(shape(elContent)).toEqual(shape(bgContent))
+  })
+})
+
+// The hero's photo is the doors-hero slot the owner can fill in "Снимки на сайта" (since
+// 2026-10-16), for a photo of doors his team has fitted. Empty, the hero is the catalogue's cover
+// with its chip, as before; filled, the owner's photo through the resizer, without the chip
+// (it is not the catalogue's), with his description on the Bulgarian page and the content's
+// general words otherwise, falling back to the cover if it fails to load.
+describe('the hero\'s photo from the panel', () => {
+  const ADMIN = { url: '/api/img/home/25/fitted.webp', alt: 'Врати, монтирани в къща в Петрич' }
+  const withSlots = (slots) => ({ hero: [], models: {}, pages: {}, slots })
+  const answer = (body) => vi.fn((url) => Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(String(url).includes('/api/home/photos') ? body : {}),
+  }))
+  const heroImg = (container) => container.querySelector('.pp-hero-media img')
+  const chip = (container) => container.querySelector('.pp-hero-chip')
+  const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
+
+  function expectCover(container, locale) {
+    const hero = heroImg(container)
+    expect(hero.getAttribute('src')).toBe(DOORS_COVER.src)
+    // A /public file: no resizer, so no srcset, as before.
+    expect(hero.hasAttribute('srcset')).toBe(false)
+    expect(hero.getAttribute('alt')).toBe(DOORS_COVER.alt[locale])
+    expect(hero.style.objectPosition).toBe('30% 50%')
+    expect(chip(container).textContent).toBe(CONTENT[locale].hero.chip)
+  }
+
+  it.each(LOCALES)('%s: empty, the catalogue\'s cover and its chip, whatever the API answers', async (locale) => {
+    for (const body of [{}, withSlots({}), { hero: [], models: {}, pages: {} }]) {
+      vi.stubGlobal('fetch', answer(body))
+      const { container, unmount } = renderPage(locale)
+      expectCover(container, locale)
+      await waitFor(() => expect(photosCalls()).toHaveLength(1))
+      await act(async () => {})
+      expectCover(container, locale)
+      unmount()
+      forgetHomePhotos()
+    }
+  })
+
+  it.each(LOCALES)('%s: filled, the owner\'s photo through the resizer, and no "from our catalogue" chip', async (locale) => {
+    vi.stubGlobal('fetch', answer(withSlots({ 'doors-hero': ADMIN })))
+    const { container } = renderPage(locale)
+    await waitFor(() => expect(heroImg(container).getAttribute('src')).toContain(ADMIN.url))
+    const hero = heroImg(container)
+    expect(hero.getAttribute('src')).toBe(cdnImage(ADMIN.url, { width: 800 }))
+    expect(hero.getAttribute('srcset')).toBe(cdnSrcSet(ADMIN.url, [480, 640, 800, 1200, 1600]))
+    expect(hero.getAttribute('alt')).toBe(locale === 'bg' ? ADMIN.alt : CONTENT[locale].hero.adminAlt)
+    // The cover's crop hint does not apply to the owner's photo — not even as an empty style="".
+    expect(hero.style.objectPosition).toBe('')
+    expect(hero.hasAttribute('style')).toBe(false)
+    expect(chip(container)).toBeNull()
+    expect(container.querySelector('main').textContent).not.toContain(CONTENT[locale].hero.chip)
+  })
+
+  it('a blank description gives the general words; a failed photo falls back to the cover', async () => {
+    vi.stubGlobal('fetch', answer(withSlots({ 'doors-hero': { ...ADMIN, alt: '' } })))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(heroImg(container).getAttribute('src')).toContain(ADMIN.url))
+    const hero = heroImg(container)
+    expect(hero.getAttribute('alt')).toBe(bgContent.hero.adminAlt)
+    // One retry of the owner's photo, then the cover.
+    fireEvent.error(hero)
+    fireEvent.error(hero)
+    expect(hero.getAttribute('src')).toBe(DOORS_COVER.src)
+    expect(hero.hasAttribute('srcset')).toBe(false)
+    expect(hero.dataset.imgFallback).toBe(DOORS_COVER.src)
+  })
+
+  it('opens on the owner\'s photo from the first render once an answer is kept', async () => {
+    // What the snapshot's <head> copy gives a fresh load; an earlier answer stands in for it.
+    vi.stubGlobal('fetch', answer(withSlots({ 'doors-hero': ADMIN })))
+    await fetchHomePhotos()
+    expect(document.getElementById(HOME_PHOTOS_SEED_ID)).not.toBeNull()
+
+    const { container } = renderPage('bg')
+    expect(heroImg(container).getAttribute('src')).toBe(cdnImage(ADMIN.url, { width: 800 }))
+    expect(chip(container)).toBeNull()
+  })
+
+  it.each(LOCALES)('%s: the general words are there and are not the cover\'s', (locale) => {
+    expect(CONTENT[locale].hero.adminAlt).toBeTruthy()
+    expect(CONTENT[locale].hero.adminAlt).not.toBe(DOORS_COVER.alt[locale])
   })
 })
 

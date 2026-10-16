@@ -9,6 +9,7 @@ import App from './App.jsx'
 import { getHomeContent } from './content/home/index.js'
 import { paths } from './routes/paths.js'
 import { _resetSubmissions } from './lib/backgroundSubmit.js'
+import { forgetHomePhotos } from './lib/homePhotos.js'
 import { REP_KEY, loadRep } from './lib/repAttribution.js'
 
 // A representative's link (ROADMAP #38), walked through the real App: /r/{slug} remembers
@@ -86,6 +87,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  // The photo body is kept for the visit; each test starts as a first visit.
+  forgetHomePhotos()
   // The language and the representative are remembered in localStorage, so they would
   // carry into the next test.
   localStorage.removeItem('lang')

@@ -16,6 +16,13 @@ namespace Data.Entities;
 // NVC's own deliveries without a developer. The partner page got the thirteenth the same day
 // (2026-10-15), so a photo of the yard full of units can replace the crane until there is one.
 //
+// The owner then asked (2026-10-16) to change "most photos" from the admin panel, and sixteen
+// more slots followed: the About page's main photo, its six team portraits and its factory floor;
+// the Interiors page's main photo, kitchen tile and works photo; the Internal doors page's
+// main photo; and the four service tiles on the home page — twenty-nine slots in all. They
+// are their own kind, "photo": each one belongs to one place on one page, so, like a product
+// page's photo, it is never swapped with anything.
+//
 // They are fixed slots rather than a list the panel can grow, for the same reason the
 // brochures are six wired slugs: each page is laid out around its count, the SPA carries a
 // content default for every slot (or, for the steel page, a deliberate "no photo"), and an
@@ -27,21 +34,66 @@ public static class HomeSlotNames
     public const string HeroKind = "hero";
     public const string ModelKind = "model";
     public const string PageKind = "page";
+    public const string PhotoKind = "photo";
 
-    // In page order: the hero slides as the carousel plays them, the model cards as the
-    // strip lists them, then the product pages in menu order. The 1-based position in this
-    // array is also the "owner id" the upload path mints image keys under
-    // (home/{index}/{guid}.webp), so the order is part of the storage layout: new slots are
-    // APPENDED, never inserted, and nothing here is shuffled once anything has been uploaded.
-    // That is why the product pages sit after the models rather than in a block of their own.
-    private static readonly string[] AllArray =
+    // One slot: its name, its kind, and for a model card the configurator model key, for a
+    // product page the SPA's route key. The kind is WRITTEN DOWN here, not guessed from the
+    // name: until 2026-10-16 it was guessed from the prefix, so any name that was neither
+    // "hero-" nor "page-" silently became a model card (swappable with model-37, and counted
+    // as a fourth model), and a "page-" name missing from the route-key list made the panel's
+    // list throw. A table cannot do either.
+    private sealed record Def(string Name, string Kind, string? Key = null);
+
+    // In page order within each block: the hero slides as the carousel plays them, the model
+    // cards as the strip lists them, the product pages in menu order, then the page photos
+    // of 2026-10-16. The 1-based position in this table is also the "owner id" the upload
+    // path mints image keys under (home/{index}/{guid}.webp), and a hero slot's position is
+    // its slide number (HeroNumberOf), so new slots are APPENDED, never inserted, and nothing
+    // here is shuffled. A reorder would not corrupt a stored photo — each row stores its full
+    // key and finds its row by Name — but it would renumber the hero slides (HeroNumberOf)
+    // and make every home/{index}/ folder already in Blob name the wrong slot. That is why
+    // each block sits after the last rather than beside the slots it resembles.
+    //
+    // Names are kept forever, even when a place on a page goes away (a team member who
+    // leaves): the SPA's registry hides a retired slot from the panel, and the name stays
+    // here so the positions after it never move.
+    private static readonly Def[] Defs =
     {
-        "hero-1", "hero-2", "hero-3", "hero-4", "hero-5",
-        "model-37", "model-58", "model-73",
-        "page-modular-builds", "page-modular-houses", "page-steel-houses",
-        "page-delivery",
-        "page-partner",
+        // 1-5: the home hero slides.
+        new("hero-1", HeroKind), new("hero-2", HeroKind), new("hero-3", HeroKind),
+        new("hero-4", HeroKind), new("hero-5", HeroKind),
+        // 6-8: the model cards in the home prices strip.
+        new("model-37", ModelKind, "37"), new("model-58", ModelKind, "58"), new("model-73", ModelKind, "73"),
+        // 9-11: the product pages' main photos (2026-10-12).
+        new("page-modular-builds", PageKind, "modularBuilds"),
+        new("page-modular-houses", PageKind, "modularHouses"),
+        new("page-steel-houses", PageKind, "steelHouses"),
+        // 12-13: the delivery page's, then the partner page's (both 2026-10-15).
+        new("page-delivery", PageKind, "delivery"),
+        new("page-partner", PageKind, "partner"),
+        // 14-29: the page photos (2026-10-16).
+        new("about-hero", PhotoKind),
+        new("about-team-vladimir-vladimirov", PhotoKind),
+        new("about-team-tsvetelin-bonin", PhotoKind),
+        new("about-team-nikolay-lekov", PhotoKind),
+        new("about-team-radina-ivanova", PhotoKind),
+        new("about-team-vasil-vasilev", PhotoKind),
+        new("about-team-ivan-vasilev", PhotoKind),
+        new("factory-floor", PhotoKind),
+        new("interiors-kitchen", PhotoKind),
+        new("interiors-hero", PhotoKind),
+        new("interiors-works", PhotoKind),
+        new("doors-hero", PhotoKind),
+        new("home-tile-modular-builds", PhotoKind),
+        new("home-tile-modular-houses", PhotoKind),
+        new("home-tile-steel-houses", PhotoKind),
+        new("home-tile-interiors", PhotoKind),
     };
+
+    private static readonly string[] AllArray = Defs.Select(d => d.Name).ToArray();
+
+    private static readonly Dictionary<string, Def> ByName =
+        Defs.ToDictionary(d => d.Name, StringComparer.Ordinal);
 
     public static readonly IReadOnlyList<string> All = AllArray;
 
@@ -53,38 +105,27 @@ public static class HomeSlotNames
     // so on), which is how the public read keys its "pages" object: the page asks for its
     // own photo by the name it already routes under, and never has to know the slot's.
     private static readonly (string Slot, string Key)[] PageArray =
-    {
-        ("page-modular-builds", "modularBuilds"),
-        ("page-modular-houses", "modularHouses"),
-        ("page-steel-houses", "steelHouses"),
-        ("page-delivery", "delivery"),
-        ("page-partner", "partner"),
-    };
+        Defs.Where(d => d.Kind == PageKind).Select(d => (d.Name, d.Key!)).ToArray();
 
     public static readonly IReadOnlyList<string> PageKeys = PageArray.Select(p => p.Key).ToArray();
 
-    public static bool IsValid(string? name) => name is not null && Array.IndexOf(AllArray, name) >= 0;
+    public static bool IsValid(string? name) => name is not null && ByName.ContainsKey(name);
 
     /// <summary>1-based position in the allow-list; 0 for a name that is not in it.</summary>
     public static int IndexOf(string? name) =>
         name is null ? 0 : Array.IndexOf(AllArray, name) + 1;
 
-    /// <summary>"hero", "model" or "page"; null for a name that is not in the list.</summary>
-    public static string? KindOf(string? name)
-    {
-        if (!IsValid(name)) return null;
-        if (name!.StartsWith("hero-", StringComparison.Ordinal)) return HeroKind;
-        if (name.StartsWith("page-", StringComparison.Ordinal)) return PageKind;
-        return ModelKind;
-    }
+    /// <summary>"hero", "model", "page" or "photo"; null for a name that is not in the list.</summary>
+    public static string? KindOf(string? name) =>
+        name is not null && ByName.TryGetValue(name, out var def) ? def.Kind : null;
 
     /// <summary>The configurator model key ("37") behind a model slot; null for anything else.</summary>
     public static string? ModelKeyOf(string? name) =>
-        KindOf(name) == ModelKind ? name!["model-".Length..] : null;
+        name is not null && ByName.TryGetValue(name, out var def) && def.Kind == ModelKind ? def.Key : null;
 
     /// <summary>The SPA route key ("modularHouses") behind a page slot; null for anything else.</summary>
     public static string? PageKeyOf(string? name) =>
-        KindOf(name) == PageKind ? PageArray.First(p => p.Slot == name).Key : null;
+        name is not null && ByName.TryGetValue(name, out var def) && def.Kind == PageKind ? def.Key : null;
 
     /// <summary>The page slot ("page-modular-houses") for an SPA route key; null for an unknown key.</summary>
     public static string? SlotOfPage(string? pageKey) =>
@@ -94,7 +135,7 @@ public static class HomeSlotNames
     public static int HeroNumberOf(string? name) =>
         KindOf(name) == HeroKind ? IndexOf(name) : 0;
 
-    public static IEnumerable<string> OfKind(string kind) => AllArray.Where(n => KindOf(n) == kind);
+    public static IEnumerable<string> OfKind(string kind) => Defs.Where(d => d.Kind == kind).Select(d => d.Name);
 }
 
 // One home-page slot and the photo in it. A row exists once somebody has touched the slot;

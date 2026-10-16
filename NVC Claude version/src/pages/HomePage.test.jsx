@@ -252,16 +252,42 @@ describe('HomePage', () => {
       expect(first.getAttribute('src')).toContain('/api/img/home/1/porch.webp')
     })
 
+    // Each admin photo in ITS position (hero-3 is slide 3); the slideshow keeps all five, and
+    // the positions without one keep their default photo.
     const slides = container.querySelectorAll('.hp-hero-media .hp-slide img')
-    expect(slides).toHaveLength(2)
-    expect(slides[1].getAttribute('src')).toContain('/api/img/home/3/kitchen.webp')
+    expect(slides).toHaveLength(5)
+    expect(slides[1].getAttribute('src')).toContain(enHome.home.hero.showcase.slides[1].src)
+    expect(slides[2].getAttribute('src')).toContain('/api/img/home/3/kitchen.webp')
+    expect(slides[4].getAttribute('src')).toContain(enHome.home.hero.showcase.slides[4].src)
     // The caption beside the numerals still goes by the default in that position.
-    expect(screen.getAllByRole('tab')[1]).toHaveAttribute('aria-label', 'Photo 2 of 2: Modular houses')
+    expect(screen.getAllByRole('tab')).toHaveLength(5)
+    expect(screen.getAllByRole('tab')[2]).toHaveAttribute('aria-label', 'Photo 3 of 5: Container units')
 
     const cards = [...container.querySelectorAll('a.hp-model img')].map((img) => img.getAttribute('src'))
     expect(cards[0]).toContain('box-config/')
     expect(cards[1]).toContain('/api/img/gallery/8/fiftyeight.webp')
     expect(cards[2]).toContain('box-config/')
+  })
+
+  it('fills a "what we do" tile from its slot, on the same one request as the hero and the cards', async () => {
+    vi.stubGlobal('fetch', stubFetch({
+      photos: {
+        hero: [{ slot: 'hero-2', url: '/api/img/home/2/yard.webp', alt: '' }],
+        models: { 37: null, 58: null, 73: null },
+        slots: { 'home-tile-steel-houses': { url: '/api/img/home/28/steel.webp', alt: '' } },
+      },
+    }))
+    const { container } = renderHome()
+
+    await waitFor(() => {
+      const tiles = container.querySelectorAll('.hp-tile img')
+      expect(tiles[2].getAttribute('src')).toContain('/api/img/home/28/steel.webp')
+    })
+    const tiles = [...container.querySelectorAll('.hp-tile img')].map((img) => img.getAttribute('src'))
+    expect(tiles[0]).toContain(enHome.home.serviceTiles.items[0].img)
+    expect(tiles[3]).toContain(enHome.home.serviceTiles.items[3].img)
+    expect(container.querySelectorAll('.hp-hero-media .hp-slide img')[1].getAttribute('src')).toContain('/api/img/home/2/yard.webp')
+    expect(global.fetch.mock.calls.filter(([url]) => String(url).includes(PHOTOS_URL))).toHaveLength(1)
   })
 })
 

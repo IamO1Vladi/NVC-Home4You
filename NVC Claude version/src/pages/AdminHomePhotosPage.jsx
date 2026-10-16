@@ -2,126 +2,175 @@ import React from 'react'
 import AdminShell, { useAdminLang } from '../admin/AdminShell.jsx'
 import AdminModal from '../admin/AdminModal.jsx'
 import { adminGet, adminUpload, adminSend, adminDelete, UnauthorizedError } from '../admin/adminApi.js'
+import { cdnImage } from '../lib/img.js'
+import { HERO_KIND, MODEL_KIND, PHOTO_SLOTS, PHOTO_SLOT_GROUPS, photoSlotOf } from '../lib/photoSlotNames.js'
+import { PANEL_ORDER, PHOTO_SLOT_GROUP_HEADINGS, PHOTO_SLOT_PANEL, fitWarning } from '../lib/photoSlotDefaults.js'
 
-// The home page photos screen: five hero slides, the three model cards, and (since
-// 2026-10-12, at the owner's request) the main photo of each product page — each a fixed
-// slot the owner can fill or empty, and the hero slides also reorder. The slots are fixed
-// rather than a free list for the same reason the brochures are (AdminDocumentsPage): the
-// public page shows its default in every empty position — the photo the site shipped with,
-// or for the steel page deliberately no photo at all — so this screen has to show where a
-// photo BELONGS, and what the site shows while it is empty, not only what has been
-// uploaded. The product pages live here rather than on a screen of their own because they
-// are the same table, the same verbs and the same public read.
+// "Снимки на сайта" (/admin/home-photos): every place on the public site whose photo the owner
+// can change without a developer, grouped by the page it is on. It began (2026-10-11) as the
+// home page's five hero slides and three model cards, took the product pages' main photos the
+// next day and the delivery and partner pages' on 2026-10-15; on 2026-10-16 the owner asked to
+// change "most photos" from here, and About (main photo, team, factory floor), Interiors, the
+// internal doors and the home page's four tiles followed — twenty-nine slots in all. The list
+// of slots, their order and their groups are photoSlotNames.js; what the panel says about each
+// one and what the site shows while it is empty are photoSlotDefaults.js.
 //
-// A slot can be filled two ways: a new upload (re-encoded to WebP like every gallery
-// image) or a picture already in the gallery, picked from a dialog. The second one copies
-// the image key, not a reference, so deleting the gallery model later does not empty the
-// hero. Every write re-reads the list rather than patching local state, which is what
-// keeps the thumbnails honest about what the site is actually showing.
+// The slots are fixed rather than a free list for the same reason the brochures are
+// (AdminDocumentsPage): the public page shows its default in every empty position — the photo
+// the site shipped with, a team member's initials, or for the steel page deliberately no photo
+// at all — so this screen has to show where a photo BELONGS, and what the site shows while it
+// is empty, not only what has been uploaded. So every card shows either the owner's photo or
+// the default, marked "По подразбиране".
+//
+// A slot can be filled two ways: a new upload (re-encoded to WebP like every gallery image) or
+// a picture already in the gallery, picked from a dialog. The second one copies the image key,
+// not a reference, so deleting the gallery model later does not empty the place. Every write
+// re-reads the list rather than patching local state, which is what keeps the thumbnails honest
+// about what the site is actually showing — quietly, without emptying the screen, so the owner
+// stays where he was on a long page. A write's result (or refusal) shows on the card it was for,
+// not at the top of the page he may be far below. The public read is cached for two minutes
+// (HomePhotosController), so the panel promises "до 2 минути", never "веднага".
 
-const HERO = ['hero-1', 'hero-2', 'hero-3', 'hero-4', 'hero-5']
-const MODELS = [
-  { name: 'model-37', label: '37 m²' },
-  { name: 'model-58', label: '58 m²' },
-  { name: 'model-73', label: '73 m²' },
-]
-// In menu order, the delivery page (2026-10-15) after the products and the partner page (the
-// same day) after it. Their labels and their empty-slot defaults are words, so they live in TEXT.
-const PAGES = ['page-modular-builds', 'page-modular-houses', 'page-steel-houses', 'page-delivery', 'page-partner']
+// The API's own refusal (ImageProcessor.HeifRefusal, same words), said here before the upload
+// is even tried: the server cannot decode HEIC, and a PC's file picker lets one through.
+const HEIF_BG = 'Снимката е във формат HEIC/HEIF (така iPhone пази снимките) и сайтът не може да я прочете. Запазете я като JPEG, PNG или WebP и я качете отново. Или я качете направо от телефона — тогава iPhone сам я превръща в JPEG.'
+const HEIF_EN = 'The photo is in HEIC/HEIF format (how an iPhone keeps its photos) and the site cannot read it. Save it as JPEG, PNG or WebP and upload it again. Or upload it straight from the phone — the iPhone then turns it into a JPEG itself.'
+
+// The API's limit (AdminHomePhotosController, 25 MB), checked here first: a bigger file would
+// travel for nothing and come back as a bare status code (413, or IIS's 404.13 above ~28.6 MB).
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
+// The API's sentences the owner can actually meet from this screen, in the panel's language.
+// Anything else is shown as the server said it.
+const SERVER_BG = {
+  'That file is too large (max 25 MB).': 'Снимката е над 25 MB. Намалете я — например като я изпратите на себе си по Viber, който я смалява — и я качете отново.',
+  'That file could not be read as an image.': 'Файлът не можа да се прочете като снимка. Качете JPEG, PNG или WebP.',
+  'No file was uploaded.': 'Не стигна файл до сървъра. Опитайте пак.',
+  'Image storage is not configured.': 'Сървърът няма настроено място за снимките, затова нищо не е запазено. Това е за разработчика.',
+  'That image is not in the gallery.': 'Тази снимка вече не е в галерията. Изберете друга.',
+}
 
 const TEXT = {
   bg: {
-    title: 'Начална страница',
-    subtitle: 'Снимките в началото на сайта, на трите модела, на продуктовите страници и на доставката. Промяната се вижда на сайта веднага.',
+    title: 'Снимки на сайта',
+    subtitle: 'Снимките по страниците на сайта, които можете да смените оттук. Празно място показва вида си по подразбиране (отбелязан „По подразбиране“). Промените се виждат на сайта до 2 минути.',
+    formats: 'Качвайте JPEG, PNG или WebP. Снимка, качена направо от телефона, става; под всяко място пише каква снимка му отива.',
+    jump: 'Страници',
     heroHeading: 'Снимки в началото',
-    heroHint: 'Показват се една след друга в реда отляво надясно. Празно място показва снимката по подразбиране.',
+    heroHint: 'Показват се една след друга, отляво надясно. Всяко място води към своята страница, каквато и снимка да е в него; стрелките разменят само снимките.',
     modelsHeading: 'Снимки на трите модела',
-    modelsHint: 'Снимката на картата на модела в началната страница. Празно място показва снимката от каталога.',
-    pagesHeading: 'Продуктови страници и доставка',
-    pagesHint: 'Главната снимка на всяка продуктова страница и на страниците за доставка и за партньори. Под всяко място пише какво показва страницата, докато то е празно.',
-    pages: {
-      'page-modular-builds': { label: 'Контейнерни модули', empty: 'Празно: снимка на контейнер от галерията.' },
-      'page-modular-houses': { label: 'Модулни къщи', empty: 'Празно: снимката на къщата в Паралия Кариани (58 м²) от „Казуси и отзиви“.' },
-      'page-steel-houses': { label: 'Сглобяеми къщи по проект', empty: 'Празно: страницата е без снимка.', thumb: 'Без снимка' },
-      'page-delivery': { label: 'Доставка и монтаж', empty: 'Празно: кран вдига модул от камиона.' },
-      'page-partner': { label: 'Партньори — снимка', empty: 'Празно: кран вдига модул от камиона (снимката на доставката).' },
-    },
-    pageSaved: (label) => `Готово — снимката на „${label}“ е на сайта.`,
-    pageCleared: (label) => `Снимката на „${label}“ е премахната — страницата се връща към вида по подразбиране.`,
+    modelsHint: 'Снимката на картата на модела в цените. Празно място показва снимката от каталога.',
+    tilesHeading: 'Плочки „Какво правим“',
+    tilesHint: 'Четирите плочки под цените, всяка води към своята страница.',
+    otherHeading: 'Други',
+    otherHint: 'Места, които сървърът познава, а този екран още не.',
+    offline: 'Сървърът още не познава това място. Ще може да се сменя след следващото обновяване на сайта.',
     defaultThumb: 'По подразбиране',
-    photo: (n) => `Снимка ${n}`,
-    replace: 'Замени', fromGallery: 'От галерията', moveLeft: 'Наляво', moveRight: 'Надясно',
-    clear: 'Изчисти', uploading: 'Качване…', working: 'Момент…',
+    noPhoto: 'Без снимка',
+    upload: 'Качи снимка', fromGallery: 'От галерията', moveLeft: 'Наляво', moveRight: 'Надясно',
+    reset: 'Върни снимката по подразбиране', remove: 'Премахни снимката',
+    uploading: 'Качване…', working: 'Момент…',
     alt: 'Описание на снимката (по избор)',
-    altHint: 'Чете се от екранните четци и се показва, ако снимката не се зареди. На продуктовите страници и на доставката се използва само в българския сайт; английският и гръцкият имат свое общо описание.',
+    altHint: 'Чете се от екранните четци и се показва, ако снимката не се зареди. Използва се само в българския сайт; английският и гръцкият имат свое общо описание.',
     pickTitle: 'Избери снимка от галерията',
     pickSubtitle: 'Натиснете снимка, за да я сложите в избраното място.',
     pickFor: (label) => `За: ${label}`,
     close: 'Затвори',
     noGallery: 'В галерията няма снимки.',
     galleryError: 'Галерията не можа да се зареди.',
-    uploadError: 'Снимката не беше качена.',
     saveError: 'Промяната не беше запазена.',
-    saved: (label) => `Готово — „${label}“ е на сайта.`,
-    cleared: (label) => `„${label}“ е изчистена — сайтът показва снимката по подразбиране.`,
-    swapped: 'Редът е сменен.',
+    network: 'Няма връзка със сървъра — промяната не е запазена. Проверете интернета и опитайте пак.',
+    reloadError: 'Промяната е запазена, но списъкът не се обнови. Презаредете страницата.',
+    tooLarge: (mb) => `${mb ? `Снимката е ${mb} MB, а най-много може 25 MB.` : 'Снимката е над 25 MB.'} Намалете я — например като я изпратите на себе си по Viber, който я смалява — и я качете отново.`,
+    heif: HEIF_BG,
+    saved: (label) => `Готово — снимката за „${label}“ е запазена. На сайта се вижда до 2 минути.`,
+    cleared: (label) => `Снимката за „${label}“ е махната. До 2 минути мястото на сайта се връща към вида си по подразбиране.`,
+    swapped: 'Редът е сменен. На сайта се вижда до 2 минути.',
     altSaved: 'Описанието е запазено.',
     updatedBy: 'от',
   },
   en: {
-    title: 'Home page',
-    subtitle: 'The photos at the top of the site, on the three model cards, on the product pages and on the delivery page. Changes show on the site immediately.',
+    title: 'Site photos',
+    subtitle: 'The photos on the site’s pages that you can change here. An empty place shows its default (marked “Default”). Changes show on the site within 2 minutes.',
+    formats: 'Upload JPEG, PNG or WebP. A photo uploaded straight from the phone is fine; each place says what kind of photo suits it.',
+    jump: 'Pages',
     heroHeading: 'Photos at the top',
-    heroHint: 'Shown one after another, left to right. An empty slot shows the default photo.',
+    heroHint: 'Shown one after another, left to right. Each place links to its own page whatever photo is in it; the arrows move only the photos.',
     modelsHeading: 'Photos of the three models',
-    modelsHint: 'The photo on the model card on the home page. An empty slot shows the catalogue photo.',
-    pagesHeading: 'Product pages and delivery',
-    pagesHint: 'The main photo of each product page and of the delivery and partner pages. Under each slot: what the page shows while it is empty.',
-    pages: {
-      'page-modular-builds': { label: 'Container units', empty: 'Empty: a container photo from the gallery.' },
-      'page-modular-houses': { label: 'Modular houses', empty: 'Empty: the Paralia Kariani house (58 m²) from Cases & Reviews.' },
-      'page-steel-houses': { label: 'Steel-frame prefab houses to your plan', empty: 'Empty: the page has no photo.', thumb: 'No photo' },
-      'page-delivery': { label: 'Delivery and assembly', empty: 'Empty: a crane lifting a unit off the truck.' },
-      'page-partner': { label: 'Partners — photo', empty: "Empty: a crane lifting a unit off the truck (the delivery page's photo)." },
-    },
-    pageSaved: (label) => `Done — the photo for “${label}” is live.`,
-    pageCleared: (label) => `The photo for “${label}” is removed — the page is back to its default.`,
+    modelsHint: 'The photo on the model card in the prices. An empty place shows the catalogue photo.',
+    tilesHeading: '“What we do” tiles',
+    tilesHint: 'The four tiles under the prices, each linking to its page.',
+    otherHeading: 'Other',
+    otherHint: 'Places the server knows and this screen does not yet.',
+    offline: 'The server does not know this place yet. It can be changed after the next site update.',
     defaultThumb: 'Default',
-    photo: (n) => `Photo ${n}`,
-    replace: 'Replace', fromGallery: 'From the gallery', moveLeft: 'Move left', moveRight: 'Move right',
-    clear: 'Clear', uploading: 'Uploading…', working: 'One moment…',
+    noPhoto: 'No photo',
+    upload: 'Upload a photo', fromGallery: 'From the gallery', moveLeft: 'Move left', moveRight: 'Move right',
+    reset: 'Back to the default photo', remove: 'Remove the photo',
+    uploading: 'Uploading…', working: 'One moment…',
     alt: 'Photo description (optional)',
-    altHint: 'Read by screen readers and shown if the photo fails to load. On the product pages and the delivery page it is used on the Bulgarian site only; the English and Greek sites use a general description of their own.',
+    altHint: 'Read by screen readers and shown if the photo fails to load. Used on the Bulgarian site only; the English and Greek sites use a general description of their own.',
     pickTitle: 'Pick a photo from the gallery',
-    pickSubtitle: 'Press a photo to put it in the chosen slot.',
+    pickSubtitle: 'Press a photo to put it in the chosen place.',
     pickFor: (label) => `For: ${label}`,
     close: 'Close',
     noGallery: 'The gallery has no photos.',
     galleryError: 'The gallery could not be loaded.',
-    uploadError: 'The photo was not uploaded.',
     saveError: 'The change was not saved.',
-    saved: (label) => `Done — “${label}” is live.`,
-    cleared: (label) => `“${label}” is cleared — the site shows the default photo.`,
-    swapped: 'The order has changed.',
+    network: 'No connection to the server — the change is not saved. Check the internet and try again.',
+    reloadError: 'The change is saved, but the list did not refresh. Reload the page.',
+    tooLarge: (mb) => `${mb ? `The photo is ${mb} MB; the most is 25 MB.` : 'The photo is over 25 MB.'} Make it smaller — for example by sending it to yourself on Viber, which shrinks it — and upload it again.`,
+    heif: HEIF_EN,
+    saved: (label) => `Done — the photo for “${label}” is saved. It shows on the site within 2 minutes.`,
+    cleared: (label) => `The photo for “${label}” has been removed. Within 2 minutes the place on the site is back to its default.`,
+    swapped: 'The order has changed. It shows on the site within 2 minutes.',
     altSaved: 'The description is saved.',
     updatedBy: 'by',
   },
 }
 
+// iOS converts a HEIC to JPEG when the picker is told these types; a PC's picker can still
+// hand one over ("All files"), which isHeif catches by its name or type.
+const ACCEPT = 'image/jpeg,image/png,image/webp'
+const isHeif = (file) => /\.hei[cf]$/i.test(file?.name || '') || /^image\/hei[cf]/i.test(file?.type || '')
+
+// The decoded size of a picked photo, for the fit warning; null when the browser cannot tell.
+async function imageSize(file) {
+  if (typeof createImageBitmap !== 'function') return null
+  try {
+    const bitmap = await createImageBitmap(file)
+    const size = { width: bitmap.width, height: bitmap.height }
+    bitmap.close?.()
+    return size
+  } catch {
+    return null
+  }
+}
+
+// The picture the site shows in an empty slot, as a thumbnail: an /api/img photo through the
+// resizer, a /public file as it is (or its smaller sibling).
+function defaultThumbSrc(image) {
+  if (!image?.url) return null
+  if (image.thumb) return image.thumb
+  return image.url.startsWith('/api/img/') ? cdnImage(image.url, { width: 320 }) : image.url
+}
+
 // The brochures' picker: a visually hidden input the button beside it operates, so the
 // keyboard gets one stop per action and picking the same file twice still fires (the
-// input clears itself before the handler runs). Images only, one at a time — a slot holds
-// exactly one photo.
-function ReplaceButton({ label, busyLabel, isBusy, disabled, name, onPick }) {
+// input clears itself before the handler runs). One image at a time — a slot holds one photo.
+// The button carries the slot's name ("Качи снимка — Екип: …"): twenty-nine buttons all called
+// "Качи снимка" would be indistinguishable in a screen reader's list. The input is hidden from
+// it, being only the button's machinery.
+function UploadButton({ label, busyLabel, isBusy, disabled, name, onPick }) {
   const picker = React.useRef(null)
   return (
     <>
       <input
         ref={picker}
         type="file"
-        accept="image/*"
+        accept={ACCEPT}
         className="visually-hidden"
-        aria-label={name}
+        aria-hidden="true"
         tabIndex={-1}
         onChange={(e) => {
           const file = e.target.files?.[0]
@@ -132,6 +181,7 @@ function ReplaceButton({ label, busyLabel, isBusy, disabled, name, onPick }) {
       <button
         type="button"
         className="btn ghost adm-btn-sm"
+        aria-label={name}
         disabled={disabled}
         onClick={() => picker.current?.click()}
       >
@@ -141,36 +191,100 @@ function ReplaceButton({ label, busyLabel, isBusy, disabled, name, onPick }) {
   )
 }
 
+// The frame a slot's thumbnail is drawn in: the page's own crop (photoSlotDefaults `aspect`),
+// so the panel shows roughly what the site shows rather than one 4:3 cut for everything.
+const frameOf = (panel) => (panel?.aspect ? { aspectRatio: panel.aspect.replace(':', ' / ') } : undefined)
+
+// What an empty slot shows: the default photo with its badge, a team member's initials, or
+// (the steel page) nothing. A team member is drawn round, as the About page draws them.
+function EmptyThumb({ panel, t, round }) {
+  const src = panel?.emptyKind === 'image' ? defaultThumbSrc(panel.defaultImage) : null
+  const frame = round ? undefined : frameOf(panel)
+  const shape = round ? ' adm-hp-img--round' : ''
+  if (src) {
+    return (
+      <div className="adm-hp-default">
+        <img className={`adm-hp-img${shape}`} style={frame} src={src} alt="" loading="lazy" decoding="async" />
+        <span className="adm-badge adm-hp-badge">{t.defaultThumb}</span>
+      </div>
+    )
+  }
+  if (panel?.emptyKind === 'monogram') {
+    return (
+      <div className="adm-hp-default">
+        <div className={`adm-hp-empty${shape}`} style={frame}>
+          <span className="adm-hp-monogram" aria-hidden="true">{panel.monogram}</span>
+        </div>
+        <span className="adm-badge adm-hp-badge">{t.defaultThumb}</span>
+      </div>
+    )
+  }
+  return <div className="adm-hp-empty" style={frame}><span>{panel?.emptyKind === 'none' ? t.noPhoto : t.defaultThumb}</span></div>
+}
+
+// A name the API lists and this screen does not: shown under "Други" with the plain controls.
+const strangerSlot = (name) => ({ name, kind: 'other', group: 'other', decorative: false, pickable: true, retired: false })
+
 export default function AdminHomePhotosPage() {
   const [lang, setLang] = useAdminLang()
   const t = TEXT[lang] ?? TEXT.bg
 
   const [slots, setSlots] = React.useState([])
+  const [names, setNames] = React.useState([])
   const [alts, setAlts] = React.useState({})
   const [state, setState] = React.useState('loading')
   const [busy, setBusy] = React.useState(null)       // the slot name of the running write
   const [error, setError] = React.useState('')
   const [notice, setNotice] = React.useState('')
+  const [warning, setWarning] = React.useState('')
+  // The slot the last write (or refusal) was for: its card shows the messages.
+  const [lastSlot, setLastSlot] = React.useState(null)
+  // Where keyboard focus goes back to once a write is over: every button is disabled while one
+  // runs, and a browser drops the focus of a button it disables onto <body>.
+  const focusBack = React.useRef(null)
 
   // The gallery dialog: which slot it is picking for, and the houses once fetched.
   const [pickFor, setPickFor] = React.useState(null)
   const [houses, setHouses] = React.useState(null)
   const [galleryError, setGalleryError] = React.useState('')
 
-  const load = React.useCallback(async () => {
-    setState('loading')
+  // `quiet` (after a write) re-reads without the loading screen, which would empty the page and
+  // throw the owner back to its top. It answers whether the list could be read.
+  const load = React.useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setState('loading')
     try {
       const data = await adminGet('/api/admin/home-photos')
       const list = Array.isArray(data?.slots) ? data.slots : []
       setSlots(list)
+      setNames(Array.isArray(data?.names) ? data.names : list.map((s) => s.name))
       setAlts(Object.fromEntries(list.map((s) => [s.name, s.alt ?? ''])))
       setState('ready')
+      return true
     } catch (err) {
-      setState(err instanceof UnauthorizedError ? 'unauthorized' : 'error')
+      if (err instanceof UnauthorizedError) { setState('unauthorized'); return true }
+      if (quiet) return false
+      setState('error')
+      return true
     }
   }, [])
 
   React.useEffect(() => { load() }, [load])
+
+  React.useEffect(() => {
+    const back = focusBack.current
+    if (busy !== null || !back) return
+    focusBack.current = null
+    const active = document.activeElement
+    if (active && active !== document.body && active.isConnected) return
+    const usable = (el) => Boolean(el?.isConnected) && !el.disabled
+    let target = usable(back.el) ? back.el : null
+    if (!target) {
+      const card = [...document.querySelectorAll('li[data-slot]')].find((li) => li.dataset.slot === back.name)
+      const buttons = card ? [...card.querySelectorAll('.adm-hp-actions button')].filter((b) => !b.disabled) : []
+      target = buttons.find((b) => back.label && b.getAttribute('aria-label') === back.label) || buttons[0] || null
+    }
+    target?.focus?.({ preventScroll: true })
+  }, [busy])
 
   const bySlot = React.useMemo(() => {
     const map = new Map()
@@ -178,57 +292,95 @@ export default function AdminHomePhotosPage() {
     return map
   }, [slots])
 
-  const labelOf = (name) => {
-    const model = MODELS.find((m) => m.name === name)
-    if (model) return model.label
-    if (t.pages[name]) return t.pages[name].label
-    return t.photo(HERO.indexOf(name) + 1)
+  const known = React.useMemo(() => new Set(names), [names])
+  // Top to bottom as each page shows them; a slot missing from PANEL_ORDER goes last.
+  const shown = React.useMemo(() => {
+    const rank = (name) => (PANEL_ORDER.includes(name) ? PANEL_ORDER.indexOf(name) : PANEL_ORDER.length)
+    return PHOTO_SLOTS.filter((s) => !s.retired).sort((a, b) => rank(a.name) - rank(b.name))
+  }, [])
+  const strangers = React.useMemo(() => names.filter((n) => !photoSlotOf(n)).map(strangerSlot), [names])
+  const heroNames = React.useMemo(() => shown.filter((s) => s.kind === HERO_KIND).map((s) => s.name), [shown])
+
+  const labelOf = (name) => PHOTO_SLOT_PANEL[name]?.label?.[lang] || PHOTO_SLOT_PANEL[name]?.label?.bg || name
+  // The name a notice uses: the label, or a shorter one where the label quotes something itself.
+  const noticeNameOf = (name) => PHOTO_SLOT_PANEL[name]?.short?.[lang] || labelOf(name)
+
+  // A failed write in words the owner can act on: no answer at all (a status-less error) is the
+  // connection; an upload refused for its size before the API saw it is the size; a sentence of
+  // the API's that the owner can meet here is said in Bulgarian; anything else as the API said it.
+  const messageOf = (err, upload) => {
+    if (err?.status === undefined) return t.network
+    if (upload && (err.status === 413 || (err.status === 404 && /^Request failed/.test(err.message || '')))) return t.tooLarge(null)
+    return (lang !== 'en' && SERVER_BG[err?.message]) || err?.message || t.saveError
   }
 
-  // A page slot is named after its page, so "„Модулни къщи“ е на сайта" would announce the
-  // page, not the photo; its notices say "the photo for …" instead.
-  const savedNotice = (name) => (t.pages[name] ? t.pageSaved(labelOf(name)) : t.saved(labelOf(name)))
-  const clearedNotice = (name) => (t.pages[name] ? t.pageCleared(labelOf(name)) : t.cleared(labelOf(name)))
+  // Where focus goes back to after the write for `name`: the element given (or the focused one),
+  // else the card's button with this label, else the card's first usable button.
+  const remember = (name, { el = document.activeElement, label } = {}) => {
+    focusBack.current = { name, el: el && el !== document.body ? el : null, label: label ?? el?.getAttribute?.('aria-label') ?? null }
+  }
 
-  // Every write goes through here: one busy key, the server's sentence on refusal, a
+  // A refusal before anything is sent (a HEIC, a file over the limit), shown on its card.
+  const refuse = (name, message) => {
+    setLastSlot(name)
+    setNotice('')
+    setWarning('')
+    setError(message)
+  }
+
+  // Every write goes through here: one busy key, the server's sentence on refusal, a quiet
   // re-read on success, and an expired session turned into the sign-in card.
-  async function write(name, action, successNotice) {
+  async function write(name, action, successNotice, { fit = '', upload = false } = {}) {
     setBusy(name)
+    setLastSlot(name)
     setError('')
     setNotice('')
+    setWarning(fit)
     try {
       await action()
       setNotice(successNotice)
-      await load()
+      if (!(await load({ quiet: true }))) setError(t.reloadError)
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
-      setError(err?.message || t.saveError)
+      setError(messageOf(err, upload))
     } finally {
       setBusy(null)
     }
   }
 
-  function replace(name, file) {
+  async function upload(name, file) {
     if (!file) return
-    write(name, () => adminUpload(`/api/admin/home-photos/${name}/file`, file), savedNotice(name))
+    if (isHeif(file)) { refuse(name, t.heif); return }
+    if (file.size > MAX_UPLOAD_BYTES) { refuse(name, t.tooLarge(Math.ceil(file.size / (1024 * 1024)))); return }
+    remember(name)
+    // Held busy while the photo is measured, so no second write starts in between.
+    setBusy(name)
+    const size = await imageSize(file)
+    const fit = size ? fitWarning(name, size, lang) : ''
+    write(name, () => adminUpload(`/api/admin/home-photos/${name}/file`, file), t.saved(noticeNameOf(name)), { fit, upload: true })
   }
 
   function clear(name) {
-    write(name, () => adminDelete(`/api/admin/home-photos/${name}`), clearedNotice(name))
+    remember(name)
+    write(name, () => adminDelete(`/api/admin/home-photos/${name}`), t.cleared(noticeNameOf(name)))
   }
 
   function swap(name, delta) {
-    const index = HERO.indexOf(name)
-    const other = HERO[index + delta]
-    if (!other) return
+    const index = heroNames.indexOf(name)
+    const other = heroNames[index + delta]
+    if (index === -1 || !other) return
+    remember(name)
     write(name, () => adminSend('/api/admin/home-photos/swap', 'POST', { a: name, b: other }), t.swapped)
   }
 
-  function saveAlt(name) {
+  // On blur: focus is on its way to `next` (the element the owner moved to), which is where it
+  // goes back to; moved nowhere (a click on the page), it is left alone.
+  function saveAlt(name, next) {
     const current = bySlot.get(name)?.alt ?? ''
-    const next = (alts[name] ?? '').trim()
-    if (next === current) return
-    write(name, () => adminSend(`/api/admin/home-photos/${name}/alt`, 'POST', { alt: next }), t.altSaved)
+    const value = (alts[name] ?? '').trim()
+    if (value === current) return
+    if (next) remember(name, { el: next })
+    write(name, () => adminSend(`/api/admin/home-photos/${name}/alt`, 'POST', { alt: value }), t.altSaved)
   }
 
   async function openGallery(name) {
@@ -240,7 +392,7 @@ export default function AdminHomePhotosPage() {
       setHouses(Array.isArray(list) ? list : [])
     } catch (err) {
       if (err instanceof UnauthorizedError) { setState('unauthorized'); return }
-      setGalleryError(err?.message || t.galleryError)
+      setGalleryError((err?.status !== undefined && err?.message) || t.galleryError)
     }
   }
 
@@ -248,57 +400,98 @@ export default function AdminHomePhotosPage() {
     const name = pickFor
     setPickFor(null)
     if (!name) return
-    write(name, () => adminSend(`/api/admin/home-photos/${name}/pick`, 'POST', { imageKey }), savedNotice(name))
+    // The dialog's button is gone once it closes: back to the card's "От галерията".
+    remember(name, { el: null, label: `${t.fromGallery} — ${labelOf(name)}` })
+    write(name, () => adminSend(`/api/admin/home-photos/${name}/pick`, 'POST', { imageKey }), t.saved(noticeNameOf(name)))
   }
 
-  // `empty` says what the site shows while the slot is empty, for the slots where the
-  // section's hint cannot say it once for all of them; `thumb` replaces "Default" in the
-  // empty box where the default is no photo at all.
-  const renderSlot = (name, label, { index = null, total = 0, empty = null, thumb = null } = {}) => {
-    const slot = bySlot.get(name)
+  // The messages of the last write, on the card it was for (or at the top, for none).
+  const messages = (
+    <>
+      {error ? <div className="adm-alert" role="alert">{error}</div> : null}
+      {warning ? <div className="adm-hp-warn">{warning}</div> : null}
+      {notice ? <div className="adm-note">{notice}</div> : null}
+    </>
+  )
+
+  const renderSlot = (slot) => {
+    const { name } = slot
+    const panel = PHOTO_SLOT_PANEL[name]
+    const label = labelOf(name)
+    const row = bySlot.get(name)
+    const filled = Boolean(row?.url)
+    // A slot this screen knows and the server does not (an older API): shown, not usable.
+    const offline = !known.has(name)
+    const locked = busy !== null || offline
     const isBusy = busy === name
     const altId = `adm-hp-alt-${name}`
+    const heroIndex = slot.kind === HERO_KIND ? heroNames.indexOf(name) : -1
+    const clearLabel = panel && panel.emptyKind !== 'image' ? t.remove : t.reset
+    // The owner's photo as the page crops it: round for a team member, at the slot's crop
+    // position; whole where the page shows it whole; else in the page's frame.
+    const round = Boolean(slot.teamSlug)
+    const photoStyle = {
+      ...(round ? {} : panel?.crops === false ? { aspectRatio: 'auto' } : frameOf(panel)),
+      ...(slot.adminPosition ? { objectPosition: slot.adminPosition } : {}),
+    }
+    // The model cards' alt is the model's size, whatever the photo (ConfiguratorStrip), so a
+    // description typed here would go nowhere.
+    const describes = filled && !slot.decorative && slot.kind !== MODEL_KIND
+
     return (
-      <li key={name} className="adm-card adm-hp-slot">
+      <li key={name} className="adm-card adm-hp-slot" data-slot={name}>
         <div className="adm-hp-slot-head">
           <strong>{label}</strong>
-          {slot?.url && slot?.updatedByUpn ? (
-            <span className="adm-small adm-muted adm-hp-by">{t.updatedBy} {slot.updatedByUpn}</span>
+          {filled && row?.updatedByUpn ? (
+            <span className="adm-small adm-muted adm-hp-by">{t.updatedBy} {row.updatedByUpn}</span>
           ) : null}
         </div>
 
-        {slot?.url ? (
-          <img className="adm-hp-img" src={slot.url} alt={slot.alt || ''} loading="lazy" />
+        {filled ? (
+          <img
+            className={`adm-hp-img${round ? ' adm-hp-img--round' : ''}`}
+            style={photoStyle}
+            src={cdnImage(row.url, { width: 320 })}
+            alt={row.alt || ''}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
-          <div className="adm-hp-empty"><span>{thumb || t.defaultThumb}</span></div>
+          <EmptyThumb panel={panel} t={t} round={round} />
         )}
-        {empty ? <span className="adm-small adm-muted">{empty}</span> : null}
+        {panel?.hint ? <span className="adm-small adm-muted adm-hp-hint">{panel.hint[lang] || panel.hint.bg}</span> : null}
+        {!filled && panel?.empty ? <span className="adm-small adm-muted">{panel.empty[lang] || panel.empty.bg}</span> : null}
+        {offline ? <span className="adm-small adm-hp-offline">{t.offline}</span> : null}
 
         <div className="adm-hp-actions">
-          <ReplaceButton
-            label={t.replace}
+          <UploadButton
+            label={t.upload}
             busyLabel={t.uploading}
             isBusy={isBusy}
-            disabled={busy !== null}
-            name={`${t.replace} — ${label}`}
-            onPick={(file) => replace(name, file)}
+            disabled={locked}
+            name={`${t.upload} — ${label}`}
+            onPick={(file) => upload(name, file)}
           />
-          <button
-            type="button"
-            className="btn ghost adm-btn-sm"
-            disabled={busy !== null}
-            onClick={() => openGallery(name)}
-          >
-            {t.fromGallery}
-          </button>
-          {index !== null ? (
-            <>
+          {slot.pickable ? (
+            <button
+              type="button"
+              className="btn ghost adm-btn-sm"
+              aria-label={`${t.fromGallery} — ${label}`}
+              disabled={locked}
+              onClick={() => openGallery(name)}
+            >
+              {t.fromGallery}
+            </button>
+          ) : null}
+          {heroIndex !== -1 ? (
+            // One unit, so the two arrows never wrap apart in the narrow five-across row.
+            <span className="adm-hp-arrows">
               <button
                 type="button"
                 className="btn ghost adm-btn-sm adm-hp-arrow"
                 aria-label={`${t.moveLeft} — ${label}`}
                 title={t.moveLeft}
-                disabled={busy !== null || index === 0}
+                disabled={locked || heroIndex === 0}
                 onClick={() => swap(name, -1)}
               >
                 ←
@@ -308,27 +501,29 @@ export default function AdminHomePhotosPage() {
                 className="btn ghost adm-btn-sm adm-hp-arrow"
                 aria-label={`${t.moveRight} — ${label}`}
                 title={t.moveRight}
-                disabled={busy !== null || index === total - 1}
+                disabled={locked || heroIndex === heroNames.length - 1}
                 onClick={() => swap(name, 1)}
               >
                 →
               </button>
-            </>
+            </span>
           ) : null}
-          {slot?.url ? (
+          {filled ? (
             <button
               type="button"
               className="btn btn-danger adm-btn-sm"
-              aria-label={`${t.clear} — ${label}`}
-              disabled={busy !== null}
+              aria-label={`${clearLabel} — ${label}`}
+              disabled={locked}
               onClick={() => clear(name)}
             >
-              {t.clear}
+              {clearLabel}
             </button>
           ) : null}
         </div>
 
-        {slot?.url ? (
+        {lastSlot === name ? messages : null}
+
+        {describes ? (
           <div className="adm-hp-alt">
             <label htmlFor={altId} className="adm-small">{t.alt}</label>
             <input
@@ -336,9 +531,9 @@ export default function AdminHomePhotosPage() {
               type="text"
               maxLength={400}
               value={alts[name] ?? ''}
-              disabled={busy !== null}
+              disabled={locked}
               onChange={(e) => setAlts((prev) => ({ ...prev, [name]: e.target.value }))}
-              onBlur={() => saveAlt(name)}
+              onBlur={(e) => saveAlt(name, e.relatedTarget)}
               aria-describedby={`${altId}-hint`}
             />
             <span id={`${altId}-hint`} className="adm-small adm-muted">{t.altHint}</span>
@@ -346,6 +541,36 @@ export default function AdminHomePhotosPage() {
         ) : null}
       </li>
     )
+  }
+
+  // One section per page; the home page's in three rows (the slides, the model cards, the
+  // tiles), because each row is its own strip on the page and says its own thing.
+  const groups = PHOTO_SLOT_GROUPS.map((group) => {
+    const inGroup = shown.filter((s) => s.group === group)
+    const rows = group === 'home'
+      ? [
+        { key: 'hero', heading: t.heroHeading, hint: t.heroHint, className: 'adm-hp-row-hero', slots: inGroup.filter((s) => s.kind === HERO_KIND) },
+        { key: 'models', heading: t.modelsHeading, hint: t.modelsHint, className: 'adm-hp-row-models', slots: inGroup.filter((s) => s.kind === 'model') },
+        { key: 'tiles', heading: t.tilesHeading, hint: t.tilesHint, className: 'adm-hp-row-tiles', slots: inGroup.filter((s) => s.tileKey) },
+      ]
+      : [{ key: group, className: 'adm-hp-row-models', slots: inGroup }]
+    const heading = PHOTO_SLOT_GROUP_HEADINGS[group]?.[lang] || PHOTO_SLOT_GROUP_HEADINGS[group]?.bg || group
+    return { key: group, heading, rows: rows.filter((r) => r.slots.length) }
+  }).filter((g) => g.rows.length)
+
+  if (strangers.length) {
+    groups.push({
+      key: 'other',
+      heading: t.otherHeading,
+      rows: [{ key: 'other', hint: t.otherHint, className: 'adm-hp-row-models', slots: strangers }],
+    })
+  }
+
+  // Scrolls to the section (its scroll-margin clears the sticky top bar) and takes the focus
+  // there too, so the keyboard carries on from the section and not from the row of buttons.
+  const jumpTo = (key) => {
+    document.getElementById(`adm-hp-group-${key}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    document.getElementById(`adm-hp-group-${key}-title`)?.focus?.({ preventScroll: true })
   }
 
   const pickLabel = pickFor ? labelOf(pickFor) : ''
@@ -359,34 +584,33 @@ export default function AdminHomePhotosPage() {
       title={t.title}
       subtitle={t.subtitle}
       state={state}
-      onRetry={load}
+      onRetry={() => load()}
     >
-      {error ? <div className="adm-alert" role="alert">{error}</div> : null}
-      {notice ? <div className="adm-note">{notice}</div> : null}
+      {lastSlot === null ? messages : null}
+      {/* Always in the page, so a screen reader hears each result wherever its card is. */}
+      <div className="visually-hidden" role="status" aria-live="polite">{[notice, warning].filter(Boolean).join(' ')}</div>
 
-      <section className="adm-hp-section">
-        <h2>{t.heroHeading}</h2>
-        <p className="adm-small adm-muted">{t.heroHint}</p>
-        <ul className="adm-hp-row adm-hp-row-hero">
-          {HERO.map((name, index) => renderSlot(name, labelOf(name), { index, total: HERO.length }))}
-        </ul>
-      </section>
+      <p className="adm-small adm-muted adm-hp-formats">{t.formats}</p>
+      <nav className="adm-hp-jump" aria-label={t.jump}>
+        {groups.map((g) => (
+          <button key={g.key} type="button" onClick={() => jumpTo(g.key)}>{g.heading}</button>
+        ))}
+      </nav>
 
-      <section className="adm-hp-section">
-        <h2>{t.modelsHeading}</h2>
-        <p className="adm-small adm-muted">{t.modelsHint}</p>
-        <ul className="adm-hp-row adm-hp-row-models">
-          {MODELS.map((m) => renderSlot(m.name, m.label))}
-        </ul>
-      </section>
-
-      <section className="adm-hp-section">
-        <h2>{t.pagesHeading}</h2>
-        <p className="adm-small adm-muted">{t.pagesHint}</p>
-        <ul className="adm-hp-row adm-hp-row-models">
-          {PAGES.map((name) => renderSlot(name, labelOf(name), { empty: t.pages[name].empty, thumb: t.pages[name].thumb }))}
-        </ul>
-      </section>
+      {groups.map((g) => (
+        <section key={g.key} id={`adm-hp-group-${g.key}`} className="adm-hp-section" aria-labelledby={`adm-hp-group-${g.key}-title`}>
+          <h2 id={`adm-hp-group-${g.key}-title`} tabIndex={-1}>{g.heading}</h2>
+          {g.rows.map((row) => (
+            <div key={row.key} className="adm-hp-sub">
+              {row.heading ? <h3>{row.heading}</h3> : null}
+              {row.hint ? <p className="adm-small adm-muted">{row.hint}</p> : null}
+              <ul className={`adm-hp-row ${row.className}`}>
+                {row.slots.map(renderSlot)}
+              </ul>
+            </div>
+          ))}
+        </section>
+      ))}
 
       <AdminModal
         open={pickFor !== null}
@@ -414,7 +638,7 @@ export default function AdminHomePhotosPage() {
                     aria-label={`${houseTitle(h)} — ${i + 1}`}
                     onClick={() => pick(image.imageKey)}
                   >
-                    <img src={image.url} alt="" loading="lazy" />
+                    <img src={cdnImage(image.url, { width: 240 })} alt="" loading="lazy" decoding="async" />
                   </button>
                 </li>
               ))}
