@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import ProcessSteps, { STAGE_QUERY } from './ProcessSteps.jsx'
+import { cdnImage, cdnSrcSet } from '../../lib/img.js'
 
 // The steps of a project, each with its own picture: all of it in the markup on a phone and
 // without the script, and on a wide screen a sticky stage that follows the step being read.
@@ -125,5 +126,67 @@ describe('ProcessSteps', () => {
   it('renders nothing without steps', () => {
     const { container } = render(<ProcessSteps heading="How" steps={[]} />)
     expect(container).toBeEmptyDOMElement()
+  })
+})
+
+// A step's picture as a slot of "Снимки на сайта" (2026-10-17): the page passes the slot's
+// answer as image.admin and the words for it as image.adminAlt.
+describe('ProcessSteps with the owner\'s photos', () => {
+  const OWNER = { url: '/api/img/home/38/frame.webp', alt: 'Рамката в Банско' }
+  const withOwner = (i, admin, adminAlt = 'A frame we built') => STEPS.map((step, k) => (k === i
+    ? { ...step, image: { ...step.image, admin, adminAlt } }
+    : step))
+
+  it('draws exactly today\'s pictures while a slot is empty, on a phone and on the stage', () => {
+    for (const wide of [false, true]) {
+      stubBrowser({ wide })
+      const today = render(<ProcessSteps id="steps" heading="How" steps={STEPS} />)
+      const html = today.container.innerHTML
+      today.unmount()
+      // The answer still on its way (undefined) and an empty slot (null) alike.
+      for (const admin of [undefined, null]) {
+        const { container, unmount } = render(<ProcessSteps id="steps" heading="How" steps={withOwner(1, admin)} />)
+        expect(container.innerHTML).toBe(html)
+        unmount()
+      }
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('shows the owner\'s photo under its step and on the stage, through the resizer, cropped from the centre', () => {
+    stubBrowser({ wide: true })
+    const { container } = render(<ProcessSteps id="steps" heading="How" steps={withOwner(1, OWNER)} />)
+    const stepImg = container.querySelectorAll('.pp-step-fig img')[1]
+    const stageImg = container.querySelectorAll('.pp-stage-fig img')[1]
+    expect(stepImg.getAttribute('src')).toBe(cdnImage(OWNER.url, { width: 800 }))
+    expect(stageImg.getAttribute('src')).toBe(cdnImage(OWNER.url, { width: 1200 }))
+    for (const [img, sizes] of [[stepImg, '(max-width: 899px) 100vw, 640px'], [stageImg, '(min-width: 1200px) 620px, 52vw']]) {
+      expect(img.getAttribute('srcset')).toBe(cdnSrcSet(OWNER.url, [480, 640, 800, 1200]))
+      expect(img.getAttribute('sizes')).toBe(sizes)
+      // The page's words for the owner's photo, not the default's.
+      expect(img.getAttribute('alt')).toBe('A frame we built')
+      expect(img.getAttribute('width')).toBe('800')
+      expect(img.getAttribute('height')).toBe('671')
+      expect(img.style.objectPosition).toBe('50% 50%')
+    }
+    // The other steps keep theirs.
+    const others = [...container.querySelectorAll('.pp-step-fig img')].filter((img) => img !== stepImg)
+    expect(others.map((img) => img.getAttribute('src'))).toEqual([
+      cdnImage(STEPS[0].image.src, { width: 800 }),
+      cdnImage(STEPS[2].image.src, { width: 800 }),
+    ])
+    expect(others.every((img) => !img.getAttribute('style'))).toBe(true)
+  })
+
+  it('falls back to the step\'s own picture should the owner\'s fail to load', () => {
+    stubBrowser({ wide: true })
+    const { container } = render(<ProcessSteps id="steps" heading="How" steps={withOwner(1, OWNER)} />)
+    for (const [img, width] of [[container.querySelectorAll('.pp-step-fig img')[1], 800], [container.querySelectorAll('.pp-stage-fig img')[1], 1200]]) {
+      // One retry of the owner's photo, then today's.
+      fireEvent.error(img)
+      fireEvent.error(img)
+      expect(img.getAttribute('src')).toBe(cdnImage(STEPS[1].image.src, { width }))
+      expect(img.hasAttribute('srcset')).toBe(false)
+    }
   })
 })

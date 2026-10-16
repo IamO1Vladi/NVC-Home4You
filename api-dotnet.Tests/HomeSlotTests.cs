@@ -15,8 +15,9 @@ namespace ApiDotnet.Tests;
 
 // The home page's photo slots (2026-10 redesign), and the product pages' main photos that
 // joined them on 2026-10-12 (the delivery and partner pages on 2026-10-15), and the sixteen page
-// photos of 2026-10-16 (About, Interiors, Internal doors, the home service tiles). Two things carry the
-// design and both live here: the twenty-nine slot names are an allow-list the write paths enforce, and the
+// photos of 2026-10-16 (About, Interiors, Internal doors, the home service tiles), and the twelve of
+// 2026-10-17 (the Partner steps, the Interiors before/after pairs, the steel stages). Two things carry the
+// design and both live here: the forty-one slot names are an allow-list the write paths enforce, and the
 // public read of the busiest page on the site must keep answering — an empty answer — when the table
 // behind it is not there yet, because migrations are applied by hand before a publish and
 // nothing stops the order being reversed once.
@@ -69,12 +70,19 @@ public class HomeSlotTests
                 "interiors-kitchen", "interiors-hero", "interiors-works",
                 "doors-hero",
                 "home-tile-modular-builds", "home-tile-modular-houses", "home-tile-steel-houses", "home-tile-interiors",
+                // The second phase of page photos (2026-10-17), after all twenty-nine: the
+                // Partner steps (step 2 is factory-floor above, so it has no name here), the
+                // Interiors pairs, each "before" then its "after", then the steel stages.
+                "partner-step-yard", "partner-step-port", "partner-step-plot",
+                "interiors-bathroom-before", "interiors-bathroom-after",
+                "interiors-kitchen-before", "interiors-kitchen-after",
+                "steel-step-1", "steel-step-2", "steel-step-3", "steel-step-4", "steel-step-5",
             },
             HomeSlotNames.All);
     }
 
     [Fact]
-    public void The_first_thirteen_slots_never_move()
+    public void The_first_twenty_nine_slots_never_move()
     {
         // Separate from the full list above so that a future edit to the tail can never pass
         // by "updating the expected list" over the head. Not because a move would corrupt a
@@ -82,18 +90,32 @@ public class HomeSlotTests
         // home/{index}/{guid}, so nothing can collide — but because two things read the
         // position itself: a hero slot's slide number IS its position (HeroNumberOf, the Index
         // the panel's list reports for it), and every home/{index}/ folder already in Blob
-        // names the slot it was uploaded for, which a reorder would turn into a lie.
+        // names the slot it was uploaded for, which a reorder would turn into a lie. The first
+        // thirteen were the rule until 2026-10-17; the sixteen page photos of 2026-10-16 have
+        // been live since deploy-2026-10-17 and may hold uploads too, so they joined it.
         var expected = new[]
         {
             "hero-1", "hero-2", "hero-3", "hero-4", "hero-5",
             "model-37", "model-58", "model-73",
             "page-modular-builds", "page-modular-houses", "page-steel-houses", "page-delivery", "page-partner",
+            "about-hero",
+            "about-team-vladimir-vladimirov", "about-team-tsvetelin-bonin", "about-team-nikolay-lekov",
+            "about-team-radina-ivanova", "about-team-vasil-vasilev", "about-team-ivan-vasilev",
+            "factory-floor",
+            "interiors-kitchen", "interiors-hero", "interiors-works",
+            "doors-hero",
+            "home-tile-modular-builds", "home-tile-modular-houses", "home-tile-steel-houses", "home-tile-interiors",
         };
+        Assert.Equal(29, expected.Length);
 
         for (var i = 0; i < expected.Length; i++)
         {
             Assert.Equal(expected[i], HomeSlotNames.All[i]);
             Assert.Equal(i + 1, HomeSlotNames.IndexOf(expected[i]));
+            // And none of them changed kind: the kind decides swap and where the public read
+            // serves it, so a head row that changed kind would move on the page all the same.
+            var kind = i < 5 ? "hero" : i < 8 ? "model" : i < 13 ? "page" : "photo";
+            Assert.Equal(kind, HomeSlotNames.KindOf(expected[i]));
         }
         for (var n = 1; n <= 5; n++)
             Assert.Equal(n, HomeSlotNames.HeroNumberOf($"hero-{n}"));
@@ -102,8 +124,20 @@ public class HomeSlotTests
     [Fact]
     public void Every_slot_name_fits_the_name_column()
     {
-        // HomeSlot.Name is MaxLength(40); a longer name would need a migration, not a row.
-        Assert.All(HomeSlotNames.All, n => Assert.True(n.Length <= 40, n));
+        // HomeSlot.Name is nvarchar(40) since AddHomeSlots; a longer name would need a
+        // migration, not a row. The limit is read off the EF model, not typed here, so a
+        // change to the attribute cannot leave this test checking an old number.
+        using var db = NewDb();
+        var entity = db.Model.FindEntityType(typeof(HomeSlot))!;
+        var nameMax = entity.FindProperty(nameof(HomeSlot.Name))!.GetMaxLength();
+        Assert.Equal(40, nameMax);
+        Assert.All(HomeSlotNames.All, n => Assert.True(n.Length <= nameMax, n));
+
+        // And the key an upload into the last slot mints fits the key column with room to spare.
+        var keyMax = entity.FindProperty(nameof(HomeSlot.ImageKey))!.GetMaxLength();
+        Assert.Equal(1024, keyMax);
+        var lastKey = ImageKey.NewOwnedKey(ImageKey.HomeScope, HomeSlotNames.All.Count, "IMG_0001.JPG", ".webp");
+        Assert.True(lastKey.Length <= keyMax, lastKey);
     }
 
     [Fact]
@@ -137,6 +171,20 @@ public class HomeSlotTests
         Assert.Equal(27, HomeSlotNames.IndexOf("home-tile-modular-houses"));
         Assert.Equal(28, HomeSlotNames.IndexOf("home-tile-steel-houses"));
         Assert.Equal(29, HomeSlotNames.IndexOf("home-tile-interiors"));
+        // The second phase of 2026-10-17: 30-41.
+        Assert.Equal(30, HomeSlotNames.IndexOf("partner-step-yard"));
+        Assert.Equal(31, HomeSlotNames.IndexOf("partner-step-port"));
+        Assert.Equal(32, HomeSlotNames.IndexOf("partner-step-plot"));
+        Assert.Equal(33, HomeSlotNames.IndexOf("interiors-bathroom-before"));
+        Assert.Equal(34, HomeSlotNames.IndexOf("interiors-bathroom-after"));
+        Assert.Equal(35, HomeSlotNames.IndexOf("interiors-kitchen-before"));
+        Assert.Equal(36, HomeSlotNames.IndexOf("interiors-kitchen-after"));
+        Assert.Equal(37, HomeSlotNames.IndexOf("steel-step-1"));
+        Assert.Equal(38, HomeSlotNames.IndexOf("steel-step-2"));
+        Assert.Equal(39, HomeSlotNames.IndexOf("steel-step-3"));
+        Assert.Equal(40, HomeSlotNames.IndexOf("steel-step-4"));
+        Assert.Equal(41, HomeSlotNames.IndexOf("steel-step-5"));
+        Assert.Equal(41, HomeSlotNames.All.Count);
         Assert.Equal(0, HomeSlotNames.IndexOf("hero-6"));
         Assert.Equal(0, HomeSlotNames.IndexOf(null));
     }
@@ -150,6 +198,19 @@ public class HomeSlotTests
         "interiors-kitchen", "interiors-hero", "interiors-works",
         "doors-hero",
         "home-tile-modular-builds", "home-tile-modular-houses", "home-tile-steel-houses", "home-tile-interiors",
+        "partner-step-yard", "partner-step-port", "partner-step-plot",
+        "interiors-bathroom-before", "interiors-bathroom-after",
+        "interiors-kitchen-before", "interiors-kitchen-after",
+        "steel-step-1", "steel-step-2", "steel-step-3", "steel-step-4", "steel-step-5",
+    };
+
+    // The twelve of 2026-10-17, on their own, for the tests that are about them.
+    private static readonly string[] PhaseTwoNames =
+    {
+        "partner-step-yard", "partner-step-port", "partner-step-plot",
+        "interiors-bathroom-before", "interiors-bathroom-after",
+        "interiors-kitchen-before", "interiors-kitchen-after",
+        "steel-step-1", "steel-step-2", "steel-step-3", "steel-step-4", "steel-step-5",
     };
 
     [Fact]
@@ -203,7 +264,47 @@ public class HomeSlotTests
         // A name that only LOOKS like a page photo is still nobody's.
         Assert.False(HomeSlotNames.IsValid("about-team-someone-new"));
         Assert.False(HomeSlotNames.IsValid("About-hero"));
-        Assert.Null(HomeSlotNames.KindOf("partner-step-yard"));   // phase 2, not in this release
+        // Nor does one that only looks like a phase-2 slot: the steel page has five stages,
+        // the Interiors pairs are named by room and half, and the Partner page's second step
+        // is the factory-floor slot, not a partner-step of its own.
+        Assert.Null(HomeSlotNames.KindOf("steel-step-6"));
+        Assert.Null(HomeSlotNames.KindOf("steel-step-0"));
+        Assert.Null(HomeSlotNames.KindOf("interiors-bathroom"));
+        Assert.Null(HomeSlotNames.KindOf("partner-step-factory"));
+        Assert.Null(HomeSlotNames.KindOf("partner-step-2"));
+    }
+
+    [Fact]
+    public void The_twelve_of_the_second_phase_follow_the_twenty_nine_in_the_decided_order()
+    {
+        Assert.Equal(PhaseTwoNames, HomeSlotNames.All.Skip(29));
+        Assert.All(PhaseTwoNames, n => Assert.Equal(HomeSlotNames.PhotoKind, HomeSlotNames.KindOf(n)));
+
+        // The Partner page has four steps and three names: its second step shows the factory,
+        // which is the About page's factory-floor slot (21), so one upload changes both pages.
+        Assert.Equal(
+            new[] { "partner-step-yard", "partner-step-port", "partner-step-plot" },
+            HomeSlotNames.All.Where(n => n.StartsWith("partner-step-", StringComparison.Ordinal)));
+        Assert.Equal(21, HomeSlotNames.IndexOf("factory-floor"));
+
+        // Each Interiors pair is two slots, "before" right before its "after".
+        foreach (var room in new[] { "bathroom", "kitchen" })
+            Assert.Equal(
+                HomeSlotNames.IndexOf($"interiors-{room}-before") + 1,
+                HomeSlotNames.IndexOf($"interiors-{room}-after"));
+
+        // The steel page's five stages, numbered as the page shows them.
+        Assert.Equal(
+            Enumerable.Range(1, 5).Select(n => $"steel-step-{n}"),
+            HomeSlotNames.All.Where(n => n.StartsWith("steel-step-", StringComparison.Ordinal)));
+
+        // No helper treats them as anything but a page photo.
+        Assert.All(PhaseTwoNames, n =>
+        {
+            Assert.Null(HomeSlotNames.ModelKeyOf(n));
+            Assert.Null(HomeSlotNames.PageKeyOf(n));
+            Assert.Equal(0, HomeSlotNames.HeroNumberOf(n));
+        });
     }
 
     [Fact]
@@ -308,6 +409,19 @@ public class HomeSlotTests
         Assert.True(ImageKey.IsValid(key));
     }
 
+    [Theory]
+    [InlineData("partner-step-yard", 30)]
+    [InlineData("interiors-bathroom-before", 33)]
+    [InlineData("interiors-kitchen-after", 36)]
+    [InlineData("steel-step-5", 41)]
+    public void An_uploaded_second_phase_photo_is_minted_under_its_own_position_after_the_twenty_nine(string name, int index)
+    {
+        var key = ImageKey.NewOwnedKey(ImageKey.HomeScope, HomeSlotNames.IndexOf(name), "IMG_3001.JPG", ".webp");
+        Assert.Matches($"^home/{index}/[0-9a-f]{{32}}\\.webp$", key);
+        Assert.True(ImageKey.IsValid(key));
+        Assert.True(ImageKey.IsOwned(key));
+    }
+
     [Fact]
     public void Adding_the_home_scope_did_not_open_the_door_to_any_other()
     {
@@ -361,8 +475,15 @@ public class HomeSlotTests
 
         var slots = await Svc(db).ListAdminAsync(CancellationToken.None);
 
-        Assert.Equal(29, slots.Count);
+        Assert.Equal(41, slots.Count);
         Assert.Equal(PagePhotoNames, slots.Where(s => s.Kind == "photo").Select(s => s.Name));
+
+        // The second phase is listed untouched, each indexed by its own name too.
+        var stage = slots.Single(s => s.Name == "steel-step-3");
+        Assert.Equal("photo", stage.Kind);
+        Assert.Equal("steel-step-3", stage.Index);
+        Assert.Null(stage.ImageKey);
+        Assert.Null(stage.Url);
 
         // Index is the name, not the "0" a hero number would have printed for it.
         var filled = slots.Single(s => s.Name == "factory-floor");
@@ -649,6 +770,45 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public async Task A_second_phase_photo_is_never_swapped_not_even_with_the_other_half_of_its_pair()
+    {
+        // The tempting ones: "before" with its "after" (that is a re-upload, not an order),
+        // one steel stage with the next (each stage's photo shows THAT stage), a Partner step
+        // with the factory floor it sits beside, and with the Partner page's own main photo.
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "interiors-bathroom-before", ImageKey = "home/33/b.webp", Alt = "Преди" },
+            new HomeSlot { Name = "interiors-bathroom-after", ImageKey = "home/34/a.webp", Alt = "След" },
+            new HomeSlot { Name = "steel-step-1", ImageKey = "home/37/s.webp" },
+            new HomeSlot { Name = "partner-step-yard", ImageKey = "home/30/y.webp" });
+        await db.SaveChangesAsync();
+        var svc = Svc(db);
+
+        foreach (var (a, b) in new[]
+        {
+            ("interiors-bathroom-before", "interiors-bathroom-after"),
+            ("interiors-kitchen-before", "interiors-kitchen-after"),
+            ("interiors-kitchen-after", "interiors-kitchen"),
+            ("steel-step-1", "steel-step-2"),
+            ("steel-step-1", "page-steel-houses"),
+            ("partner-step-yard", "factory-floor"),
+            ("partner-step-port", "page-partner"),
+            ("hero-1", "steel-step-1"),
+            ("model-58", "partner-step-plot"),
+        })
+        {
+            var result = await svc.SwapAsync(a, b, null, CancellationToken.None);
+            Assert.Equal(HomePhotoService.Outcome.Refused, result.Outcome);
+        }
+
+        Assert.Equal("home/33/b.webp", (await db.HomeSlots.SingleAsync(s => s.Name == "interiors-bathroom-before")).ImageKey);
+        Assert.Equal("home/34/a.webp", (await db.HomeSlots.SingleAsync(s => s.Name == "interiors-bathroom-after")).ImageKey);
+        Assert.Equal("home/37/s.webp", (await db.HomeSlots.SingleAsync(s => s.Name == "steel-step-1")).ImageKey);
+        Assert.Equal("home/30/y.webp", (await db.HomeSlots.SingleAsync(s => s.Name == "partner-step-yard")).ImageKey);
+        Assert.Equal(4, await db.HomeSlots.CountAsync());
+    }
+
+    [Fact]
     public async Task Swapping_a_slot_with_itself_is_refused()
     {
         using var db = NewDb();
@@ -798,6 +958,50 @@ public class HomeSlotTests
     }
 
     [Fact]
+    public async Task The_public_read_serves_the_second_phase_in_slots_and_a_lone_pair_half_too()
+    {
+        // The pair rule (a pair changes only when BOTH halves are filled) is the SPA's: here a
+        // half is an ordinary slot, so a filled "before" whose "after" is empty is still served,
+        // and the page decides to keep its default pair. Served in slot order, after the
+        // twenty-nine, whatever order the rows were written in.
+        using var db = NewDb();
+        db.HomeSlots.AddRange(
+            new HomeSlot { Name = "steel-step-5", ImageKey = "home/41/e.webp", Alt = "Предаване" },
+            new HomeSlot { Name = "interiors-kitchen-before", ImageKey = "home/35/k.webp", Alt = "Кухня — по време" },
+            new HomeSlot { Name = "interiors-bathroom-before", ImageKey = CaseKey, Alt = "Баня — преди" },
+            new HomeSlot { Name = "interiors-bathroom-after", ImageKey = "home/34/a.webp", Alt = "Баня — след" },
+            new HomeSlot { Name = "partner-step-port", ImageKey = "home/31/p.webp" },
+            new HomeSlot { Name = "steel-step-2", ImageKey = null, Alt = "cleared" },
+            new HomeSlot { Name = "factory-floor", ImageKey = "home/21/f.webp", Alt = "Цехът" });
+        await db.SaveChangesAsync();
+
+        var dto = await Svc(db).ReadPublicAsync(CancellationToken.None);
+
+        Assert.Equal(
+            new[]
+            {
+                "factory-floor", "partner-step-port",
+                "interiors-bathroom-before", "interiors-bathroom-after", "interiors-kitchen-before",
+                "steel-step-5",
+            },
+            dto.Slots.Keys);
+        Assert.Equal("/api/img/home/31/p.webp", dto.Slots["partner-step-port"].Url);
+        Assert.Equal("", dto.Slots["partner-step-port"].Alt);
+        Assert.Equal("/api/img/" + CaseKey, dto.Slots["interiors-bathroom-before"].Url);
+        Assert.Equal("Баня — след", dto.Slots["interiors-bathroom-after"].Alt);
+        Assert.Equal("/api/img/home/35/k.webp", dto.Slots["interiors-kitchen-before"].Url);
+        Assert.False(dto.Slots.ContainsKey("interiors-kitchen-after"));
+        Assert.False(dto.Slots.ContainsKey("steel-step-2"));
+        Assert.Equal("Предаване", dto.Slots["steel-step-5"].Alt);
+
+        // The old fields did not move: none of these is a hero, a model or a product page.
+        Assert.Empty(dto.Hero);
+        Assert.All(dto.Models.Values, v => Assert.Null(v));
+        Assert.Equal(new[] { "modularBuilds", "modularHouses", "steelHouses", "delivery", "partner" }, dto.Pages.Keys);
+        Assert.All(dto.Pages.Values, v => Assert.Null(v));
+    }
+
+    [Fact]
     public async Task With_no_rows_the_public_read_is_the_empty_shape_not_an_error()
     {
         using var db = NewDb();
@@ -826,10 +1030,12 @@ public class HomeSlotTests
     }
 
     [Fact]
-    public void The_cache_key_names_the_shape_with_slots()
+    public void The_cache_key_names_the_shape_with_slots_and_the_second_phase_names()
     {
         // v5 entries have no "slots"; a v5 entry read back as v6 would serve a body without it.
-        Assert.Equal("home:photos:v6", HomePhotoService.CacheKey);
+        // v7 (2026-10-17): the same shape, but "slots" may now carry the twelve second-phase
+        // names, which an entry built by the v6 list could never hold.
+        Assert.Equal("home:photos:v7", HomePhotoService.CacheKey);
     }
 
     [Fact]
@@ -840,7 +1046,8 @@ public class HomeSlotTests
         using var db = NewDb();
         db.HomeSlots.AddRange(
             new HomeSlot { Name = "about-team-radina-ivanova", ImageKey = "home/18/r.webp", Alt = "Радина" },
-            new HomeSlot { Name = "page-partner", ImageKey = "home/13/y.webp", Alt = "Двор" });
+            new HomeSlot { Name = "page-partner", ImageKey = "home/13/y.webp", Alt = "Двор" },
+            new HomeSlot { Name = "interiors-bathroom-before", ImageKey = "home/33/b.webp", Alt = "Баня — преди" });
         await db.SaveChangesAsync();
 
         var dto = await Svc(db).ReadPublicAsync(CancellationToken.None);
@@ -855,10 +1062,16 @@ public class HomeSlotTests
         Assert.Equal("/api/img/home/13/y.webp", root.GetProperty("pages").GetProperty("partner").GetProperty("url").GetString());
 
         var slots = root.GetProperty("slots");
-        Assert.Equal(new[] { "about-team-radina-ivanova" }, slots.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(
+            new[] { "about-team-radina-ivanova", "interiors-bathroom-before" },
+            slots.EnumerateObject().Select(p => p.Name));
         var radina = slots.GetProperty("about-team-radina-ivanova");
         Assert.Equal("/api/img/home/18/r.webp", radina.GetProperty("url").GetString());
         Assert.Equal("Радина", radina.GetProperty("alt").GetString());
+        // A second-phase name travels exactly as stored, hyphens and all.
+        var before = slots.GetProperty("interiors-bathroom-before");
+        Assert.Equal("/api/img/home/33/b.webp", before.GetProperty("url").GetString());
+        Assert.Equal("Баня — преди", before.GetProperty("alt").GetString());
     }
 
     [Fact]
@@ -999,8 +1212,67 @@ public class HomeSlotTests
     public async Task An_upload_to_a_name_outside_the_list_is_not_found_before_anything_is_read()
     {
         using var db = NewDb();
-        var result = await UploadController(db).Upload("partner-step-yard", FileOf(HeicBytes, "x.heic"), default);
+        // steel-step-6: a sixth steel stage the page does not have.
+        var result = await UploadController(db).Upload("steel-step-6", FileOf(HeicBytes, "x.heic"), default);
         Assert.IsType<Microsoft.AspNetCore.Mvc.NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Every_second_phase_name_passes_the_upload_allow_list_and_meets_the_same_heic_rule()
+    {
+        // Refused for being HEIC, not for being unknown: the name got past IsValid, and the
+        // refusal is the same sentence every other slot gives.
+        using var db = NewDb();
+        foreach (var name in PhaseTwoNames)
+        {
+            var result = await UploadController(db).Upload(name, FileOf(HeicBytes, "IMG_0042.HEIC"), default);
+            Assert.Equal(new[] { ImageProcessor.HeifRefusal }, ErrorsOf(result));
+        }
+        Assert.Empty(await db.HomeSlots.ToListAsync());
+    }
+
+    [Fact]
+    public async Task The_admin_verbs_accept_every_second_phase_name_end_to_end()
+    {
+        // Through the controller as the panel calls it: list, pick, alt, clear, and a swap
+        // that is refused. Upload's storage half needs Blob; its row half is RecordImageAsync,
+        // exercised here directly with the key the upload would have minted.
+        using var db = NewDb();
+        var controller = UploadController(db);
+        var svc = Svc(db);
+
+        var list = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(await controller.List(default));
+        var names = (IReadOnlyList<string>)list.Value!.GetType().GetProperty("names")!.GetValue(list.Value)!;
+        Assert.Equal(PhaseTwoNames, names.Skip(29));
+
+        foreach (var name in PhaseTwoNames)
+        {
+            var picked = Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(
+                await controller.Pick(name, new Controllers.AdminHomePhotosController.PickRequest(ContentKey), default));
+            var dto = Assert.IsType<HomeSlotAdminDto>(picked.Value);
+            Assert.Equal(name, dto.Name);
+            Assert.Equal("photo", dto.Kind);
+            Assert.Equal(name, dto.Index);
+
+            Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(
+                await controller.SetAlt(name, new Controllers.AdminHomePhotosController.AltRequest("Снимка от обекта"), default));
+
+            var key = ImageKey.NewOwnedKey(ImageKey.HomeScope, HomeSlotNames.IndexOf(name), "IMG_3001.JPG", ".webp");
+            var recorded = await svc.RecordImageAsync(name, key, alt: null, "owner@nvc.eu", default);
+            Assert.True(recorded.Ok);
+            Assert.Equal("/api/img/" + key, recorded.Slot!.Url);
+            Assert.Equal("Снимка от обекта", recorded.Slot.Alt);   // a new upload keeps the caption
+
+            Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(await controller.Clear(name, default));
+        }
+
+        // Twelve rows, all cleared, and not one of another slot.
+        var rows = await db.HomeSlots.OrderBy(r => r.Id).ToListAsync();
+        Assert.Equal(PhaseTwoNames, rows.Select(r => r.Name));
+        Assert.All(rows, r => { Assert.Null(r.ImageKey); Assert.Null(r.Alt); });
+
+        var swap = await controller.Swap(new Controllers.AdminHomePhotosController.SwapRequest("steel-step-1", "steel-step-2"), default);
+        Assert.Equal(new[] { "This photo belongs to its place and cannot be swapped." }, ErrorsOf(swap));
     }
 
     // --- The paper trail ----------------------------------------------------------------

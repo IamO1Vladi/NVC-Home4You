@@ -132,6 +132,10 @@ export function imageFallback(...fallbacks) {
     img.removeAttribute('srcset')
     img.setAttribute('src', next)
     img.dataset.imgFallback = next
+    // An image that crops itself inline for ITS picture says what crop a fallback gets
+    // (SlotImg: the owner's photo is centred, the page's default had its own, often in the
+    // stylesheet, which '' hands back to). Set once: React leaves it, as the prop is unchanged.
+    if (img.dataset.fallbackPosition !== undefined) img.style.objectPosition = img.dataset.fallbackPosition
   }
 }
 

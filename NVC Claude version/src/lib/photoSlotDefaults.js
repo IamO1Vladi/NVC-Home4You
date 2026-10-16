@@ -22,11 +22,16 @@
 //   monogram     the initials, for 'monogram'
 //   empty        { bg, en }, optional: a sentence saying what the page shows while empty, where
 //                the thumbnail alone would not say it (whose house, which case)
-import { PHOTO_SLOTS } from './photoSlotNames.js'
+//
+// Since 2026-10-17 it also holds what the panel says around the slots: the sub-headings of the
+// rows a page's section is split into (the step pictures, each before/after pair), and, per
+// page, the one line that says where the page's OTHER photos are changed (the gallery's in
+// "Галерия", the delivered house's in "Проекти"), or that they are not changed from the admin.
+import { INTERIORS_PAIR_SLOTS, PHOTO_SLOTS } from './photoSlotNames.js'
 import { PAGE_PHOTO_DEFAULTS } from './homePhotos.js'
 import { TEAM_PHOTOS } from '../content/shared/company.js'
 import { ABOUT_PHOTO, FACTORY_PHOTO } from '../content/shared/aboutMedia.js'
-import { INTERIORS_PHOTOS } from '../content/shared/interiorsMedia.js'
+import { INTERIORS_PAIRS, INTERIORS_PHOTOS } from '../content/shared/interiorsMedia.js'
 import { DOORS_COVER } from '../content/shared/doorsCatalogue.js'
 import { getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import bgHome from '../content/bg/home.js'
@@ -35,6 +40,12 @@ import bgAbout from '../content/bg/about.js'
 import enAbout from '../content/en/about.js'
 import bgModularBuilds from '../content/bg/modularBuilds.js'
 import bgModularHouses from '../content/bg/modularHouses.js'
+import bgPartner from '../content/bg/partner.js'
+import enPartner from '../content/en/partner.js'
+import bgSteel from '../content/bg/steelHouses.js'
+import enSteel from '../content/en/steelHouses.js'
+import bgInteriors from '../content/bg/interiors.js'
+import enInteriors from '../content/en/interiors.js'
 
 const BASE = import.meta.env.BASE_URL || '/'
 const fromBase = (p) => `${BASE}${String(p).replace(/^\//, '')}`
@@ -164,6 +175,89 @@ const PRODUCT_HINT = hint(
   'Landscape (4:3), at least 1600 px. A phone crops it wider (16:10).',
 )
 
+// The numbered steps' picture frame: ProcessSteps draws every step picture at 800 x 671 and
+// ProductSteel.css crops it to aspect-ratio 800/671, on a phone under the step's words (full
+// width) and on a computer in the large stage beside the list (about 620 px).
+const STEP_FRAME = '800:671'
+
+const stepsOf = (content) => content?.process?.steps || []
+// "Визуализация …" / "A render …": a caption that calls the picture a render says nothing
+// about what an owner's photo should show, so the hint leaves it out. (Such a caption has
+// adminCaption '' today, so this only guards one added later without it.)
+const callsItselfARender = (caption) => /визуализац|render|απεικόνιση/i.test(String(caption || ''))
+const lowerFirst = (text) => (text ? `${text[0].toLowerCase()}${text.slice(1)}` : '')
+
+function stepPanel(slot) {
+  const partner = slot.steps === 'partner'
+  const n = slot.stepNumber
+  const bgStep = stepsOf(partner ? bgPartner : bgSteel)[n - 1] || {}
+  const enStep = stepsOf(partner ? enPartner : enSteel)[n - 1] || {}
+  const src = bgStep.image?.src
+  // The caption that will sit under HIS photo: a step whose default caption fits only the
+  // default (the steel page's render captions) has adminCaption for a photo, '' for none.
+  const bgCaption = bgStep.image?.adminCaption ?? bgStep.image?.caption ?? ''
+  const enCaption = enStep.image?.adminCaption ?? enStep.image?.caption ?? ''
+  const size = { bg: 'Хоризонтална (около 6:5), поне 1200 px.', en: 'Landscape (about 6:5), at least 1200 px.' }
+  return {
+    // Named as the page numbers the step, and by its title: the panel groups it under its page.
+    label: { bg: `Стъпка ${n} · „${bgStep.title || '—'}“`, en: `Step ${n} · “${enStep.title || '—'}”` },
+    // The label quotes the title, so the notices use the page and the number instead.
+    short: partner
+      ? { bg: `Партньори, стъпка ${n}`, en: `Partners, step ${n}` }
+      : { bg: `Сглобяеми къщи, стъпка ${n}`, en: `Steel-frame houses, step ${n}` },
+    hint: partner
+      // Each caption names a place, so the photo has to be of that place.
+      ? hint(
+        `${size.bg} Под нея пише „${bgCaption}“ — снимката трябва да показва точно това място.`,
+        `${size.en} Its caption reads “${enCaption}”, so the photo must show that very place.`,
+      )
+      // The steps show one example house drawn at each stage; an owner's photo is a real project.
+      : hint(
+        `${size.bg} Само снимка от ваш истински проект на този етап.${bgCaption && !callsItselfARender(bgCaption) ? ` Под нея пише „${bgCaption}“.` : ''}`,
+        `${size.en} Only a photo of a real project of yours at this stage.${enCaption && !callsItselfARender(enCaption) ? ` Its caption reads “${enCaption}”.` : ''}`,
+      ),
+    aspect: STEP_FRAME,
+    minWidth: 1200,
+    emptyKind: src ? 'image' : 'none',
+    defaultImage: src ? image(src) : null,
+    // The steel steps' pictures are renders, which a thumbnail alone does not say.
+    ...(partner ? {} : {
+      empty: {
+        bg: 'Празно: визуализация (не снимка) на примерната къща на този етап.',
+        en: 'Empty: a render (not a photo) of the example house at this stage.',
+      },
+    }),
+  }
+}
+
+const pairOf = (content, pairKey) => (content?.jobs?.pairs || []).find((p) => p.key === pairKey) || {}
+
+function pairPanel(slot) {
+  const bgPair = pairOf(bgInteriors, slot.pairKey)
+  const enPair = pairOf(enInteriors, slot.pairKey)
+  const bgSide = bgPair[slot.pairSide] || {}
+  const enSide = enPair[slot.pairSide] || {}
+  const media = INTERIORS_PAIRS[slot.pairKey]?.[slot.pairSide]
+  return {
+    // The room and the tag the page prints on this half ("Баня — „Преди“").
+    label: { bg: `${bgPair.title || slot.pairKey} — „${bgSide.label || slot.pairSide}“`, en: `${enPair.title || slot.pairKey} — “${enSide.label || slot.pairSide}”` },
+    short: {
+      bg: `${bgPair.title || slot.pairKey} — ${lowerFirst(bgSide.label || slot.pairSide)}`,
+      en: `${enPair.title || slot.pairKey} — ${lowerFirst(enSide.label || slot.pairSide)}`,
+    },
+    // Interiors.css .ir-pair-fig img: aspect-ratio 4/5; two side by side, 300 px each on a
+    // computer, half the screen on a phone (InteriorsPage PairImage, up to 800 px files).
+    hint: hint(
+      'Вертикална (4:5), поне 800 px. Само снимка от ваш обект, а двете снимки на двойката — от едно и също помещение.',
+      'Upright (4:5), at least 800 px. Only a photo of your own job, and both photos of the pair of the same room.',
+    ),
+    aspect: '4:5',
+    minWidth: 800,
+    emptyKind: media ? 'image' : 'none',
+    defaultImage: media ? image(media.src, media.small) : null,
+  }
+}
+
 // The slots whose panel entry is not made by one of the builders above.
 const FIXED = {
   'page-modular-builds': {
@@ -241,8 +335,8 @@ const FIXED = {
   'factory-floor': {
     label: { bg: 'Фабриката в Китай', en: 'The factory in China' },
     hint: hint(
-      'Широка (16:9; на компютър още по-широка, 21:9), поне 1600 px, главното в средата.',
-      'Wide (16:9; wider still on a computer, 21:9), at least 1600 px, the subject in the middle.',
+      'Широка (16:9; на компютър още по-широка, 21:9), поне 1600 px, главното в средата. Показва се и на „Партньори“ (стъпка 2), изрязана почти квадратна (около 6:5).',
+      'Wide (16:9; wider still on a computer, 21:9), at least 1600 px, the subject in the middle. It also shows on Partners (step 2), cut almost square (about 6:5).',
     ),
     aspect: '16:9',
     minWidth: 1600,
@@ -305,6 +399,8 @@ function panelFor(slot) {
   if (slot.kind === 'model') return modelPanel(slot.modelKey)
   if (slot.teamSlug) return teamPanel(slot.teamSlug)
   if (slot.tileKey) return tilePanel(slot.tileKey)
+  if (slot.steps) return stepPanel(slot)
+  if (slot.pairKey) return pairPanel(slot)
   return null
 }
 
@@ -312,22 +408,114 @@ function panelFor(slot) {
  * The order the panel lists the slots in: each page's places top to bottom, as the page shows
  * them. The API's order only grows at the end, so it differs where a later slot sits higher on
  * its page (the home tiles above nothing else of theirs; Interiors' main photo and works photo
- * above the finished kitchen). photoSlots.test.js checks it names every slot exactly once.
+ * above the finished kitchen; the steel steps under the steel page's main photo, in the
+ * product pages' group). photoSlots.test.js checks it names every slot exactly once.
  */
 export const PANEL_ORDER = Object.freeze([
   'hero-1', 'hero-2', 'hero-3', 'hero-4', 'hero-5',
   'model-37', 'model-58', 'model-73',
   'home-tile-modular-builds', 'home-tile-modular-houses', 'home-tile-steel-houses', 'home-tile-interiors',
   'page-modular-builds', 'page-modular-houses', 'page-steel-houses',
+  'steel-step-1', 'steel-step-2', 'steel-step-3', 'steel-step-4', 'steel-step-5',
   'page-delivery',
   'page-partner',
+  'partner-step-yard', 'partner-step-port', 'partner-step-plot',
   'about-hero',
   'about-team-vladimir-vladimirov', 'about-team-tsvetelin-bonin', 'about-team-nikolay-lekov',
   'about-team-radina-ivanova', 'about-team-vasil-vasilev', 'about-team-ivan-vasilev',
   'factory-floor',
   'interiors-hero', 'interiors-works', 'interiors-kitchen',
+  'interiors-bathroom-before', 'interiors-bathroom-after',
+  'interiors-kitchen-before', 'interiors-kitchen-after',
   'doors-hero',
 ])
+
+/**
+ * The row of its page's section a slot is drawn in. The home page has three (the slides, the
+ * model cards, the tiles), each its own strip on the page; the numbered steps of the Partner
+ * and steel pages are a row of their own under the page's main photo; each Interiors
+ * before/after pair is its own row, so its two halves are seen, and explained, together;
+ * everything else is the section's 'main' row.
+ */
+export function photoSlotRowOf(slot) {
+  if (!slot) return 'main'
+  if (slot.kind === 'hero') return 'hero'
+  if (slot.kind === 'model') return 'models'
+  if (slot.tileKey) return 'tiles'
+  if (slot.steps) return `${slot.steps}-steps`
+  if (slot.pairKey) return `pair-${slot.pairKey}`
+  return 'main'
+}
+
+const bgPairs = bgInteriors?.jobs?.pairsHeading || 'Преди и след'
+const enPairs = enInteriors?.jobs?.pairsHeading || 'Before and after'
+
+/**
+ * The sub-headings of the rows photoSlotRowOf names beyond the home page's (whose words are the
+ * panel's own): the steps under the heading the page gives them, each pair under the page's
+ * "Преди и след" and its room.
+ */
+export const PHOTO_SLOT_ROW_HEADINGS = Object.freeze({
+  'steel-steps': {
+    bg: `Сглобяеми къщи по проект — стъпките „${bgSteel?.process?.h2 || 'Как протича проектът'}“`,
+    en: `Steel-frame houses — the steps “${enSteel?.process?.h2 || 'How a project goes'}”`,
+  },
+  'partner-steps': {
+    bg: `Стъпките „${bgPartner?.process?.heading || 'Как работим'}“`,
+    en: `The steps “${enPartner?.process?.heading || 'How we work'}”`,
+  },
+  ...Object.fromEntries(Object.keys(INTERIORS_PAIR_SLOTS).map((pairKey) => [`pair-${pairKey}`, {
+    bg: `${bgPairs} — ${pairOf(bgInteriors, pairKey).title || pairKey}`,
+    en: `${enPairs} — ${pairOf(enInteriors, pairKey).title || pairKey}`,
+  }])),
+})
+
+// The admin screens where the photos this panel does not hold are changed.
+export const ADMIN_GALLERY_PATH = '/admin/gallery'
+export const ADMIN_CASES_PATH = '/admin/cases'
+const GALLERY = { bg: { to: ADMIN_GALLERY_PATH, label: 'Галерия' }, en: { to: ADMIN_GALLERY_PATH, label: 'Gallery' } }
+const CASES = { bg: { to: ADMIN_CASES_PATH, label: 'Проекти' }, en: { to: ADMIN_CASES_PATH, label: 'Cases' } }
+// The pages show the case's photo by its fixed address (content files), and only while the
+// published case still holds it: removing it in "Проекти" hides it here, but a photo added
+// there never takes its place. The line says exactly that much.
+const caseLine = {
+  bg: ['Снимката на къщата в Паралия Кариани е от проекта ѝ в ', CASES.bg, ' — там може само да се премахне; друга на нейно място се слага при обновяване на сайта.'],
+  en: ['The photo of the house in Paralia Kariani is from its case in ', CASES.en, ' — there it can only be removed; a different one goes in its place with a site update.'],
+}
+
+/**
+ * Per page, the one line under its heading that says where the page's OTHER photos are
+ * changed: a list of words and links ({ to, label }, the admin screen's menu name). What each
+ * says was read off the page: the product pages' unit and model cards and the containers'
+ * photos beside the table are gallery photos (useProductRows), and the delivered house in
+ * Paralia Kariani (case 2) is a case's photos on the Box, delivery, partner and About pages
+ * (usePublishedCase). The home page has no photo outside this panel, so its line points at the
+ * pages that are nothing but gallery and case photos. Interiors' other pictures are its video
+ * clips and the doors page's the catalogue's photos and drawings: no admin screen holds them.
+ */
+export const PHOTO_SLOT_GROUP_NOTES = Object.freeze({
+  // The PAGES "Галерия" and "Цени", by name: the home page's own price strip ("Цени") holds the
+  // model cards, whose photos ARE this panel's.
+  home: {
+    bg: ['Снимките на страниците „Галерия“ и „Цени“ се сменят в ', GALLERY.bg, ', а тези на „Казуси и отзиви“ — в ', CASES.bg, '.'],
+    en: ['The photos on the “Gallery” and “Prices” pages are changed in ', GALLERY.en, ', and those on “Cases & Reviews” in ', CASES.en, '.'],
+  },
+  products: {
+    bg: ['Останалите снимки на моделите се сменят в ', GALLERY.bg, '; тези от къщата в Паралия Кариани са от проекта ѝ в ', CASES.bg, ' и там могат само да се премахнат.'],
+    en: ['The other photos of the models are changed in ', GALLERY.en, '; those of the house in Paralia Kariani are from its case in ', CASES.en, ' and can only be removed there.'],
+  },
+  delivery: caseLine,
+  partner: caseLine,
+  about: caseLine,
+  interiors: {
+    bg: ['Видеата на страницата не се сменят оттук — новите клипове се слагат при обновяване на сайта.'],
+    en: ['The page’s videos are not changed here — new clips go in with a site update.'],
+  },
+  doors: {
+    bg: ['Снимките и чертежите на вратите са от каталога NVC-1 и не се сменят оттук.'],
+    en: ['The doors’ photos and drawings are the NVC-1 catalogue’s and are not changed here.'],
+  },
+})
 
 /** The panel's entry for every slot of photoSlotNames.js, by name. */
 export const PHOTO_SLOT_PANEL = Object.freeze(Object.fromEntries(

@@ -14,8 +14,9 @@
 // mergeHomePhotos(defaults, null) is the defaults unchanged.
 //
 // Since 2026-10-16 the same body also carries "slots": the page photos of kind "photo" (About's
-// main photo, team and factory floor, the Interiors and doors photos, the home tiles; names in
-// photoSlotNames.js), keyed by slot name, and ONLY the filled ones. A page reads them with
+// main photo, team and factory floor, the Interiors and doors photos, the home tiles; since
+// 2026-10-17 also the Partner and steel steps and the Interiors before/after pairs, see
+// slotPair; names in photoSlotNames.js), keyed by slot name, and ONLY the filled ones. A page reads them with
 // useSlotPhotos / useSlotPhoto; a missing name, an empty map and a body without "slots" at all
 // (an older API, or an older body kept in a snapshot's <head>) all mean "show today's photo".
 //
@@ -380,6 +381,29 @@ export function useSlotPhotos(names) {
 /** One page photo by slot name, as useSlotPhotos answers for it. */
 export function useSlotPhoto(name) {
   return useSlotPhotos([name])[name]
+}
+
+/**
+ * A before/after pair (the Interiors page's, 2026-10-17): `{ before, after, filled }` from a map
+ * of slot name -> `{ url, alt }` | null | undefined (useSlotPhotos' answer) and the pair's two
+ * slot names, `{ before, after }` (INTERIORS_PAIR_SLOTS in photoSlotNames.js).
+ *
+ * THE PAIR CHANGES ONLY WHEN BOTH HALVES ARE FILLED. Then both are the owner's photos and
+ * `filled` is true; with one half or none filled (or the answer still on its way) both are null,
+ * so the page draws today's pair, whole. Mixing the owner's "after" with the default "before"
+ * would show two different rooms as one job. The panel reads the same answer to tell the owner
+ * which half is still missing. Never throws.
+ */
+export function slotPair(photos, names) {
+  const at = (name) => {
+    if (!photos || typeof photos !== 'object' || typeof name !== 'string' || !name) return null
+    if (!Object.prototype.hasOwnProperty.call(photos, name)) return null
+    const photo = photos[name]
+    return photo && typeof photo === 'object' && isUrl(photo.url) ? photo : null
+  }
+  const before = at(names?.before)
+  const after = at(names?.after)
+  return before && after ? { before, after, filled: true } : { before: null, after: null, filled: false }
 }
 
 /**

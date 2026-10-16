@@ -122,4 +122,23 @@ describe('SlotImg, filled', () => {
     fireEvent.error(img)
     expect(img.getAttribute('src')).toBe(FACTORY.src)
   })
+
+  it("gives the page's default its own crop back once it falls back to it", () => {
+    // No inline crop on the page (a stylesheet crops the default, like Partner.css's 50% 62%):
+    // the owner's centre crop is kept through the retry, then dropped with his photo.
+    const plain = render(<SlotImg admin={ADMIN} {...FACTORY} />).container.querySelector('img')
+    fireEvent.error(plain)
+    expect(plain.style.objectPosition).toBe('50% 50%')
+    fireEvent.error(plain)
+    expect(plain.getAttribute('src')).toBe(FACTORY.src)
+    expect(plain.style.objectPosition).toBe('')
+
+    // The page's own inline crop comes back as it wrote it.
+    const tile = render(<SlotImg admin={ADMIN} {...TILE} />).container.querySelector('img')
+    expect(tile.style.objectPosition).toBe('50% 50%')
+    fireEvent.error(tile)
+    fireEvent.error(tile)
+    expect(tile.getAttribute('src')).toBe(TILE.src)
+    expect(tile.style.objectPosition).toBe('50% 70%')
+  })
 })

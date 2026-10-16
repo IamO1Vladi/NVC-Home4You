@@ -22,6 +22,12 @@
 // the words that named the default photo give way: the hero's chip becomes adminCaption, the
 // works photo's caption adminTitle. The kitchen tile's title stays, as it is true of any
 // finished kitchen. The share picture stays the bathroom.
+//
+// Since 2026-10-17 each before/after pair is two slots too (INTERIORS_PAIR_SLOTS), and A PAIR
+// CHANGES ONLY WHEN BOTH ITS HALVES ARE FILLED (slotPair): with one half or none, both stay
+// today's, so a pair can never show the owner's room beside the default's. A filled pair takes
+// the halves' general words (adminAlt; his own descriptions on the Bulgarian page); the
+// labels ("Преди" / "След") stay, as the panel names each half by them.
 import React, { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -40,14 +46,18 @@ import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
 import { INTERIORS_CLIPS, INTERIORS_PAIRS, INTERIORS_PHOTOS, photoSrcSet } from '../content/shared/interiorsMedia.js'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
-import { slotAlt, slotHeroPhoto, useSlotPhotos } from '../lib/homePhotos.js'
+import { slotAlt, slotHeroPhoto, slotPair, useSlotPhotos } from '../lib/homePhotos.js'
+import { INTERIORS_PAIR_SLOTS } from '../lib/photoSlotNames.js'
 import SlotImg from '../components/SlotImg.jsx'
 import { paths } from '../routes/paths.js'
 import { markedUp, pageQuestions } from '../lib/questions.js'
 
 // The page's admin slots (photoSlotNames.js).
 export const INTERIORS_SLOTS = Object.freeze({ hero: 'interiors-hero', works: 'interiors-works', kitchen: 'interiors-kitchen' })
-const SLOT_NAMES = Object.values(INTERIORS_SLOTS)
+const SLOT_NAMES = [
+  ...Object.values(INTERIORS_SLOTS),
+  ...Object.values(INTERIORS_PAIR_SLOTS).flatMap((pair) => [pair.before, pair.after]),
+]
 
 /** The questions as the FAQ markup publishes them: every one the page prints (lib/questions.js). */
 export function faqItems(c) {
@@ -101,9 +111,30 @@ function Photo({ photo, alt, sizes, className, admin, adminAlt }) {
 // What a pair photo that fails to load falls back to: the site's wordless placeholder.
 const FALLBACK = `${import.meta.env.BASE_URL || '/'}modular-builds/card.svg`
 
-/** One side of a before/after pair: a static crop, or an /api/img photo the server resizes. */
-function PairImage({ image, alt }) {
+/**
+ * One side of a before/after pair: a static crop, or an /api/img photo the server resizes; or,
+ * when the owner's pair is shown (`admin`, both halves filled), his photo, cropped from its
+ * centre. Should his photo fail to load it falls back to the placeholder, NOT to this half's
+ * default: that would put the default room beside his.
+ */
+function PairImage({ image, alt, admin, adminAlt }) {
   const sizes = '(max-width: 899px) 50vw, 300px'
+  if (admin?.url) {
+    return (
+      <img
+        src={cdnImage(admin.url, { width: 640 })}
+        srcSet={cdnSrcSet(admin.url, [320, 480, 640, 800])}
+        sizes={sizes}
+        alt={typeof adminAlt === 'string' ? adminAlt : ''}
+        width={image.width}
+        height={image.height}
+        loading="lazy"
+        decoding="async"
+        style={{ objectPosition: '50% 50%' }}
+        onError={imageFallback(FALLBACK)}
+      />
+    )
+  }
   const fromApi = image.src.startsWith('/api/img/')
   return (
     <img
@@ -282,13 +313,20 @@ export default function InteriorsPage({ locale = 'bg', content }) {
             {c.jobs.pairs.map((pair) => {
               const media = INTERIORS_PAIRS[pair.key]
               if (!media) return null
+              // Both of the owner's halves, or neither (today's pair).
+              const owner = slotPair(slots, INTERIORS_PAIR_SLOTS[pair.key])
               return (
                 <li key={pair.key} className="hp-card ir-pair" data-pair={pair.key}>
                   <h4>{pair.title}</h4>
                   <div className="ir-pair-row">
                     {['before', 'after'].map((side) => (
                       <figure key={side} className="ir-pair-fig">
-                        <PairImage image={media[side]} alt={pair[side].alt} />
+                        <PairImage
+                          image={media[side]}
+                          alt={pair[side].alt}
+                          admin={owner[side]}
+                          adminAlt={slotAlt(owner[side], { locale, adminAlt: pair[side].adminAlt })}
+                        />
                         <figcaption className={`ir-pair-tag ir-pair-tag--${side}`}>{pair[side].label}</figcaption>
                       </figure>
                     ))}

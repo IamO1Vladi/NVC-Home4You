@@ -22,7 +22,7 @@
 //
 // Sections, in order: the hero; the two doors (resell / buy for your own site); „Накратко";
 // what you can order (the product pages, with their live prices); how we work (four steps,
-// every step and photo in the markup); who takes care of what; real deliveries (the published
+// every step and photo in the markup; each photo an admin slot, see below); who takes care of what; real deliveries (the published
 // Paralia Kariani case, the reviews; the steps already show the delivery photos, so the
 // delivery page's clips are not repeated); the enquiry form at #zapitvane; the
 // questions (FaqList: #q-{id} links, also FAQ JSON-LD); the cargo card (we can organise the
@@ -33,6 +33,14 @@
 // from Ho Chi Minh and Laem Chabang besides Shanghai) was removed on 2026-10-16 at the owner's
 // word: it contradicted „нашата фабрика в Китай" and repeated the hero's journey. Leaflet stays
 // the delivery calculator's alone; nothing on this page asks for it.
+//
+// THE STEPS' PHOTOS ARE THE OWNER'S TO CHANGE (since 2026-10-17), in "Снимки на сайта": steps 1,
+// 3 and 4 are the slots partner-step-yard / -port / -plot, and step 2, the factory hall, is
+// About's factory-floor slot (PARTNER_STEP_SLOTS), so one upload changes both pages and they can
+// never show two factories. An empty slot draws today's photo, to the attribute; a filled one
+// shows his photo cropped from its centre (the 50% 62% of Partner.css was set for the defaults)
+// with the content's general words (adminAlt; his own description on the Bulgarian page). The
+// captions stay: each names the place the photo has to show, and the panel tells him so.
 //
 // On mount the page writes a prefill (configPrefill.js), so the header's offer and question
 // forms opened here are tagged as a partner's enquiry, as the delivery calculator tags its own.
@@ -57,7 +65,8 @@ import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { euro } from '../lib/euro.js'
 import { fill, pageQuestions, partnerFigures as figures, shown } from '../lib/questions.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
-import { PAGE_PHOTO_DEFAULTS, usePagePhoto } from '../lib/homePhotos.js'
+import { PAGE_PHOTO_DEFAULTS, slotAlt, usePagePhoto, useSlotPhotos } from '../lib/homePhotos.js'
+import { PARTNER_STEP_SLOTS } from '../lib/photoSlotNames.js'
 import { paths } from '../routes/paths.js'
 
 // The default page photo, the delivery page's crane lift, in its 800 and 1500 wide crops
@@ -113,6 +122,7 @@ export default function PartnerPage({ locale = 'bg', content }) {
   const { box, wagon } = useProductRows(locale)
   const c = content
   const published = usePublishedCase(c?.proof?.case?.id)
+  const stepPhotos = useSlotPhotos(PARTNER_STEP_SLOTS)
   const [preset, setPreset] = useState(null)
   const formHeadingRef = useRef(null)
 
@@ -184,7 +194,14 @@ export default function PartnerPage({ locale = 'bg', content }) {
     c.products.doors ? { to: pathOf('doors'), label: c.products.doors.label, desc: c.products.doors.desc } : null,
   ]
 
-  const steps = c.process.steps.map((step) => ({ ...step, text: fill(step.text, v) }))
+  // Step n's picture is slot PARTNER_STEP_SLOTS[n - 1]: today's photo while it is empty.
+  const steps = c.process.steps.map((step, i) => {
+    const admin = stepPhotos[PARTNER_STEP_SLOTS[i]] || null
+    const image = admin && step.image
+      ? { ...step.image, admin, adminAlt: slotAlt(admin, { locale, adminAlt: step.image.adminAlt }) }
+      : step.image
+    return { ...step, text: fill(step.text, v), image }
+  })
 
   const casePhoto = published && (published.images || []).includes(c.proof.photo.url) ? c.proof.photo : null
   const quote = String(published?.quote || '').trim()

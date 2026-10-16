@@ -2290,13 +2290,31 @@ div.adm-bubble-body a { color: var(--adm-accent-ink); }
   font-weight: 600;
 }
 
+/* 2026-10-17: the steel page's five steps in one row (folding as the hero row does); each
+   Interiors before/after pair as one framed row, its two halves side by side, with the line
+   saying what the site shows now; the per-page line naming where its other photos are changed;
+   a half uploaded alone, marked on its card. */
+.adm-hp-row-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.adm-hp-row-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.adm-hp-pair {
+  max-width: 560px;
+  padding: 12px;
+  border: 1px dashed var(--adm-line-firm);
+  border-radius: 12px;
+}
+.adm-hp-pair h3 { margin-top: 0; }
+.adm-hp-pair-state { margin: 0 0 10px; font-weight: 600; color: var(--adm-ink); }
+.adm-hp-waiting { color: var(--adm-warn); font-weight: 600; }
+.adm-hp-elsewhere a { color: var(--adm-accent-ink); font-weight: 600; }
+.adm-hp-sub .adm-linkbtn.adm-hp-inline { margin-top: 0; font-size: inherit; }
+
 @media (max-width: 1100px) {
-  .adm-hp-row-hero { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .adm-hp-row-hero, .adm-hp-row-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .adm-hp-row-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  .adm-hp-row-hero, .adm-hp-row-models { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm-hp-row-hero, .adm-hp-row-models, .adm-hp-row-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 420px) {
-  .adm-hp-row-hero, .adm-hp-row-models, .adm-hp-row-tiles { grid-template-columns: 1fr; }
+  .adm-hp-row-hero, .adm-hp-row-models, .adm-hp-row-tiles, .adm-hp-row-steps, .adm-hp-row-pair { grid-template-columns: 1fr; }
 }

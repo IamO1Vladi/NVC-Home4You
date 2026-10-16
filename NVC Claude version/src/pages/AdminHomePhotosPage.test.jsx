@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AdminHomePhotosPage from './AdminHomePhotosPage.jsx'
-import { PHOTO_SLOTS, PHOTO_SLOT_GROUPS, PHOTO_SLOT_NAMES, photoSlotOf } from '../lib/photoSlotNames.js'
+import { INTERIORS_PAIR_SLOTS, PHOTO_SLOTS, PHOTO_SLOT_GROUPS, PHOTO_SLOT_NAMES, photoSlotOf } from '../lib/photoSlotNames.js'
 import { PANEL_ORDER, PHOTO_SLOT_GROUP_HEADINGS, PHOTO_SLOT_PANEL } from '../lib/photoSlotDefaults.js'
 
 // "Снимки на сайта". What is pinned here: every slot of the registry renders under its page's
@@ -18,7 +18,11 @@ import { PANEL_ORDER, PHOTO_SLOT_GROUP_HEADINGS, PHOTO_SLOT_PANEL } from '../lib
 // the server's sentence (in Bulgarian where it is one the owner can meet) on its own card without
 // taking the slots away; the re-read after a write never empties the screen and focus comes back
 // to the card; a name the screen does not know still shows; and an expired session asks for
-// sign-in instead of looking broken.
+// sign-in instead of looking broken. Since 2026-10-17 (forty-one slots): the steel and Partner
+// steps are rows of their own (Partner's step 2 points at the factory photo in About's section);
+// each before/after pair is one row whose words say what the site shows, a half uploaded alone
+// says it is waiting for the other, and the notices of a pair say what the SITE does; and every
+// page's section says where its other photos are changed, linking the Gallery and Cases screens.
 
 const render = (ui) =>
   rtlRender(<MemoryRouter initialEntries={['/admin/home-photos']}>{ui}</MemoryRouter>)
@@ -68,10 +72,14 @@ const FILLED_NAMES = {
   'model-58': '',
 }
 
+// The twelve of 2026-10-17.
+const PHASE_2 = NAMES.slice(29)
+
 // The gallery picker is off where a house photo would make the page's words untrue.
 const UNPICKABLE = [
   ...NAMES.filter((n) => n.startsWith('about-team-')),
   'factory-floor', 'interiors-kitchen', 'interiors-hero', 'interiors-works', 'doors-hero',
+  ...PHASE_2,
 ]
 
 const FILLED = {
@@ -155,7 +163,8 @@ describe('AdminHomePhotosPage', () => {
     // Top to bottom as each page shows them, which is not always the API's order.
     expect([...document.querySelectorAll('li[data-slot]')].map((li) => li.dataset.slot)).toEqual(PANEL_ORDER)
     for (const name of NAMES) expect(card(label(name)), name).toBeInTheDocument()
-    expect(document.querySelectorAll('li[data-slot]')).toHaveLength(NAMES.length)
+    expect(NAMES).toHaveLength(41)
+    expect(document.querySelectorAll('li[data-slot]')).toHaveLength(41)
 
     // Each empty slot shows what the site shows there, marked as the default; the steel page's
     // default is no photo, so its box says that instead.
@@ -166,7 +175,7 @@ describe('AdminHomePhotosPage', () => {
     // factory, Interiors and the doors can take a gallery photo too.
     expect(screen.getAllByRole('button', { name: /^Качи снимка — / })).toHaveLength(NAMES.length)
     expect(within(card(label('hero-3'))).getByRole('button', { name: `Качи снимка — ${label('hero-3')}` })).toBeInTheDocument()
-    expect(UNPICKABLE).toHaveLength(11)
+    expect(UNPICKABLE).toHaveLength(23)
     expect(screen.getAllByRole('button', { name: /^От галерията — / })).toHaveLength(NAMES.length - UNPICKABLE.length)
     for (const name of UNPICKABLE) {
       expect(within(card(label(name))).queryByRole('button', { name: /От галерията/ }), name).not.toBeInTheDocument()
@@ -473,7 +482,11 @@ describe('AdminHomePhotosPage', () => {
     render(<AdminHomePhotosPage />)
     await ready()
 
-    expect(within(section('Продуктови страници')).getAllByRole('listitem')).toHaveLength(3)
+    // The three main photos in one row; the steel page's five steps in a row of their own.
+    const products = section('Продуктови страници')
+    const mainRow = products.querySelector('[data-row="main"]')
+    expect([...mainRow.querySelectorAll('li[data-slot]')].map((li) => li.dataset.slot)).toEqual(['page-modular-builds', 'page-modular-houses', 'page-steel-houses'])
+    expect(within(products).getAllByRole('listitem')).toHaveLength(8)
     expect(within(card('Контейнерни модули')).getByText('Празно: контейнер, доставен на парцела на клиент.')).toBeInTheDocument()
     expect(within(card('Модулни къщи')).getByText(/Паралия Кариани \(58 м²\)/)).toBeInTheDocument()
     expect(within(card('Сглобяеми къщи по проект')).getByText('Празно: страницата е без снимка.')).toBeInTheDocument()
@@ -497,14 +510,14 @@ describe('AdminHomePhotosPage', () => {
   it('shows a name the screen does not know under "Други", and a slot the server does not know yet as not usable', async () => {
     const withoutTile = NAMES.filter((n) => n !== 'home-tile-interiors')
     listAnswer = () => json({
-      slots: [...withoutTile.map(emptySlot), emptySlot('steel-step-1')],
-      names: [...withoutTile, 'steel-step-1'],
+      slots: [...withoutTile.map(emptySlot), emptySlot('steel-step-6')],
+      names: [...withoutTile, 'steel-step-6'],
     })
     render(<AdminHomePhotosPage />)
     await ready()
 
     const other = section('Други')
-    expect(within(other).getByText('steel-step-1', { selector: 'strong' })).toBeInTheDocument()
+    expect(within(other).getByText('steel-step-6', { selector: 'strong' })).toBeInTheDocument()
 
     const tile = card('Плочка „Вътрешни ремонти“')
     expect(within(tile).getByText(/Сървърът още не познава това място/)).toBeInTheDocument()
@@ -533,5 +546,172 @@ describe('AdminHomePhotosPage', () => {
     render(<AdminHomePhotosPage />)
 
     expect(await screen.findByRole('heading', { name: 'Необходим е вход' })).toBeInTheDocument()
+  })
+})
+
+// 2026-10-17: the Partner steps, the Interiors pairs, the steel steps, and on every page's section
+// the line saying where its other photos are changed.
+describe('AdminHomePhotosPage — the steps, the pairs and the other photos', () => {
+  const rowOf = (group, key) => section(PHOTO_SLOT_GROUP_HEADINGS[group].bg).querySelector(`[data-row="${key}"]`)
+  const slotsIn = (el) => [...el.querySelectorAll('li[data-slot]')].map((li) => li.dataset.slot)
+  // A list with only these slots filled.
+  const withFilled = (...names) => ({ slots: NAMES.map((n) => (names.includes(n) ? filledSlot(n, '') : emptySlot(n))), names: NAMES })
+
+  it('draws the steel steps and the Partner steps as rows of their own, under the headings the pages give them', async () => {
+    listAnswer = () => json(EMPTY)
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    const steel = rowOf('products', 'steel-steps')
+    expect(within(steel).getByRole('heading', { level: 3, name: 'Сглобяеми къщи по проект — стъпките „Как протича проектът“' })).toBeInTheDocument()
+    expect(slotsIn(steel)).toEqual(['steel-step-1', 'steel-step-2', 'steel-step-3', 'steel-step-4', 'steel-step-5'])
+    expect(within(steel).getByText(/Където няма ваша снимка, стои визуализация на една примерна къща/)).toBeInTheDocument()
+    // Each says, while empty, that the page shows a render there.
+    expect(within(card(label('steel-step-3'))).getByText('Празно: визуализация (не снимка) на примерната къща на този етап.')).toBeInTheDocument()
+
+    const partner = rowOf('partner', 'partner-steps')
+    expect(within(partner).getByRole('heading', { level: 3, name: 'Стъпките „Как работим“' })).toBeInTheDocument()
+    expect(slotsIn(partner)).toEqual(['partner-step-yard', 'partner-step-port', 'partner-step-plot'])
+    expect(card('Стъпка 4 · „Доставка“')).toBeInTheDocument()
+    expect(within(card('Стъпка 1 · „Запитване“')).getByText(/„Нашата база в Марикостиново“ — снимката трябва да показва точно това място/)).toBeInTheDocument()
+    // Step 2 has no card here: it is the factory photo, changed in About's section.
+    expect(within(section('Партньори')).queryByText(/^Стъпка 2 · /, { selector: 'strong' })).not.toBeInTheDocument()
+    expect(within(partner).getByText(/Стъпка 2 показва снимката на фабриката от „За нас“ и се сменя там/)).toBeInTheDocument()
+    await userEvent.click(within(partner).getByRole('button', { name: 'Фабриката в Китай' }))
+    expect(Element.prototype.scrollIntoView.mock.contexts.at(-1)).toBe(card('Фабриката в Китай'))
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Качи снимка — Фабриката в Китай')
+  })
+
+  it("shows each step's and each half's default: the page's picture, through the resizer where it is an /api/img one", async () => {
+    listAnswer = () => json(EMPTY)
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    const src = (text) => card(text).querySelector('img').getAttribute('src')
+    expect(src('Стъпка 1 · „Запитване“')).toBe('/delivery/journey-yard.webp')
+    expect(src(label('steel-step-3'))).toBe('/api/img/content/bvk4n834b-rw-eg-vb.jpg?w=320')
+    expect(src('Баня — „Преди“')).toBe('/api/img/content/bvk4n834b-rc2-eg-vb.webp?w=320')
+    expect(src('Кухня — „Готово“')).toBe('/interiors/kitchen-run-600.webp')
+    for (const name of PHASE_2) expect(within(card(label(name))).getByText('По подразбиране'), name).toBeInTheDocument()
+  })
+
+  it('shows each pair as one row, its two halves together, with the rule and what the site shows now', async () => {
+    listAnswer = () => json(EMPTY)
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    const bathroom = rowOf('interiors', 'pair-bathroom')
+    const kitchen = rowOf('interiors', 'pair-kitchen')
+    expect(bathroom).toHaveClass('adm-hp-pair')
+    expect(slotsIn(bathroom)).toEqual(['interiors-bathroom-before', 'interiors-bathroom-after'])
+    expect(slotsIn(kitchen)).toEqual(['interiors-kitchen-before', 'interiors-kitchen-after'])
+    expect(within(bathroom).getByRole('heading', { level: 3, name: 'Преди и след — Баня' })).toBeInTheDocument()
+    expect(within(kitchen).getByRole('heading', { level: 3, name: 'Преди и след — Кухня' })).toBeInTheDocument()
+    for (const row of [bathroom, kitchen]) {
+      expect(within(row).getByText('Показва се, когато и двете снимки са качени. Дотогава страницата показва двете снимки по подразбиране.')).toBeInTheDocument()
+      expect(within(row).getByText('Сега на сайта: двете снимки по подразбиране.')).toBeInTheDocument()
+    }
+    // The three photos of phase 1 stay in the section's first row.
+    expect(slotsIn(rowOf('interiors', 'main'))).toEqual(['interiors-hero', 'interiors-works', 'interiors-kitchen'])
+  })
+
+  it('says, for a pair with one half uploaded, that the site still shows the defaults, on the row and on the card', async () => {
+    listAnswer = () => json(withFilled('interiors-bathroom-before', 'interiors-kitchen-before', 'interiors-kitchen-after'))
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    const bathroom = rowOf('interiors', 'pair-bathroom')
+    expect(within(bathroom).getByText('Качена е само „Баня — преди“ — на сайта още са двете снимки по подразбиране. Качете и „Баня — след“.')).toBeInTheDocument()
+    expect(within(card('Баня — „Преди“')).getByText('Още не е на сайта: чака „Баня — след“.')).toBeInTheDocument()
+    expect(within(card('Баня — „След“')).queryByText(/Още не е на сайта/)).not.toBeInTheDocument()
+    // Both kitchen halves are in: the pair is live.
+    const kitchen = rowOf('interiors', 'pair-kitchen')
+    expect(within(kitchen).getByText('Сега на сайта: вашите две снимки.')).toBeInTheDocument()
+    expect(within(kitchen).queryByText(/Още не е на сайта/)).not.toBeInTheDocument()
+    // A filled half asks for its description; no half offers the gallery.
+    expect(within(card('Баня — „Преди“')).getByLabelText('Описание на снимката (по избор)')).toBeInTheDocument()
+    for (const name of Object.values(INTERIORS_PAIR_SLOTS).flatMap((p) => [p.before, p.after])) {
+      expect(within(card(label(name))).queryByRole('button', { name: /От галерията/ }), name).not.toBeInTheDocument()
+    }
+  })
+
+  it('tells the truth after a pair upload or removal: waiting for the other half, live, or no change', async () => {
+    listAnswer = () => json(withFilled('interiors-kitchen-before', 'interiors-kitchen-after'))
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    // The bathroom's "before" alone: saved, and shown once its "after" is in too.
+    await userEvent.upload(fileInput('Баня — „Преди“'), new File(['RIFF'], 'b.webp', { type: 'image/webp' }))
+    await waitFor(() => expect(posts()[0]?.url).toContain('/api/admin/home-photos/interiors-bathroom-before/file'))
+    expect(await within(card('Баня — „Преди“')).findByText('Готово — снимката за „Баня — преди“ е запазена. На сайта ще се покаже, когато качите и „Баня — след“.')).toBeInTheDocument()
+
+    // Removing a kitchen half while the other is in: the whole pair goes back.
+    await userEvent.click(within(card('Кухня — „Готово“')).getByRole('button', { name: 'Върни снимката по подразбиране — Кухня — „Готово“' }))
+    await waitFor(() => expect(calls.find((c) => c.method === 'DELETE')?.url).toMatch(/\/interiors-kitchen-after$/))
+    expect(await within(card('Кухня — „Готово“')).findByText('Снимката за „Кухня — готово“ е махната. До 2 минути и двете снимки на двойката на сайта се връщат към тези по подразбиране.')).toBeInTheDocument()
+  })
+
+  it('says nothing changes on the site when the only uploaded half of a pair is removed, and the usual words once both are in', async () => {
+    listAnswer = () => json(withFilled('interiors-bathroom-before'))
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    await userEvent.upload(fileInput('Баня — „След“'), new File(['RIFF'], 'a.webp', { type: 'image/webp' }))
+    expect(await within(card('Баня — „След“')).findByText('Готово — снимката за „Баня — след“ е запазена. На сайта се вижда до 2 минути.')).toBeInTheDocument()
+
+    await userEvent.click(within(card('Баня — „Преди“')).getByRole('button', { name: 'Върни снимката по подразбиране — Баня — „Преди“' }))
+    expect(await within(card('Баня — „Преди“')).findByText('Снимката за „Баня — преди“ е махната. На сайта нищо не се променя: там и досега бяха снимките по подразбиране.')).toBeInTheDocument()
+  })
+
+  it('names a step in its notices by its page and number', async () => {
+    listAnswer = () => json(EMPTY)
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    await userEvent.upload(fileInput(label('steel-step-4')), new File(['RIFF'], 's.webp', { type: 'image/webp' }))
+    await waitFor(() => expect(posts()[0]?.url).toContain('/api/admin/home-photos/steel-step-4/file'))
+    expect(await within(card(label('steel-step-4'))).findByText('Готово — снимката за „Сглобяеми къщи, стъпка 4“ е запазена. На сайта се вижда до 2 минути.')).toBeInTheDocument()
+  })
+
+  it("says under every page's heading where its other photos are changed, linking the Gallery and Cases screens", async () => {
+    listAnswer = () => json(EMPTY)
+    render(<AdminHomePhotosPage />)
+    await ready()
+
+    const note = (group) => section(PHOTO_SLOT_GROUP_HEADINGS[group].bg).querySelector(`[data-note="${group}"]`)
+    const links = (group) => within(note(group)).queryAllByRole('link').map((a) => `${a.textContent} ${a.getAttribute('href')}`)
+    for (const group of PHOTO_SLOT_GROUPS) expect(note(group), group).not.toBeNull()
+
+    expect(note('home')).toHaveTextContent('Снимките на страниците „Галерия“ и „Цени“ се сменят в Галерия, а тези на „Казуси и отзиви“ — в Проекти.')
+    expect(links('home')).toEqual(['Галерия /admin/gallery', 'Проекти /admin/cases'])
+    expect(note('products')).toHaveTextContent('Останалите снимки на моделите се сменят в Галерия; тези от къщата в Паралия Кариани са от проекта ѝ в Проекти и там могат само да се премахнат.')
+    expect(links('products')).toEqual(['Галерия /admin/gallery', 'Проекти /admin/cases'])
+    for (const group of ['delivery', 'partner', 'about']) {
+      expect(note(group), group).toHaveTextContent('Снимката на къщата в Паралия Кариани е от проекта ѝ в Проекти — там може само да се премахне; друга на нейно място се слага при обновяване на сайта.')
+      expect(links(group), group).toEqual(['Проекти /admin/cases'])
+    }
+    expect(note('interiors')).toHaveTextContent(/^Видеата на страницата не се сменят оттук/)
+    expect(links('interiors')).toEqual([])
+    expect(note('doors')).toHaveTextContent('Снимките и чертежите на вратите са от каталога NVC-1 и не се сменят оттук.')
+    expect(links('doors')).toEqual([])
+    // The note sits under the section's heading, before its first row.
+    const products = section('Продуктови страници')
+    expect(products.querySelector('h2').nextElementSibling).toBe(note('products'))
+  })
+
+  it('shows the new rows and notes in English when the panel is in English', async () => {
+    window.localStorage.setItem('nvc_admin_lang_v1', 'en')
+    try {
+      listAnswer = () => json(withFilled('interiors-bathroom-after'))
+      render(<AdminHomePhotosPage />)
+      expect(await screen.findByRole('heading', { level: 3, name: 'Before and after — Bathroom' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 3, name: 'The steps “How we work”' })).toBeInTheDocument()
+      expect(screen.getByText('Bathroom — “Before”', { selector: 'strong' })).toBeInTheDocument()
+      expect(screen.getByText('Only “Bathroom — after” is uploaded — the site still shows both default photos. Upload “Bathroom — before” too.')).toBeInTheDocument()
+      expect(within(section('Product pages')).getByRole('link', { name: 'Gallery' })).toHaveAttribute('href', '/admin/gallery')
+      expect(within(section('Product pages')).getByRole('link', { name: 'Cases' })).toHaveAttribute('href', '/admin/cases')
+    } finally {
+      window.localStorage.removeItem('nvc_admin_lang_v1')
+    }
   })
 })

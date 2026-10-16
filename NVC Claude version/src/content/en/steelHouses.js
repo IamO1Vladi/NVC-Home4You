@@ -45,14 +45,19 @@ export default {
   process: {
     h2: 'How a project goes',
     sub: 'Five steps from the idea to the finished house. The pictures show one example house at each stage.',
+    adminSub: 'Five steps from the idea to the finished house.',
+    mixedSub: 'Five steps from the idea to the finished house. Where there is no project photo, the picture is a render of one example house.',
     steps: [
       {
         title: 'Design and layout',
         text: 'We start from your plan or sketch, or, if you have none, we draw the project up with you: floor area, floors, rooms and how the house will look.',
         image: {
           src: '/api/img/content/bvk4n834b-rcn-eg-vb.webp',
+          adminAlt: 'The design of a steel-frame house',
           alt: 'Render of a two-storey house with a triangular roof, a glazed gable and a timber deck',
           caption: 'A render of the house from the project',
+          // It calls the picture a render, which an owner's photo is not: none under a photo.
+          adminCaption: '',
         },
       },
       {
@@ -60,6 +65,7 @@ export default {
         text: 'From the layout we calculate the steel frame and draw every beam, joint and opening, so the house goes together exactly as designed.',
         image: {
           src: '/api/img/content/bvk4n834b-rcj-eg-vb.webp',
+          adminAlt: 'The steel frame of a house built to a project',
           alt: 'Render of the steel frame of a two-storey house with a triangular roof on a timber platform',
           caption: 'The steel frame from the structural drawings',
         },
@@ -69,6 +75,7 @@ export default {
         text: 'We make the steel parts to the drawings and prepare the materials for the facade, roof and interior you have chosen.',
         image: {
           src: '/api/img/content/bvk4n834b-rw-eg-vb.jpg',
+          adminAlt: 'Steel parts of a house built to a project, before assembly',
           alt: 'Render of steel floor and wall panels laid out before assembly',
           caption: 'The steel floor and wall panels',
         },
@@ -79,6 +86,7 @@ export default {
         link: { pathKey: 'delivery', label: 'How we quote delivery →' },
         image: {
           src: '/api/img/content/bvk4n834b-rck-eg-vb.webp',
+          adminAlt: 'The frame of a house built to a project, closed with boards',
           alt: 'Render of the assembled steel frame closed with boards on the walls and roof',
           caption: 'The frame closed with boards',
         },
@@ -88,8 +96,11 @@ export default {
         text: 'We fit the cladding, windows and roof, finish the details and hand the house over to you.',
         image: {
           src: '/api/img/content/bvk4n834b-rcm-eg-vb.webp',
+          adminAlt: 'A house built to a project, with its cladding and windows',
           alt: 'Render of the house with cladding, large windows and canopies over the decks',
           caption: 'Cladding, windows and canopies',
+          // The canopies are the render's; a real project may have none, so a photo gets the step's own words.
+          adminCaption: 'Cladding, windows and roof',
         },
       },
     ],

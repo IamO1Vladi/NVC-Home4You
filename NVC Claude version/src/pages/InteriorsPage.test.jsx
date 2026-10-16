@@ -10,7 +10,7 @@ import { STAFF_LINES, WORKS, composeProject, projectLabels } from '../components
 import bgContent from '../content/bg/interiors.js'
 import enContent from '../content/en/interiors.js'
 import elContent from '../content/el/interiors.js'
-import { INTERIORS_MEDIA_PATHS, INTERIORS_PHOTOS, photoSrcSet } from '../content/shared/interiorsMedia.js'
+import { INTERIORS_MEDIA_PATHS, INTERIORS_PAIRS, INTERIORS_PHOTOS, photoSrcSet } from '../content/shared/interiorsMedia.js'
 import { _resetSubmissions } from '../lib/backgroundSubmit.js'
 import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
@@ -520,6 +520,153 @@ describe('the owner\'s photos from the panel', () => {
     ]) {
       expect(words).toBeTruthy()
       expect(words).not.toBe(defaultWords)
+    }
+  })
+})
+
+// The before/after pairs as slots (2026-10-17): interiors-{bathroom,kitchen}-{before,after}. A
+// pair changes only when BOTH of its halves are filled; with one or none, both stay today's.
+describe('the owner\'s before/after pairs', () => {
+  // Uploads land in home/{position}/: bathroom 33-34, kitchen 35-36.
+  const OWNER = {
+    'interiors-bathroom-before': { url: '/api/img/home/33/bath-before.webp', alt: 'Банята в Петрич преди' },
+    'interiors-bathroom-after': { url: '/api/img/home/34/bath-after.webp', alt: 'Банята в Петрич след' },
+    'interiors-kitchen-before': { url: '/api/img/home/35/kitchen-before.webp', alt: 'Кухнята в Банско по време на монтажа' },
+    'interiors-kitchen-after': { url: '/api/img/home/36/kitchen-after.webp', alt: 'Кухнята в Банско, готова' },
+  }
+  const slotName = (key, side) => `interiors-${key}-${side}`
+  const pick = (...names) => Object.fromEntries(names.map((n) => [n, OWNER[n]]))
+  const withSlots = (slots) => ({ hero: [], models: {}, pages: {}, slots })
+  const answer = (body) => vi.fn((url) => Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(String(url).includes('/api/home/photos') ? body : {}),
+  }))
+  const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
+  const attrs = (img) => [...img.attributes].map((a) => `${a.name}=${a.value}`).sort()
+  const pairImg = (container, key, side) => container.querySelectorAll(`li.ir-pair[data-pair="${key}"] .ir-pair-fig img`)[side === 'before' ? 0 : 1]
+  const FALLBACK = '/modular-builds/card.svg'
+
+  // Today's markup for one half, to the attribute.
+  function todayAttrs(locale, key, side) {
+    const image = INTERIORS_PAIRS[key][side]
+    const fromApi = image.src.startsWith('/api/img/')
+    return [
+      `alt=${CONTENT[locale].jobs.pairs.find((p) => p.key === key)[side].alt}`, 'decoding=async', `height=${image.height}`, 'loading=lazy',
+      'sizes=(max-width: 899px) 50vw, 300px',
+      `src=${fromApi ? cdnImage(image.src, { width: 640 }) : image.src}`,
+      `srcset=${fromApi ? cdnSrcSet(image.src, [320, 480, 640, 800]) : `${image.small} 600w, ${image.src} ${image.width}w`}`,
+      `width=${image.width}`,
+    ].sort()
+  }
+  function expectTodayPair(container, locale, key) {
+    for (const side of ['before', 'after']) expect(attrs(pairImg(container, key, side))).toEqual(todayAttrs(locale, key, side))
+  }
+  function expectOwnerPair(container, locale, key) {
+    const pair = CONTENT[locale].jobs.pairs.find((p) => p.key === key)
+    for (const side of ['before', 'after']) {
+      const owner = OWNER[slotName(key, side)]
+      const img = pairImg(container, key, side)
+      expect(img.getAttribute('src')).toBe(cdnImage(owner.url, { width: 640 }))
+      expect(img.getAttribute('srcset')).toBe(cdnSrcSet(owner.url, [320, 480, 640, 800]))
+      expect(img.getAttribute('sizes')).toBe('(max-width: 899px) 50vw, 300px')
+      expect(img.getAttribute('alt')).toBe(locale === 'bg' ? owner.alt : pair[side].adminAlt)
+      expect(img.style.objectPosition).toBe('50% 50%')
+      // The tag stays: the panel names each half by it.
+      expect(img.closest('figure').querySelector('figcaption').textContent).toBe(pair[side].label)
+    }
+  }
+
+  it.each(LOCALES)('%s: with the pair slots empty, both pairs are today\'s, whatever the API answers', async (locale) => {
+    for (const body of [{}, withSlots({}), { hero: [], models: {}, pages: {} }]) {
+      vi.stubGlobal('fetch', answer(body))
+      const { container, unmount } = renderPage(locale)
+      for (const key of ['bathroom', 'kitchen']) expectTodayPair(container, locale, key)
+      await waitFor(() => expect(photosCalls()).toHaveLength(1))
+      await act(async () => {})
+      for (const key of ['bathroom', 'kitchen']) expectTodayPair(container, locale, key)
+      unmount()
+      forgetHomePhotos()
+    }
+  })
+
+  it.each(LOCALES)('%s: both halves filled: the owner\'s pair; the other pair stays today\'s', async (locale) => {
+    vi.stubGlobal('fetch', answer(withSlots(pick('interiors-bathroom-before', 'interiors-bathroom-after'))))
+    const { container } = renderPage(locale)
+    await waitFor(() => expect(pairImg(container, 'bathroom', 'before').getAttribute('src')).toContain(OWNER['interiors-bathroom-before'].url))
+    expectOwnerPair(container, locale, 'bathroom')
+    expectTodayPair(container, locale, 'kitchen')
+  })
+
+  it('all four filled: both pairs are the owner\'s', async () => {
+    vi.stubGlobal('fetch', answer(withSlots(OWNER)))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(pairImg(container, 'kitchen', 'after').getAttribute('src')).toContain(OWNER['interiors-kitchen-after'].url))
+    expectOwnerPair(container, 'bg', 'bathroom')
+    expectOwnerPair(container, 'bg', 'kitchen')
+  })
+
+  it('one half filled, or one half of each pair: both pairs stay today\'s, whole', async () => {
+    for (const names of [
+      ['interiors-bathroom-before'], ['interiors-bathroom-after'], ['interiors-kitchen-before'], ['interiors-kitchen-after'],
+      // Two halves, but of different pairs: still no pair is whole.
+      ['interiors-bathroom-before', 'interiors-kitchen-after'],
+      ['interiors-kitchen-before', 'interiors-bathroom-after'],
+    ]) {
+      vi.stubGlobal('fetch', answer(withSlots(pick(...names))))
+      const { container, unmount } = renderPage('bg')
+      await waitFor(() => expect(photosCalls()).toHaveLength(1))
+      await act(async () => {})
+      expectTodayPair(container, 'bg', 'bathroom')
+      expectTodayPair(container, 'bg', 'kitchen')
+      unmount()
+      forgetHomePhotos()
+    }
+  })
+
+  it('a blank description in the panel gives the page\'s general words, never the default photo\'s', async () => {
+    vi.stubGlobal('fetch', answer(withSlots({
+      'interiors-kitchen-before': { ...OWNER['interiors-kitchen-before'], alt: '' },
+      'interiors-kitchen-after': { ...OWNER['interiors-kitchen-after'], alt: ' ' },
+    })))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(pairImg(container, 'kitchen', 'before').getAttribute('src')).toContain(OWNER['interiors-kitchen-before'].url))
+    const kitchen = bgContent.jobs.pairs.find((p) => p.key === 'kitchen')
+    expect(pairImg(container, 'kitchen', 'before').getAttribute('alt')).toBe(kitchen.before.adminAlt)
+    expect(pairImg(container, 'kitchen', 'after').getAttribute('alt')).toBe(kitchen.after.adminAlt)
+  })
+
+  it('an owner\'s half that fails to load falls back to the placeholder, never to the default room', async () => {
+    vi.stubGlobal('fetch', answer(withSlots(pick('interiors-bathroom-before', 'interiors-bathroom-after'))))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(pairImg(container, 'bathroom', 'after').getAttribute('src')).toContain(OWNER['interiors-bathroom-after'].url))
+    const img = pairImg(container, 'bathroom', 'after')
+    // One retry of the owner's photo, then the placeholder.
+    fireEvent.error(img)
+    fireEvent.error(img)
+    expect(img.getAttribute('src')).toBe(FALLBACK)
+    expect(img.dataset.imgFallback).toBe(FALLBACK)
+    expect(img.hasAttribute('srcset')).toBe(false)
+    // Its other half is still the owner's.
+    expect(pairImg(container, 'bathroom', 'before').getAttribute('src')).toBe(cdnImage(OWNER['interiors-bathroom-before'].url, { width: 640 }))
+  })
+
+  it('opens on the owner\'s pair from the first render once an answer is kept', async () => {
+    vi.stubGlobal('fetch', answer(withSlots(pick('interiors-kitchen-before', 'interiors-kitchen-after', 'interiors-bathroom-before'))))
+    await fetchHomePhotos()
+    expect(document.getElementById(HOME_PHOTOS_SEED_ID)).not.toBeNull()
+    const { container } = renderPage('bg')
+    // No waiting: the kitchen pair is the owner's at once; the bathroom, one half short, today's.
+    expectOwnerPair(container, 'bg', 'kitchen')
+    expectTodayPair(container, 'bg', 'bathroom')
+  })
+
+  it.each(LOCALES)('%s: each half has general words for an owner\'s photo', (locale) => {
+    for (const pair of CONTENT[locale].jobs.pairs) {
+      for (const side of ['before', 'after']) {
+        expect(pair[side].adminAlt).toBeTruthy()
+        expect(pair[side].adminAlt).not.toBe(pair[side].alt)
+      }
     }
   })
 })

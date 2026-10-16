@@ -29,15 +29,17 @@ public sealed class HomePhotoService
     private readonly ILogger<HomePhotoService> _log;
     private readonly IGalleryStore? _gallery;
 
-    // The public read is one query over at most twenty-nine rows, but the home page is the
+    // The public read is one query over at most forty-one rows, but the home page is the
     // busiest page on the site and the prerenderer hits it once per locale for the home page
     // and again for each page that reads a slot, so it is cached like the gallery is. Every
     // write path below evicts by this name. The version moves whenever the body's shape does
     // (v2 added "pages", v3 added "from", both 2026-10-12; v4 added pages.delivery and v5
-    // pages.partner, both 2026-10-15; v6 added "slots", the page photos, 2026-10-16): the
-    // cache is in-process today and dies with a publish anyway, but a key that names its shape
-    // is what keeps an entry of the old shape from ever being read back as the new one.
-    public const string CacheKey = "home:photos:v6";
+    // pages.partner, both 2026-10-15; v6 added "slots", the page photos, 2026-10-16) and
+    // whenever the set of names "slots" may carry grows (v7, the twelve photo slots of
+    // 2026-10-17 — the Partner steps, the Interiors pairs, the steel stages): the cache is
+    // in-process today and dies with a publish anyway, but a key that names what it holds is
+    // what keeps an entry built by an older list from ever being read back as the new one.
+    public const string CacheKey = "home:photos:v7";
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     // When the table cannot be read, the empty answer is kept for a minute, not ten: long

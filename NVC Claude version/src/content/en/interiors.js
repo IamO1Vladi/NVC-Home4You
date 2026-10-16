@@ -70,14 +70,14 @@ export default {
       {
         key: 'bathroom',
         title: 'Bathroom',
-        before: { label: 'Before', alt: 'The bathroom after demolition: bare walls and rubble on the floor' },
-        after: { label: 'After', alt: 'The same bathroom after the renovation: marble-look tiles, a basin on a wooden top, a wall-hung toilet' },
+        before: { label: 'Before', adminAlt: 'The bathroom before the renovation', alt: 'The bathroom after demolition: bare walls and rubble on the floor' },
+        after: { label: 'After', adminAlt: 'The same bathroom after our team renovated it', alt: 'The same bathroom after the renovation: marble-look tiles, a basin on a wooden top, a wall-hung toilet' },
       },
       {
         key: 'kitchen',
         title: 'Kitchen',
-        before: { label: 'During fitting', alt: 'The kitchen during fitting: some doors not yet on, packaging on the floor' },
-        after: { label: 'Finished', alt: 'The same kitchen along its full length, after fitting' },
+        before: { label: 'During fitting', adminAlt: 'The kitchen during fitting', alt: 'The kitchen during fitting: some doors not yet on, packaging on the floor' },
+        after: { label: 'Finished', adminAlt: 'The same kitchen after our team fitted it', alt: 'The same kitchen along its full length, after fitting' },
       },
     ],
   },

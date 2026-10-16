@@ -15,10 +15,19 @@
 // site's reduced-motion rule switches off. The stage repeats the pictures rather than moving
 // them, so the step figures stay in the DOM (hidden on a wide screen by ProductSteel.css).
 //
+// A STEP'S PICTURE CAN BE THE OWNER'S (since 2026-10-17: the Partner page's steps and the steel
+// page's stages are slots of "Снимки на сайта"). The page passes the slot's answer as
+// image.admin and the words for it as image.adminAlt; both pictures of the step, under its words
+// and on the stage, then go through SlotImg. While the slot is empty (admin null or undefined)
+// SlotImg writes today's <img> to the attribute, so an empty slot changes nothing. The page
+// decides the caption itself (a caption that calls the default a render is dropped under a
+// photo), so this component only draws what it is given.
+//
 // The styling lives in src/style/ProductSteel.css, which the page that uses this imports.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cdnImage, cdnSrcSet } from '../../lib/img.js'
+import SlotImg from '../SlotImg.jsx'
 
 // The width at which the stage takes over; ProductSteel.css uses the same breakpoint.
 export const STAGE_QUERY = '(min-width: 900px)'
@@ -30,12 +39,38 @@ const useBeforePaint = typeof window === 'undefined' ? useEffect : useLayoutEffe
 const STEP_WIDTHS = [480, 640, 800, 1200]
 
 /**
+ * A step's picture, at `width` (800 under the step, 1200 on the stage). Empty slot: today's
+ * <img>, prop for prop and in today's order. Owner's photo: through the resizer at the same
+ * widths, cropped from its centre (inline, so it beats a page's crop for its default, like the
+ * Partner page's 50% 62%), and falling back to today's picture should it fail to load.
+ */
+function StepImg({ image, width, sizes }) {
+  return (
+    <SlotImg
+      admin={image.admin}
+      adminAlt={image.adminAlt}
+      adminWidth={width}
+      adminWidths={STEP_WIDTHS}
+      src={cdnImage(image.src, { width })}
+      srcSet={cdnSrcSet(image.src, STEP_WIDTHS)}
+      sizes={sizes}
+      alt={image.alt || ''}
+      width="800"
+      height="671"
+      loading="lazy"
+      decoding="async"
+    />
+  )
+}
+
+/**
  * @param id       the section id, also the stem of the heading's and the stage's ids
  * @param heading  the h2
  * @param sub      an optional line under it
- * @param steps    [{ title, text, image: { src, alt, caption }, link?: { to, label } }], in order;
- *                 a step's link (the steel page's delivery step to the delivery page) sits
- *                 under its words
+ * @param steps    [{ title, text, image: { src, alt, caption, admin?, adminAlt? }, link?: { to, label } }],
+ *                 in order; a step's link (the steel page's delivery step to the delivery page)
+ *                 sits under its words; image.admin is the slot's answer ({ url, alt } once the
+ *                 owner has set a photo) and image.adminAlt the alt for it (see StepImg)
  */
 export default function ProcessSteps({ id = 'pp-process', heading, sub, steps = [] }) {
   const list = (steps || []).filter((step) => step && step.title)
@@ -121,16 +156,7 @@ export default function ProcessSteps({ id = 'pp-process', heading, sub, steps = 
                   ) : null}
                   {step.image?.src ? (
                     <figure className="pp-step-fig">
-                      <img
-                        src={cdnImage(step.image.src, { width: 800 })}
-                        srcSet={cdnSrcSet(step.image.src, STEP_WIDTHS)}
-                        sizes="(max-width: 899px) 100vw, 640px"
-                        alt={step.image.alt || ''}
-                        width="800"
-                        height="671"
-                        loading="lazy"
-                        decoding="async"
-                      />
+                      <StepImg image={step.image} width={800} sizes="(max-width: 899px) 100vw, 640px" />
                       {step.image.caption ? <figcaption>{step.image.caption}</figcaption> : null}
                     </figure>
                   ) : null}
@@ -147,16 +173,7 @@ export default function ProcessSteps({ id = 'pp-process', heading, sub, steps = 
                   className={`pp-stage-fig${i === active ? ' is-on' : ''}`}
                   aria-hidden={i === active ? undefined : 'true'}
                 >
-                  <img
-                    src={cdnImage(step.image.src, { width: 1200 })}
-                    srcSet={cdnSrcSet(step.image.src, STEP_WIDTHS)}
-                    sizes="(min-width: 1200px) 620px, 52vw"
-                    alt={step.image.alt || ''}
-                    width="800"
-                    height="671"
-                    loading="lazy"
-                    decoding="async"
-                  />
+                  <StepImg image={step.image} width={1200} sizes="(min-width: 1200px) 620px, 52vw" />
                   <figcaption>
                     <span className="pp-stage-n" aria-hidden="true">{i + 1}/{list.length}</span>
                     {step.image.caption || step.title}

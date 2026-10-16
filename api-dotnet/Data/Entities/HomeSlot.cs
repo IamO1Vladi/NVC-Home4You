@@ -23,6 +23,15 @@ namespace Data.Entities;
 // are their own kind, "photo": each one belongs to one place on one page, so, like a product
 // page's photo, it is never swapped with anything.
 //
+// The owner then asked (2026-10-17) for "the images for the other pages as well", and twelve
+// more photo slots followed, the second phase: the Partner page's "how we work" steps at our
+// base, at the port and at the customer's (its second step, the factory, keeps showing the
+// About page's factory-floor slot rather than getting a copy of its own); the Interiors page's
+// two before/after pairs, bathroom and kitchen, one slot per half; and the steel page's five
+// project stages — forty-one slots in all. Same kind, same rules. The pair rule (a pair
+// changes only when BOTH halves are filled) is the SPA's: here each half is an ordinary slot,
+// served on its own, so the panel can fill one half and come back for the other.
+//
 // They are fixed slots rather than a list the panel can grow, for the same reason the
 // brochures are six wired slugs: each page is laid out around its count, the SPA carries a
 // content default for every slot (or, for the steel page, a deliberate "no photo"), and an
@@ -46,7 +55,7 @@ public static class HomeSlotNames
 
     // In page order within each block: the hero slides as the carousel plays them, the model
     // cards as the strip lists them, the product pages in menu order, then the page photos
-    // of 2026-10-16. The 1-based position in this table is also the "owner id" the upload
+    // of 2026-10-16, then those of 2026-10-17. The 1-based position in this table is also the "owner id" the upload
     // path mints image keys under (home/{index}/{guid}.webp), and a hero slot's position is
     // its slide number (HeroNumberOf), so new slots are APPENDED, never inserted, and nothing
     // here is shuffled. A reorder would not corrupt a stored photo — each row stores its full
@@ -88,6 +97,21 @@ public static class HomeSlotNames
         new("home-tile-modular-houses", PhotoKind),
         new("home-tile-steel-houses", PhotoKind),
         new("home-tile-interiors", PhotoKind),
+        // 30-41: the second phase of page photos (2026-10-17). 30-32 the Partner page's steps
+        // 1, 3 and 4 (step 2 is factory-floor, 21); 33-36 the Interiors pairs, each "before"
+        // then its "after"; 37-41 the steel page's five stages in page order.
+        new("partner-step-yard", PhotoKind),
+        new("partner-step-port", PhotoKind),
+        new("partner-step-plot", PhotoKind),
+        new("interiors-bathroom-before", PhotoKind),
+        new("interiors-bathroom-after", PhotoKind),
+        new("interiors-kitchen-before", PhotoKind),
+        new("interiors-kitchen-after", PhotoKind),
+        new("steel-step-1", PhotoKind),
+        new("steel-step-2", PhotoKind),
+        new("steel-step-3", PhotoKind),
+        new("steel-step-4", PhotoKind),
+        new("steel-step-5", PhotoKind),
     };
 
     private static readonly string[] AllArray = Defs.Select(d => d.Name).ToArray();
@@ -157,7 +181,9 @@ public class HomeSlot
     public int Id { get; set; }
 
     // One of HomeSlotNames.All, unique. Named "Name" so the audit log's Summarise labels
-    // the row with it ("hero-2 updated by …") without a special case.
+    // the row with it ("hero-2 updated by …") without a special case. nvarchar(40) since
+    // AddHomeSlots; the longest name is 30 (about-team-vladimir-vladimirov), and
+    // HomeSlotTests reads this limit off the model, so a longer name fails there first.
     [Required]
     [MaxLength(40)] public string Name { get; set; } = "";
 

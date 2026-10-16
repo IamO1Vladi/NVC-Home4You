@@ -137,28 +137,34 @@ export default {
     doors: { label: 'Интериорни врати на едро', desc: 'Врати в комплект с каса, панти, дръжка и первази, за вашия обект. Цената зависи от количеството.' },
   },
 
+  // Each step's picture is a slot of "Снимки на сайта" (photoSlotNames.js PARTNER_STEP_SLOTS):
+  // steps 1, 3 and 4 have their own, step 2 reads About's factory-floor. adminAlt is the alt
+  // for an owner's photo there (his own description on this page when he types one): it names
+  // the place the caption names and nothing of the default photo, in words other than the
+  // caption's, so a screen reader does not hear the figure say the same thing twice. The
+  // captions stay.
   process: {
     heading: 'Как работим',
     steps: [
       {
         title: 'Запитване',
         text: 'Пишете ни какво, колко броя и къде — до вас или до вашия клиент.',
-        image: { src: '/delivery/journey-yard.webp', alt: 'Сгъната Бокс къща се разтоварва от морски контейнер в нашата база', caption: 'Нашата база в Марикостиново' },
+        image: { src: '/delivery/journey-yard.webp', adminAlt: 'Снимка от нашата база в Марикостиново', alt: 'Сгъната Бокс къща се разтоварва от морски контейнер в нашата база', caption: 'Нашата база в Марикостиново' },
       },
       {
         title: 'Оферта за количеството и договор',
         text: 'Получавате цена за цялото количество, с доставката. Подписваме договор и плащате 100% предварително.',
-        image: { src: '/factory/factory-hall-1200.webp', alt: 'Цехът на нашата фабрика в Китай: стоманени профили и панели, подредени на пода', caption: 'Производството в нашата фабрика в Китай' },
+        image: { src: '/factory/factory-hall-1200.webp', adminAlt: 'Снимка от цеха на нашата фабрика в Китай', alt: 'Цехът на нашата фабрика в Китай: стоманени профили и панели, подредени на пода', caption: 'Производството в нашата фабрика в Китай' },
       },
       {
         title: 'От склада или от нашата фабрика',
         text: 'Контейнерите на склад са при вас до {days} дни. Бокс къщите се изработват до {production} дни и пристигат по море; митницата поемаме ние.',
-        image: { src: '/delivery/journey-port.webp', alt: 'Сгъната Бокс къща, опакована във фолио, се вдига на пристанището', caption: 'На пристанището' },
+        image: { src: '/delivery/journey-port.webp', adminAlt: 'Снимка от пристанището', alt: 'Сгъната Бокс къща, опакована във фолио, се вдига на пристанището', caption: 'На пристанището' },
       },
       {
         title: 'Доставка',
         text: 'Докарваме до вас, до склада ви или направо до вашия клиент. Или плащате директно на фабриката и организирате транспорта сами.',
-        image: { src: '/delivery/journey-plot.webp', alt: 'Кран поставя модул върху наземни винтове', caption: 'При клиента' },
+        image: { src: '/delivery/journey-plot.webp', adminAlt: 'Доставка при клиента', alt: 'Кран поставя модул върху наземни винтове', caption: 'При клиента' },
       },
     ],
   },

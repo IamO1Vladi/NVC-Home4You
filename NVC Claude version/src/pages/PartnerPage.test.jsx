@@ -10,7 +10,9 @@ import elContent from '../content/el/partner.js'
 import { paths } from '../routes/paths.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { CONFIG_PREFILL_KEY } from '../lib/configPrefill.js'
-import { forgetHomePhotos } from '../lib/homePhotos.js'
+import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { FACTORY_PHOTO } from '../content/shared/aboutMedia.js'
 import { euro } from '../lib/euro.js'
 import { getRouteSeo } from '../seo/routeMeta.js'
 
@@ -388,5 +390,160 @@ describe('PartnerPage onward links', () => {
     )
     expect(cards[3]).toHaveTextContent(c.products.doors.label)
     expect(within(container).getByRole('link', { name: c.proof.more })).toHaveAttribute('href', `${paths.cases[locale]}#case-${c.proof.case.id}`)
+  })
+})
+
+// "Как работим" as slots of "Снимки на сайта" (2026-10-17): steps 1, 3 and 4 are
+// partner-step-yard / -port / -plot, step 2 is About's factory-floor. An empty slot draws today's
+// photo to the attribute; a filled one is the owner's, cropped from its centre, and the
+// captions, which name the place, stay.
+describe('PartnerPage step photos from the panel', () => {
+  const STEP_SLOTS = ['partner-step-yard', 'factory-floor', 'partner-step-port', 'partner-step-plot']
+  // Uploads land in home/{position}/: yard 30, factory-floor 21, port 31, plot 32.
+  const POSITION = { 'partner-step-yard': 30, 'factory-floor': 21, 'partner-step-port': 31, 'partner-step-plot': 32 }
+  const OWNER = (name) => ({ url: `/api/img/home/${POSITION[name]}/${name}.webp`, alt: `Снимка на собственика: ${name}` })
+  const ALL = Object.fromEntries(STEP_SLOTS.map((name) => [name, OWNER(name)]))
+  const STEP_WIDTHS = [480, 640, 800, 1200]
+
+  const stepFigs = (container) => [...container.querySelectorAll('#ptn-process .pp-step-fig')]
+  const stepImgs = (container) => stepFigs(container).map((fig) => fig.querySelector('img'))
+  const stageImgs = (container) => [...container.querySelectorAll('#ptn-process .pp-stage-fig img')]
+  const attrs = (img) => [...img.attributes].map((a) => `${a.name}=${a.value}`).sort()
+  const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
+
+  /** fetch as the suite's, with the photos call answered with `body` (null: 404). */
+  function answer(body) {
+    vi.stubGlobal('fetch', vi.fn((url) => {
+      if (String(url).includes('/api/cases-page')) return json({ cases, reviews: [] })
+      if (String(url).includes('/api/home/photos')) return body ? json(body) : Promise.resolve({ ok: false, status: 404 })
+      return Promise.resolve({ ok: false, status: 404 })
+    }))
+  }
+  const withSlots = (slots) => ({ hero: [], models: {}, pages: {}, slots })
+  // The stage: the wide-screen layout.
+  const wideScreen = () => vi.stubGlobal('matchMedia', (query) => ({
+    matches: query === '(min-width: 900px)', media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {},
+  }))
+
+  function expectToday(container, locale) {
+    const c = CONTENT[locale]
+    const figs = stepFigs(container)
+    expect(figs).toHaveLength(4)
+    c.process.steps.forEach((step, i) => {
+      // A static file: no srcset, no style, nothing but today's attributes.
+      expect(attrs(figs[i].querySelector('img'))).toEqual([
+        `alt=${step.image.alt}`, 'decoding=async', 'height=671', 'loading=lazy',
+        'sizes=(max-width: 899px) 100vw, 640px', `src=${step.image.src}`, 'width=800',
+      ])
+      expect(figs[i].querySelector('figcaption').textContent).toBe(step.image.caption)
+    })
+    stageImgs(container).forEach((img, i) => {
+      expect(attrs(img)).toEqual([
+        `alt=${c.process.steps[i].image.alt}`, 'decoding=async', 'height=671', 'loading=lazy',
+        'sizes=(min-width: 1200px) 620px, 52vw', `src=${c.process.steps[i].image.src}`, 'width=800',
+      ])
+    })
+  }
+
+  it.each(LOCALES)('%s: with the step slots empty, the four photos are today\'s, whatever the API answers', async (locale) => {
+    for (const wide of [false, true]) {
+      if (wide) wideScreen()
+      for (const body of [null, {}, withSlots({}), { hero: [], models: {}, pages: {} }]) {
+        answer(body)
+        const { container, unmount } = renderPage(locale)
+        expectToday(container, locale)
+        expect(stageImgs(container)).toHaveLength(wide ? 4 : 0)
+        await waitFor(() => expect(photosCalls().length).toBeGreaterThan(0))
+        await act(async () => {})
+        expectToday(container, locale)
+        unmount()
+        forgetHomePhotos()
+      }
+    }
+  })
+
+  it('step 2 is About\'s factory photo: the same file while empty, and the factory-floor slot once filled', async () => {
+    // The default is the very file the factory-floor slot shows on About.
+    for (const c of Object.values(CONTENT)) expect(c.process.steps[1].image.src).toBe(FACTORY_PHOTO.url)
+    answer(withSlots({ 'factory-floor': OWNER('factory-floor') }))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[1].getAttribute('src')).toContain(OWNER('factory-floor').url))
+    // Steps 1, 3 and 4 have slots of their own, still empty: today's photos.
+    for (const i of [0, 2, 3]) {
+      expect(stepImgs(container)[i].getAttribute('src')).toBe(bgContent.process.steps[i].image.src)
+      expect(stepImgs(container)[i].getAttribute('style')).toBeNull()
+    }
+  })
+
+  it.each(LOCALES)('%s: the owner\'s photos in all four steps, under the steps and on the stage', async (locale) => {
+    const c = CONTENT[locale]
+    wideScreen()
+    answer(withSlots(ALL))
+    const { container } = renderPage(locale)
+    await waitFor(() => expect(stepImgs(container)[0].getAttribute('src')).toContain(OWNER('partner-step-yard').url))
+    c.process.steps.forEach((step, i) => {
+      const owner = OWNER(STEP_SLOTS[i])
+      for (const [img, width] of [[stepImgs(container)[i], 800], [stageImgs(container)[i], 1200]]) {
+        expect(img.getAttribute('src')).toBe(cdnImage(owner.url, { width }))
+        expect(img.getAttribute('srcset')).toBe(cdnSrcSet(owner.url, STEP_WIDTHS))
+        expect(img.getAttribute('alt')).toBe(locale === 'bg' ? owner.alt : step.image.adminAlt)
+        // Inline, so it beats Partner.css's 50% 62%, set for the default photos.
+        expect(img.style.objectPosition).toBe('50% 50%')
+      }
+      // The caption names the place the photo shows, so it stays.
+      expect(stepFigs(container)[i].querySelector('figcaption').textContent).toBe(step.image.caption)
+    })
+  })
+
+  it('a blank description in the panel gives the page\'s general words, never the default photo\'s', async () => {
+    answer(withSlots({ 'partner-step-port': { ...OWNER('partner-step-port'), alt: '' } }))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[2].getAttribute('src')).toContain(OWNER('partner-step-port').url))
+    expect(stepImgs(container)[2].getAttribute('alt')).toBe(bgContent.process.steps[2].image.adminAlt)
+  })
+
+  it('falls back to today\'s photo should the owner\'s fail to load', async () => {
+    answer(withSlots({ 'partner-step-plot': OWNER('partner-step-plot') }))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[3].getAttribute('src')).toContain(OWNER('partner-step-plot').url))
+    const img = stepImgs(container)[3]
+    fireEvent.error(img)
+    fireEvent.error(img)
+    expect(img.getAttribute('src')).toBe(bgContent.process.steps[3].image.src)
+    expect(img.dataset.imgFallback).toBe(bgContent.process.steps[3].image.src)
+  })
+
+  it('opens on the owner\'s photos from the first render once an answer is kept', async () => {
+    answer(withSlots({ 'partner-step-yard': OWNER('partner-step-yard'), 'factory-floor': OWNER('factory-floor') }))
+    await fetchHomePhotos()
+    expect(document.getElementById(HOME_PHOTOS_SEED_ID)).not.toBeNull()
+    const { container } = renderPage('bg')
+    // No waiting: the very first render has them.
+    expect(stepImgs(container)[0].getAttribute('src')).toBe(cdnImage(OWNER('partner-step-yard').url, { width: 800 }))
+    expect(stepImgs(container)[1].getAttribute('src')).toBe(cdnImage(OWNER('factory-floor').url, { width: 800 }))
+    expect(stepImgs(container)[2].getAttribute('src')).toBe(bgContent.process.steps[2].image.src)
+  })
+
+  it.each(LOCALES)('%s: every step has general words for an owner\'s photo', (locale) => {
+    for (const step of CONTENT[locale].process.steps) {
+      expect(step.image.adminAlt).toBeTruthy()
+      expect(step.image.adminAlt).not.toBe(step.image.alt)
+      // The figure's caption stays under his photo: the alt must not make a screen reader
+      // hear the same words twice.
+      expect(step.image.adminAlt).not.toBe(step.image.caption)
+    }
+  })
+
+  it('gives the default back its own crop should the owner\'s photo fail to load', async () => {
+    answer(withSlots({ 'partner-step-port': OWNER('partner-step-port') }))
+    const { container } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[2].getAttribute('src')).toContain(OWNER('partner-step-port').url))
+    const img = stepImgs(container)[2]
+    expect(img.style.objectPosition).toBe('50% 50%')
+    fireEvent.error(img)
+    fireEvent.error(img)
+    expect(img.getAttribute('src')).toBe(cdnImage(bgContent.process.steps[2].image.src, { width: 800 }))
+    // Partner.css crops the default (50% 62%); no inline crop is left to beat it.
+    expect(img.style.objectPosition).toBe('')
   })
 })

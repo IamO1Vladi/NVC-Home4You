@@ -27,6 +27,17 @@
 // the old seven example visualisations, so none of them is on this page, not even as its
 // share picture (routeMeta.js uses the first step's render).
 //
+// THE OWNER CAN PUT A REAL PROJECT IN EACH STAGE (since 2026-10-17): the stages are the slots
+// steel-step-1..5 of "Снимки на сайта" (STEEL_STEP_SLOTS). An empty one draws today's render,
+// to the attribute (ProcessSteps' StepImg). A filled one shows his photo with the content's
+// general words for it (adminAlt; his own description on the Bulgarian page), and the words
+// that do not fit a real project give way: step 1's caption, which calls the picture a render
+// (adminCaption, none), and step 5's, which names the render's canopies (adminCaption, the
+// step's own work). The sub's "the pictures show one example house at each stage" goes too: with
+// EVERY stage a photo the sub is its first sentence alone (adminSub); with some still renders it
+// says the pictures that are not project photos are renders (mixedSub), so those stay marked as
+// renders beside his photos. The share picture stays the first render.
+//
 // NO PRICE IS TYPED HERE. The sibling cards' "from" figures are computed from the gallery
 // rows (useProductRows), the same rows the container and house pages render, so they cannot
 // quote a figure those pages do not show. The containers' figure is a total with assembly;
@@ -57,7 +68,8 @@ import { getHomeContent } from '../content/home/index.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { useProductRows, lowest } from '../lib/productRows.js'
-import { usePagePhoto } from '../lib/homePhotos.js'
+import { slotAlt, usePagePhoto, useSlotPhotos } from '../lib/homePhotos.js'
+import { STEEL_STEP_SLOTS } from '../lib/photoSlotNames.js'
 import { paths } from '../routes/paths.js'
 import { hubTopicPath, productQuestions } from '../lib/productQuestions.js'
 
@@ -89,6 +101,7 @@ export default function SteelHousesPage({ locale = 'en', content }) {
   const { openOffer } = useModalActions()
   const { box, wagon } = useProductRows(locale)
   const adminPhoto = usePagePhoto('steelHouses')
+  const stagePhotos = useSlotPhotos(STEEL_STEP_SLOTS)
 
   if (!content) return null
   const c = content
@@ -112,6 +125,26 @@ export default function SteelHousesPage({ locale = 'en', content }) {
   const photo = adminPhoto ? { url: adminPhoto.url, alt: (locale === 'bg' && adminPhoto.alt) || c.hero.photoAlt } : null
 
   const faq = productQuestions('steelHouses', c, locale)
+
+  // Each stage's picture: today's render while its slot is empty (the step untouched), the
+  // owner's photo once it is filled, with words that fit any photo of that stage.
+  const stagePhotoOf = (i) => stagePhotos[STEEL_STEP_SLOTS[i]] || null
+  const stagePhotoCount = c.process.steps.filter((_, i) => stagePhotoOf(i)).length
+  // Today's sub with no photo; its first sentence alone with every stage a photo; and while
+  // only some are, the sentence that keeps the remaining renders marked as renders.
+  const processSub = stagePhotoCount === 0
+    ? c.process.sub
+    : stagePhotoCount === c.process.steps.length ? c.process.adminSub : c.process.mixedSub
+  const stageImage = (image, i) => {
+    const admin = stagePhotoOf(i)
+    if (!admin || !image) return image
+    return {
+      ...image,
+      admin,
+      adminAlt: slotAlt(admin, { locale, adminAlt: image.adminAlt }),
+      caption: image.adminCaption ?? image.caption,
+    }
+  }
 
   return (
     <main className="hp pp pp-steel">
@@ -154,12 +187,16 @@ export default function SteelHousesPage({ locale = 'en', content }) {
       <ProcessSteps
         id="pp-process"
         heading={c.process.h2}
-        sub={c.process.sub}
+        sub={processSub}
         // A step's link names its page by pathKey; ?product=project opens the delivery
         // calculator on "a house to a project", whose delivery is quoted with the project.
-        steps={c.process.steps.map((step) => (step.link
-          ? { ...step, link: { label: step.link.label, to: `${pathOf(step.link.pathKey)}?product=project` } }
-          : step))}
+        steps={c.process.steps.map((step, i) => {
+          const image = stageImage(step.image, i)
+          const linked = step.link
+            ? { ...step, link: { label: step.link.label, to: `${pathOf(step.link.pathKey)}?product=project` } }
+            : step
+          return image === step.image ? linked : { ...linked, image }
+        })}
       />
 
       <section aria-labelledby="pp-price-title">

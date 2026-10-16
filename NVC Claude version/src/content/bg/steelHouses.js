@@ -75,17 +75,30 @@ export default {
   // model, the flat panels are what is made, the frame closed with boards is the house going
   // up on its platform, and the clad house with its windows is the finishing. No step names
   // a duration, a permit or a guarantee.
+  //
+  // Each stage is also a slot of "Снимки на сайта" (steel-step-1..5), for a photo of a real
+  // project of the owner's. Under such a photo the stage takes adminAlt (his own description
+  // on this page, when he types one), a caption that calls the picture a render gives way
+  // (adminCaption), and so does one that names what only the render has (step 5's canopies).
+  // The sub drops the sentence about one example house, which a real project's photo would make
+  // untrue: adminSub when every stage is a photo, mixedSub ("where there is no project photo,
+  // the picture is a render") while some still are renders, so those stay marked as renders.
   process: {
     h2: 'Как протича проектът',
     sub: 'Пет стъпки от идеята до готовата къща. Картините показват една примерна къща на всеки етап.',
+    adminSub: 'Пет стъпки от идеята до готовата къща.',
+    mixedSub: 'Пет стъпки от идеята до готовата къща. Където няма снимка от проект, картината е визуализация на една примерна къща.',
     steps: [
       {
         title: 'Проектиране и разпределение',
         text: 'Започваме от вашия проект или скица, а ако нямате — изготвяме проекта с вас: площ, етажи, стаи и как ще изглежда къщата.',
         image: {
           src: '/api/img/content/bvk4n834b-rcn-eg-vb.webp',
+          adminAlt: 'Проект на къща със стоманена конструкция',
           alt: 'Визуализация на двуетажна къща с триъгълен покрив, остъклен фронтон и дървена тераса',
           caption: 'Визуализация на къщата от проекта',
+          // It calls the picture a render, which an owner's photo is not: none under a photo.
+          adminCaption: '',
         },
       },
       {
@@ -93,6 +106,7 @@ export default {
         text: 'По разпределението изчисляваме стоманената рамка и чертаем всяка греда, връзка и отвор, така че къщата да се сглоби точно по проекта.',
         image: {
           src: '/api/img/content/bvk4n834b-rcj-eg-vb.webp',
+          adminAlt: 'Стоманената рамка на къща по проект',
           alt: 'Визуализация на стоманената рамка на двуетажна къща с триъгълен покрив върху дървена платформа',
           caption: 'Стоманената рамка по конструктивните чертежи',
         },
@@ -102,6 +116,7 @@ export default {
         text: 'Изработваме стоманените елементи по чертежите и подготвяме материалите за фасадата, покрива и интериора, които сте избрали.',
         image: {
           src: '/api/img/content/bvk4n834b-rw-eg-vb.jpg',
+          adminAlt: 'Стоманени елементи на къща по проект преди сглобяване',
           alt: 'Визуализация на стоманени панели за пода и стените, подредени преди сглобяване',
           caption: 'Стоманените панели на пода и стените',
         },
@@ -112,6 +127,7 @@ export default {
         link: { pathKey: 'delivery', label: 'Как оферираме доставката →' },
         image: {
           src: '/api/img/content/bvk4n834b-rck-eg-vb.webp',
+          adminAlt: 'Рамката на къща по проект, затворена с плоскости',
           alt: 'Визуализация на сглобената стоманена рамка, затворена с плоскости по стените и покрива',
           caption: 'Рамката, затворена с плоскости',
         },
@@ -121,8 +137,11 @@ export default {
         text: 'Поставяме облицовката, дограмата и покрива, довършваме детайлите и ви предаваме къщата.',
         image: {
           src: '/api/img/content/bvk4n834b-rcm-eg-vb.webp',
+          adminAlt: 'Къща по проект с облицовка и дограма',
           alt: 'Визуализация на къщата с облицовка, големи прозорци и козирки над терасите',
           caption: 'Облицовка, дограма и козирки',
+          // The canopies are the render's; a real project may have none, so a photo gets the step's own words.
+          adminCaption: 'Облицовка, дограма и покрив',
         },
       },
     ],

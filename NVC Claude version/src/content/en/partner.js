@@ -119,28 +119,29 @@ export default {
     doors: { label: 'Internal doors in bulk', desc: 'Doors as a set with frame, hinges, handle and trims, for your site. The price depends on the quantity.' },
   },
 
+  // The step pictures are admin slots, as in the Bulgarian file; adminAlt is for an owner's photo.
   process: {
     heading: 'How we work',
     steps: [
       {
         title: 'Enquiry',
         text: 'Tell us what, how many and where: to you or to your client.',
-        image: { src: '/delivery/journey-yard.webp', alt: 'A folded Box house being unloaded from a shipping container at our base', caption: 'Our base at Marikostinovo' },
+        image: { src: '/delivery/journey-yard.webp', adminAlt: 'A photo from our base at Marikostinovo', alt: 'A folded Box house being unloaded from a shipping container at our base', caption: 'Our base at Marikostinovo' },
       },
       {
         title: 'An offer for the quantity, and a contract',
         text: 'You get a price for the whole quantity, delivery included. We sign a contract and you pay 100% in advance.',
-        image: { src: '/factory/factory-hall-1200.webp', alt: 'The production hall of our factory in China: steel profiles and panels stacked on the floor', caption: 'Production at our factory in China' },
+        image: { src: '/factory/factory-hall-1200.webp', adminAlt: 'A photo from the hall of our factory in China', alt: 'The production hall of our factory in China: steel profiles and panels stacked on the floor', caption: 'Production at our factory in China' },
       },
       {
         title: 'From stock or from our factory',
         text: 'Containers in stock are with you within {days} days. Box houses are made in up to {production} days and come by sea; customs is on us.',
-        image: { src: '/delivery/journey-port.webp', alt: 'A folded Box house wrapped in film being lifted at the port', caption: 'At the port' },
+        image: { src: '/delivery/journey-port.webp', adminAlt: 'A photo from the port', alt: 'A folded Box house wrapped in film being lifted at the port', caption: 'At the port' },
       },
       {
         title: 'Delivery',
         text: 'We bring it to you, to your warehouse or straight to your client. Or you pay the factory directly and arrange the transport yourself.',
-        image: { src: '/delivery/journey-plot.webp', alt: 'A crane setting a module onto ground screws', caption: 'At the client\'s' },
+        image: { src: '/delivery/journey-plot.webp', adminAlt: 'Delivery at the client\'s', alt: 'A crane setting a module onto ground screws', caption: 'At the client\'s' },
       },
     ],
   },

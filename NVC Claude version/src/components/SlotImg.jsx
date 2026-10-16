@@ -21,7 +21,8 @@
 //     a slot that needs another, like the team's 50% 30%, says so in photoSlotNames.js);
 //   - onError: if the owner's file fails, the image falls back to the page's own default
 //     picture (its src) and then to `fallbacks` (e.g. the site's card.svg), through
-//     imageFallback, which marks the fallback for the prerender.
+//     imageFallback, which marks the fallback for the prerender; the default gets the page's
+//     crop back with it (its inline one, or none, so the stylesheet's applies again).
 import React from 'react'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
@@ -54,6 +55,10 @@ export default function SlotImg({
       sizes={adminSizes ?? sizes}
       alt={typeof adminAlt === 'string' ? adminAlt : ''}
       style={{ ...style, objectPosition: adminPosition }}
+      // The crop the page's own picture had: imageFallback puts it back when it falls back to
+      // it, as the centre crop was for the owner's photo and, inline, would beat the page's CSS
+      // (Partner.css's 50% 62% for its steps). The page's inline crop, or '' for its stylesheet's.
+      data-fallback-position={style?.objectPosition ?? ''}
       onError={imageFallback(src, ...(Array.isArray(fallbacks) ? fallbacks : [fallbacks]))}
     />
   )

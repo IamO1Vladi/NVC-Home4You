@@ -14,6 +14,7 @@ import {
   pagePhotoOf,
   slotAlt,
   slotHeroPhoto,
+  slotPair,
   slotPhotoOf,
   useHomeFrom,
   useHomePhotos,
@@ -489,6 +490,49 @@ describe('slotPhotoOf', () => {
     for (const name of [undefined, null, '', 42, 'toString', '__proto__', 'constructor']) {
       expect(slotPhotoOf(SLOTS_BODY, name)).toBeNull()
     }
+  })
+})
+
+// The Interiors before/after pairs of 2026-10-17: a pair changes only when BOTH halves are in.
+describe('slotPair', () => {
+  const BATHROOM = { before: 'interiors-bathroom-before', after: 'interiors-bathroom-after' }
+  const before = { url: '/api/img/home/33/b.webp', alt: 'Банята преди' }
+  const after = { url: '/api/img/home/34/a.webp', alt: '' }
+  const EMPTY = { before: null, after: null, filled: false }
+
+  it("is both of the owner's photos once both halves are filled", () => {
+    expect(slotPair({ [BATHROOM.before]: before, [BATHROOM.after]: after }, BATHROOM)).toEqual({ before, after, filled: true })
+  })
+
+  it('is both halves empty, so the page draws its default pair whole, while either half is missing', () => {
+    expect(slotPair({ [BATHROOM.before]: before, [BATHROOM.after]: null }, BATHROOM)).toEqual(EMPTY)
+    expect(slotPair({ [BATHROOM.before]: null, [BATHROOM.after]: after }, BATHROOM)).toEqual(EMPTY)
+    expect(slotPair({ [BATHROOM.before]: null, [BATHROOM.after]: null }, BATHROOM)).toEqual(EMPTY)
+    // Still on its way (useSlotPhotos' undefined) is "missing" too.
+    expect(slotPair({ [BATHROOM.before]: before, [BATHROOM.after]: undefined }, BATHROOM)).toEqual(EMPTY)
+    // The other pair's halves never complete this one.
+    expect(slotPair({ [BATHROOM.before]: before, 'interiors-kitchen-after': after }, BATHROOM)).toEqual(EMPTY)
+  })
+
+  it('reads useSlotPhotos straight from an API body: one half uploaded is still the defaults', () => {
+    const body = { slots: { [BATHROOM.before]: before } }
+    const photos = { [BATHROOM.before]: slotPhotoOf(body, BATHROOM.before), [BATHROOM.after]: slotPhotoOf(body, BATHROOM.after) }
+    expect(slotPair(photos, BATHROOM)).toEqual(EMPTY)
+    const both = { slots: { [BATHROOM.before]: before, [BATHROOM.after]: { url: after.url } } }
+    const filled = slotPair({ [BATHROOM.before]: slotPhotoOf(both, BATHROOM.before), [BATHROOM.after]: slotPhotoOf(both, BATHROOM.after) }, BATHROOM)
+    expect(filled.filled).toBe(true)
+    expect(filled.after).toEqual({ url: after.url, alt: '' })
+  })
+
+  it('never throws, and is empty for anything not of the expected shape', () => {
+    for (const photos of [null, undefined, 'x', 42, [], {}]) expect(slotPair(photos, BATHROOM)).toEqual(EMPTY)
+    for (const names of [null, undefined, {}, { before: BATHROOM.before }, { before: 7, after: 8 }, 'pair']) {
+      expect(slotPair({ [BATHROOM.before]: before, [BATHROOM.after]: after }, names)).toEqual(EMPTY)
+    }
+    const odd = [{ url: '' }, { url: '   ' }, { url: 7 }, 'url', true]
+    for (const half of odd) expect(slotPair({ [BATHROOM.before]: half, [BATHROOM.after]: after }, BATHROOM)).toEqual(EMPTY)
+    // A name that is a property of every object is not a filled slot.
+    expect(slotPair({}, { before: 'constructor', after: 'toString' })).toEqual(EMPTY)
   })
 })
 

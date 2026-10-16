@@ -8,6 +8,7 @@ import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { getHomeContent } from '../content/home/index.js'
 import { fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
+import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { dictionaries } from '../i18n/translations.js'
 
 import bg from '../content/bg/steelHouses.js'
@@ -347,5 +348,209 @@ describe('the three locales', () => {
       ? [value]
       : Object.entries(value || {}).flatMap(([key, v]) => (['src', 'pathKey', 'id', 'hash'].includes(key) ? [] : words(v))))
     expect(words(bg).filter((text) => /[A-Za-z]{2,}/.test(text.replace(/\{\w+\}/g, '')))).toEqual([])
+  })
+})
+
+// The five stages as slots of "Снимки на сайта" (steel-step-1..5, 2026-10-17). An empty slot
+// draws today's render to the attribute; a filled one is the owner's photo of a real project,
+// and nothing on the page may then call it a render or "one example house".
+describe('the owner\'s photos in the five stages', () => {
+  const STAGE_SLOTS = ['steel-step-1', 'steel-step-2', 'steel-step-3', 'steel-step-4', 'steel-step-5']
+  // Uploads land in home/{position}/: the steel stages are positions 37-41.
+  const OWNER = (n) => ({ url: `/api/img/home/${36 + n}/stage-${n}.webp`, alt: `Етап ${n} на обекта в Банско` })
+  const ALL = Object.fromEntries(STAGE_SLOTS.map((name, i) => [name, OWNER(i + 1)]))
+  const withSlots = (slots) => ({ hero: [], models: {}, pages: {}, slots })
+  const RENDER_WORDS = /визуализац|render|απεικόνιση/i
+  const STEP_WIDTHS = [480, 640, 800, 1200]
+
+  const section = (container) => container.querySelector('#pp-process')
+  const stepImgs = (container) => [...container.querySelectorAll('#pp-process .pp-step-fig img')]
+  const stageImgs = (container) => [...container.querySelectorAll('#pp-process .pp-stage-fig img')]
+  const attrs = (img) => [...img.attributes].map((a) => `${a.name}=${a.value}`).sort()
+  const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
+
+  // The stage is the wide-screen layout: a matchMedia that says so, and an observer.
+  let restore = null
+  function wideScreen() {
+    const saved = { matchMedia: window.matchMedia, IntersectionObserver: window.IntersectionObserver }
+    window.matchMedia = (query) => ({ matches: query === '(min-width: 900px)', media: query, addEventListener() {}, removeEventListener() {} })
+    window.IntersectionObserver = class { observe() {} disconnect() {} }
+    restore = () => Object.assign(window, saved)
+  }
+  afterEach(() => {
+    restore?.()
+    restore = null
+  })
+
+  function expectToday(container, locale) {
+    const c = CONTENT[locale]
+    expect(section(container).querySelector('.hp-sub').textContent).toBe(c.process.sub)
+    const figures = [...container.querySelectorAll('#pp-process .pp-step-fig')]
+    expect(figures).toHaveLength(5)
+    c.process.steps.forEach((step, i) => {
+      expect(attrs(figures[i].querySelector('img'))).toEqual([
+        `alt=${step.image.alt}`, 'decoding=async', 'height=671', 'loading=lazy', 'sizes=(max-width: 899px) 100vw, 640px',
+        `src=${cdnImage(step.image.src, { width: 800 })}`, `srcset=${cdnSrcSet(step.image.src, STEP_WIDTHS)}`, 'width=800',
+      ])
+      expect(figures[i].querySelector('figcaption').textContent).toBe(step.image.caption)
+    })
+    const stage = stageImgs(container)
+    if (stage.length) {
+      c.process.steps.forEach((step, i) => {
+        expect(attrs(stage[i])).toEqual([
+          `alt=${step.image.alt}`, 'decoding=async', 'height=671', 'loading=lazy', 'sizes=(min-width: 1200px) 620px, 52vw',
+          `src=${cdnImage(step.image.src, { width: 1200 })}`, `srcset=${cdnSrcSet(step.image.src, STEP_WIDTHS)}`, 'width=800',
+        ])
+      })
+    }
+  }
+
+  it.each(['bg', 'en', 'el'])('%s: with every stage empty, today\'s five renders, captions and sub, whatever the API answers', async (locale) => {
+    for (const wide of [false, true]) {
+      if (wide) wideScreen()
+      for (const body of [null, {}, withSlots({}), { hero: [], models: {}, pages: {} }]) {
+        photosBody = body
+        fetch.mockClear()
+        const { container, unmount } = renderPage(locale)
+        expectToday(container, locale)
+        expect(stageImgs(container)).toHaveLength(wide ? 5 : 0)
+        await waitFor(() => expect(photosCalls().length).toBeGreaterThan(0))
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        expectToday(container, locale)
+        unmount()
+        forgetHomePhotos()
+      }
+    }
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: the owner\'s five photos, under the steps and on the stage, with words for a real project', async (locale) => {
+    const c = CONTENT[locale]
+    wideScreen()
+    photosBody = withSlots(ALL)
+    const { container, unmount } = renderPage(locale)
+    await waitFor(() => expect(stepImgs(container)[0].getAttribute('src')).toContain(OWNER(1).url))
+
+    c.process.steps.forEach((step, i) => {
+      const owner = OWNER(i + 1)
+      for (const [img, width] of [[stepImgs(container)[i], 800], [stageImgs(container)[i], 1200]]) {
+        expect(img.getAttribute('src')).toBe(cdnImage(owner.url, { width }))
+        expect(img.getAttribute('srcset')).toBe(cdnSrcSet(owner.url, STEP_WIDTHS))
+        // His description on the Bulgarian page; elsewhere the content's general words.
+        expect(img.getAttribute('alt')).toBe(locale === 'bg' ? owner.alt : step.image.adminAlt)
+        // Cropped from its centre, as every slot is.
+        expect(img.style.objectPosition).toBe('50% 50%')
+      }
+    })
+
+    // Step 1's caption called the picture a render: no caption under the photo, and the stage
+    // names the step instead. Step 5's named the render's canopies and gives way to the step's
+    // own work; the other captions name the stage and stay.
+    const figures = [...container.querySelectorAll('#pp-process .pp-step-fig')]
+    expect(figures[0].querySelector('figcaption')).toBeNull()
+    expect(container.querySelector('#pp-process .pp-stage-fig figcaption').textContent).toBe(`1/5${c.process.steps[0].title}`)
+    for (let i = 1; i < 4; i++) expect(figures[i].querySelector('figcaption').textContent).toBe(c.process.steps[i].image.caption)
+    expect(figures[4].querySelector('figcaption').textContent).toBe(c.process.steps[4].image.adminCaption)
+    expect(figures[4].querySelector('figcaption').textContent).not.toBe(c.process.steps[4].image.caption)
+    expect(container.querySelectorAll('#pp-process .pp-stage-fig figcaption')[4].textContent).toBe(`5/5${c.process.steps[4].image.adminCaption}`)
+
+    // "The pictures show one example house at each stage" is gone; the first sentence stays.
+    expect(section(container).querySelector('.hp-sub').textContent).toBe(c.process.adminSub)
+    // Nothing in the section calls a photo a render, in words or in an alt.
+    expect(section(container).textContent).not.toMatch(RENDER_WORDS)
+    for (const img of section(container).querySelectorAll('img')) expect(img.getAttribute('alt')).not.toMatch(RENDER_WORDS)
+    unmount()
+  })
+
+  it('one stage filled changes that stage and the sub, and nothing else', async () => {
+    photosBody = withSlots({ 'steel-step-3': OWNER(3) })
+    const { container, unmount } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[2].getAttribute('src')).toContain(OWNER(3).url))
+    const figures = [...container.querySelectorAll('#pp-process .pp-step-fig')]
+    bg.process.steps.forEach((step, i) => {
+      if (i === 2) return
+      expect(figures[i].querySelector('img').getAttribute('src')).toBe(cdnImage(step.image.src, { width: 800 }))
+      expect(figures[i].querySelector('img').getAttribute('alt')).toBe(step.image.alt)
+      expect(figures[i].querySelector('img').getAttribute('style')).toBeNull()
+      // Step 1 is still the render, and still says so.
+      expect(figures[i].querySelector('figcaption').textContent).toBe(step.image.caption)
+    })
+    expect(figures[2].querySelector('figcaption').textContent).toBe(bg.process.steps[2].image.caption)
+    // A real project's photo among the renders: no longer "one example house at each stage",
+    // but the four renders left are still called renders.
+    expect(section(container).querySelector('.hp-sub').textContent).toBe(bg.process.mixedSub)
+    unmount()
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: with four of five stages photos, the one render left is still called a render', async (locale) => {
+    const c = CONTENT[locale]
+    photosBody = withSlots(Object.fromEntries(Object.entries(ALL).filter(([name]) => name !== 'steel-step-4')))
+    const { container, unmount } = renderPage(locale)
+    await waitFor(() => expect(stepImgs(container)[4].getAttribute('src')).toContain(OWNER(5).url))
+    expect(stepImgs(container)[3].getAttribute('src')).toBe(cdnImage(c.process.steps[3].image.src, { width: 800 }))
+    expect(section(container).querySelector('.hp-sub').textContent).toBe(c.process.mixedSub)
+    expect(section(container).querySelector('.hp-sub').textContent).toMatch(RENDER_WORDS)
+    unmount()
+  })
+
+  it('a blank description in the panel gives the page\'s general words, never the render\'s', async () => {
+    photosBody = withSlots({ 'steel-step-1': { ...OWNER(1), alt: '' }, 'steel-step-2': { ...OWNER(2), alt: '  ' } })
+    const { container, unmount } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[1].getAttribute('src')).toContain(OWNER(2).url))
+    expect(stepImgs(container)[0].getAttribute('alt')).toBe(bg.process.steps[0].image.adminAlt)
+    expect(stepImgs(container)[1].getAttribute('alt')).toBe(bg.process.steps[1].image.adminAlt)
+    unmount()
+  })
+
+  it('falls back to today\'s render should the owner\'s photo fail to load', async () => {
+    wideScreen()
+    photosBody = withSlots({ 'steel-step-4': OWNER(4) })
+    const { container, unmount } = renderPage('bg')
+    await waitFor(() => expect(stepImgs(container)[3].getAttribute('src')).toContain(OWNER(4).url))
+    const render4 = bg.process.steps[3].image.src
+    for (const [img, width] of [[stepImgs(container)[3], 800], [stageImgs(container)[3], 1200]]) {
+      // One retry of the owner's photo, then today's.
+      fireEvent.error(img)
+      fireEvent.error(img)
+      expect(img.getAttribute('src')).toBe(cdnImage(render4, { width }))
+      expect(img.dataset.imgFallback).toBe(cdnImage(render4, { width }))
+    }
+    unmount()
+  })
+
+  it('opens on the owner\'s photos from the first render once an answer is kept', async () => {
+    // What the snapshot's <head> copy gives a fresh load; an earlier answer stands in for it.
+    photosBody = withSlots({ 'steel-step-1': OWNER(1), 'steel-step-5': OWNER(5) })
+    await fetchHomePhotos()
+    expect(document.getElementById('home-photos-data')).not.toBeNull()
+    const { container, unmount } = renderPage('bg')
+    // No waiting: the very first render has them, and the sub that fits them.
+    expect(stepImgs(container)[0].getAttribute('src')).toBe(cdnImage(OWNER(1).url, { width: 800 }))
+    expect(stepImgs(container)[4].getAttribute('src')).toBe(cdnImage(OWNER(5).url, { width: 800 }))
+    expect(stepImgs(container)[1].getAttribute('src')).toBe(cdnImage(bg.process.steps[1].image.src, { width: 800 }))
+    // Two photos, three renders: the sub that keeps the renders marked.
+    expect(section(container).querySelector('.hp-sub').textContent).toBe(bg.process.mixedSub)
+    unmount()
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: the words for an owner\'s photo are there and call nothing a render', (locale) => {
+    const c = CONTENT[locale]
+    // The sub's first sentence, without the one about the pictures.
+    expect(c.process.adminSub).toBeTruthy()
+    expect(c.process.sub.startsWith(c.process.adminSub)).toBe(true)
+    expect(c.process.adminSub.length).toBeLessThan(c.process.sub.length)
+    // Photos and renders side by side: the same first sentence, then one that names the renders.
+    expect(c.process.mixedSub.startsWith(`${c.process.adminSub} `)).toBe(true)
+    expect(c.process.mixedSub.slice(c.process.adminSub.length)).toMatch(RENDER_WORDS)
+    // Step 5's canopies are the render's: a photo gets the step's own words.
+    expect(c.process.steps[4].image.adminCaption).toBeTruthy()
+    expect(c.process.steps[4].image.adminCaption).not.toBe(c.process.steps[4].image.caption)
+    for (const step of c.process.steps) {
+      expect(step.image.adminAlt).toBeTruthy()
+      expect(step.image.adminAlt).not.toBe(step.image.alt)
+      expect(step.image.adminAlt).not.toMatch(RENDER_WORDS)
+      // A caption that calls the picture a render has words for a photo instead (none).
+      const caption = step.image.adminCaption ?? step.image.caption
+      expect(caption).not.toMatch(RENDER_WORDS)
+    }
   })
 })
