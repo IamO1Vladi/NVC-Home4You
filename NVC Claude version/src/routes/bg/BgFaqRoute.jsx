@@ -8,6 +8,9 @@ import delivery from '../../content/bg/delivery.js'
 import partner from '../../content/bg/partner.js'
 import doors from '../../content/bg/internalDoors.js'
 import interiors from '../../content/bg/interiors.js'
+import modularBuilds from '../../content/bg/modularBuilds.js'
+import modularHouses from '../../content/bg/modularHouses.js'
+import steelHouses from '../../content/bg/steelHouses.js'
 import { paths } from '../paths.js'
 import { getRouteSeo } from '../../seo/routeMeta.js'
 
@@ -16,7 +19,7 @@ import { getRouteSeo } from '../../seo/routeMeta.js'
 // markup (its own questions only). It gathers the delivery, partner, doors and interiors
 // pages' questions from their content files, imported here rather than through the pages, so
 // the hub's chunk carries words, not the calculator, the 3D house or the map.
-const PAGES = { delivery, partner, doors, interiors }
+const PAGES = { delivery, partner, doors, interiors, modularBuilds, modularHouses, steelHouses }
 
 export default function BgFaqRoute() {
   const seo = getRouteSeo(paths.faq.bg, 'bg')

@@ -12,8 +12,9 @@
 // the hero photo and the proof card are the Paralia Kariani case on /api/cases-page.
 // The lead time in arrival.delivery ({production} and {months}) is the owner's of 2026-10-15,
 // read from deliveryRates.js, and the foundation tip the page shows is his too (pricesCopy's
-// foundationNote, beside arrival.foundationAsk). Do not add a permit here; there is none we
-// can stand behind yet. The "not included" list is NOT here either: the page reads it from
+// foundationNote, beside arrival.foundationAsk). The permit is the FAQ hub's answer
+// (faq.js, id "permit", the owner's of 2026-10-17), not this page's.
+// The "not included" list is NOT here either: the page reads it from
 // pricesCopy so this page and /el/times say it in the same words.
 //
 // Drafted Greek; it still needs a native speaker's read before Stage 2.
@@ -80,8 +81,10 @@ export default {
     },
   },
 
+  // The lines are gallery item 100015's; the basis is the owner's answer of 2026-10-17: the
+  // capsule needs no assembly, it arrives ready.
   capsule: {
-    basis: 'με ΦΠΑ, συναρμολόγηση κατόπιν αιτήματος',
+    basis: 'με ΦΠΑ· φτάνει έτοιμη, δεν χρειάζεται συναρμολόγηση',
     lines: [
       '38 m², 11,5 × 3,3 m',
       'Σκελετός από γαλβανισμένο χάλυβα 3,5 mm',
@@ -102,7 +105,7 @@ export default {
     ],
     priceLabel: 'Τιμή από',
     boxPrice: '{price}, χωρίς συναρμολόγηση',
-    capsulePrice: '{price}, συναρμολόγηση κατόπιν αιτήματος',
+    capsulePrice: '{price}· φτάνει έτοιμη, δεν χρειάζεται συναρμολόγηση',
   },
 
   // {folded} and {open} are the 37 m² model's widths from the configurator catalogue.
@@ -124,11 +127,11 @@ export default {
   },
 
   // The warranty as the owner gave it on 2026-10-15, from the annex to our Box-house sales
-  // contract. The lead names the Box houses: the capsule on this page is not covered by it.
-  // {years} is the row's figure from shared/warranty.js, by its key.
+  // contract. The lead names the Box houses and the capsule, which carries the same warranty
+  // (owner, 2026-10-17). {years} is the row's figure from shared/warranty.js, by its key.
   warranty: {
     heading: 'Εγγύηση',
-    lead: 'Για τα αναπτυσσόμενα σπίτια Box.',
+    lead: 'Για τα αναπτυσσόμενα σπίτια Box και την κάψουλα.',
     rows: [
       { key: 'structure', label: 'Σκελετός', text: '{years}\u00a0χρόνια — ο φέρων χαλύβδινος σκελετός' },
       { key: 'panels', label: 'Πάνελ', text: '{years}\u00a0χρόνια — τα θερμομονωτικά πάνελ τύπου σάντουιτς' },
@@ -150,6 +153,60 @@ export default {
     // To the case's own card on the cases page (#case-<id>), named for what it shows.
     more: 'Το σπίτι στην Παραλία Καριανής →',
     stars: '{rating} από 5',
+  },
+
+  // The page's questions (lib/productQuestions.js): the same ids as bg/modularHouses.js, which
+  // says where each answer comes from. Drafted Greek, like the rest of this file.
+  faq: {
+    heading: 'Ερωτήσεις',
+    // To the hub's Box houses topic (#t-box).
+    more: 'Περισσότερες ερωτήσεις →',
+    items: [
+      {
+        id: 'box-price',
+        q: 'Τι περιλαμβάνει η τιμή του σπιτιού Box;',
+        a: 'Τον ΦΠΑ, τη θαλάσσια μεταφορά από την Κίνα και τον εκτελωνισμό. Στα μοντέλα των {areas} m² η τιμή καλύπτει επίσης το πλήρως εξοπλισμένο μπάνιο ({bathrooms} παραλλαγές για να διαλέξετε), την κουζίνα ({kitchens} παραλλαγές για να διαλέξετε και άλλες {kitchensExtra} με επιπλέον χρέωση) και τη βασική βεράντα στη μικρή πλευρά, {terrace}. Η συναρμολόγηση τιμολογείται χωριστά, ενώ ο γερανός, η βάση και η παράδοση στο οικόπεδο δεν περιλαμβάνονται.',
+        link: { pathKey: 'modularHouses', hash: 'sizes', label: 'Μεγέθη και τιμές των σπιτιών Box →' },
+      },
+      {
+        id: 'box-assembly',
+        q: 'Τι περιλαμβάνει η συναρμολόγηση του σπιτιού Box;',
+        a: 'Την τοποθέτηση του σπιτιού στην προετοιμασμένη βάση σας και τα τελειώματα «με το κλειδί στο χέρι»: το σπίτι είναι έτοιμο για κατοίκηση. Η συναρμολόγηση δεν περιλαμβάνει τον γερανό, τη βάση και την παράδοση στο οικόπεδο. Ο γερανός είναι απαραίτητος: περίπου {boxCrane} χωρίς ΦΠΑ, ή και περισσότερο ανάλογα με την τοποθεσία.',
+        link: { pathKey: 'prices', label: 'Η τιμή συναρμολόγησης κάθε μοντέλου →' },
+      },
+      {
+        id: 'box-assembly-crew',
+        q: 'Ποιος συναρμολογεί το σπίτι Box και πόσο διαρκεί;',
+        a: 'Το συναρμολογούν {workers} τεχνικοί μας επί τόπου, στον χώρο σας, σε {assemblyDays} ημέρες.',
+      },
+      {
+        id: 'box-assembly-18',
+        q: 'Πόσο κοστίζει η συναρμολόγηση του σπιτιού των 18 m²;',
+        a: 'Η συναρμολόγηση του αναπτυσσόμενου σπιτιού των 18 m² κοστίζει {smallAssembly} χωρίς ΦΠΑ, ή {smallAssemblyGross} με ΦΠΑ.',
+      },
+      {
+        id: 'box-lead-times',
+        q: 'Είναι ίδιος ο χρόνος παράδοσης για όλα τα μεγέθη;',
+        a: 'Ναι. Κάθε σπίτι Box, από 18 έως 74 m², κατασκευάζεται σε έως {production} ημέρες και φτάνει στη διεύθυνσή σας σε περίπου {months} μήνες.',
+      },
+      {
+        id: 'capsule-ready',
+        q: 'Χρειάζεται η κάψουλα συναρμολόγηση;',
+        a: 'Όχι. Η κάψουλα φτάνει έτοιμη και δεν χρειάζεται συναρμολόγηση. Η παράδοση, ο γερανός, ο χρόνος παράδοσης (περίπου {months} μήνες έως τη διεύθυνσή σας) και η εγγύηση είναι ίδια με των σπιτιών Box.',
+      },
+      {
+        id: 'box-layouts',
+        q: 'Μπορώ να διαλέξω τη διαρρύθμιση;',
+        a: 'Ναι. Ξεκινήστε από μία από τις {layouts} κατόψεις του καταλόγου για τα μοντέλα των {areas} m² ή σχεδιάστε τη δική σας στον σχεδιαστή, και στείλτε μας την κάτοψη για προσφορά. Το μπάνιο και η πόρτα εισόδου είναι σταθερά: βρίσκονται όπου τα δείχνει το τεχνικό σχέδιο του μοντέλου.',
+        link: { pathKey: 'planner', label: 'Οι κατόψεις στον σχεδιαστή →' },
+      },
+      {
+        id: 'box-appliances',
+        q: 'Περιλαμβάνονται οι συσκευές κουζίνας;',
+        a: 'Όχι. Οι συσκευές δεν παρέχονται και δεν χρεώνονται από εμάς: στον διαμορφωτή δείχνετε πού θα μπει η καθεμία, για να κατασκευάσουμε την κουζίνα στα μέτρα σας, και η προετοιμασία (ηλεκτρικά και υδραυλικά) περιλαμβάνεται στην τιμή. Τον νεροχύτη όμως τον πουλάμε εμείς και τον επιλέγετε στον διαμορφωτή.',
+        link: { pathKey: 'boxConfigurator', label: 'Συνθέστε το σπίτι σας στον διαμορφωτή →' },
+      },
+    ],
   },
 
   catalogues: {

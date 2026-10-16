@@ -72,6 +72,23 @@ describe('Header planning dropdown', () => {
   })
 })
 
+// The owner, 2026-10-17: the menu names the cases page "Отзиви", not "Казуси" (in en and el
+// the natural equivalent). Only the menu label: the page's own H1 and title stay.
+describe('Header About menu', () => {
+  it.each([
+    ['bg', 'Отзиви'],
+    ['en', 'Reviews'],
+    ['el', 'Κριτικές'],
+  ])('%s: names the cases page "%s"', (locale, label) => {
+    const header = getHomeContent(locale).header
+    const { container } = renderHeader(locale)
+    fireEvent.click(screen.getByRole('button', { name: `${header.nav.about} ▾` }))
+
+    expect(screen.getByRole('link', { name: label })).toHaveAttribute('href', paths.cases[locale])
+    expect(container.textContent).not.toMatch(/Казуси|Cases\b|Έργα/)
+  })
+})
+
 // The phone drawer (owner's rule): a few top rows, the planner right after the configurator
 // since the planner page works on phones (owner, 2026-10-15), and a Call button beside the
 // quote button so the one device that can dial gets a number it can tap.

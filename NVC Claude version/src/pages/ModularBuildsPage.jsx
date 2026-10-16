@@ -15,11 +15,18 @@
 // accommodation, the kitchen, the foundation and the made-to-order sizes are the owner's
 // answers (2026-10-12; the crane's cost, the 3–4 nights and the workers' travel are his
 // 2026-10-15 figures in deliveryRates.js) and are worded in the content file exactly as he gave them; nothing
-// about permits, lead times or what foundation to pour is said, because nobody has. The
-// warranty block is his too (2026-10-15), its years read from shared/warranty.js.
+// about what foundation to pour is said, because nobody has. The warranty block is his too
+// (2026-10-15), its years read from shared/warranty.js.
 //
-// The hero photo is the admin's "page-modular-builds" slot when one is set, otherwise a real
-// daylight photo from the gallery. Never the CGI night render the page used to open on.
+// The questions (2026-10-17) are the page's own, filled by lib/productQuestions.js and marked
+// up here: the kitchen, the assembly, the other sizes, the made-to-order lead time and the
+// finishes, plus the internal doors page's container question, shown in that page's words
+// (`related.doors`, which the route passes) and marked up there. The FAQ hub gathers them
+// under its containers topic, which the section links to. The permit is the hub's answer.
+//
+// The hero photo is the admin's "page-modular-builds" slot when one is set, otherwise the
+// owner's photo of a container delivered to a customer's plot (shared/deliveredMedia.js, since
+// 2026-10-17). Never the CGI night render the page used to open on.
 import React from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -32,6 +39,7 @@ import WarrantyTerms from '../components/product/WarrantyTerms.jsx'
 import Testimonials from '../components/Testimonials.jsx'
 import Catalogues from '../components/Catalogues.jsx'
 import FinalCta from '../components/FinalCta.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import { ProductsJSONLD } from '../components/StructuredData.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
@@ -41,6 +49,7 @@ import { usePagePhoto } from '../lib/homePhotos.js'
 import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, displayTitle } from '../lib/productRows.js'
 import { paths } from '../routes/paths.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
+import { hubTopicPath, productQuestions } from '../lib/productQuestions.js'
 
 // The container's rate, crane and no-crane terms: the same module the delivery calculator
 // charges from, so the sentence here and the calculator one tap away cannot disagree.
@@ -51,7 +60,11 @@ const fill = (pattern, values) => Object.entries(values).reduce(
   String(pattern || ''),
 )
 
-export default function ModularBuildsPage({ locale = 'en', content }) {
+/**
+ * @param related  { doors }: the internal doors page's content in the locale, for the question
+ *                 of theirs this page shows (the route imports it)
+ */
+export default function ModularBuildsPage({ locale = 'en', content, related }) {
   const { openOffer, openQuestion, requestModel } = useModalActions()
   const { box, wagon, error, galleryPath } = useProductRows(locale)
   const adminPhoto = usePagePhoto('modularBuilds')
@@ -72,10 +85,10 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
 
   // The admin types one alt, in Bulgarian, so it is used on the Bulgarian page only; a blank
   // one, and every other language, get the page's generic adminAlt. Not the default photo's
-  // alt, which describes the 8×3 gable-roof interior and not whatever the admin uploaded.
+  // alt, which describes the delivered container and not whatever the admin uploaded.
   // While the photo answer is still on its way (undefined) the default photo shows, so a
-  // visit with nothing kept has a hero from the first paint. A default that has since been
-  // deleted from the gallery falls back to the site's plain card rather than a broken image.
+  // visit with nothing kept has a hero from the first paint. A photo that fails to load falls
+  // back to the site's plain card rather than a broken image.
   const fallback = `${import.meta.env.BASE_URL || '/'}modular-builds/card.svg`
   const heroPhoto = adminPhoto
     ? { url: adminPhoto.url, alt: (locale === 'bg' && adminPhoto.alt) || c.hero.adminAlt, fallback }
@@ -114,6 +127,7 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
   ]
 
   const productItems = productJsonLdItems(wagon, { category: c.schemaCategory })
+  const faq = productQuestions('modularBuilds', c, locale, related)
 
   return (
     <main className="hp pp">
@@ -247,6 +261,21 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
       />
 
       <Catalogues locale={locale} content={c.catalogues} />
+
+      {faq.length ? (
+        <section id="questions" aria-labelledby="pp-faq-title">
+          <div className="hp-container">
+            <div className="hp-head">
+              <div>
+                <h2 id="pp-faq-title">{c.faq.heading}</h2>
+              </div>
+            </div>
+            <FaqList items={faq} />
+            {/* The FAQ hub's containers topic, which gathers these with the rest. */}
+            {c.faq.more ? <p className="pp-links"><Link to={hubTopicPath('modularBuilds', locale)}>{c.faq.more}</Link></p> : null}
+          </div>
+        </section>
+      ) : null}
 
       <SiblingLinks heading={c.siblings.heading} go={c.siblings.go} items={siblings} />
 

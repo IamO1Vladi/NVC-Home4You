@@ -332,6 +332,8 @@ async function dataSourcesAgree() {
 }
 
 const routes = routeList()
+// The pages whose title quotes the figure printed under the H1 (checked below, per route).
+const PRICES_ROUTES = new Set(Object.values(paths.prices || {}))
 
 if (!(await isUp())) {
   console.error(`\nPrerender: nothing is listening on ${BASE}.`)
@@ -445,10 +447,11 @@ try {
       await dedupeHead(page)
 
       // The check and the capture in ONE evaluate, so a fallback cannot land between them.
-      const { text, html, title, failedImages } = await page.evaluate(() => ({
+      const { text, html, title, priceFrom, failedImages } = await page.evaluate(() => ({
         text: (document.getElementById('root')?.innerText || '').trim(),
         html: document.documentElement.outerHTML,
         title: document.title,
+        priceFrom: document.querySelector('.prices-from-value')?.textContent ?? null,
         failedImages: [...document.querySelectorAll('#root img')]
           .filter((img) => {
             const src = img.getAttribute('src') || ''
@@ -469,6 +472,18 @@ try {
       if (text.length < MIN_TEXT) {
         results.push({ route, status: 'thin', chars: text.length })
         continue
+      }
+
+      // The prices titles type their "from" figure by hand (routeMeta.js cannot read the
+      // gallery), and staff can change the 18 m² house's price in the admin panel. So the
+      // snapshot is refused when the title does not quote the figure the page prints under its
+      // H1: change the three titles in routeMeta.js, rebuild and run again.
+      if (PRICES_ROUTES.has(route)) {
+        const flat = (s) => String(s ?? '').replace(/\s/g, ' ').trim()
+        if (!priceFrom || !flat(title).includes(flat(priceFrom))) {
+          results.push({ route, status: 'title', detail: `the title "${title}" does not quote the page's figure "${flat(priceFrom) || 'none'}"; update prices in routeMeta.js` })
+          continue
+        }
       }
 
       const file = fileFor(route)

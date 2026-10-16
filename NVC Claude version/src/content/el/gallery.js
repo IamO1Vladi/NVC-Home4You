@@ -1,16 +1,33 @@
 export default {
   // The title and description are routeMeta.js's (META.gallery), read by GalleryRoutes.jsx.
+  // The index (GalleryIndexPage.jsx): the line above the H1, the H1, and one line under it.
+  // The Box houses are made to order (up to 40 days in production, the owner 2026-10-15), so
+  // the lead does not call every model "available"; the gallery's containers are stock models.
+  eyebrow: 'Μοντέλα και τιμές',
   heading: 'Γκαλερί: κοντέινερ και σπίτια Box',
-  sub: 'Δείτε τα διαθέσιμα μοντέλα και ανοίξτε μια ειδική σελίδα λεπτομερειών για κάθε λύση.',
+  lead: 'Κάθε μοντέλο με την τιμή του με ΦΠΑ: τα κοντέινερ είναι σε απόθεμα, ενώ τα σπίτια Box κατασκευάζονται κατά παραγγελία.',
   loading: 'Φόρτωση μοντέλων…',
   error: 'Η γκαλερί δεν ήταν δυνατό να φορτωθεί. Παρακαλούμε δοκιμάστε ξανά αργότερα.',
+  retry: 'Δοκιμάστε ξανά',
   empty: {
     all: 'Δεν έχουν προστεθεί ακόμη μοντέλα.',
     filtered: 'Κανένα μοντέλο δεν ταιριάζει σε αυτήν την κατηγορία.',
+    showAll: 'Εμφάνιση όλων των μοντέλων',
   },
+  // How many models the list shows, after a filter too ({n}); Intl.PluralRules picks the form.
+  count: { one: '{n} μοντέλο', other: '{n} μοντέλα' },
   filtersAria: 'Φίλτρα',
   filters: {
     all: 'Όλα',
+    // The index's filters (galleryUtils INDEX_FILTER_IDS), in the words the rest of the site
+    // uses for the two product lines. The prefab and garage filters always opened empty and
+    // were removed (the owner, 2026-10-17).
+    shown: {
+      wagon: 'Κοντέινερ',
+      modular: 'Σπίτια Box',
+    },
+    // The item page's name for a model's category, under its title and in its Product markup
+    // (GalleryRoutes.jsx). All four ids keep one: the admin can still file a model under any.
     categories: {
       prefab: 'Προκατασκευασμένο σπίτι',
       wagon: 'Βαγονέτο / Καμπίνα εργοταξίου',
@@ -18,16 +35,26 @@ export default {
       garage: 'Γκαράζ',
     },
   },
+  // One card per model: the price with what it includes, worded as on the product pages and
+  // the prices table (a container's price includes its assembly, a Box house's does not).
+  card: {
+    basis: {
+      wagon: 'με ΦΠΑ και συναρμολόγηση',
+      box: 'με ΦΠΑ, χωρίς συναρμολόγηση',
+      // A model whose assembly figure the prices table does not have (shared/prices.js).
+      vat: 'με ΦΠΑ',
+      // A house that needs no assembly (shared/prices.js arrivesReady: the capsule, the owner 2026-10-17).
+      ready: 'με ΦΠΑ, φτάνει έτοιμη',
+    },
+    more: 'Φωτογραφίες και περιγραφή →',
+  },
+  // Only past 24 models (galleryUtils PAGE_SIZE); real links, ?page=N.
   pagination: {
     paginationAria: 'Σελιδοποίηση',
     prev: 'Προηγούμενο',
     next: 'Επόμενο',
-    pages: 'Σελίδες',
-    currentPage: 'Τρέχουσα σελίδα',
-    pageAbbr: 'Σελίδα',
+    page: 'Σελίδα {n}',
   },
-  viewDetails: 'Δείτε λεπτομέρειες',
-  openCta: 'Άνοιγμα →',
   schema: {
     listName: 'Γκαλερί μοντέλων',
   },

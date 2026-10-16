@@ -8,16 +8,16 @@
 //     -> the Box houses page (the capsule's page too). Other categories link nowhere.
 //   - its card on the prices page, #item-<id>: PricesPage gives every row of buildPriceSections
 //     that id, so the same call decides whether the row is there (a priced wagon or Box house).
-//     "With assembly" only where the row has an assembly figure: the 18 m² house and the capsule
-//     are listed with assembly on request.
+//     "With assembly" only where the row has an assembly figure: not for the capsule, which
+//     arrives ready and has none (owner, 2026-10-17).
 //   - the configurator on its model, ?model=37|58|73, which BoxHouseConfiguratorPage reads and
 //     checks against its catalogue: only the gallery houses that ARE those models, the standard
 //     and the veranda-and-double-roof house of each size (the configurator builds both; the
 //     same ids ModularHousesPage's size cards use). Never the panoramic, two-storey, 18 m² or
 //     capsule houses, which it cannot build.
 //   - the delivery calculator preset to the product, ?product=container|box, which DeliveryPage
-//     reads. Not for the capsule: its delivery terms are still the owner's open question (Q12),
-//     and the Box houses' rates must not read as its own.
+//     reads. The capsule's is the Box houses' (owner, 2026-10-17: the same rate, crane and lead
+//     time).
 import { paths } from '../routes/paths.js'
 import { buildPriceSections } from '../content/shared/prices.js'
 import { getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
@@ -68,7 +68,7 @@ export function galleryItemLinks(item, locale = 'en', copy = {}) {
     links.push({ key: 'configurator', to: `${at('boxConfigurator')}?model=${model}`, label: copy.configurator })
   }
 
-  if (kind && String(item.id) !== String(CAPSULE_ID)) {
+  if (kind) {
     links.push({ key: 'delivery', to: `${at('delivery')}?product=${DELIVERY_PRODUCT[kind]}`, label: copy.delivery })
   }
 

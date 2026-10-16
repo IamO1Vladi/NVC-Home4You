@@ -87,6 +87,21 @@ describe('mergeHomePhotos', () => {
     expect(slides[0].frame).toEqual(five[0].frame)
   })
 
+  // Slide 5's default is a static file with its own srcSet (shared/deliveredMedia.js); the
+  // owner's photo in its place is resized by /api/img, so the default's srcSet must not follow it.
+  it("keeps a static default's own srcSet, and drops it once the owner's photo replaces it", () => {
+    const five = [
+      ...DEFAULTS,
+      { src: '/api/img/content/d.webp', alt: 'Steel houses', pathKey: 'steelHouses' },
+      { src: '/delivered/x-1600.webp', srcSet: '/delivered/x-800.webp 800w, /delivered/x-1600.webp 1600w', alt: 'Delivery', pathKey: 'delivery' },
+    ]
+    expect(mergeHomePhotos(five, null).slides[4]).toMatchObject({ src: five[4].src, srcSet: five[4].srcSet, pathKey: 'delivery' })
+
+    const { slides } = mergeHomePhotos(five, { hero: [{ slot: 'hero-5', url: '/api/img/home/5/p.webp', alt: '' }] })
+    expect(slides[4]).toMatchObject({ src: '/api/img/home/5/p.webp', pathKey: 'delivery', label: 'Delivery' })
+    expect(slides[4].srcSet).toBeUndefined()
+  })
+
   it('never grows or shrinks the deck: a slot past the defaults is ignored', () => {
     const api = { hero: [1, 2, 3, 4, 5].map((n) => ({ slot: `hero-${n}`, url: `/api/img/home/${n}/p.webp`, alt: '' })) }
     const { slides } = mergeHomePhotos(DEFAULTS.slice(0, 1), api)

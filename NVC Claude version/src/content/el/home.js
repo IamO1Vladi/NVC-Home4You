@@ -1,3 +1,5 @@
+import { ABOUT_PHOTO } from '../shared/aboutMedia.js'
+
 // Ο χάρτης που ανοίγει ο επισκέπτης από το «Άνοιγμα στους Χάρτες». Η διεύθυνση είναι αυτή
 // που τυπώνει η σελίδα, κωδικοποιημένη στο URL ώστε να μη στέκει ως λέξη στο κείμενο.
 const MAPS_HREF = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Μαρικοστίνοβο, 2850 Πέτριτς, Βουλγαρία')}`
@@ -10,7 +12,7 @@ export default {
     nav: {
       gallery: 'Γκαλερί',
       prices: 'Τιμές',
-      cases: 'Έργα',
+      cases: 'Κριτικές',
       faq: 'Συχνές ερωτήσεις',
       about: 'Σχετικά',
       partner: 'Συνεργάτες',
@@ -100,7 +102,9 @@ export default {
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Δομικά σπίτια', pathKey: 'modularHouses' },
           { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Μονάδες-κοντέινερ', pathKey: 'modularBuilds' },
           { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Μεταλλικά σπίτια σε δικό σας σχέδιο', pathKey: 'steelHouses' },
-          { src: '/api/img/content/bvk4n834b-rcz-eg-vb.webp', alt: 'Εσωτερικοί χώροι', pathKey: 'interiors' },
+          // Slide 5 (since 2026-10-17): the crane lifting a container (shared/aboutMedia.js, the About and delivery photo), linking to
+          // the delivery page. The lakeside container stands at its photo's left edge, where the hero fades under the heading.
+          { src: ABOUT_PHOTO.url, srcSet: ABOUT_PHOTO.srcSet, alt: 'Παράδοση και συναρμολόγηση', pathKey: 'delivery' },
         ],
       },
     },

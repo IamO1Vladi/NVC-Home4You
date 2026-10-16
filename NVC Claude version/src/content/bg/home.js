@@ -1,3 +1,5 @@
+import { ABOUT_PHOTO } from '../shared/aboutMedia.js'
+
 // Картата, която посетителят отваря от „Отвори в Карти“. Адресът е този, който страницата
 // печата, кодиран в URL, за да не стои като дума в текста.
 const MAPS_HREF = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Марикостиново, 2850 Петрич, България')}`
@@ -10,7 +12,7 @@ export default {
     nav: {
       gallery: 'Галерия',
       prices: 'Цени',
-      cases: 'Казуси',
+      cases: 'Отзиви',
       faq: 'Въпроси',
       about: 'За нас',
       partner: 'Партньори',
@@ -100,7 +102,9 @@ export default {
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Модулни къщи', pathKey: 'modularHouses' },
           { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Контейнерни модули', pathKey: 'modularBuilds' },
           { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Сглобяеми къщи по проект', pathKey: 'steelHouses' },
-          { src: '/api/img/content/bvk4n834b-rcz-eg-vb.webp', alt: 'Вътрешни ремонти', pathKey: 'interiors' },
+          // Петият слайд (от 2026-10-17): кранът, който вдига контейнер (shared/aboutMedia.js, снимката на „За нас“ и доставката),
+          // води към доставката. Контейнерът край езерото стои в левия край на снимката си, а там героят избледнява под заглавието.
+          { src: ABOUT_PHOTO.url, srcSet: ABOUT_PHOTO.srcSet, alt: 'Доставка и монтаж', pathKey: 'delivery' },
         ],
       },
     },

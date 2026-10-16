@@ -8,13 +8,16 @@ import delivery from '../../content/en/delivery.js'
 import partner from '../../content/en/partner.js'
 import doors from '../../content/en/internalDoors.js'
 import interiors from '../../content/en/interiors.js'
+import modularBuilds from '../../content/en/modularBuilds.js'
+import modularHouses from '../../content/en/modularHouses.js'
+import steelHouses from '../../content/en/steelHouses.js'
 import { paths } from '../paths.js'
 import { getRouteSeo } from '../../seo/routeMeta.js'
 
 // The head from routeMeta.js (all three languages in the hreflangs), the breadcrumbs here, the
 // page's own FAQPage markup in the page; the four pages' questions gathered from their content
 // files. See BgFaqRoute.jsx.
-const PAGES = { delivery, partner, doors, interiors }
+const PAGES = { delivery, partner, doors, interiors, modularBuilds, modularHouses, steelHouses }
 
 export default function EnFaqRoute() {
   const seo = getRouteSeo(paths.faq.en, 'en')

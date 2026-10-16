@@ -11,9 +11,11 @@ import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 const htmlOf = (ui) => render(ui).container.innerHTML
 
-// Today's About factory figure: no srcSet, no sizes, no onError.
+// A plain figure: no srcSet, no sizes, no onError, so an empty slot can be seen adding none. (The
+// About factory figure's shape until 2026-10-17; it has its own 600/1200 srcSet now, which
+// AboutPage.test.jsx pins.)
 const FACTORY = {
-  src: '/partner/factory-floor.webp',
+  src: '/factory/factory-hall-1200.webp',
   alt: 'Цехът на фабриката',
   width: 1200,
   height: 891,

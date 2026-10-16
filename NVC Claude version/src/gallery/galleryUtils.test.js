@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { catFromItemCategory, resolveCatParam, slugify, FILTER_IDS, getCategoryLabels, formatGalleryPrice, htmlToText, blockText, offerAvailability, getCurrency } from './galleryUtils'
+import { catFromItemCategory, resolveCatParam, resolveIndexFilter, resolvePageParam, slugify, FILTER_IDS, INDEX_FILTER_IDS, PAGE_SIZE, getCategoryLabels, formatGalleryPrice, htmlToText, blockText, offerAvailability, getCurrency } from './galleryUtils'
 import elGallery from '../content/el/gallery.js'
 import enGallery from '../content/en/gallery.js'
 import bgGallery from '../content/bg/gallery.js'
@@ -78,6 +78,50 @@ describe('gallery category filtering', () => {
       expect(resolveCatParam('nonsense')).toBe('all')
       expect(resolveCatParam('')).toBe('all')
       expect(resolveCatParam(undefined)).toBe('all')
+    })
+  })
+
+  // The index offers two of the four (the owner, 2026-10-17: "Сглобяема къща" and "Гараж" always
+  // opened empty). The other two still resolve above, for the item page and the admin.
+  describe('the filters the index offers', () => {
+    it('are the two product lines, containers first', () => {
+      expect(INDEX_FILTER_IDS).toEqual(['wagon', 'modular'])
+      for (const id of INDEX_FILTER_IDS) expect(FILTER_IDS).toContain(id)
+    })
+
+    it('take a ?cat= of theirs, by key or by an old label', () => {
+      expect(resolveIndexFilter('wagon')).toBe('wagon')
+      expect(resolveIndexFilter('Модулна къща')).toBe('modular')
+      expect(resolveIndexFilter('Wagon / site cabin')).toBe('wagon')
+    })
+
+    it('show all for a category they no longer offer, or anything unknown', () => {
+      for (const v of ['prefab', 'garage', 'Гараж', 'Сглобяема къща', 'Garage', 'nonsense', '', undefined, null]) {
+        expect(resolveIndexFilter(v)).toBe('all')
+      }
+    })
+
+    it('have a label in every locale', () => {
+      for (const content of [elGallery, enGallery, bgGallery]) {
+        expect(Object.keys(content.filters.shown)).toEqual(INDEX_FILTER_IDS)
+        for (const id of INDEX_FILTER_IDS) expect(content.filters.shown[id]).toBeTruthy()
+      }
+    })
+  })
+
+  describe('the index page number', () => {
+    it('holds every model on one page up to 24', () => {
+      expect(PAGE_SIZE).toBe(24)
+    })
+
+    it('reads ?page= and keeps it inside the pages there are', () => {
+      expect(resolvePageParam('2', 3)).toBe(2)
+      expect(resolvePageParam('9', 3)).toBe(3)
+      expect(resolvePageParam('0', 3)).toBe(1)
+      expect(resolvePageParam('-4', 3)).toBe(1)
+      expect(resolvePageParam('abc', 3)).toBe(1)
+      expect(resolvePageParam(null, 1)).toBe(1)
+      expect(resolvePageParam('2', 0)).toBe(1)
     })
   })
 

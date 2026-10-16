@@ -10,6 +10,7 @@ import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { forgetHomePhotos } from '../lib/homePhotos.js'
 import { getHomeContent } from '../content/home/index.js'
 import { paths } from '../routes/paths.js'
+import { ABOUT_PHOTO } from '../content/shared/aboutMedia.js'
 
 // The home page as the redesign left it: the section order, the figures that must come
 // from the price helpers rather than the copy, the links that must carry the real model
@@ -225,7 +226,7 @@ describe('HomePage', () => {
     const slides = container.querySelectorAll('.hp-hero-media .hp-slide img')
     expect(slides).toHaveLength(5)
     expect(slides[0].getAttribute('src')).toContain('/api/img/content/bukcsfwf9-rdg-eg-vb.webp')
-    expect(slides[0].getAttribute('sizes')).toBe('(max-width: 767px) 100vw, 78vw')
+    expect(slides[0].getAttribute('sizes')).toBe('(max-width: 1100px) 100vw, 78vw')
     expect(slides[0]).toHaveAttribute('width')
     expect(slides[0]).toHaveAttribute('height')
     // Five numerals, the first selected, each named for a screen reader.
@@ -259,6 +260,11 @@ describe('HomePage', () => {
     expect(slides[1].getAttribute('src')).toContain(enHome.home.hero.showcase.slides[1].src)
     expect(slides[2].getAttribute('src')).toContain('/api/img/home/3/kitchen.webp')
     expect(slides[4].getAttribute('src')).toContain(enHome.home.hero.showcase.slides[4].src)
+    // Slide 5's default is a static file (the crane lift, shared/aboutMedia.js), so it brings its own srcset.
+    expect(slides[4].getAttribute('src')).toBe(ABOUT_PHOTO.url)
+    expect(slides[4].getAttribute('srcset')).toBe(ABOUT_PHOTO.srcSet)
+    expect(enHome.home.hero.showcase.slides[4].srcSet).toBe(ABOUT_PHOTO.srcSet)
+    expect(slides[2].getAttribute('srcset')).not.toContain('/delivered/')
     // The caption beside the numerals still goes by the default in that position.
     expect(screen.getAllByRole('tab')).toHaveLength(5)
     expect(screen.getAllByRole('tab')[2]).toHaveAttribute('aria-label', 'Photo 3 of 5: Container units')

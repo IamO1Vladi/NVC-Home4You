@@ -137,10 +137,55 @@ export default {
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
     galleryLink: 'Снимки на готовите модели в галерията →',
-    // No link to the partner form for now: the partner terms cover only containers and Box
-    // houses (partnerTerms.js). The page draws nothing while this is empty; the words come back
-    // ('Повече от един брой или за препродажба? →') if volume prices apply to steel (Q18).
-    partnerLink: '',
+    // To the partner form (#zapitvane). The owner, 2026-10-17 (Q18): partner prices apply to
+    // steel-frame houses too, once the project has been discussed, and the words say so.
+    partnerLink: 'Партньорски цени и за къщи по проект — след като обсъдим проекта →',
+  },
+
+  // The page's questions (lib/productQuestions.js), marked up here and gathered by the FAQ hub
+  // under „Стоманени къщи". The price and the delivery moved here from the hub (2026-10-17);
+  // the factory, the paid documentation and the architectural project ({projectFee},
+  // prices.js), the warranty and the timeline depending on the project, the partner prices and
+  // customs inside the quote are the owner's answers of 2026-10-17. No warranty term and no
+  // duration is stated: both depend on the project. ONE factory, ours, in China, never named.
+  faq: {
+    heading: 'Въпроси',
+    // To the hub's steel-frame houses topic (#t-steel).
+    more: 'Още въпроси →',
+    items: [
+      {
+        id: 'steel-price',
+        q: 'Колко струва къща със стоманена конструкция?',
+        a: 'Всяка къща е отделен проект, затова няма каталожна цена. Изпратете ни своя проект или скица и ще ви направим оферта по него, а ако нямате проект, ще го изготвим за вас.',
+        link: { pathKey: 'steelHouses', label: 'Как работим по вашия проект →' },
+      },
+      {
+        id: 'steel-project',
+        q: 'Колко струва проектът, ако го изготвите вие?',
+        a: 'Пълната документация е платена услуга. Архитектурният проект струва {projectFee}.',
+      },
+      {
+        id: 'steel-factory',
+        q: 'Къде се прави стоманената конструкция?',
+        a: 'В нашата фабрика в Китай.',
+      },
+      {
+        id: 'steel-warranty-time',
+        q: 'Каква е гаранцията и колко време отнема къща по проект?',
+        a: 'И двете зависят от проекта.',
+      },
+      {
+        id: 'steel-delivery',
+        q: 'Поемате ли доставката и митницата на къща по проект?',
+        a: 'Да. Доставяме елементите до вашия парцел и поемаме митническото оформяне. Доставката и митницата са включени в офертата за проекта.',
+        link: { pathKey: 'steelHouses', hash: 'pp-process', label: 'Стъпките от проекта до предаването →' },
+      },
+      {
+        id: 'steel-partner',
+        q: 'Важат ли партньорските цени за къщи по проект?',
+        a: 'Да, и за къщите със стоманена конструкция, след като обсъдим проекта.',
+      },
+    ],
   },
 
   // The two priced lines, for a visitor who wants a figure today. The names are the other

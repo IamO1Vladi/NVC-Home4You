@@ -36,6 +36,12 @@
 // breadcrumbs and a Service (ServiceJSONLD) instead, with no price in it.
 // No reviews section either — none of the published reviews is about a steel-frame house,
 // and Testimonials would render nothing.
+//
+// The questions (2026-10-17) are the page's own, filled by lib/productQuestions.js and marked
+// up here (the only FAQPage markup on this page): the price, the project's cost, the factory,
+// the warranty and the timeline (both depend on the project, and no figure is given), delivery
+// and customs in the quote, and the partner prices. The FAQ hub gathers them under its
+// steel-frame houses topic, which the section links to.
 import React from 'react'
 import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -45,6 +51,7 @@ import ProductHero from '../components/product/ProductHero.jsx'
 import SiblingLinks from '../components/product/SiblingLinks.jsx'
 import ProcessSteps from '../components/product/ProcessSteps.jsx'
 import FinalCta from '../components/FinalCta.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
@@ -52,6 +59,7 @@ import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { useProductRows, lowest } from '../lib/productRows.js'
 import { usePagePhoto } from '../lib/homePhotos.js'
 import { paths } from '../routes/paths.js'
+import { hubTopicPath, productQuestions } from '../lib/productQuestions.js'
 
 /**
  * What a project decides, beside the hero's words: the six things every project settles as
@@ -102,6 +110,8 @@ export default function SteelHousesPage({ locale = 'en', content }) {
   // is usually there at once, read from the snapshot (see homePhotos.js). The admin's alt is
   // typed in Bulgarian, so only the Bulgarian page uses it; the rest get the generic photoAlt.
   const photo = adminPhoto ? { url: adminPhoto.url, alt: (locale === 'bg' && adminPhoto.alt) || c.hero.photoAlt } : null
+
+  const faq = productQuestions('steelHouses', c, locale)
 
   return (
     <main className="hp pp pp-steel">
@@ -166,6 +176,21 @@ export default function SteelHousesPage({ locale = 'en', content }) {
           </p>
         </div>
       </section>
+
+      {faq.length ? (
+        <section id="questions" aria-labelledby="pp-faq-title">
+          <div className="hp-container">
+            <div className="hp-head">
+              <div>
+                <h2 id="pp-faq-title">{c.faq.heading}</h2>
+              </div>
+            </div>
+            <FaqList items={faq} />
+            {/* The FAQ hub's steel-frame houses topic, which gathers these with the rest. */}
+            {c.faq.more ? <p className="pp-links"><Link to={hubTopicPath('steelHouses', locale)}>{c.faq.more}</Link></p> : null}
+          </div>
+        </section>
+      ) : null}
 
       <SiblingLinks
         id="pp-ready"

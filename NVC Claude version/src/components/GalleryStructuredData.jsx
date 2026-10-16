@@ -38,8 +38,11 @@ export function GalleryBreadcrumbsJSONLD({ items = [] }) {
   )
 }
 
+// The gallery index passes exactly the cards it shows (GalleryIndexPage.jsx), so the list has one
+// entry per card. A card with no photo still has its page and its name, so it stays in the list
+// with no image rather than dropping out of it; only an item with no page or no name is left out.
 export function GalleryListJSONLD({ items = [], locale, listName, listUrl }) {
-  const eligible = (items || []).filter((item) => item?.url && item?.title && item?.coverUrl)
+  const eligible = (items || []).filter((item) => item?.url && item?.title)
   if (!eligible.length) return null
 
   return (
@@ -58,7 +61,8 @@ export function GalleryListJSONLD({ items = [], locale, listName, listUrl }) {
             '@id': `${item.url}#product`,
             name: displayTitle(item.title),
             description: blockText(item.description),
-            image: [absoluteUrl(item.coverUrl)],
+            // JSON.stringify drops undefined: no photo, no image property.
+            image: item.coverUrl ? [absoluteUrl(item.coverUrl)] : undefined,
             sku: productSku(item, item.slug),
             offers: typeof item.price === 'number' ? {
               '@type': 'Offer',

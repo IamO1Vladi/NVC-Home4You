@@ -1,16 +1,33 @@
 export default {
   // The title and description are routeMeta.js's (META.gallery), read by GalleryRoutes.jsx.
+  // The index (GalleryIndexPage.jsx): the line above the H1, the H1, and one line under it.
+  // The Box houses are made to order (up to 40 days in production, the owner 2026-10-15), so
+  // the lead does not call every model "available"; the gallery's containers are stock models.
+  eyebrow: 'Модели и цени',
   heading: 'Галерия: контейнери и Бокс къщи',
-  sub: 'Разгледайте наличните модели и отворете детайлна страница за всяко решение.',
+  lead: 'Всеки модел с цената му с ДДС: контейнерите са на склад, а Бокс къщите се изработват по поръчка.',
   loading: 'Зареждане на модели…',
   error: 'Галерията не можа да се зареди. Опитайте по-късно.',
+  retry: 'Опитайте отново',
   empty: {
     all: 'Няма добавени модели.',
     filtered: 'Няма модели в тази категория.',
+    showAll: 'Покажи всички модели',
   },
+  // How many models the list shows, after a filter too ({n}); Intl.PluralRules picks the form.
+  count: { one: '{n} модел', other: '{n} модела' },
   filtersAria: 'Филтри',
   filters: {
     all: 'Всички',
+    // The index's filters (galleryUtils INDEX_FILTER_IDS), in the words the rest of the site
+    // uses for the two product lines. "Сглобяема къща" and "Гараж" always opened empty and
+    // were removed (the owner, 2026-10-17).
+    shown: {
+      wagon: 'Контейнери',
+      modular: 'Бокс къщи',
+    },
+    // The item page's name for a model's category, under its title and in its Product markup
+    // (GalleryRoutes.jsx). All four ids keep one: the admin can still file a model under any.
     categories: {
       prefab: 'Сглобяема къща',
       wagon: 'Фургон',
@@ -18,16 +35,26 @@ export default {
       garage: 'Гараж',
     },
   },
+  // One card per model: the price with what it includes, worded as on the product pages and
+  // the prices table (a container's price includes its assembly, a Box house's does not).
+  card: {
+    basis: {
+      wagon: 'с ДДС и монтаж',
+      box: 'с ДДС, без монтаж',
+      // A model whose assembly figure the prices table does not have (shared/prices.js).
+      vat: 'с ДДС',
+      // A house that needs no assembly (shared/prices.js arrivesReady: the capsule, the owner 2026-10-17).
+      ready: 'с ДДС, пристига готова',
+    },
+    more: 'Снимки и описание →',
+  },
+  // Only past 24 models (galleryUtils PAGE_SIZE); real links, ?page=N.
   pagination: {
     paginationAria: 'Навигация по страници',
     prev: 'Предишна',
     next: 'Следваща',
-    pages: 'Страници',
-    currentPage: 'Текуща страница',
-    pageAbbr: 'Стр.',
+    page: 'Страница {n}',
   },
-  viewDetails: 'Виж детайли',
-  openCta: 'Отвори →',
   schema: {
     listName: 'Галерия с модели',
   },

@@ -1,3 +1,5 @@
+import { ABOUT_PHOTO } from '../shared/aboutMedia.js'
+
 // The map the visitor opens when they tap "Open in Maps". The query is the address as this
 // locale prints it, percent-encoded so the string holds no place name a copy audit would
 // read as a word on the page.
@@ -11,7 +13,7 @@ export default {
     nav: {
       gallery: 'Gallery',
       prices: 'Prices',
-      cases: 'Cases',
+      cases: 'Reviews',
       faq: 'FAQ',
       about: 'About Us',
       partner: 'Partners',
@@ -103,7 +105,9 @@ export default {
           { src: '/api/img/content/bukcsfwf9-rdf-eg-vb.webp', alt: 'Modular houses', pathKey: 'modularHouses' },
           { src: '/api/img/content/bvk4n834b-rbu-eg-vb.webp', alt: 'Container units', pathKey: 'modularBuilds' },
           { src: '/api/img/content/bvk4n834b-r7-eg-vb.webp', alt: 'Steel-frame prefab houses to your plan', pathKey: 'steelHouses' },
-          { src: '/api/img/content/bvk4n834b-rcz-eg-vb.webp', alt: 'Interiors', pathKey: 'interiors' },
+          // Slide 5 (since 2026-10-17): the crane lifting a container (shared/aboutMedia.js, the About and delivery photo), linking to
+          // the delivery page. The lakeside container stands at its photo's left edge, where the hero fades under the heading.
+          { src: ABOUT_PHOTO.url, srcSet: ABOUT_PHOTO.srcSet, alt: 'Delivery and assembly', pathKey: 'delivery' },
         ],
       },
     },

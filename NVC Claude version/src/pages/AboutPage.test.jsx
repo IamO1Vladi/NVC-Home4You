@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import { ModalActionsProvider } from '../context/ModalActions.jsx'
 import AboutPage, { ABOUT_LEAD_SOURCE, ABOUT_PHOTO, FACTORY_PHOTO } from './AboutPage.jsx'
+import { FACTORY_CLIP } from '../content/shared/aboutMedia.js'
 import bgContent from '../content/bg/about.js'
 import enContent from '../content/en/about.js'
 import elContent from '../content/el/about.js'
@@ -42,7 +43,8 @@ import elPrivacy from '../content/el/privacy.js'
 // - the homes count from shared/company.js, as the home page states it, and the opening hours
 //   from the home content's contact band, as the footer prints them (owner, 2026-10-16);
 // - one factory, ours, in China; no suppliers;
-// - only the owner's own photos (the crane lift, the delivery clips, the factory floor, the case);
+// - only the owner's own photos (the crane lift, the delivery clips, the factory hall and its
+//   loop, the case); the factory loop first in the journey's clips (owner's media, 2026-10-17);
 // - links to Cases, FAQ, Gallery, Delivery and Prices, and the lead source on both buttons;
 // - the route's head from routeMeta.js, its breadcrumbs and AboutPage markup.
 
@@ -369,9 +371,11 @@ describe('AboutPage', () => {
     const { container } = await ready(locale)
     const srcs = [...container.querySelectorAll('main img')].map((img) => img.getAttribute('src'))
     expect(srcs.length).toBeGreaterThanOrEqual(6)
-    for (const src of srcs) expect(src).toMatch(/^\/(delivery\/|partner\/factory-floor\.webp$|api\/img\/cases\/|about\/team\/)/)
+    for (const src of srcs) expect(src).toMatch(/^\/(delivery\/|factory\/(factory-hall-1200|clip-factory-pan)\.webp$|api\/img\/cases\/|about\/team\/)/)
     expect(srcs).toContain(ABOUT_PHOTO.url)
-    expect(srcs).toContain('/partner/factory-floor.webp')
+    expect(srcs).toContain(FACTORY_PHOTO.url)
+    expect(srcs).toContain(FACTORY_CLIP.poster)
+    expect(srcs).not.toContain('/partner/factory-floor.webp')
     for (const img of container.querySelectorAll('main img')) {
       // Clip posters and team avatars are decorative (the clip's caption and the person's name sit beside them).
       if (!img.closest('.dl-clip-media') && !img.classList.contains('ab-avatar')) expect(img.getAttribute('alt'), img.getAttribute('src')).toBeTruthy()
@@ -459,6 +463,25 @@ describe('the About page\'s photo slots', () => {
   const photosCalls = () => fetch.mock.calls.filter(([url]) => String(url).includes('/api/home/photos'))
 
   /** What the page drew before the slots, piece by piece. */
+  it.each(LOCALES)('%s: the journey opens on the factory loop, then the four delivery clips', async (locale) => {
+    const c = CONTENT[locale]
+    const { container } = await ready(locale)
+    const clips = [...container.querySelectorAll('#journey .dl-clip')]
+    expect(c.journey.clips.map((clip) => clip.id)).toEqual(['factory', 'port', 'yard', 'truck', 'plot'])
+    expect(clips.map((li) => li.querySelector('h3').textContent)).toEqual(c.journey.clips.map((clip) => clip.title))
+    // The factory's own files; the others stay the delivery page's.
+    expect(clips[0].querySelector('img').getAttribute('src')).toBe(FACTORY_CLIP.poster)
+    expect(clips[0].querySelector('img').getAttribute('alt')).toBe('')
+    expect(clips.slice(1).map((li) => li.querySelector('img').getAttribute('src'))).toEqual(
+      ['port', 'yard', 'truck', 'plot'].map((id) => `/delivery/journey-${id}.webp`),
+    )
+    // One row of five on a wide screen.
+    expect(container.querySelector('#journey .dl-clips').style.getPropertyValue('--dl-clip-count')).toBe('5')
+    // One factory, ours, in China.
+    expect(c.journey.clips[0].text).not.toMatch(PLURAL_FACTORY)
+    expect(c.journey.clips[0].text).toMatch(/нашата фабрика в Китай|our factory in China|εργοστασίου μας στην Κίνα/)
+  })
+
   function expectToday(container, locale) {
     const c = CONTENT[locale]
     const hero = heroImg(container)
@@ -467,10 +490,13 @@ describe('the About page\'s photo slots', () => {
     expect(hero.getAttribute('alt')).toBe(c.hero.photoAlt)
     expect(hero.hasAttribute('style')).toBe(false)
     expect(container.querySelector('.pp-hero-chip')).toBeNull()
-    // The factory figure had no srcset, sizes, style or handler of its own, and still has none.
+    // The factory figure: its 600 and 1200 px files (a phone takes the small one), no style or
+    // handler of its own.
     const floor = floorImg(container)
     expect([...floor.attributes].map((a) => `${a.name}=${a.value}`).sort()).toEqual([
-      `alt=${c.journey.factory.alt}`, 'decoding=async', 'height=891', 'loading=lazy', 'src=/partner/factory-floor.webp', 'width=1200',
+      `alt=${c.journey.factory.alt}`, 'decoding=async', 'height=891', 'loading=lazy',
+      'sizes=(max-width: 719px) 100vw, (max-width: 899px) 50vw, 780px', `src=${FACTORY_PHOTO.url}`,
+      `srcset=${FACTORY_PHOTO.small} 600w, ${FACTORY_PHOTO.url} 1200w`, 'width=1200',
     ])
     for (const slug of ['vladimir-vladimirov', 'tsvetelin-bonin', 'nikolay-lekov']) {
       const img = person(container, slug).querySelector('img.ab-avatar')
@@ -495,7 +521,7 @@ describe('the About page\'s photo slots', () => {
       // No error handler was added to the factory figure either: a failed load stays as it was.
       fireEvent.error(floorImg(container))
       fireEvent.error(floorImg(container))
-      expect(floorImg(container).getAttribute('src')).toBe('/partner/factory-floor.webp')
+      expect(floorImg(container).getAttribute('src')).toBe(FACTORY_PHOTO.url)
       expect(Object.keys(floorImg(container).dataset)).toEqual([])
       unmount()
       forgetHomePhotos()
@@ -528,7 +554,7 @@ describe('the About page\'s photo slots', () => {
 
     // Still only the owner's own photos: his uploads are under /api/img/home/.
     for (const img of container.querySelectorAll('main img')) {
-      expect(img.getAttribute('src')).toMatch(/^\/(delivery\/|partner\/factory-floor\.webp$|api\/img\/cases\/|api\/img\/home\/|about\/team\/)/)
+      expect(img.getAttribute('src')).toMatch(/^\/(delivery\/|factory\/(factory-hall-1200|clip-factory-pan)\.webp$|api\/img\/cases\/|api\/img\/home\/|about\/team\/)/)
     }
   })
 

@@ -96,8 +96,14 @@ function heroPanel(n) {
     aspect: '16:10',
     minWidth: 1600,
     emptyKind: bgSlide.src ? 'image' : 'none',
-    defaultImage: bgSlide.src ? image(bgSlide.src) : null,
+    defaultImage: bgSlide.src ? image(bgSlide.src, firstCandidate(bgSlide.srcSet)) : null,
   }
+}
+
+/** A srcSet's first file, its smallest as the content writes them; undefined without one. */
+function firstCandidate(srcSet) {
+  const first = typeof srcSet === 'string' ? srcSet.split(',')[0].trim().split(/\s+/)[0] : ''
+  return first || undefined
 }
 
 function modelPanel(key) {
@@ -166,8 +172,11 @@ const FIXED = {
     aspect: '4:3',
     minWidth: 1600,
     emptyKind: 'image',
-    defaultImage: image(bgModularBuilds.hero.photo.url),
-    empty: { bg: 'Празно: снимка на контейнер от галерията.', en: 'Empty: a container photo from the gallery.' },
+    defaultImage: image(bgModularBuilds.hero.photo.url, firstCandidate(bgModularBuilds.hero.photo.srcSet)),
+    empty: {
+      bg: 'Празно: контейнер, доставен на парцела на клиент.',
+      en: "Empty: a container delivered to a customer's plot.",
+    },
   },
   'page-modular-houses': {
     label: { bg: 'Модулни къщи', en: 'Modular houses' },
@@ -238,7 +247,7 @@ const FIXED = {
     aspect: '16:9',
     minWidth: 1600,
     emptyKind: 'image',
-    defaultImage: image(FACTORY_PHOTO.url),
+    defaultImage: image(FACTORY_PHOTO.url, FACTORY_PHOTO.small),
   },
   'interiors-kitchen': {
     // Named as the page shows it: under „Наши ремонти“, titled „Кухнята след монтажа“.

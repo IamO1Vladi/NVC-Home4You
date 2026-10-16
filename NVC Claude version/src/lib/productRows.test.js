@@ -14,6 +14,9 @@ const GALLERY = [
   { id: 8, category: 'wagon', price: 6500, currency: 'EUR', title: 'Container House – 8000*3000mm with pitched roof', titleBg: 'Контейнерна къща – 8000*3000мм с двускатен покрив', coverUrl: '/api/img/gallery/3/b.webp', description: '' },
   { id: 10, category: 'modular', price: 14000, currency: 'EUR', title: 'Expandable House – 37 m²', titleBg: 'Разгъваема Къща – 37 м²', coverUrl: '/api/img/gallery/8/c.webp', description: 'A house.' },
   { id: 100016, category: 'modular', price: 10500, currency: 'EUR', title: 'Expandable House – 18 m²', titleBg: 'Разгъваема Къща – 18 м²', coverUrl: '/api/img/gallery/16/d.webp', description: 'Small.' },
+  // A house added in the admin panel that prices.js has no assembly cost for yet, cheaper than
+  // every other so that counting it would show. (The 18 m² house has had one since 2026-10-17.)
+  { id: 100099, category: 'modular', price: 9000, currency: 'EUR', title: 'A new house', titleBg: 'Нова къща', coverUrl: '/api/img/gallery/99/e.webp', description: 'New.' },
 ]
 
 const localized = (locale, base) => GALLERY.map((item) => toLocalizedItem(item, locale, base))
@@ -32,10 +35,11 @@ describe('lowest', () => {
 
   it('gives the finished "from" figure only over houses whose assembly is known', () => {
     const { box } = buildPriceSections(localized('en', '/en/gallery'))
-    // The 18 m² house has no assembly cost, so its €10,500 is not a finished price.
-    expect(lowest(box, (r) => (r.assemblyGross == null ? null : r.total))).toBe(14000 + 840)
+    // The new house has no assembly cost, so its €9,000 is not a finished price; the cheapest
+    // finished one is the 18 m² house, 10,500 + 1,000 net assembly × 1.2.
+    expect(lowest(box, (r) => (r.assemblyGross == null ? null : r.total))).toBe(10500 + 1200)
     // The house alone, as the home strip quotes it, does include it.
-    expect(lowest(box, (r) => r.house)).toBe(10500)
+    expect(lowest(box, (r) => r.house)).toBe(9000)
   })
 })
 
@@ -128,7 +132,7 @@ describe('productJsonLdItems', () => {
   it('leaves out a row whose figure is unknown instead of publishing it at zero', () => {
     const { box } = buildPriceSections(localized('en', '/en/gallery'))
     const items = productJsonLdItems(box, { pick: (r) => (r.assemblyGross == null ? null : r.total) })
-    expect(items.map((i) => i.id)).toEqual(['gal-10'])
+    expect(items.map((i) => i.id)).toEqual(['gal-100016', 'gal-10'])
   })
 })
 
@@ -152,7 +156,7 @@ describe('useProductRows', () => {
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/gallery'))
     expect(result.current.error).toBeFalsy()
     expect(result.current.galleryPath).toBe('/bg/galeriq')
-    expect(result.current.items).toHaveLength(4)
+    expect(result.current.items).toHaveLength(GALLERY.length)
 
     // Exactly the rows the prices page renders.
     const expected = buildPriceSections(localized('bg', '/bg/galeriq'))

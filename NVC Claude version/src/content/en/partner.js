@@ -130,7 +130,7 @@ export default {
       {
         title: 'An offer for the quantity, and a contract',
         text: 'You get a price for the whole quantity, delivery included. We sign a contract and you pay 100% in advance.',
-        image: { src: '/partner/factory-floor.webp', alt: 'A production hall with module frames and wall panels', caption: 'Production at our factory in China' },
+        image: { src: '/factory/factory-hall-1200.webp', alt: 'The production hall of our factory in China: steel profiles and panels stacked on the floor', caption: 'Production at our factory in China' },
       },
       {
         title: 'From stock or from our factory',

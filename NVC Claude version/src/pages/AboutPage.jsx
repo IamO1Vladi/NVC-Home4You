@@ -20,8 +20,9 @@
 // Sections, in order: the hero (the owner's crane-lift photo); the facts strip; who we are (the
 // owner's timeline, 2021 logistics to 2026 steel-frame houses, then today, the base, visits and
 // the company's VAT number from shared/company.js); the team (initials until the photos are in
-// TEAM_PHOTOS); from our factory to your plot (the factory floor, the four delivery clips, the
-// published Paralia Kariani case); what we take on and what stays with you; the warranty; the
+// TEAM_PHOTOS); from our factory to your plot (the factory hall and, first of the clips, the
+// factory loop, both the owner's of 2026-10-17; the four delivery clips; the published Paralia
+// Kariani case); what we take on and what stays with you; the warranty; the
 // reviews; where next; the closing card. The offer and question buttons carry the lead source 'about-page' (App.jsx
 // reports it to GA and Meta). The breadcrumbs and AboutPage markup are the route's.
 //
@@ -52,7 +53,7 @@ import { photoSlotOf, teamSlotName } from '../lib/photoSlotNames.js'
 import SlotImg from '../components/SlotImg.jsx'
 import { paths } from '../routes/paths.js'
 import { COMPANY, TEAM_PHOTOS } from '../content/shared/company.js'
-import { ABOUT_PHOTO, FACTORY_PHOTO } from '../content/shared/aboutMedia.js'
+import { ABOUT_PHOTO, FACTORY_CLIP, FACTORY_PHOTO } from '../content/shared/aboutMedia.js'
 
 /** The lead source the page's offer and question buttons report. */
 export const ABOUT_LEAD_SOURCE = 'about-page'
@@ -340,6 +341,8 @@ export default function AboutPage({ locale = 'bg', content }) {
               adminAlt={slotAlt(slots[FACTORY_SLOT], { locale, adminAlt: c.journey.factory.adminAlt })}
               adminSizes="(max-width: 719px) 100vw, (max-width: 899px) 50vw, 780px"
               src={FACTORY_PHOTO.url}
+              srcSet={`${FACTORY_PHOTO.small} 600w, ${FACTORY_PHOTO.url} 1200w`}
+              sizes="(max-width: 719px) 100vw, (max-width: 899px) 50vw, 780px"
               alt={c.journey.factory.alt}
               width={FACTORY_PHOTO.width}
               height={FACTORY_PHOTO.height}
@@ -352,7 +355,10 @@ export default function AboutPage({ locale = 'bg', content }) {
             </figcaption>
           </figure>
 
-          <JourneyClips clips={c.journey.clips} labelledBy="ab-journey-sub" />
+          <JourneyClips
+            clips={(c.journey.clips || []).map((clip) => (clip.id === 'factory' ? { ...clip, ...FACTORY_CLIP } : clip))}
+            labelledBy="ab-journey-sub"
+          />
 
           {published ? (
             <div className="pp-split ab-proof">

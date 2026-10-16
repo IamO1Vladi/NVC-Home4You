@@ -240,12 +240,17 @@ describe.each(['bg', 'en', 'el'])('SteelHousesPage (%s)', (locale) => {
     expect(keys).toEqual(STAGE_PICTURES)
 
     // Everything is in the page as rendered: no carousel, no tooltips, no hidden panels, no
-    // disclosure widgets, and no Product markup for a line that has no price.
+    // disclosure widgets but the questions (2026-10-17), and no Product markup for a line that
+    // has no price: its one block is the questions' FAQPage, every one of them the page's own.
     expect(container.querySelector('[aria-roledescription]')).toBeNull()
     expect(container.querySelector('[title]')).toBeNull()
     expect(container.querySelector('[hidden]')).toBeNull()
-    expect(container.querySelector('details')).toBeNull()
-    expect(container.querySelector('script[type="application/ld+json"]')).toBeNull()
+    const details = [...container.querySelectorAll('details')]
+    expect(details.map((d) => d.id)).toEqual(c.faq.items.map((item) => `q-${item.id}`))
+    for (const d of details) expect(d.closest('#questions .pp-faq')).not.toBeNull()
+    const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')].map((el) => JSON.parse(el.textContent))
+    expect(blocks.map((b) => b['@type'])).toEqual(['FAQPage'])
+    expect(blocks[0].mainEntity.map((e) => e.name)).toEqual(c.faq.items.map((item) => item.q))
     unmount()
   })
 
@@ -336,11 +341,11 @@ describe('the three locales', () => {
       'Монтаж на място и предаване',
     ])
     expect(JSON.stringify(bg)).not.toMatch(/обков/)
-    // No stray Latin in the Bulgarian words: every string but the picture paths and the
-    // route keys links name their page by.
+    // No stray Latin in the Bulgarian words: every string but the picture paths, the route keys
+    // links name their page by, the sections they open and the questions' ids.
     const words = (value) => (typeof value === 'string'
       ? [value]
-      : Object.entries(value || {}).flatMap(([key, v]) => (key === 'src' || key === 'pathKey' ? [] : words(v))))
+      : Object.entries(value || {}).flatMap(([key, v]) => (['src', 'pathKey', 'id', 'hash'].includes(key) ? [] : words(v))))
     expect(words(bg).filter((text) => /[A-Za-z]{2,}/.test(text.replace(/\{\w+\}/g, '')))).toEqual([])
   })
 })

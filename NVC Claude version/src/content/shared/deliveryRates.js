@@ -44,7 +44,9 @@ export const DELIVERY_RATES = {
       noCrane: { workers: 2, nights: '3–4', travelMax: 100 },
     },
     // An estimate. The ship from China and customs are already in the house price; the
-    // buyer pays this truck leg and the crane, which a Box house cannot do without.
+    // buyer pays this truck leg and the crane, which a Box house cannot do without. The capsule
+    // is delivered on these terms too, with the same crane and the same lead time (owner,
+    // 2026-10-17), so it has no product of its own here.
     box: {
       kind: 'estimate',
       perKm: 2,
@@ -65,6 +67,10 @@ export const LEAD_TIMES = {
   containerInStockDays: 7,
   // A Box house is made in up to this many days...
   boxProductionDays: 40,
-  // ...and reaches the customer's address in about this many months.
+  // ...and reaches the customer's address in about this many months. The same for every size,
+  // 18 to 74 m², and for the capsule (owner, 2026-10-17).
   boxToAddressMonths: '3–4',
+  // A container made to order (not one from stock) takes about this many months, the same as a
+  // Box house (owner, 2026-10-17).
+  containerMadeToOrderMonths: '3–4',
 }

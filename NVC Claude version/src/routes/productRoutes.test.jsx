@@ -9,6 +9,19 @@ import { getRouteSeo } from '../seo/routeMeta.js'
 import { ORGANIZATION_ID } from '../components/StructuredData.jsx'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { forgetHomePhotos } from '../lib/homePhotos.js'
+import { productQuestions, hubTopicPath } from '../lib/productQuestions.js'
+import bgModularBuilds from '../content/bg/modularBuilds.js'
+import enModularBuilds from '../content/en/modularBuilds.js'
+import elModularBuilds from '../content/el/modularBuilds.js'
+import bgModularHouses from '../content/bg/modularHouses.js'
+import enModularHouses from '../content/en/modularHouses.js'
+import elModularHouses from '../content/el/modularHouses.js'
+import bgSteelHouses from '../content/bg/steelHouses.js'
+import enSteelHouses from '../content/en/steelHouses.js'
+import elSteelHouses from '../content/el/steelHouses.js'
+import bgDoors from '../content/bg/internalDoors.js'
+import enDoors from '../content/en/internalDoors.js'
+import elDoors from '../content/el/internalDoors.js'
 import BgModularBuildsRoute from './bg/BgModularBuildsRoute.jsx'
 import EnModularBuildsRoute from './en/EnModularBuildsRoute.jsx'
 import ElModularBuildsRoute from './el/ElModularBuildsRoute.jsx'
@@ -26,8 +39,10 @@ import ElSteelHousesRoute from './el/ElSteelHousesRoute.jsx'
 // What these pin: every route's head comes from routeMeta.js; breadcrumbs on all nine; Product
 // markup on the containers and the houses only, each price the very figure printed on that
 // product's card; on the steel page a Service provided by the site's Organization and no
-// Product or FAQ markup; one H1 and no skipped heading level; and links to the prices page,
-// the gallery and the other two product pages, none of them to a path the router lacks.
+// Product markup; FAQPage markup on all three, of the page's own questions only (since
+// 2026-10-17: the containers page shows the doors page's container question, marked up there);
+// one H1 and no skipped heading level; and links to the prices page, the gallery and the other
+// two product pages, none of them to a path the router lacks.
 
 const ROUTES = {
   modularBuilds: { bg: BgModularBuildsRoute, en: EnModularBuildsRoute, el: ElModularBuildsRoute },
@@ -35,6 +50,12 @@ const ROUTES = {
   steelHouses: { bg: BgSteelHousesRoute, en: EnSteelHousesRoute, el: ElSteelHousesRoute },
 }
 const LOCALES = ['bg', 'en', 'el']
+const CONTENT = {
+  modularBuilds: { bg: bgModularBuilds, en: enModularBuilds, el: elModularBuilds },
+  modularHouses: { bg: bgModularHouses, en: enModularHouses, el: elModularHouses },
+  steelHouses: { bg: bgSteelHouses, en: enSteelHouses, el: elSteelHouses },
+}
+const DOORS = { bg: bgDoors, en: enDoors, el: elDoors }
 const SITE = 'https://nvc-home4you.eu'
 
 const item = (id, category, price, title, cover) => ({
@@ -137,7 +158,12 @@ describe.each(Object.keys(ROUTES))('%s routes', (pageKey) => {
     expect(crumbs.itemListElement[1]).toMatchObject({ position: 2, item: `${SITE}${paths[pageKey][locale]}` })
     expect(crumbs.itemListElement[1].name).toBeTruthy()
 
-    expect(blocks.some((block) => block['@type'] === 'FAQPage')).toBe(false)
+    // One FAQPage, of the page's own questions only, as the page prints them.
+    const faqs = blocks.filter((block) => block['@type'] === 'FAQPage')
+    expect(faqs).toHaveLength(1)
+    const own = productQuestions(pageKey, CONTENT[pageKey][locale], locale, { doors: DOORS[locale] }).filter((q) => q.markup)
+    expect(faqs[0].mainEntity.map((e) => [e.name, e.acceptedAnswer.text])).toEqual(own.map((q) => [q.question, q.answer]))
+    expect(faqs[0].mainEntity.map((e) => e.name)).not.toContain(DOORS[locale].faq.items.find((i) => i.id === 'doors-for-containers').q)
 
     const list = blocks.find((block) => block['@type'] === 'ItemList')
     if (pageKey === 'steelHouses') {
@@ -216,5 +242,54 @@ describe('the steel route', () => {
     expect(service.serviceType).toBeTruthy()
     expect(service.offers).toBeUndefined()
     if (locale !== 'bg') expect(JSON.stringify(service)).not.toMatch(/\p{Script=Cyrillic}/u)
+  })
+})
+
+// The Questions section each product page gained on 2026-10-17 (Stage 2): the page's own
+// questions in the FAQ list style, the containers page's with the doors page's container
+// question too, a link to the hub's topic under them, and the section placed before the
+// closing card. In the page's words, every figure filled, and none of what the owner ruled out.
+describe.each(Object.keys(ROUTES))('%s: the Questions section', (pageKey) => {
+  const FORBIDDEN = {
+    // The new office opens in February 2027: nothing before it does.
+    office: /Драгичево|Dragichevo|Ντραγκίτσεβο/i,
+    // Heating and air conditioning were not answered.
+    heating: /отоплен|климатик|heating|air.?condition|θέρμανσ|κλιματισ/i,
+    // ONE factory, ours, never suppliers.
+    plural: /фабрики|доставчи|factories|supplier|εργοστάσια(?![\p{L}])|εργοστασίων|προμηθευτ/iu,
+    // Never who connects a container or a Box house to the utilities.
+    utilities: /свързва|свързване|канализац|водопровод|connect|sewer|σύνδεση|συνδέεται|αποχέτευ|ύδρευ/i,
+  }
+
+  it.each(LOCALES)('%s: before the closing card, every question in it, and a link to the hub topic', async (locale) => {
+    const c = CONTENT[pageKey][locale]
+    const { container } = renderRoute(pageKey, locale)
+    if (pageKey !== 'steelHouses') {
+      await waitFor(() => expect(container.querySelector('.pp-unit')).not.toBeNull())
+    }
+    const section = container.querySelector('section#questions')
+    expect(section).not.toBeNull()
+    expect(section.querySelector('h2').textContent).toBe(c.faq.heading)
+    // After everything but the sibling cards, which, like on the delivery and doors pages, sit
+    // between the questions and the closing card.
+    const sections = [...container.querySelector('main').children]
+    const at = sections.indexOf(section)
+    expect(sections[at + 1].matches('.pp-siblings')).toBe(true)
+    expect(sections[at + 2].id).toBe('final-cta')
+
+    const expected = productQuestions(pageKey, c, locale, { doors: DOORS[locale] })
+    const details = [...section.querySelectorAll('details.pp-faq-item')]
+    expect(details.map((d) => d.id)).toEqual(expected.map((q) => `q-${q.id}`))
+    expect(details.map((d) => [d.querySelector('summary').textContent, d.querySelector('p').textContent]))
+      .toEqual(expected.map((q) => [q.question, q.answer]))
+    if (pageKey === 'modularBuilds') expect(details.map((d) => d.id)).toContain('q-doors-for-containers')
+    expect(section.textContent).not.toMatch(/\{\w+\}/)
+
+    const more = section.querySelector('.pp-links a')
+    expect(more.getAttribute('href')).toBe(hubTopicPath(pageKey, locale))
+    expect(more.getAttribute('href')).toBe(`${paths.faq[locale]}#t-${{ modularBuilds: 'containers', modularHouses: 'box', steelHouses: 'steel' }[pageKey]}`)
+    expect(more.textContent).toBe(c.faq.more)
+
+    for (const [rule, pattern] of Object.entries(FORBIDDEN)) expect(section.textContent, rule).not.toMatch(pattern)
   })
 })

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getPriceRows, startingPrice, startingHousePrice, VAT_RATE, buildPriceSections } from './prices.js'
+import {
+  getPriceRows, startingPrice, startingHousePrice, VAT_RATE, buildPriceSections,
+  boxAssemblyNet, boxAssemblyFromNet, BOX_ASSEMBLY_CREW, ARCHITECT_PROJECT_EUR,
+} from './prices.js'
 import { getBoxConfiguratorCatalog } from './boxConfiguratorCatalog.js'
 
 // The published price table.
@@ -178,5 +181,36 @@ describe('the full catalogue, priced from the gallery', () => {
       const totals = section.map((r) => r.total)
       expect([...totals].sort((a, b) => a - b)).toEqual(totals)
     }
+  })
+})
+
+// The owner's answers of 2026-10-17: the 18 m² house's assembly (1,000 € without VAT), the
+// capsule arriving ready (no assembly at all), who assembles a Box house and how long it takes,
+// and the price of an architectural project for a steel-frame house. Pinned here so a change is
+// deliberate; the pages and the FAQ read them from prices.js, never typed.
+describe('the owner\'s figures of 2026-10-17', () => {
+  const { box } = buildPriceSections([
+    { id: 100016, category: 'modular', price: 10500, title: '18' },
+    { id: 100015, category: 'modular', price: 55000, title: 'capsule' },
+  ])
+
+  it('prices the 18 m² house\'s assembly at 1,000 without VAT, 1,200 with it', () => {
+    expect(boxAssemblyNet(100016)).toBe(1000)
+    expect(box.find((r) => r.id === 100016)).toMatchObject({ assemblyNet: 1000, assemblyGross: 1200, total: 11700, arrivesReady: false })
+  })
+
+  it('gives the capsule no assembly: it arrives ready, and its price is its total', () => {
+    expect(box.find((r) => r.id === 100015)).toMatchObject({ assemblyNet: null, assemblyGross: null, total: 55000, arrivesReady: true })
+    expect(boxAssemblyNet(100015)).toBeNull()
+  })
+
+  it('starts Box assembly at the 37 m² house\'s 700, the cheapest of them all', () => {
+    expect(boxAssemblyFromNet()).toBe(700)
+    expect(boxAssemblyFromNet()).toBe(Math.min(...getPriceRows('en').map((r) => r.standard.assemblyNet)))
+  })
+
+  it('has two of our workers assemble a Box house in 3–4 days, and an architectural project cost 1,000', () => {
+    expect(BOX_ASSEMBLY_CREW).toEqual({ workers: 2, days: '3–4' })
+    expect(ARCHITECT_PROJECT_EUR).toBe(1000)
   })
 })

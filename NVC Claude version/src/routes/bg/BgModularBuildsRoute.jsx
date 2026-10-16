@@ -4,6 +4,9 @@ import SEO from '../../components/SEO.jsx'
 import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import ModularBuildsPage from '../../pages/ModularBuildsPage.jsx'
 import content from '../../content/bg/modularBuilds.js'
+// The internal doors page's words, for its container question, which the page shows in its
+// Questions section (marked up on the doors page).
+import doors from '../../content/bg/internalDoors.js'
 import { paths } from '../paths.js'
 import { getRouteSeo } from '../../seo/routeMeta.js'
 
@@ -16,6 +19,8 @@ import { getRouteSeo } from '../../seo/routeMeta.js'
 // file — in BGN, at 4,240 / 4,950 / 5,370, none of which the page showed — so Google was told
 // the cheapest container cost about €2,170. The page now renders its Product markup from the
 // same /api/gallery rows its cards print, so the markup can only ever state a visible price.
+const RELATED = { doors }
+
 export default function BgModularBuildsRoute() {
   const seo = getRouteSeo(paths.modularBuilds.bg, 'bg')
 
@@ -30,7 +35,7 @@ export default function BgModularBuildsRoute() {
         ]}
       />
 
-      <ModularBuildsPage locale="bg" content={content} />
+      <ModularBuildsPage locale="bg" content={content} related={RELATED} />
     </>
   )
 }

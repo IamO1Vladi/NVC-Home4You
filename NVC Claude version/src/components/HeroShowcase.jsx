@@ -9,13 +9,17 @@
 //
 // Images go through cdnImage/cdnSrcSet (the API resizer) with explicit sizes, and each one
 // falls back through imageFallback so a dead Blob store marks the snapshot rather than
-// looping requests. A per-slide `frame` from the content files sets the crop of a
+// looping requests. A static photo under /public has no resizer behind it, so its slide may
+// carry its own `srcSet` (slide 5's crane lift, shared/aboutMedia.js); a slide the
+// owner replaced in the panel never does (mergeHomePhotos builds it afresh). A per-slide `frame` from the content files sets the crop of a
 // photograph whose subject sits off-centre.
 import React, { useEffect, useRef, useState } from 'react'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 
 const WIDTHS = [800, 1200, 1600, 2000]
-const SIZES = '(max-width: 767px) 100vw, 78vw'
+// The photo spans the whole hero up to 1100px and starts at 22% from 1101px (HomePage.css
+// .hp-hero-media), so a tablet gets a file as wide as its screen.
+const SIZES = '(max-width: 1100px) 100vw, 78vw'
 
 function frameStyle(frame) {
   if (!frame) return undefined
@@ -76,7 +80,7 @@ export default function HeroShowcase({
           <figure key={`${s.src}-${i}`} className={active ? 'hp-slide is-active' : 'hp-slide'}>
             <img
               src={cdnImage(s.src, { width: 1600 })}
-              srcSet={cdnSrcSet(s.src, WIDTHS)}
+              srcSet={s.srcSet || cdnSrcSet(s.src, WIDTHS)}
               sizes={SIZES}
               alt=""
               width="1600"

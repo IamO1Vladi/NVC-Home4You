@@ -18,6 +18,7 @@ import bgPartner from '../content/bg/partner.js'
 import enPartner from '../content/en/partner.js'
 import elPartner from '../content/el/partner.js'
 import { PARTNER_MIN_UNITS } from '../content/shared/partnerTerms.js'
+import { DELIVERED_CONTAINER, DELIVERED_CONTAINER_WIDE } from '../content/shared/deliveredMedia.js'
 
 // The search snippet and share card of the three product pages.
 //
@@ -36,8 +37,12 @@ const PAGES = {
     content: { bg: bgBuilds, en: enBuilds, el: elBuilds },
     // The head term each locale's title and H1 share.
     head: { bg: 'контейнери за живеене', en: 'containers', el: 'κοντέινερ' },
-    // The page's default hero photo, which the share card must be.
-    photo: (c) => ({ url: c.hero.photo.url, alt: c.hero.photo.alt }),
+    // The page's default hero photo, which the share card must be: since 2026-10-17 the owner's
+    // delivered container, whose 16:10 crop the card takes (a 1.91:1 card trims a 4:3 far more).
+    photo: (c) => {
+      expect(c.hero.photo.url).toBe(DELIVERED_CONTAINER.url)
+      return { url: DELIVERED_CONTAINER_WIDE.url, alt: c.hero.photo.alt }
+    },
   },
   modularHouses: {
     content: { bg: bgHouses, en: enHouses, el: elHouses },

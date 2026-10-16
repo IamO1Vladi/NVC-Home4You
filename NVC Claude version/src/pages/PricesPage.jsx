@@ -36,11 +36,13 @@ export default function PricesPage({ locale = 'en' }) {
   const money = (value) => euro(value, locale)
 
   // "Finished house from" counts only the houses whose assembly we know. A row with no
-  // assembly mapped still lists, but its total IS its bare price — so the 18 m² house, whose
-  // assembly is quoted on request, made the headline read "finished from €10,500" for a
-  // house that cannot be finished for that. Until its assembly is known it stays out of the
-  // figure, and with no such row at all the catalogue's own starting price stands in.
-  const finished = box.filter((r) => r.assemblyGross != null)
+  // assembly mapped still lists, but its total IS its bare price — so the 18 m² house, while
+  // its assembly was quoted on request, made the headline read "finished from €10,500" for a
+  // house that could not be finished for that. A row on request stays out of the figure (the
+  // 18 m² one has its assembly since 2026-10-17), and with no row at all the catalogue's own
+  // starting price stands in.
+  // A house that arrives ready (the capsule) is finished at its price, so it counts too.
+  const finished = box.filter((r) => r.assemblyGross != null || r.arrivesReady)
   const from = finished.length ? Math.min(...finished.map((r) => r.total)) : startingPrice(locale)
 
   const pageUrl = `https://nvc-home4you.eu${paths.prices[locale] || paths.prices.en}`
@@ -57,11 +59,11 @@ export default function PricesPage({ locale = 'en' }) {
       id: `gal-${row.id}`,
       url: `${pageUrl}#item-${row.id}`,
       name: row.item.title,
-      description: row.assemblyGross == null
+      description: row.assemblyGross == null && !row.arrivesReady
         ? `${row.item.title}. ${t.colHouse}: ${money(row.house)}. ${t.colAssemblyGross}: ${t.assemblyOnRequest}.`
         : `${row.item.title}. ${t.colTotal}: ${money(row.total)}.`,
       image: row.item.coverUrl,
-      price: row.assemblyGross == null ? row.house : row.total,
+      price: row.assemblyGross == null && !row.arrivesReady ? row.house : row.total,
       currency: row.item.currency || 'EUR',
       // A container is a stock model, a Box house is made to order (galleryUtils.js).
       availability: offerAvailability(row.item),
@@ -186,6 +188,17 @@ export default function PricesPage({ locale = 'en' }) {
   )
 }
 
+// An assembly cell: the figure, or that the house needs none (it arrives ready), or that it is
+// on request (a house no assembly cost is mapped for yet).
+const assemblyText = (row, value, t, money) => {
+  if (row.arrivesReady) return t.arrivesReady
+  return value == null ? t.assemblyOnRequest : money(value)
+}
+
+// A total: the house with its assembly; for a house that arrives ready, its own price; none yet
+// while the assembly is on request.
+const totalText = (row, t, money) => (row.assemblyGross == null && !row.arrivesReady ? t.assemblyOnRequest : money(row.total))
+
 // One catalogue section: its cards, then its table, directly underneath, then the link to
 // the section's product page.
 function PriceSection({ id, rows, t, money, title, intro, columns, more }) {
@@ -238,7 +251,7 @@ function PriceSection({ id, rows, t, money, title, intro, columns, more }) {
                 <div>
                   <dt>{full ? t.colAssemblyGross : t.wagonColAssembly}</dt>
                   <dd className="num">
-                    {row.assemblyGross == null ? t.assemblyOnRequest : money(row.assemblyGross)}
+                    {assemblyText(row, row.assemblyGross, t, money)}
                   </dd>
                 </div>
               </dl>
@@ -248,7 +261,7 @@ function PriceSection({ id, rows, t, money, title, intro, columns, more }) {
                 {/* No assembly known means no total yet: the bare house price under
                     "total" would read as a finished house for less than one costs. */}
                 <strong className="num">
-                  {row.assemblyGross == null ? t.assemblyOnRequest : money(row.total)}
+                  {totalText(row, t, money)}
                 </strong>
               </p>
             </div>
@@ -290,14 +303,14 @@ function PriceSection({ id, rows, t, money, title, intro, columns, more }) {
                 </td>
                 {full ? (
                   <td className="num" data-label={t.colAssemblyNet}>
-                    {row.assemblyNet == null ? t.assemblyOnRequest : money(row.assemblyNet)}
+                    {assemblyText(row, row.assemblyNet, t, money)}
                   </td>
                 ) : null}
                 <td className="num" data-label={full ? t.colAssemblyGross : t.wagonColAssembly}>
-                  {row.assemblyGross == null ? t.assemblyOnRequest : money(row.assemblyGross)}
+                  {assemblyText(row, row.assemblyGross, t, money)}
                 </td>
                 <td className="num is-total" data-label={t.colTotal}>
-                  {row.assemblyGross == null ? t.assemblyOnRequest : money(row.total)}
+                  {totalText(row, t, money)}
                 </td>
               </tr>
             ))}

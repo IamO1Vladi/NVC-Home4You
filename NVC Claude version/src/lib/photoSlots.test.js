@@ -230,8 +230,10 @@ describe('the panel entries', () => {
     slides.forEach((slide, i) => {
       expect(PHOTO_SLOT_PANEL[`hero-${i + 1}`].label.bg).toBe(`Снимка ${i + 1} · води към „${slide.alt}“`)
     })
-    expect(PHOTO_SLOT_PANEL['hero-5'].label.bg).toBe('Снимка 5 · води към „Вътрешни ремонти“')
-    expect(PHOTO_SLOT_PANEL['hero-5'].label.en).toBe('Photo 5 · links to “Interiors”')
+    // Slide 5 links to the delivery page since 2026-10-17 (its default photo is the crane lift).
+    expect(slides[4].pathKey).toBe('delivery')
+    expect(PHOTO_SLOT_PANEL['hero-5'].label.bg).toBe('Снимка 5 · води към „Доставка и монтаж“')
+    expect(PHOTO_SLOT_PANEL['hero-5'].label.en).toBe('Photo 5 · links to “Delivery and assembly”')
   })
 
   it('shows as the default exactly what the pages show while the slot is empty', () => {

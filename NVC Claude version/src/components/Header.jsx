@@ -81,7 +81,7 @@ export default function Header({ locale = 'en', content, telephone, phone, onLan
   const aboutLabel = content?.nav?.about || (currentLocale === 'bg' ? 'За нас' : 'About Us')
   const aboutItems = [
     { key: 'about', label: aboutLabel, to: pathFor('about') },
-    { key: 'cases', label: content?.nav?.cases || (currentLocale === 'bg' ? 'Казуси' : 'Cases'), to: pathFor('cases') },
+    { key: 'cases', label: content?.nav?.cases || (currentLocale === 'bg' ? 'Отзиви' : 'Reviews'), to: pathFor('cases') },
     // Moved out of the top bar when Prices went in. Eight top-level items was too many, and
     // of the candidates the FAQ is the one nobody arrives intending to visit — it is support
     // content, where Gallery and Prices are the two pages that sell.

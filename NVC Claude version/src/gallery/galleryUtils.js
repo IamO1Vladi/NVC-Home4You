@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 
-export const PAGE_SIZE = 12
+// The index shows every model on one page up to this many (16 today). It was 12, which put 4
+// of the 16 behind a page-2 <button> no crawler follows; past 24 the index pages with real
+// ?page=N links (GalleryIndexPage.jsx).
+export const PAGE_SIZE = 24
 
+// Every category a model can be filed under: what the API and the admin send, and what the
+// item page names under its title. All four stay, so a model the admin files under any of
+// them still resolves.
 export const FILTER_IDS = ['prefab', 'wagon', 'modular', 'garage']
+
+// The filters the gallery index offers, in this order. "prefab" and "garage" always opened
+// empty (no model is filed under them), and the owner had them removed on 2026-10-17.
+export const INDEX_FILTER_IDS = ['wagon', 'modular']
 
 const FILTERS = [
   { id: 'prefab', bg: 'Сглобяема къща', en: 'Prefab house' },
@@ -88,6 +98,23 @@ export function resolveCatParam(v) {
   if (n === 'all') return 'all'
   if (byId.has(n)) return n
   return byBg[n] || byEn[n] || 'all'
+}
+
+/**
+ * The index filter a ?cat= asks for: one the index offers (INDEX_FILTER_IDS), or 'all'. A
+ * category it no longer offers (?cat=prefab, ?cat=Гараж from an old shared link) or junk
+ * shows every model rather than an empty page. The canonical drops the query either way
+ * (GalleryRoutes.jsx).
+ */
+export function resolveIndexFilter(v) {
+  const id = resolveCatParam(v)
+  return INDEX_FILTER_IDS.includes(id) ? id : 'all'
+}
+
+/** The 1-based index page a ?page= asks for, kept inside 1..pageCount. */
+export function resolvePageParam(v, pageCount = 1) {
+  const n = Number.parseInt(String(v ?? ''), 10)
+  return clamp(Number.isFinite(n) ? n : 1, 1, Math.max(1, pageCount))
 }
 
 export function catFromItemCategory(raw) {

@@ -106,9 +106,11 @@ export function startingHousePrice(locale = 'en') {
 
 /**
  * Box-house assembly, EXCLUDING VAT — same basis as ASSEMBLY_NET above.
- * Confirmed with the client 2026-08-15.
+ * Confirmed with the client 2026-08-15; the 18 m² house's on 2026-10-17 (until then it was
+ * "on request" on the prices page, the Box page and the FAQ).
  */
 const BOX_ASSEMBLY_NET_BY_ID = {
+  100016: 1000, // Разгъваема Къща – 18 м² (owner, 2026-10-17)
   10: 700,    // Разгъваема Къща – 37 м²
   11: 1300,   // Разгъваема къща – 37 м² с веранда и двоен покрив
   16: 1900,   // Панорамна Бокс къща – 37 м²
@@ -118,6 +120,36 @@ const BOX_ASSEMBLY_NET_BY_ID = {
   15: 1900,   // Разгъваема Къща – 73 м² с веранда и двоен покрив
   17: 3000,   // Двуетажна разгъваема къща – 74 м²
 }
+
+/**
+ * Houses filed with the Box houses that have NO assembly: they arrive ready (owner, 2026-10-17,
+ * the Space capsule, served as 100015). Their row says so instead of "on request", and their
+ * total is their price. Delivery, the crane, the lead time and the warranty are the Box houses'.
+ */
+const ARRIVES_READY_IDS = new Set([100015])
+
+/** A Box house's assembly cost without VAT, by gallery id; null where it is not known. */
+export function boxAssemblyNet(id) {
+  return BOX_ASSEMBLY_NET_BY_ID[id] ?? null
+}
+
+/** The cheapest Box-house assembly, without VAT, across every house that has one. */
+export function boxAssemblyFromNet() {
+  return Math.min(...Object.values(BOX_ASSEMBLY_NET_BY_ID))
+}
+
+/**
+ * Who assembles a Box house and how long it takes (owner, 2026-10-17): this many of our own
+ * workers, on site, in this many days. The capsule needs none (ARRIVES_READY_IDS).
+ */
+export const BOX_ASSEMBLY_CREW = { workers: 2, days: '3–4' }
+
+/**
+ * A steel-frame house's architectural project, when we draw it up (owner, 2026-10-17). Full
+ * documentation is a paid service; this is the project's price. Nothing else about steel-frame
+ * houses has a figure: they are quoted per project.
+ */
+export const ARCHITECT_PROJECT_EUR = 1000
 
 /**
  * Wagons work the other way round, and this is the trap to remember.
@@ -152,6 +184,9 @@ const inCategory = (item, group) =>
  * An item with no assembly cost mapped is still listed — with its price and no breakdown —
  * rather than dropped. A product missing from the price list because nobody updated a
  * constant is worse than one that says "assembly on request".
+ *
+ * A house that arrives ready (ARRIVES_READY_IDS) has no assembly figure either, but it is not
+ * "on request": `arrivesReady` is true and its price is its finished total.
  */
 export function buildPriceSections(items = []) {
   const rows = (items || []).filter((i) => i && Number(i.price) > 0)
@@ -159,16 +194,18 @@ export function buildPriceSections(items = []) {
   const box = rows
     .filter((i) => inCategory(i, 'box'))
     .map((i) => {
-      const assemblyNet = BOX_ASSEMBLY_NET_BY_ID[i.id]
+      const arrivesReady = ARRIVES_READY_IDS.has(Number(i.id))
+      const assemblyNet = arrivesReady ? null : boxAssemblyNet(i.id)
       const assemblyGross = assemblyNet == null ? null : addVat(assemblyNet)
       return {
         id: i.id,
         item: i,
         house: Number(i.price),
-        assemblyNet: assemblyNet ?? null,
+        assemblyNet,
         assemblyGross,
         total: assemblyGross == null ? Number(i.price) : Number(i.price) + assemblyGross,
         assemblyIncluded: false,
+        arrivesReady,
       }
     })
     .sort((a, b) => a.total - b.total)

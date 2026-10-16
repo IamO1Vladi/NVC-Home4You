@@ -152,9 +152,11 @@ describe('ModularHousesPage', () => {
     expect(text(16)).toContain(flat(euro(2280, 'bg')))
     expect(text(17)).toContain(flat(euro(3600, 'bg')))
 
-    // The 18 m² house's assembly is not known yet: it says so instead of a number.
+    // The 18 m² house's assembly (owner, 2026-10-17): 1,000 net × 1.2 = 1,200, no longer "on
+    // request".
     expect(text(100016)).toContain(flat(euro(10500, 'bg')))
-    expect(text(100016)).toContain(bgContent.sizes.assemblyOnRequest)
+    expect(text(100016)).toContain(flat(`+ монтаж ${euro(1200, 'bg')} с ДДС`))
+    expect(text(100016)).not.toContain(bgContent.sizes.assemblyOnRequest)
 
     // The variant line links to the variant's own gallery page.
     const variant = within(card(10)).getByRole('link', { name: /веранда/ })
@@ -195,6 +197,11 @@ describe('ModularHousesPage', () => {
     expect(capsule.classList.contains('pp-unit--wide')).toBe(true)
     expect(flat(capsule.textContent)).toContain(flat(euro(55000, locale)))
     expect(capsule.textContent).toContain(CONTENT[locale].capsule.basis)
+    // It arrives ready (owner, 2026-10-17): no assembly "on request" on its card or in the table.
+    const ON_REQUEST = { bg: /по запитване/, en: /on request/, el: /κατόπιν αιτήματος/ }[locale]
+    expect(capsule.textContent).not.toMatch(ON_REQUEST)
+    expect(`${CONTENT[locale].capsule.basis} ${CONTENT[locale].compare.capsulePrice}`).not.toMatch(ON_REQUEST)
+    expect(flat(container.querySelector('table.pp-spec').textContent)).toContain(flat(CONTENT[locale].compare.capsulePrice.replace('{price}', euro(55000, locale))))
     for (const line of CONTENT[locale].capsule.lines) expect(capsule.textContent).toContain(line)
     // The old card's borrowed specs.
     expect(capsule.textContent).not.toMatch(/40–100|150\/200|SPC/)
@@ -267,7 +274,7 @@ describe('ModularHousesPage', () => {
       const block = container.querySelector('#warranty')
       expect(block.previousElementSibling.getAttribute('aria-labelledby')).toBe('mh-arrival-title')
       expect(block.querySelector('h2#warranty-title').textContent).toBe(c.warranty.heading)
-      // It names the Box houses: the capsule on the same page is not covered by these terms.
+      // It names the Box houses and the capsule, which carries the same terms (owner, 2026-10-17).
       expect(block.querySelector('.hp-sub').textContent).toBe(c.warranty.lead)
       const rows = [...block.querySelectorAll('dl.pp-terms > div')]
       expect(rows.map((row) => row.dataset.warranty)).toEqual(['structure', 'panels', 'joinery', 'sanitary'])

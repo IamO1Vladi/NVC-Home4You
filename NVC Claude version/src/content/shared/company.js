@@ -15,6 +15,22 @@ export const COMPANY = {
   homesDelivered: 87,
 }
 
+// How a buyer pays for a container or a house, as the owner gave it on 2026-10-17: this share
+// of the price when the order is placed, the rest after delivery; the assembly is paid once it
+// is finished (the FAQ hub words that part). Numbers only. Partners pay the whole price in
+// advance, by contract (partner.js); these figures do not change that.
+export const PAYMENT_TERMS = {
+  atOrderPercent: 60,
+  afterDeliveryPercent: 40,
+}
+
+// Financing, as the owner gave it on 2026-10-17: up to this many euros, through this bank. The
+// bank's name is written once per language, the way the bank writes it there.
+export const FINANCING = {
+  upToEuro: 50000,
+  bank: { bg: 'УниКредит Булбанк', en: 'UniCredit Bulbank', el: 'UniCredit Bulbank' },
+}
+
 // The phone number the site publishes (the header, the closing card, the footer, the
 // LocalBusiness markup). The admin reply composer signs with it for the people in
 // AdminPipelinePage's WEBSITE_PHONE_SIGNERS; AdminPipelinePage.test.jsx checks it is the

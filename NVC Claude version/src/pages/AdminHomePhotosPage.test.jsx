@@ -203,7 +203,7 @@ describe('AdminHomePhotosPage', () => {
     render(<AdminHomePhotosPage />)
     await ready()
 
-    expect(card('Снимка 5 · води към „Вътрешни ремонти“')).toBeInTheDocument()
+    expect(card('Снимка 5 · води към „Доставка и монтаж“')).toBeInTheDocument()
     expect(card('Снимка 2 · води към „Модулни къщи“')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /^Наляво — / })).toHaveLength(5)
     expect(screen.getAllByRole('button', { name: /^Надясно — / })).toHaveLength(5)
@@ -474,7 +474,7 @@ describe('AdminHomePhotosPage', () => {
     await ready()
 
     expect(within(section('Продуктови страници')).getAllByRole('listitem')).toHaveLength(3)
-    expect(within(card('Контейнерни модули')).getByText('Празно: снимка на контейнер от галерията.')).toBeInTheDocument()
+    expect(within(card('Контейнерни модули')).getByText('Празно: контейнер, доставен на парцела на клиент.')).toBeInTheDocument()
     expect(within(card('Модулни къщи')).getByText(/Паралия Кариани \(58 м²\)/)).toBeInTheDocument()
     expect(within(card('Сглобяеми къщи по проект')).getByText('Празно: страницата е без снимка.')).toBeInTheDocument()
     expect(within(card('Доставка и монтаж')).getByText('Празно: кран вдига модул от камиона.')).toBeInTheDocument()

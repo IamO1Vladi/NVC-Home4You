@@ -54,6 +54,8 @@ export const PRICES_COPY = {
     wagonColAssembly: 'Вкл. монтаж',
     wagonVatNote: 'Всички суми са в евро с включено ДДС. Монтажът е част от цената, не добавка към нея.',
     assemblyOnRequest: 'по запитване',
+    // A house with no assembly at all (the capsule, owner 2026-10-17), in its assembly cells.
+    arrivesReady: 'не е нужен, пристига готова',
     includedTitle: 'Какво включва монтажът',
     included: [
       'Поставяне на къщата на подготвената основа.',
@@ -121,6 +123,7 @@ export const PRICES_COPY = {
     wagonColAssembly: 'Incl. assembly',
     wagonVatNote: 'All figures in euro, VAT included. Assembly is part of the price, not an addition to it.',
     assemblyOnRequest: 'on request',
+    arrivesReady: 'none needed, arrives ready',
     includedTitle: 'What assembly covers',
     included: [
       'Placing the house on your prepared base.',
@@ -181,6 +184,7 @@ export const PRICES_COPY = {
     wagonColAssembly: 'Περιλ. συναρμολόγηση',
     wagonVatNote: 'Όλα τα ποσά σε ευρώ με ΦΠΑ. Η συναρμολόγηση είναι μέρος της τιμής, όχι πρόσθετο.',
     assemblyOnRequest: 'κατόπιν αιτήματος',
+    arrivesReady: 'δεν χρειάζεται, φτάνει έτοιμη',
     includedTitle: 'Τι περιλαμβάνει η συναρμολόγηση',
     included: [
       'Τοποθέτηση του σπιτιού στην προετοιμασμένη βάση σας.',

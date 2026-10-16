@@ -12,8 +12,9 @@
 // the hero photo and the proof card are the Paralia Kariani case on /api/cases-page.
 // The lead time in arrival.delivery ({production} and {months}) is the owner's of 2026-10-15,
 // read from deliveryRates.js, and the foundation tip the page shows is his too (pricesCopy's
-// foundationNote, beside arrival.foundationAsk). Do not add a permit here; there is none we
-// can stand behind yet. The "not included" list is NOT here either: the page reads it from
+// foundationNote, beside arrival.foundationAsk). The permit is the FAQ hub's answer
+// (faq.js, id "permit", the owner's of 2026-10-17), not this page's.
+// The "not included" list is NOT here either: the page reads it from
 // pricesCopy so this page and /en/prices say it in the same words.
 export default {
   hero: {
@@ -78,8 +79,10 @@ export default {
     },
   },
 
+  // The lines are gallery item 100015's; the basis is the owner's answer of 2026-10-17: the
+  // capsule needs no assembly, it arrives ready.
   capsule: {
-    basis: 'incl. VAT, assembly on request',
+    basis: 'incl. VAT; arrives ready, no assembly needed',
     lines: [
       '38 m², 11.5 × 3.3 m',
       '3.5 mm galvanised steel frame',
@@ -100,7 +103,7 @@ export default {
     ],
     priceLabel: 'Price from',
     boxPrice: '{price}, assembly extra',
-    capsulePrice: '{price}, assembly on request',
+    capsulePrice: '{price}; arrives ready, no assembly needed',
   },
 
   // {folded} and {open} are the 37 m² model's widths from the configurator catalogue.
@@ -120,11 +123,11 @@ export default {
   },
 
   // The warranty as the owner gave it on 2026-10-15, from the annex to our Box-house sales
-  // contract. The lead names the Box houses: the capsule on this page is not covered by it.
-  // {years} is the row's figure from shared/warranty.js, by its key.
+  // contract. The lead names the Box houses and the capsule, which carries the same warranty
+  // (owner, 2026-10-17). {years} is the row's figure from shared/warranty.js, by its key.
   warranty: {
     heading: 'Warranty',
-    lead: 'For the expandable (Box) houses.',
+    lead: 'For the expandable (Box) houses and the capsule.',
     rows: [
       { key: 'structure', label: 'Structure', text: '{years}\u00a0years: the load-bearing steel frame' },
       { key: 'panels', label: 'Panels', text: '{years}\u00a0years: the thermal (sandwich) panels' },
@@ -146,6 +149,60 @@ export default {
     // To the case's own card on the cases page (#case-<id>), named for what it shows.
     more: 'The house in Paralia Kariani →',
     stars: '{rating} out of 5',
+  },
+
+  // The page's questions (lib/productQuestions.js): the same ids as bg/modularHouses.js, which
+  // says where each answer comes from.
+  faq: {
+    heading: 'Questions',
+    // To the hub's Box houses topic (#t-box).
+    more: 'More questions →',
+    items: [
+      {
+        id: 'box-price',
+        q: 'What does the Box house price include?',
+        a: 'VAT, shipping from China and customs. For the {areas} m² models the price also covers the fully equipped bathroom ({bathrooms} versions to choose from), the kitchen ({kitchens} versions to choose from, and {kitchensExtra} more at extra cost) and the standard terrace on the short side, {terrace}. Assembly is priced separately, and the crane, the foundation and delivery to your plot are not included.',
+        link: { pathKey: 'modularHouses', hash: 'sizes', label: 'Box house sizes and prices →' },
+      },
+      {
+        id: 'box-assembly',
+        q: 'What does Box house assembly include?',
+        a: 'Placing the house on your prepared base and turnkey finishing: the house is ready to move into. Assembly does not include the crane, the foundation or delivery to your plot. The crane is required: about {boxCrane} excl. VAT, or more depending on the location.',
+        link: { pathKey: 'prices', label: 'The assembly price of every model →' },
+      },
+      {
+        id: 'box-assembly-crew',
+        q: 'Who assembles a Box house, and how long does it take?',
+        a: 'We do: {workers} of our workers assemble it on site in {assemblyDays} days.',
+      },
+      {
+        id: 'box-assembly-18',
+        q: 'How much is assembly for the 18 m² house?',
+        a: 'Assembly of the 18 m² expandable house costs {smallAssembly} excl. VAT, or {smallAssemblyGross} incl. VAT.',
+      },
+      {
+        id: 'box-lead-times',
+        q: 'Is the lead time the same for every size?',
+        a: 'Yes. Every Box house, from 18 to 74 m², is made in up to {production} days and reaches your address in about {months} months.',
+      },
+      {
+        id: 'capsule-ready',
+        q: 'Does the capsule need assembly?',
+        a: 'No. The capsule arrives ready and needs no assembly. Delivery, the crane, the lead time (about {months} months to your address) and the warranty are the same as for the Box houses.',
+      },
+      {
+        id: 'box-layouts',
+        q: 'Can I choose the layout?',
+        a: 'Yes. Start from one of the {layouts} layouts in our catalogue for the {areas} m² models, or draw your own in the planner, and send it to us for a quote. The bathroom and the entrance door are fixed: they sit where the model’s technical drawing puts them.',
+        link: { pathKey: 'planner', label: 'The layouts in the planner →' },
+      },
+      {
+        id: 'box-appliances',
+        q: 'Are kitchen appliances included?',
+        a: 'No. We do not supply or charge for the appliances: in the configurator you show where each one goes, so that we build the kitchen to fit, and the preparation for them (electrical points and plumbing) is included in the price. The sink is the exception: we do sell it, and you choose it in the configurator.',
+        link: { pathKey: 'boxConfigurator', label: 'Build your house in the configurator →' },
+      },
+    ],
   },
 
   catalogues: {

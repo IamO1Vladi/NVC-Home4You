@@ -1,3 +1,5 @@
+import { DELIVERED_CONTAINER } from '../shared/deliveredMedia.js'
+
 // src/content/bg/modularBuilds.js
 //
 // Думите на страницата „Контейнерни модули“ (/bg/modulni-postroiki). Тук няма нито една
@@ -25,11 +27,12 @@ export default {
       'Монтаж в нашия склад, ако изберете кран за ваша сметка, или на място от двама наши работници',
       'Други размери от 14 до 30 м² — по поръчка',
     ],
-    // Истинска дневна снимка от галерията (модел 8 × 3 м), докато собственикът не качи
-    // снимка на доставен контейнер в админ панела. Не нощната визуализация.
+    // Снимката на собственика (2026-10-17): контейнер, доставен на парцела на клиент
+    // (shared/deliveredMedia.js), докато в админ панела не се качи друга. Не нощната визуализация.
     photo: {
-      url: '/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp',
-      alt: 'Контейнер 8 × 3 м с двускатен покрив, отвътре',
+      url: DELIVERED_CONTAINER.url,
+      srcSet: DELIVERED_CONTAINER.srcSet,
+      alt: 'Контейнер, доставен на парцела на клиент',
       position: '50% 55%',
     },
     // Чете се само когато собственикът е качил снимка, но е оставил описанието празно:
@@ -111,6 +114,48 @@ export default {
     ],
     conditions: 'Гаранцията покрива фабрични дефекти и тече от датата на предаване — при нормална употреба, подходяща основа, добро отводняване и без неразрешена намеса от трети лица. При предаването останалите елементи се проверяват визуално за съответствие с фабричното качество.',
     excluded: 'Гаранцията не покрива механични повреди, неправилен транспорт или разтоварване, които не са извършени от нас, неподходяща основа, липса на вентилация, лошо отводняване, течове от външни връзки, конденз, по-късни ремонти или промени от купувача или от трети лица, както и форсмажорни обстоятелства.',
+  },
+
+  // The page's questions (lib/productQuestions.js), marked up here and gathered by the FAQ hub
+  // under „Контейнери". The kitchen, the assembly and the other sizes moved here from the hub
+  // (2026-10-17); the made-to-order lead time ({madeToOrderMonths}, deliveryRates.js) and the
+  // finishes are the owner's answers of 2026-10-17. The doors question is the internal doors
+  // page's, shown here in its words and marked up there. Never who connects the utilities.
+  faq: {
+    heading: 'Въпроси',
+    // To the hub's containers topic (#t-containers).
+    more: 'Още въпроси →',
+    items: [
+      {
+        id: 'container-kitchen',
+        q: 'Има ли кухня в контейнера?',
+        a: 'Кухнята не е включена. Има помещение, което може да се ползва за кухня.',
+        link: { pathKey: 'modularBuilds', hash: 'specs', label: 'Какво има във всеки контейнер →' },
+      },
+      {
+        id: 'container-assembly',
+        q: 'Монтажът включен ли е в цената на контейнера?',
+        a: 'Да. Монтажът е включен в цената на всеки модел: {containerAssembly} от нея са за монтажа.',
+        link: { pathKey: 'modularBuilds', hash: 'assembly', label: 'Монтаж и доставка на контейнер →' },
+      },
+      {
+        id: 'container-sizes',
+        q: 'Има ли контейнери с други размери?',
+        a: 'Другите размери от каталога нямаме на склад, но можем да ги поръчаме за вас. Попитайте ни.',
+        link: { pathKey: 'modularBuilds', hash: 'units', label: 'Контейнерите на склад, с цени →' },
+      },
+      {
+        id: 'container-made-to-order',
+        q: 'За колко време пристига контейнер по поръчка?',
+        a: 'За около {madeToOrderMonths} месеца — колкото и Бокс къщата. Контейнер от наличност е при вас до {days} дни.',
+      },
+      {
+        id: 'container-finishes',
+        q: 'Мога ли да избера довършването на контейнера?',
+        a: 'Да, когато контейнерът се поръчва специално за вас. При контейнерите от наличност довършването не се избира.',
+      },
+      { id: 'doors-for-containers', from: 'doors' },
+    ],
   },
 
   reviewsHeading: 'Какво казват купувачите',

@@ -102,10 +102,51 @@ export default {
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
     galleryLink: 'Photos of the ready models in the gallery →',
-    // No link to the partner form for now: the partner terms cover only containers and Box
-    // houses (partnerTerms.js). The page draws nothing while this is empty; the words come back
-    // ('More than one, or for resale? →') if volume prices apply to steel (Q18).
-    partnerLink: '',
+    // To the partner form (#zapitvane). The owner, 2026-10-17 (Q18): partner prices apply to
+    // steel-frame houses too, once the project has been discussed, and the words say so.
+    partnerLink: 'Partner prices apply to houses built to a plan too, once we have discussed the project →',
+  },
+
+  // The page's questions (lib/productQuestions.js): the same ids as bg/steelHouses.js, which
+  // says where each answer comes from.
+  faq: {
+    heading: 'Questions',
+    // To the hub's steel-frame houses topic (#t-steel).
+    more: 'More questions →',
+    items: [
+      {
+        id: 'steel-price',
+        q: 'How much does a steel-frame house cost?',
+        a: 'Each house is its own project, so there is no catalogue price. Send us your plan or a sketch and we will quote it, or, if you do not have one, we will draw one up for you.',
+        link: { pathKey: 'steelHouses', label: 'How we work to your plan →' },
+      },
+      {
+        id: 'steel-project',
+        q: 'How much does the design cost if you draw it up?',
+        a: 'Full documentation is a paid service. The architectural design costs {projectFee}.',
+      },
+      {
+        id: 'steel-factory',
+        q: 'Where is the steel frame made?',
+        a: 'At our factory in China.',
+      },
+      {
+        id: 'steel-warranty-time',
+        q: 'What warranty does a house built to a plan carry, and how long does it take?',
+        a: 'Both depend on the project.',
+      },
+      {
+        id: 'steel-delivery',
+        q: 'Do you handle delivery and customs for a house built to a plan?',
+        a: 'Yes. We deliver the parts to your plot and handle the customs clearance. Delivery and customs are included in the quote for the project.',
+        link: { pathKey: 'steelHouses', hash: 'pp-process', label: 'The steps from plan to handover →' },
+      },
+      {
+        id: 'steel-partner',
+        q: 'Do partner prices apply to houses built to a plan?',
+        a: 'Yes, to steel-frame houses too, once we have discussed the project.',
+      },
+    ],
   },
 
   ready: {

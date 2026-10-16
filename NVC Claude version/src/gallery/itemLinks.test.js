@@ -50,10 +50,11 @@ describe('galleryItemLinks', () => {
     expect(links[0].label).toBe(COPY[locale].containers)
   })
 
-  it('gives the capsule no delivery link: its delivery terms are not the Box houses\'', () => {
+  it('gives the capsule the Box houses\' delivery link: their delivery terms are its own (owner, 2026-10-17)', () => {
     expect(byKey(galleryItemLinks(item(CAPSULE_ID, 'modular', 55000), 'bg', COPY.bg))).toEqual({
       product: paths.modularHouses.bg,
       prices: `${paths.prices.bg}#item-${CAPSULE_ID}`,
+      delivery: `${paths.delivery.bg}?product=box`,
     })
   })
 
@@ -61,7 +62,8 @@ describe('galleryItemLinks', () => {
     const label = (id, category) => galleryItemLinks(item(id, category), locale, COPY[locale]).find((l) => l.key === 'prices').label
     expect(label(5, 'modular')).toBe(COPY[locale].prices)
     expect(label(13, 'wagon')).toBe(COPY[locale].prices)
-    expect(label(100016, 'modular')).toBe(COPY[locale].pricesNoAssembly)
+    // The 18 m² house has an assembly price since 2026-10-17; the capsule arrives ready.
+    expect(label(100016, 'modular')).toBe(COPY[locale].prices)
     expect(label(CAPSULE_ID, 'modular')).toBe(COPY[locale].pricesNoAssembly)
   })
 

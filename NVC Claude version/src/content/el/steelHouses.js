@@ -102,10 +102,51 @@ export default {
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
     galleryLink: 'Φωτογραφίες των έτοιμων μοντέλων στην γκαλερί →',
-    // No link to the partner form for now: the partner terms cover only containers and Box
-    // houses (partnerTerms.js). The page draws nothing while this is empty; the words come back
-    // ('Περισσότερα από ένα τεμάχιο ή για μεταπώληση; →') if volume prices apply to steel (Q18).
-    partnerLink: '',
+    // To the partner form (#zapitvane). The owner, 2026-10-17 (Q18): partner prices apply to
+    // steel-frame houses too, once the project has been discussed, and the words say so.
+    partnerLink: 'Τιμές συνεργατών και για σπίτια σε δικό σας σχέδιο, αφού συζητήσουμε τη μελέτη →',
+  },
+
+  // The page's questions (lib/productQuestions.js): the same ids as bg/steelHouses.js, which
+  // says where each answer comes from.
+  faq: {
+    heading: 'Ερωτήσεις',
+    // To the hub's steel-frame houses topic (#t-steel).
+    more: 'Περισσότερες ερωτήσεις →',
+    items: [
+      {
+        id: 'steel-price',
+        q: 'Πόσο κοστίζει ένα σπίτι με μεταλλικό σκελετό;',
+        a: 'Κάθε σπίτι έχει τη δική του μελέτη, γι’ αυτό δεν υπάρχει τιμή καταλόγου. Στείλτε μας το σχέδιό σας ή ένα σκαρίφημα και θα σας κάνουμε προσφορά βάσει αυτού· αν δεν έχετε σχέδιο, θα το ετοιμάσουμε εμείς για εσάς.',
+        link: { pathKey: 'steelHouses', label: 'Πώς δουλεύουμε με το δικό σας σχέδιο →' },
+      },
+      {
+        id: 'steel-project',
+        q: 'Πόσο κοστίζει η μελέτη, αν την ετοιμάσετε εσείς;',
+        a: 'Ο πλήρης φάκελος σχεδίων είναι υπηρεσία με χρέωση. Η αρχιτεκτονική μελέτη κοστίζει {projectFee}.',
+      },
+      {
+        id: 'steel-factory',
+        q: 'Πού κατασκευάζεται ο μεταλλικός σκελετός;',
+        a: 'Στο εργοστάσιό μας στην Κίνα.',
+      },
+      {
+        id: 'steel-warranty-time',
+        q: 'Τι εγγύηση έχει ένα σπίτι σε δικό μου σχέδιο και πόσο διαρκεί η κατασκευή του;',
+        a: 'Και τα δύο εξαρτώνται από τη μελέτη.',
+      },
+      {
+        id: 'steel-delivery',
+        q: 'Αναλαμβάνετε την παράδοση και τον εκτελωνισμό για σπίτι σε δικό μου σχέδιο;',
+        a: 'Ναι. Παραδίδουμε τα στοιχεία του σπιτιού στο οικόπεδό σας και αναλαμβάνουμε τον εκτελωνισμό. Η παράδοση και ο εκτελωνισμός περιλαμβάνονται στην προσφορά για το έργο.',
+        link: { pathKey: 'steelHouses', hash: 'pp-process', label: 'Τα βήματα από το σχέδιο έως την παράδοση →' },
+      },
+      {
+        id: 'steel-partner',
+        q: 'Ισχύουν οι τιμές συνεργατών για σπίτια σε δικό μου σχέδιο;',
+        a: 'Ναι, και για τα σπίτια με μεταλλικό σκελετό, αφού συζητήσουμε τη μελέτη.',
+      },
+    ],
   },
 
   ready: {

@@ -13,7 +13,11 @@
 // so nothing below moves when one replaces the other.
 //
 // The files are public/delivery/journey-<id>.mp4 and .webp, made by scripts/delivery/clips.mjs
-// (640 x 800, about half a megabyte each).
+// (640 x 800, about half a megabyte each). A clip may name its own files instead (`src` and
+// `poster`): the About page's factory loop, public/factory/ (shared/aboutMedia.js FACTORY_CLIP).
+//
+// On a wide screen the row is one line of as many columns as it has clips (--dl-clip-count):
+// four on the delivery page, five on About with the factory first.
 import React, { useEffect, useRef, useState } from 'react'
 
 const BASE = import.meta.env.BASE_URL || '/'
@@ -105,11 +109,11 @@ export function ClipMedia({ src, poster, alt = '', width = 640, height = 800, cl
   )
 }
 
-function Clip({ id, title, text, headingLevel = 3 }) {
+function Clip({ id, title, text, src, poster, headingLevel = 3 }) {
   const Heading = `h${headingLevel}`
   return (
     <li className="dl-clip">
-      <ClipMedia src={clipSrc(id)} poster={posterSrc(id)} />
+      <ClipMedia src={src || clipSrc(id)} poster={poster || posterSrc(id)} />
       <Heading className="dl-clip-title">{title}</Heading>
       <p className="dl-clip-text">{text}</p>
     </li>
@@ -117,7 +121,8 @@ function Clip({ id, title, text, headingLevel = 3 }) {
 }
 
 /**
- * @param clips       [{ id: 'port'|'yard'|'truck'|'plot', title, text }], in the order they happen
+ * @param clips       [{ id: 'port'|'yard'|'truck'|'plot', title, text, src?, poster? }], in the
+ *                    order they happen; src and poster default to the delivery clip of that id
  * @param labelledBy  the id of the words that name the row (not the section's own heading:
  *                    two landmarks with one name read as one)
  */
@@ -143,11 +148,12 @@ export default function JourneyClips({ clips = [], labelledBy }) {
     <div
       ref={rowRef}
       className="dl-clips-row"
+      data-count={list.length}
       tabIndex={scrolls ? 0 : undefined}
       role="region"
       aria-labelledby={labelledBy}
     >
-      <ol className="dl-clips">
+      <ol className="dl-clips" style={{ '--dl-clip-count': list.length }}>
         {list.map((clip) => <Clip key={clip.id} {...clip} />)}
       </ol>
     </div>

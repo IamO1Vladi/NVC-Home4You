@@ -24,6 +24,15 @@ import elDoors from '../content/el/internalDoors.js'
 import bgInteriors from '../content/bg/interiors.js'
 import enInteriors from '../content/en/interiors.js'
 import elInteriors from '../content/el/interiors.js'
+import bgModularBuilds from '../content/bg/modularBuilds.js'
+import enModularBuilds from '../content/en/modularBuilds.js'
+import elModularBuilds from '../content/el/modularBuilds.js'
+import bgModularHouses from '../content/bg/modularHouses.js'
+import enModularHouses from '../content/en/modularHouses.js'
+import elModularHouses from '../content/el/modularHouses.js'
+import bgSteelHouses from '../content/bg/steelHouses.js'
+import enSteelHouses from '../content/en/steelHouses.js'
+import elSteelHouses from '../content/el/steelHouses.js'
 import { paths } from '../routes/paths.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { WAGON_ASSEMBLY_GROSS, getPriceRows } from '../content/shared/prices.js'
@@ -41,9 +50,11 @@ import { getRouteSeo } from '../seo/routeMeta.js'
 // - the chips are toggle buttons (aria-pressed), "all" first, no tabs; the count is polite;
 // - #q-{id} opens its question and scrolls to it, and clears a search or a topic that hides it;
 // - the FAQPage markup is the hub's own questions and nothing it gathers;
-// - none of the old unbacked answers (staged payments, financing, finish packages, "declarations,
-//   duties and compliance"), one factory and no suppliers, nothing about utility connections;
-// - every figure read from its module (warranty.js, partnerTerms.js and company.js are mocked
+// - none of the old unbacked answers (staged payments, financing partners, finish packages,
+//   "declarations, duties and compliance"; financing is back as the owner gave it on 2026-10-17),
+//   one factory and no suppliers, nothing about utility connections, heating or the new office;
+// - the three product pages' questions gathered under their topics (2026-10-17), unmarked here;
+// - every figure read from its module (warranty.js, partnerTerms.js, company.js and insulation.js are mocked
 //   to other numbers here, so a figure typed into the copy would show), no {placeholder} left;
 // - the crane and the lead time are the delivery page's answers, the warranty is asked once;
 // - the head from routeMeta.js with all three hreflangs, and breadcrumbs.
@@ -53,18 +64,24 @@ vi.mock('../content/shared/warranty.js', () => ({ WARRANTY_YEARS: YEARS }))
 const TERMS = vi.hoisted(() => ({ container: 7, box: 4 }))
 vi.mock('../content/shared/partnerTerms.js', () => ({ PARTNER_MIN_UNITS: TERMS }))
 const FIRM = vi.hoisted(() => ({ homesDelivered: 93, vatID: 'BG000000042', foundingYear: 2019 }))
+// The owner's payment terms and financing of 2026-10-17, mocked to other figures and another bank.
+const PAY = vi.hoisted(() => ({ atOrderPercent: 70, afterDeliveryPercent: 30 }))
+const FUND = vi.hoisted(() => ({ upToEuro: 42000, bank: { bg: 'Тестова банка', en: 'Test Bank', el: 'Τράπεζα Δοκιμής' } }))
 vi.mock('../content/shared/company.js', async (importOriginal) => {
   const real = await importOriginal()
-  return { ...real, COMPANY: { ...real.COMPANY, ...FIRM } }
+  return { ...real, COMPANY: { ...real.COMPANY, ...FIRM }, PAYMENT_TERMS: PAY, FINANCING: FUND }
 })
+const ROOF = vi.hoisted(() => ({ boxRoofRockWoolMm: 65 }))
+vi.mock('../content/shared/insulation.js', () => ({ INSULATION: ROOF }))
 
 const LOCALES = ['bg', 'en', 'el']
 const SITE = 'https://nvc-home4you.eu'
 const CONTENT = { bg: bgFaq, en: enFaq, el: elFaq }
+// The seven pages the hub gathers from, as the routes pass them.
 const PAGES = {
-  bg: { delivery: bgDelivery, partner: bgPartner, doors: bgDoors, interiors: bgInteriors },
-  en: { delivery: enDelivery, partner: enPartner, doors: enDoors, interiors: enInteriors },
-  el: { delivery: elDelivery, partner: elPartner, doors: elDoors, interiors: elInteriors },
+  bg: { delivery: bgDelivery, partner: bgPartner, doors: bgDoors, interiors: bgInteriors, modularBuilds: bgModularBuilds, modularHouses: bgModularHouses, steelHouses: bgSteelHouses },
+  en: { delivery: enDelivery, partner: enPartner, doors: enDoors, interiors: enInteriors, modularBuilds: enModularBuilds, modularHouses: enModularHouses, steelHouses: enSteelHouses },
+  el: { delivery: elDelivery, partner: elPartner, doors: elDoors, interiors: elInteriors, modularBuilds: elModularBuilds, modularHouses: elModularHouses, steelHouses: elSteelHouses },
 }
 const ROUTES = { bg: BgFaqRoute, en: EnFaqRoute, el: ElFaqRoute }
 const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
@@ -104,7 +121,9 @@ const visible = (container) => questions(container).filter(isShown)
 const asItem = (d) => ({ question: d.querySelector('summary').textContent, answer: d.querySelector('p').textContent })
 const jsonLd = (container) => [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent))
 const hubItems = (locale) => hubSections(locale, CONTENT[locale], PAGES[locale]).flatMap((s) => s.items)
-const pageIds = (locale) => Object.values(PAGES[locale]).flatMap((page) => page.faq.items.map((item) => item.id))
+// Each page's own questions: an item `from` another page (the containers page's doors question)
+// is that page's, counted there.
+const pageIds = (locale) => Object.values(PAGES[locale]).flatMap((page) => page.faq.items.filter((item) => !item.from).map((item) => item.id))
 const answerOf = (container, id) => flat(container.querySelector(`#q-${id} > p`).textContent)
 
 describe('FAQPage, the hub', () => {
@@ -314,22 +333,35 @@ describe('FAQPage, the hub', () => {
   it.each(LOCALES)('%s: none of the unbacked answers, one factory and no suppliers, nothing about utility connections', (locale) => {
     const { container } = renderPage(locale)
     const text = container.querySelector('main').textContent
+    // Financing came back on 2026-10-17 with the owner's answer (up to an amount, through one
+    // bank, both from company.js); staged payments, finish packages and "duties and compliance"
+    // stay gone, and the payment answer is the owner's two shares.
     const UNBACKED = {
       // "пакети" as a word: the glazing units, „стъклопакети", are fine.
-      bg: /по етапи|финансиране|(?<!\p{L})пакети|индивидуални решения|декларации|такси и съответствие/iu,
-      en: /milestone|financ|finish packs?|curated|declarations|duties|compliance/i,
-      el: /οροσήμων|χρηματοδότ|πακέτα|διασαφήσεις|δασμούς|συμμόρφωση/i,
+      bg: /по етапи|финансиращи партньори|партньори за финансиране|(?<!\p{L})пакети|индивидуални решения|декларации|такси и съответствие/iu,
+      en: /milestone|financing partners|finish packs?|curated|declarations|duties|compliance/i,
+      el: /οροσήμων|συνεργάτες χρηματοδότησης|πακέτα|διασαφήσεις|δασμούς|συμμόρφωση/i,
     }[locale]
     expect(text).not.toMatch(UNBACKED)
+    const FINANCE_WORD = { bg: /финансиране/, en: /financ/, el: /χρηματοδότ/ }[locale]
+    expect(questions(container).filter((d) => FINANCE_WORD.test(d.textContent)).map((d) => d.id)).toEqual(['q-financing'])
+    expect(answerOf(container, 'financing')).toContain(FUND.bank[locale])
+    // Nothing about heating or air conditioning: the owner did not answer it.
+    expect(text).not.toMatch(/отоплен|климатик|heating|air.?condition|θέρμανσ|κλιματισ/i)
+    // The new office opens in February: not before it opens.
+    expect(text).not.toMatch(/Драгичево|Dragichevo|Ντραγκίτσεβο|Драгичев/i)
     const PLURAL = { bg: /фабрики|доставчи/i, en: /factories|supplier/i, el: /εργοστάσια(?![\p{L}])|εργοστασίων|προμηθευτ/iu }[locale]
     expect(text).not.toMatch(PLURAL)
     const ONE = { bg: 'нашата фабрика в Китай', en: 'our factory in China', el: 'εργοστάσιό μας στην Κίνα' }[locale]
     expect(answerOf(container, 'factory')).toContain(ONE)
-    // The owner (2026-10-12): never say who connects a Box house to the utilities. The warranty's
-    // "leaks from external connections" is a warranty term, not a connection anyone makes.
+    // The owner (2026-10-12, and 2026-10-17 for containers too): never say who connects a Box
+    // house or a container to the utilities. The warranty's "leaks from external connections" is
+    // a warranty term, not a connection anyone makes. Every answer the hub shows, own and
+    // gathered from the product pages.
     const UTILITIES = /свързва|свързване|канализац|водопровод|connect|sewer|σύνδεση|συνδέεται|αποχέτευ|ύδρευ/i
-    for (const item of CONTENT[locale].items.filter((i) => i.id !== 'warranty')) {
-      expect(answerOf(container, item.id), item.id).not.toMatch(UTILITIES)
+    const productIds = ['modularBuilds', 'modularHouses', 'steelHouses'].flatMap((page) => PAGES[locale][page].faq.items.filter((i) => !i.from).map((i) => i.id))
+    for (const id of [...CONTENT[locale].items.map((i) => i.id).filter((id) => id !== 'warranty'), ...productIds]) {
+      expect(answerOf(container, id), id).not.toMatch(UTILITIES)
     }
   })
 
@@ -354,6 +386,20 @@ describe('FAQPage, the hub', () => {
     expect(answerOf(container, 'container-assembly')).toContain(money(WAGON_ASSEMBLY_GROSS))
     const assemblyFrom = Math.min(...getPriceRows(locale).map((row) => row.standard.assemblyNet))
     expect(answerOf(container, 'prices-vat')).toContain(money(assemblyFrom))
+
+    // company.js (mocked): the payment shares and the financing, amount and bank.
+    const payment = answerOf(container, 'payment')
+    expect(payment).toContain(`${PAY.atOrderPercent}%`)
+    expect(payment).toContain(`${PAY.afterDeliveryPercent}%`)
+    expect(payment).not.toMatch(/(?<!\d)(60|40)(?!\d)/)
+    const financing = answerOf(container, 'financing')
+    expect(financing).toContain(money(FUND.upToEuro))
+    expect(financing).toContain(FUND.bank[locale])
+    expect(financing).not.toMatch(/50[\s.,]?000|UniCredit|УниКредит/)
+    // insulation.js (mocked): the Box houses' roof.
+    const insulation = answerOf(container, 'insulation')
+    expect(insulation).toMatch(new RegExp(`(?<!\\d)${ROOF.boxRoofRockWoolMm}(?!\\d)`))
+    expect(insulation).not.toMatch(/(?<!\d)50(?!\d)/)
 
     // The configurator catalogue: bathrooms, kitchens, the standard terrace, the layouts.
     const catalogue = getBoxConfiguratorCatalog(locale)
@@ -381,9 +427,9 @@ describe('FAQPage, the hub', () => {
     expect(partnerCard).toContain(`${TERMS.box}`)
     expect(partnerCard).not.toMatch(/(?<!\d)(6|3)(?!\d)/)
 
-    // And the copy itself types none of them.
+    // And the copy itself types none of them: no digit at all in the hub's own answers.
     const own = CONTENT[locale].items.map((item) => item.a).join(' ')
-    expect(own).not.toMatch(/(?<![\d{])(15|550|1000|1 000|1\.000|87|2021)(?!\d)/)
+    expect(own).not.toMatch(/\d/)
   })
 
   it.each(LOCALES)('%s: each question answered once: the crane and the lead time are the delivery page\'s, the warranty is asked once', (locale) => {

@@ -477,8 +477,15 @@ $@"<div style=""font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1a1
     //
     // The place names follow the language of the email: Greek script in the Greek one, as
     // Greek writes Bulgarian towns (Πέτριτς), rather than a Latin line inside Greek text.
+    //
+    // The phone is the number the website publishes (SPA src/content/shared/company.js
+    // WEBSITE_PHONE, the header and the contact dock): the owner, 2026-10-17, asked for the
+    // autoresponder to sign with it instead of the old +359 892 456 245. Change both together.
+    private const string SignaturePhone = "+359 87 935 5269";
+
     private static string BuildSignature(string loc)
     {
+        var phoneTel = SignaturePhone.Replace(" ", "");
         var (addressLine, phoneLabel, emailLabel, siteLabel) = loc switch
         {
             "bg" => ("Марикостиново, Петрич 2850, България", "Телефон", "Имейл", "Уебсайт"),
@@ -498,7 +505,7 @@ $@"  <hr style=""border:none;border-top:1px solid #e6e8ec;margin:24px 0"" />
         <div style=""font-size:14px;font-weight:bold;color:#1a1a1a"">NVC Home4You</div>
         <div style=""color:#888"">{addressLine}</div>
         <div style=""margin-top:6px"">
-          {phoneLabel}: <a href=""tel:+359892456245"" style=""color:#2f6fd0;text-decoration:none"">+359 892 456 245</a><br />
+          {phoneLabel}: <a href=""tel:{phoneTel}"" style=""color:#2f6fd0;text-decoration:none"">{SignaturePhone}</a><br />
           {emailLabel}: <a href=""mailto:contact@nvc-home4you.eu"" style=""color:#2f6fd0;text-decoration:none"">contact@nvc-home4you.eu</a><br />
           {siteLabel}: <a href=""https://nvc-home4you.eu"" style=""color:#2f6fd0;text-decoration:none"">nvc-home4you.eu</a>
         </div>

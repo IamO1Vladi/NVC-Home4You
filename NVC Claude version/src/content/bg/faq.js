@@ -3,25 +3,25 @@
 // WORDS ONLY, AND ONLY WHAT THE OWNER HAS CONFIRMED. Every answer below is built from a sentence
 // the site already stands behind, and says where it comes from: the About page's terms (the
 // contract, documents, quality check, customs, insurance and tracking, unloading, prices,
-// visits, the factory), the product pages and the prices list (the container's kitchen and
-// assembly, the other sizes, what Box assembly includes and leaves out), the configurator
-// catalogue (the bathroom and kitchen choices, the standard terrace, the appliances, the
-// layouts), the steel-frame page (priced per project, delivery and customs ours) and the
-// warranty annex (shared/warranty.js). The old answers nothing backed are gone: finish
-// "packages", payment in stages and financing partners.
+// visits, the factory), the prices list, the warranty annex (shared/warranty.js), and the
+// owner's answers of 2026-10-17 (payment, financing, the permit, moving a unit later, the
+// insulation, customs inside every price). The old answers nothing backed stay gone: finish
+// "packages" and payment in stages.
 //
 // Every figure is a {placeholder} that lib/faqHub.js hubFigures() fills from a module; none is
 // typed here (FAQPage.test.jsx, warrantyFacts.test.js).
 //
 // The hub also shows the delivery, partner, internal doors and interiors pages' questions
-// (gathered by lib/questions.js, in their pages' words), so the crane, the lead time, the
-// partners, the doors and the renovations are not answered a second time here. `id` is the
-// same in all three languages and becomes <details id="q-{id}">; `topic` is a key of
-// HUB_TOPICS (lib/faqHub.js); `link` is a page the answer continues on.
+// (gathered by lib/questions.js) and, since 2026-10-17, the containers, Box houses and
+// steel-frame pages' (lib/productQuestions.js), in their pages' words, so the crane, the lead
+// time, the products, the partners, the doors and the renovations are not answered a second
+// time here. `id` is the same in all three languages and becomes <details id="q-{id}">;
+// `topic` is a key of HUB_TOPICS (lib/faqHub.js); `link` is a page the answer continues on.
 //
 // The rules the copy keeps: ONE factory, „нашата фабрика в Китай", never named, never
-// suppliers; nothing about who connects a Box house to the utilities. No seo block: the title,
-// description, canonical and hreflangs come from routeMeta.js.
+// suppliers; nothing about who connects a Box house or a container to the utilities; nothing
+// about heating or air conditioning. No seo block: the title, description, canonical and
+// hreflangs come from routeMeta.js.
 export default {
   breadcrumb: 'Често задавани въпроси',
   home: 'Начало',
@@ -63,13 +63,13 @@ export default {
   },
 
   items: [
-    // About page, inWriting.prices; the Box assembly "from" for the catalogue's models, the only
-    // ones with an assembly price in prices.js (the 18 m² house and the capsule have none yet).
+    // About page, inWriting.prices; the cheapest Box assembly in prices.js (every Box house has
+    // one since the 18 m² house's of 2026-10-17); the capsule arrives ready (owner, 2026-10-17).
     {
       id: 'prices-vat',
       topic: 'buying',
       q: 'Цените с ДДС ли са и какво се плаща отделно?',
-      a: 'Цените на контейнерите са с ДДС и с монтажа. Цените на Бокс къщите са с ДДС, а монтажът е отделно, без ДДС: от {boxAssembly} за моделите {areas} м². Доставката и кранът се смятат отделно, без ДДС.',
+      a: 'Цените на контейнерите са с ДДС и с монтажа. Цените на Бокс къщите са с ДДС, а монтажът е отделно, без ДДС: от {boxAssembly} според модела. Капсулата пристига готова и няма монтаж. Доставката и кранът се смятат отделно, без ДДС.',
     },
     // About page, inWriting.contract.
     {
@@ -78,89 +78,54 @@ export default {
       q: 'Получавам ли писмен договор?',
       a: 'Да. Продаваме с писмен договор, а гаранцията е записана в приложение към него.',
     },
-
-    // The containers page: its kitchen row, its assembly line, its sizes to order.
+    // The owner, 2026-10-17 (Q1): {atOrder} and {afterDelivery} from shared/company.js. Partners
+    // pay everything in advance (partner.js, the partners topic below).
     {
-      id: 'container-kitchen',
-      topic: 'containers',
-      q: 'Има ли кухня в контейнера?',
-      a: 'Кухнята не е включена. Има помещение, което може да се ползва за кухня.',
-      link: { pathKey: 'modularBuilds', hash: 'specs', label: 'Какво има във всеки контейнер →' },
+      id: 'payment',
+      topic: 'buying',
+      q: 'Как се плаща контейнерът или къщата?',
+      a: 'При поръчката плащате {atOrder}% от цената, а останалите {afterDelivery}% — след доставката. Монтажът се плаща, след като е завършен. За партньорите условията са други: цялата сума предварително, по договор.',
     },
+    // The owner, 2026-10-17 (Q2): {financing} and {bank} from shared/company.js.
     {
-      id: 'container-assembly',
-      topic: 'containers',
-      q: 'Монтажът включен ли е в цената на контейнера?',
-      a: 'Да. Монтажът е включен в цената на всеки модел: {containerAssembly} от нея са за монтажа.',
-      link: { pathKey: 'modularBuilds', hash: 'assembly', label: 'Монтаж и доставка на контейнер →' },
+      id: 'financing',
+      topic: 'buying',
+      q: 'Може ли покупката да се финансира?',
+      a: 'Да. Можете да получите финансиране до {financing} чрез {bank}.',
     },
+    // The owner, 2026-10-17 (Q3), asked for containers and Box houses: no building permit, a permit
+    // for a temporary structure, the documents for it ours. Nothing about the steel-frame houses.
     {
-      id: 'container-sizes',
-      topic: 'containers',
-      q: 'Има ли контейнери с други размери?',
-      a: 'Другите размери от каталога нямаме на склад, но можем да ги поръчаме за вас. Попитайте ни.',
-      link: { pathKey: 'modularBuilds', hash: 'units', label: 'Контейнерите на склад, с цени →' },
+      id: 'permit',
+      topic: 'buying',
+      q: 'Нужно ли е разрешение за строеж за контейнер или Бокс къща?',
+      a: 'Не. Нужно е разрешение за временна постройка, а необходимите за него документи ви осигуряваме ние.',
     },
-
-    // The delivery page's Box card (sea freight and customs in the house price) and the
-    // configurator catalogue (bathrooms, kitchens, the standard terrace, all in the base price).
+    // The owner, 2026-10-17 (Q9).
     {
-      id: 'box-price',
-      topic: 'box',
-      q: 'Какво включва цената на Бокс къщата?',
-      a: 'ДДС, морския превоз от Китай и митницата. За моделите {areas} м² в цената са и напълно оборудваната баня ({bathrooms} варианта по избор), кухнята ({kitchens} варианта по избор, а още {kitchensExtra} — срещу доплащане) и стандартната тераса на късата страна, {terrace}. Монтажът е отделно, а кранът, основата и доставката до парцела не са включени.',
-      link: { pathKey: 'modularHouses', hash: 'sizes', label: 'Размерите и цените на Бокс къщите →' },
+      id: 'moving',
+      topic: 'buying',
+      q: 'Мога ли по-късно да преместя контейнера или Бокс къщата?',
+      a: 'Да. Контейнерът може да се разглоби и да се премести, а Бокс къщата — да се сгъне и да се премести отново.',
     },
-    // The configurator's appliance note.
+    // The owner, 2026-10-17 (Q8): {boxRoofMm} from shared/insulation.js. Heating and air
+    // conditioning were not answered, so the answer says nothing of them.
     {
-      id: 'box-appliances',
-      topic: 'box',
-      q: 'Включени ли са кухненските уреди?',
-      a: 'Не. Уредите не ги доставяме и не ги таксуваме: в конфигуратора посочвате къде ще стои всеки, за да изработим кухнята по мярка, а подготовката за тях (ел. изводи и ВиК) е включена в цената. Мивката обаче я продаваме ние и я избирате в конфигуратора.',
-      link: { pathKey: 'boxConfigurator', label: 'Сглобете къщата си в конфигуратора →' },
-    },
-    // The prices list's "what assembly covers / does not cover".
-    {
-      id: 'box-assembly',
-      topic: 'box',
-      q: 'Какво включва монтажът на Бокс къщата?',
-      a: 'Поставянето на къщата на подготвената основа и довършителните работи до ключ: къщата е готова за нанасяне. Монтажът не включва крана, основата и доставката до парцела. Кранът е задължителен: около {boxCrane} без ДДС, а според мястото може и повече.',
-      link: { pathKey: 'prices', label: 'Цената на монтажа за всеки модел →' },
-    },
-    // The floor planner (owner, 2026-10-15): the catalogue's layouts, the bathroom and the
-    // entrance door fixed by the model's drawing.
-    {
-      id: 'box-layouts',
-      topic: 'box',
-      q: 'Мога ли да избера разпределението?',
-      a: 'Да. Започнете от едно от {layouts} разпределения от каталога за моделите {areas} м² или начертайте свое в планера и ни го изпратете за оферта. Банята и входната врата са фиксирани: стоят там, където ги поставя техническият чертеж на модела.',
-      link: { pathKey: 'planner', label: 'Разпределенията в планера →' },
+      id: 'insulation',
+      topic: 'buying',
+      q: 'Изолирани ли са покривът и подът?',
+      a: 'Покривът е изолиран: при Бокс къщите с {boxRoofMm} мм каменна вата, а при контейнерите — с минерална вата. Подът не е изолиран в стандартното изпълнение; изолация на пода можем да добавим срещу доплащане.',
     },
 
-    // The steel-frame page: its hero, the prices list's card and its "Доставка и митница" step.
-    {
-      id: 'steel-price',
-      topic: 'steel',
-      q: 'Колко струва къща със стоманена конструкция?',
-      a: 'Всяка къща е отделен проект, затова няма каталожна цена. Изпратете ни своя проект или скица и ще ви направим оферта по него, а ако нямате проект, ще го изготвим за вас.',
-      link: { pathKey: 'steelHouses', label: 'Как работим по вашия проект →' },
-    },
-    {
-      id: 'steel-delivery',
-      topic: 'steel',
-      q: 'Поемате ли доставката и митницата на къща по проект?',
-      a: 'Да. Доставяме елементите до вашия парцел и поемаме митническото оформяне. Цената на доставката е в офертата за проекта.',
-      link: { pathKey: 'steelHouses', hash: 'pp-process', label: 'Стъпките от проекта до предаването →' },
-    },
-
-    // After the delivery page's six: customs (About, inWriting.customs, and the delivery page's
-    // Box card), the foundation (the product pages, with the prices list's tip), unloading and
+    // After the delivery page's six: customs (About, inWriting.customs, the delivery page's Box
+    // card, and the owner's 2026-10-17 answer: in the container price and the steel-house quote
+    // too), the foundation (the product pages, with the prices list's tip), unloading and
     // insurance (About, inWriting).
     {
       id: 'customs',
       topic: 'delivery',
       q: 'Вие ли се занимавате с митницата?',
-      a: 'Да, за всичко, което доставяме. При Бокс къщите морският превоз от Китай и митницата вече са в цената на къщата.',
+      a: 'Да, за всичко, което доставяме. Митницата е включена в цената на контейнерите и в офертата за къща със стоманена конструкция, а при Бокс къщите морският превоз от Китай и митницата вече са в цената на къщата.',
     },
     {
       id: 'foundation',

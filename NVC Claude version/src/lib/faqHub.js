@@ -1,36 +1,33 @@
 // The FAQ hub (/bg/chesto-zadavani-vyprosi, /en/faq, /el/syxnes-erotiseis): its topics, its own
 // questions filled with their figures, and the questions it GATHERS from the delivery, partner,
-// internal doors and interiors pages (lib/questions.js), each answer written once.
+// internal doors and interiors pages (lib/questions.js) and from the three product pages
+// (lib/productQuestions.js), each answer written once.
 //
 // The hub's own questions are content/{bg,en,el}/faq.js `items`: each has an `id` (the same in
 // all three languages), a `topic` (a key of HUB_TOPICS) and words with {placeholders} that
-// hubFigures() fills from the modules: the delivery figures from deliveryRates.js, the
-// warranty's years from warranty.js, the container's assembly share and the cheapest Box house
-// assembly from prices.js, the bathroom and kitchen choices, the standard terrace and the
-// catalogue's layouts from the configurator catalogue, the company's year, homes and VAT number
-// from company.js, the opening hours from the home content's contact band (the footer's source),
-// and the foundation tip from pricesCopy.js. Nothing is typed.
+// hubFigures() fills from the modules: the cheapest Box house assembly from prices.js, the
+// payment terms and the financing from company.js (as is the company's year, homes and VAT
+// number), the roof insulation from insulation.js, the warranty's years from warranty.js, the
+// opening hours from the home content's contact band (the footer's source), the foundation tip
+// from pricesCopy.js and the partner thresholds from partnerTerms.js. Nothing is typed.
 //
 // Only the hub's own questions are its FAQPage markup (markup: true, which FAQPage.jsx passes
 // through markedUp()); a gathered question is shown
 // here and marked up on its own page. Where a page already answers a question (the delivery
-// page's crane and lead time), the hub shows that page's answer rather than a copy of its own,
-// and an id the hub answers itself (the warranty) is not gathered a second time.
+// page's crane and lead time, the containers page's kitchen), the hub shows that page's answer
+// rather than a copy of its own, and an id the hub answers itself (the warranty) is not gathered
+// a second time.
 import { euro } from './euro.js'
-import { DELIVERY_RATES } from '../content/shared/deliveryRates.js'
 import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { PARTNER_MIN_UNITS } from '../content/shared/partnerTerms.js'
-import { COMPANY } from '../content/shared/company.js'
-import { WAGON_ASSEMBLY_GROSS, getPriceRows } from '../content/shared/prices.js'
-import { getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
+import { COMPANY, FINANCING, PAYMENT_TERMS } from '../content/shared/company.js'
+import { INSULATION } from '../content/shared/insulation.js'
+import { boxAssemblyFromNet } from '../content/shared/prices.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { getHomeContent } from '../content/home/index.js'
 import { paths } from '../routes/paths.js'
 import { GATHERED_PAGES, fill, pageQuestions } from './questions.js'
-
-const CONTAINER = DELIVERY_RATES.products.container
-const BOX = DELIVERY_RATES.products.box
-const LIST_LOCALES = { bg: 'bg', en: 'en-GB', el: 'el' }
+import { PRODUCT_PAGES, productQuestions } from './productQuestions.js'
 
 /**
  * The hub's topics, in order: the page each one ends with a link to (a key of paths.js, and
@@ -42,9 +39,9 @@ const LIST_LOCALES = { bg: 'bg', en: 'en-GB', el: 'el' }
  */
 export const HUB_TOPICS = [
   { key: 'buying', page: 'prices' },
-  { key: 'containers', page: 'modularBuilds', also: ['doors-for-containers'] },
-  { key: 'box', page: 'modularHouses' },
-  { key: 'steel', page: 'steelHouses' },
+  { key: 'containers', page: 'modularBuilds', gather: 'modularBuilds', also: ['doors-for-containers'] },
+  { key: 'box', page: 'modularHouses', gather: 'modularHouses' },
+  { key: 'steel', page: 'steelHouses', gather: 'steelHouses' },
   { key: 'delivery', page: 'delivery', gather: 'delivery' },
   { key: 'warranty', page: 'about', hash: 'in-writing' },
   { key: 'company', page: 'about', hash: 'who' },
@@ -65,27 +62,15 @@ export function hubPath(locale, pathKey, hash) {
 /** Every figure the hub's own answers and its sibling cards name, formatted for one locale. */
 export function hubFigures(locale = 'en') {
   const money = (value) => euro(value, locale)
-  const catalogue = getBoxConfiguratorCatalog(locale)
-  const kitchens = catalogue.kitchenOptions || []
-  const terrace = (catalogue.terraceOptions || []).find((option) => option.key === 'standard')
-  const areas = (catalogue.models || []).map((model) => String(model.area))
   const home = getHomeContent(locale)?.home || {}
   return {
-    containerRate: money(CONTAINER.perKm),
-    boxRate: money(BOX.perKm),
-    containerCrane: money(CONTAINER.crane.about),
-    boxCrane: money(BOX.crane.about),
-    // Of a container's price, VAT included, this much is the assembly.
-    containerAssembly: money(WAGON_ASSEMBLY_GROSS),
-    // The cheapest assembly among the catalogue's models ({areas}), without VAT. faq.js names
-    // those models beside it: the 18 m² house and the capsule have no assembly price yet.
-    boxAssembly: money(Math.min(...getPriceRows(locale).map((row) => row.standard.assemblyNet))),
-    bathrooms: (catalogue.bathroomOptions || []).length,
-    kitchens: kitchens.filter((option) => !option.price).length,
-    kitchensExtra: kitchens.filter((option) => option.price > 0).length,
-    terrace: terrace ? (locale === 'bg' ? terrace.note.replace(/mm$/, 'мм') : terrace.note) : null,
-    areas: areas.length ? new Intl.ListFormat(LIST_LOCALES[locale] || 'en-GB', { type: 'conjunction' }).format(areas) : null,
-    layouts: (catalogue.models || []).reduce((n, model) => n + (model.plans?.length || 0), 0) || null,
+    // The cheapest assembly of any Box house, without VAT (the 37 m² one's); the capsule has none.
+    boxAssembly: money(boxAssemblyFromNet()),
+    atOrder: PAYMENT_TERMS.atOrderPercent,
+    afterDelivery: PAYMENT_TERMS.afterDeliveryPercent,
+    financing: money(FINANCING.upToEuro),
+    bank: FINANCING.bank[locale] || FINANCING.bank.en,
+    boxRoofMm: INSULATION.boxRoofRockWoolMm,
     structureYears: WARRANTY_YEARS.structure,
     panelYears: WARRANTY_YEARS.panels,
     joineryYears: WARRANTY_YEARS.joinery,
@@ -115,16 +100,24 @@ export function hubQuestions(content, locale = 'en') {
     }))
 }
 
+/** The pages the hub gathers from, in its order: the four (questions.js), then the products. */
+export const HUB_PAGES = [...GATHERED_PAGES, ...PRODUCT_PAGES]
+
 /**
- * The questions the hub gathers from the four pages, each filled as its page fills it, minus
- * any id the hub answers itself. Never marked up here.
+ * The questions the hub gathers from the seven pages, each filled as its page fills it, minus
+ * any id the hub answers itself. Never marked up here. A product page's item that is another
+ * page's question (the containers page's doors question, `ref`) is gathered from that page.
  *
- * @param pages  { delivery, partner, doors, interiors }: those pages' content for the locale
+ * @param pages  { delivery, partner, doors, interiors, modularBuilds, modularHouses,
+ *               steelHouses }: those pages' content for the locale
  */
 export function gatheredQuestions(locale, pages = {}, ownIds = new Set()) {
-  return Object.fromEntries(GATHERED_PAGES.map((page) => [
+  const questionsOf = (page) => (PRODUCT_PAGES.includes(page)
+    ? productQuestions(page, pages[page], locale).filter((item) => !item.ref)
+    : pageQuestions(page, pages[page], locale))
+  return Object.fromEntries(HUB_PAGES.map((page) => [
     page,
-    pageQuestions(page, pages[page], locale)
+    questionsOf(page)
       .filter((item) => item.id && !ownIds.has(item.id))
       .map((item) => ({ ...item, markup: false, from: page })),
   ]))
@@ -133,8 +126,9 @@ export function gatheredQuestions(locale, pages = {}, ownIds = new Set()) {
 /**
  * The hub as it is drawn: one section per topic that has a question, in HUB_TOPICS' order:
  * [{ key, label, link: { to, label }, items }]. A topic that gathers a page lists that page's
- * questions first (the delivery page's six, then the hub's own on customs, the foundation,
- * unloading and insurance); questions borrowed with `also` come after the topic's own.
+ * questions first (the containers page's, then the doors page's container question; the delivery
+ * page's six, then the hub's own on customs, the foundation, unloading and insurance); questions
+ * borrowed with `also` come after the topic's own.
  */
 export function hubSections(locale, content, pages = {}) {
   const own = hubQuestions(content, locale)

@@ -45,8 +45,23 @@ public class AutoresponderSignatureTests
 
         Assert.Contains("NVC Home4You", html);
         Assert.Contains("contact@nvc-home4you.eu", html);
-        Assert.Contains("+359 892 456 245", html);
         Assert.Contains("nvc-home4you.eu", html);
+    }
+
+    [Theory]
+    [InlineData("bg")]
+    [InlineData("en")]
+    [InlineData("el")]
+    public void The_signature_carries_the_number_the_website_publishes(string locale)
+    {
+        // The owner, 2026-10-17: the autoresponder signs with the website's number
+        // (SPA shared/company.js WEBSITE_PHONE), not the old +359 892 456 245.
+        var (_, html) = Render(isOffer: true, locale);
+
+        Assert.Contains("+359 87 935 5269", html);
+        Assert.Contains(@"href=""tel:+359879355269""", html);
+        Assert.DoesNotContain("892 456 245", html);
+        Assert.DoesNotContain("359892456245", html);
     }
 
     [Fact]

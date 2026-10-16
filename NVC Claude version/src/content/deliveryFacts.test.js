@@ -116,6 +116,16 @@ describe('delivery facts across the content', () => {
     expect(content(locale, 'about').inWriting.terms.find((t) => t.key === 'customs').text).toContain(EVERYTHING)
     expect(content(locale, 'delivery').calculator.box.included).toContain(IN_PRICE)
     expect(customs.answer).not.toMatch(/декларации|такси|съответствие|declarations|duties|compliance|διασαφήσεις|δασμούς|συμμόρφωση/i)
+    // The owner, 2026-10-17: customs is in the container price and in the steel-house quote too.
+    const INCLUDED = {
+      bg: 'Митницата е включена в цената на контейнерите и в офертата за къща със стоманена конструкция',
+      en: 'Customs clearance is included in the container prices and in the quote for a steel-frame house',
+      el: 'Ο εκτελωνισμός περιλαμβάνεται στην τιμή των κοντέινερ και στην προσφορά για σπίτι με μεταλλικό σκελετό',
+    }[locale]
+    expect(customs.answer).toContain(INCLUDED)
+    // And no page says customs is paid on top.
+    const EXTRA = /митниц[^.]*(отделно|не е включен|не са включен|за ваша сметка|допълнително)|customs[^.]*(extra|separately|not included|on top|at your cost)|εκτελωνισμ[^.]*(χωριστά|δεν περιλαμβάν|επιπλέον)/i
+    expect(EVERY_STRING.filter(([, text]) => EXTRA.test(text))).toEqual([])
     // And no answer folds the crane into delivery.
     expect(hub(locale).map((item) => item.answer).join(' ')).not.toMatch(/as part of delivery|ως μέρος της παράδοσης|като част от доставката/i)
   })

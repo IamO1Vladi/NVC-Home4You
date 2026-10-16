@@ -81,17 +81,17 @@ const META = {
     en: {
       title: 'Expandable Modular Houses in Bulgaria | NVC Home4You',
       description:
-        'Modular houses that arrive folded: expandable Box houses from 18 to 74 m² and a 38 m² capsule, priced with VAT. Pick a size and build it in our configurator.',
+        'Modular houses: expandable Box houses from 18 to 74 m² that arrive folded, and a 38 m² capsule, priced with VAT. Pick a size and build it in our configurator.',
     },
     bg: {
       title: 'Модулни къщи в България: разгъваеми Бокс къщи | NVC Home4You',
       description:
-        'Модулни къщи, които пристигат сгънати: разгъваеми Бокс къщи от 18 до 74 м² и капсула от 38 м², всяка с цена с ДДС. Изберете размер и я сглобете онлайн.',
+        'Модулни къщи: разгъваеми Бокс къщи от 18 до 74 м², които пристигат сгънати, и капсула от 38 м², всяка с цена с ДДС. Изберете размер и я сглобете онлайн.',
     },
     el: {
       title: 'Αναπτυσσόμενα δομικά σπίτια στη Βουλγαρία | NVC Home4You',
       description:
-        'Δομικά προκάτ σπίτια που φτάνουν διπλωμένα: αναπτυσσόμενα σπίτια Box από 18 έως 74 m² και κάψουλα 38 m², με τιμή με ΦΠΑ. Διαμορφώστε το δικό σας online.',
+        'Δομικά προκάτ σπίτια: αναπτυσσόμενα σπίτια Box από 18 έως 74 m² που φτάνουν διπλωμένα, και κάψουλα 38 m², με τιμή με ΦΠΑ. Διαμορφώστε το δικό σας online.',
     },
   },
   steelHouses: {
@@ -339,27 +339,29 @@ const META = {
   // showing a real starting price is what earns the click.
   //
   // The one figure typed into this file, and only because it has to be: the SEO manifest
-  // generator runs this module in plain Node, which cannot load the configurator catalogue
-  // that startingPrice() reads. So the number is pinned instead — PricesPage.test.jsx fails
-  // the moment it stops equalling euro(startingPrice(locale), locale), which is also the
-  // figure the page itself prints under its H1.
+  // generator runs this module in plain Node, which cannot load the gallery or the catalogue.
+  // It is the figure the page prints under its H1, the cheapest finished house: since the 18 m²
+  // house got its assembly price (owner, 2026-10-17) that is the 18 m² one, its gallery price
+  // (10,500) plus its assembly with VAT (1,200). PricesPage.test.jsx pins the title to what the
+  // page prints from live-shaped gallery rows; if the 18 m² price changes in the admin panel,
+  // change these three titles with it.
   prices: {
     en: {
-      title: 'Prefab House Prices 2026 | From €14,840 incl. VAT | NVC Home4You',
+      title: 'Prefab House Prices 2026 | From €11,700 incl. VAT | NVC Home4You',
       description:
-        'What a finished box house costs: unit price, on-site assembly and VAT for the 37, 58 and 73 m² models. Transparent totals, and what is not included.',
+        'What a finished box house costs: unit price, on-site assembly and VAT for every model from 18 to 74 m². Transparent totals, and what is not included.',
     },
     bg: {
-      title: 'Цени на сглобяеми къщи 2026 | От 14 840 € с ДДС | NVC Home4You',
+      title: 'Цени на сглобяеми къщи 2026 | От 11 700 € с ДДС | NVC Home4You',
       description:
-        'Колко струва завършена сглобяема къща: цена на модула, монтаж на място и ДДС за моделите 37, 58 и 73 м². Ясни крайни суми и какво не е включено.',
+        'Колко струва завършена сглобяема къща: цена на модула, монтаж на място и ДДС за моделите от 18 до 74 м². Ясни крайни суми и какво не е включено.',
     },
     el: {
       // "προκάτ", the Greek buyer's word (the houses' description uses it too): the long form
       // made this 74 characters, past the 70 every other title keeps to.
-      title: 'Τιμές προκάτ σπιτιών 2026 | Από 14.840 € με ΦΠΑ | NVC Home4You',
+      title: 'Τιμές προκάτ σπιτιών 2026 | Από 11.700 € με ΦΠΑ | NVC Home4You',
       description:
-        'Πόσο κοστίζει ένα ολοκληρωμένο σπίτι: τιμή μονάδας, συναρμολόγηση και ΦΠΑ για τα μοντέλα 37, 58 και 73 τ.μ. Καθαρά σύνολα και τι δεν περιλαμβάνεται.',
+        'Πόσο κοστίζει ένα ολοκληρωμένο σπίτι: τιμή μονάδας, συναρμολόγηση και ΦΠΑ για τα μοντέλα από 18 έως 74 τ.μ. Καθαρά σύνολα και τι δεν περιλαμβάνεται.',
     },
   },
   privacy: {
@@ -465,15 +467,18 @@ const PAGE_IMAGES = {
       el: 'Σαλόνι με λευκή πόρτα με διακοσμητικές γραμμές',
     },
   },
+  // The containers page opens on the owner's delivered container (since 2026-10-17). The share
+  // card takes the same photo's 16:10 crop (deliveredMedia.js DELIVERED_CONTAINER_WIDE), which a
+  // 1.91:1 card trims far less than the hero's 4:3, with the content's hero.photo.alt.
   modularBuilds: {
-    url: `${SITE_URL}/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp`,
-    width: 1024,
-    height: 1024,
+    url: `${SITE_URL}/delivered/container-lakeside-16x10-1600.webp`,
+    width: 1600,
+    height: 1000,
     type: 'image/webp',
     alt: {
-      bg: 'Контейнер 8 × 3 м с двускатен покрив, отвътре',
-      en: 'Inside an 8 × 3 m container with a gable roof',
-      el: 'Εσωτερικό κοντέινερ 8 × 3 m με δίρριχτη στέγη',
+      bg: 'Контейнер, доставен на парцела на клиент',
+      en: "A container delivered to a customer's plot",
+      el: 'Κοντέινερ παραδομένο στο οικόπεδο πελάτη',
     },
   },
   modularHouses: {

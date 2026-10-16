@@ -103,11 +103,13 @@ export default {
     factory: {
       title: 'В нашата фабрика в Китай',
       text: 'Тук се изработват контейнерите и Бокс къщите, които продаваме.',
-      alt: 'Производствен цех с рамки и стенни панели на модули',
+      alt: 'Цехът на нашата фабрика в Китай: стоманени профили и панели, подредени на пода',
       adminAlt: 'Производството в нашата фабрика в Китай',
     },
-    // In this order, each beside its clip in public/delivery/journey-<id>.mp4.
+    // In this order, each beside its clip in public/delivery/journey-<id>.mp4; the factory's is
+    // shared/aboutMedia.js FACTORY_CLIP (public/factory/), since 2026-10-17.
     clips: [
+      { id: 'factory', title: 'Във фабриката', text: 'Сандвич панели, подредени в цеха на нашата фабрика в Китай.' },
       { id: 'port', title: 'На пристанището', text: 'Сгънатата Бокс къща пристига с кораба; митницата поемаме ние.' },
       { id: 'yard', title: 'В нашата база', text: 'Разтоварваме я от морския контейнер, за наша сметка.' },
       { id: 'truck', title: 'На камиона', text: 'С кран я качваме на камиона, който я докарва до вас.' },

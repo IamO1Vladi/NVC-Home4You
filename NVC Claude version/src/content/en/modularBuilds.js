@@ -1,3 +1,5 @@
+import { DELIVERED_CONTAINER } from '../shared/deliveredMedia.js'
+
 // src/content/en/modularBuilds.js
 //
 // The words on the "Container units" page (/en/modular-builds). No price lives here: the
@@ -26,11 +28,12 @@ export default {
       'Assembled in our warehouse if you choose a crane at your cost, or on site by two of our workers',
       'Other sizes from 14 to 30 m² can be ordered',
     ],
-    // A real daylight photo from the gallery (the 8 × 3 m model) until the owner uploads one
-    // of a delivered container in the admin panel. Not the night render.
+    // The owner's photo (2026-10-17) of a container delivered to a customer's plot
+    // (shared/deliveredMedia.js), until another is set in the admin panel. Not the night render.
     photo: {
-      url: '/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp',
-      alt: 'Inside an 8 × 3 m container with a gable roof',
+      url: DELIVERED_CONTAINER.url,
+      srcSet: DELIVERED_CONTAINER.srcSet,
+      alt: 'A container delivered to a customer\'s plot',
       position: '50% 55%',
     },
     // Read only when the admin set a photo but left its description empty: the default
@@ -112,6 +115,45 @@ export default {
     ],
     conditions: 'The warranty covers factory defects and runs from the day of handover, with normal use, a suitable foundation, proper drainage and no unauthorised work by third parties. Everything else is checked visually at handover against the factory standard.',
     excluded: 'The warranty does not cover mechanical damage, improper transport or unloading not carried out by us, an unsuitable foundation, lack of ventilation, poor drainage, leaks from external connections, condensation, later repairs or changes by the buyer or third parties, or force majeure.',
+  },
+
+  // The page's questions (lib/productQuestions.js): the same ids as bg/modularBuilds.js, which
+  // says where each answer comes from.
+  faq: {
+    heading: 'Questions',
+    // To the hub's containers topic (#t-containers).
+    more: 'More questions →',
+    items: [
+      {
+        id: 'container-kitchen',
+        q: 'Does the container have a kitchen?',
+        a: 'A kitchen is not included. There is a room that can be used as one.',
+        link: { pathKey: 'modularBuilds', hash: 'specs', label: 'What every container has →' },
+      },
+      {
+        id: 'container-assembly',
+        q: 'Is assembly included in the container price?',
+        a: 'Yes. Assembly is included in the price of every model: {containerAssembly} of that price is for the assembly.',
+        link: { pathKey: 'modularBuilds', hash: 'assembly', label: 'Container assembly and delivery →' },
+      },
+      {
+        id: 'container-sizes',
+        q: 'Are there containers in other sizes?',
+        a: 'Other sizes from the catalogue are not in stock, but we can order them for you. Just ask.',
+        link: { pathKey: 'modularBuilds', hash: 'units', label: 'The containers in stock, with prices →' },
+      },
+      {
+        id: 'container-made-to-order',
+        q: 'How long does a made-to-order container take?',
+        a: 'About {madeToOrderMonths} months, the same as a Box house. A container in stock is with you within {days} days.',
+      },
+      {
+        id: 'container-finishes',
+        q: 'Can I choose the container’s finishes?',
+        a: 'Yes, when the container is made to order for you. For a container from stock, the finishes cannot be chosen.',
+      },
+      { id: 'doors-for-containers', from: 'doors' },
+    ],
   },
 
   reviewsHeading: 'What buyers say',

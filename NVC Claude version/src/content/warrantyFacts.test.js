@@ -105,11 +105,19 @@ describe('warranty facts across the content', () => {
     }
   })
 
-  it.each(LOCALES)('%s: claims no warranty for the steel-frame houses', (locale) => {
-    // Their own page says nothing of one.
-    expect(strings(content(locale, 'steelHouses')).filter(([, text]) => WARRANTY.test(text))).toEqual([])
-    // And no warranty sentence names them; "steel structure" alone is a container's or a Box
-    // house's frame, so the check is for the names the site gives those houses.
+  it.each(LOCALES)('%s: claims no warranty term for the steel-frame houses, only that it depends on the project', (locale) => {
+    // Their own page says of one only what the owner said (2026-10-17): it depends on the
+    // project, like the timeline. One question, no figure and no term.
+    const DEPENDS = { bg: /зависят от проекта/, en: /depend on the project/, el: /εξαρτώνται από τη μελέτη/ }[locale]
+    const steel = content(locale, 'steelHouses')
+    const asked = steel.faq.items.find((item) => item.id === 'steel-warranty-time')
+    expect(asked.a).toMatch(DEPENDS)
+    expect(`${asked.q} ${asked.a}`).not.toMatch(/\d|\{\w+\}/)
+    // (Its id, "steel-warranty-time", is a link target, not words.)
+    expect(strings(steel).filter(([at, text]) => !at.endsWith('.id') && WARRANTY.test(text))).toEqual([['faq.items[3].q', asked.q]])
+    expect(steel.faq.items[3]).toBe(asked)
+    // And no other warranty sentence names them; "steel structure" alone is a container's or a
+    // Box house's frame, so the check is for the names the site gives those houses.
     const STEEL_HOUSE = { bg: /сглобяем|по проект/i, en: /steel-frame|to a plan|to your plan/i, el: /μεταλλικά σπίτια|σε σχέδιο/i }[locale]
     const partnerRow = content(locale, 'partner').terms.rows.find((r) => r.key === 'warranty')
     const warrantyStrings = [
@@ -122,6 +130,7 @@ describe('warranty facts across the content', () => {
     // The two product blocks (heading, lead, rows, conditions, excluded), the FAQ and the
     // partner page's row and question at the least.
     expect(warrantyStrings.length).toBeGreaterThan(12)
-    expect(warrantyStrings.filter(([, text]) => STEEL_HOUSE.test(text))).toEqual([])
+    const theQuestion = `./${locale}/steelHouses.js.faq.items[3].q`
+    expect(warrantyStrings.filter(([at, text]) => at !== theQuestion && STEEL_HOUSE.test(text))).toEqual([])
   })
 })

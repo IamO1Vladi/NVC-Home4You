@@ -1,239 +1,330 @@
-import React, { useMemo, useRef } from 'react'
+// The gallery index (/bg/galeriq, /en/gallery, /el/gkaleri): every model, its photo, its price
+// and the way to its own page.
+//
+// REBUILT 2026-10-17 on the product pages' system (<main class="hp pp gl">: HomePage.css, then
+// ProductPage.css, then Gallery.css's gl- layer). It had kept the old look: a grey glass label
+// over every photo, the price only on phones (desktop hid it behind a hover), the filter chips
+// in a font of their own, an inline-styled H1, and 4 of the 16 models behind a page-2 <button>
+// that no crawler follows.
+//
+// - The head is the product pages' hero (ProductHero): an eyebrow, the H1, one line under it.
+// - The filters are toggle buttons (aria-pressed), the FAQ hub's chips: no ARIA tabs, as there
+//   are no tab panels. Two of them, the two product lines in the site's words; the other two
+//   ids always opened empty and are gone (galleryUtils INDEX_FILTER_IDS). A ?cat= the index
+//   does not offer shows every model; the canonical drops the query anyway (GalleryRoutes.jsx).
+//   The URL keeps the filter (?cat=wagon, as the containers and Box pages link here), replaced
+//   rather than pushed, so Back leaves the page instead of undoing filters.
+// - A card is the photo uncovered, the model's name, its price with VAT and what it includes,
+//   and a cue to its page. The name is the card's one link, stretched over the card (as on
+//   /bg/ceni), so a screen reader hears each model once. It opens the model over the list (the
+//   route modal, state.backgroundLocation), as it always has.
+// - The price and its words come from the prices table's own rows (shared/prices.js
+//   buildPriceSections, the call /bg/ceni and the product pages make): a container's price
+//   includes its assembly, a Box house's does not, and a model whose assembly figure the table
+//   does not know says only "with VAT".
+// - Every model on one page (16 today). Past PAGE_SIZE (24) the list pages with real
+//   <a href="?page=N"> links. The ItemList markup covers exactly the cards on show.
+// - Loading keeps the cards' shape (placeholders with the same photo box), so nothing jumps
+//   when the models arrive; the count line says what is happening.
+import React, { useEffect, useMemo, useRef } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import '../style/HomePage.css'
+import '../style/ProductPage.css'
 import '../style/Gallery.css'
+import ProductHero from '../components/product/ProductHero.jsx'
+import { GalleryListJSONLD } from '../components/GalleryStructuredData.jsx'
+import { buildPriceSections } from '../content/shared/prices.js'
 import {
+  INDEX_FILTER_IDS,
   PAGE_SIZE,
-  clamp,
-  snippet,
-  htmlToText,
-  pageModel,
-  resolveCatParam,
   catFromItemCategory,
+  pageModel,
+  resolveIndexFilter,
+  resolvePageParam,
   useLocalizedGalleryItems,
 } from '../gallery/galleryUtils.js'
-import { GalleryListJSONLD } from '../components/GalleryStructuredData.jsx'
-import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { euro } from '../lib/euro.js'
+import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
+import { displayTitle } from '../lib/productRows.js'
 
-function Pager({ page, pageCount, onGo, labels, position }) {
-  if (pageCount <= 1) return null
-  const model = pageModel(page, pageCount)
+// As many placeholders as fill a first screen: two rows of four on a wide screen, four rows
+// of two on a phone.
+const SKELETONS = 8
+// The first row loads eagerly with a high priority hint (the LCP candidate); the rest lazily.
+const EAGER = 4
+
+const fill = (pattern, values) => Object.entries(values).reduce(
+  (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
+  String(pattern || ''),
+)
+
+/** "16 модела", "1 model": the locale's plural form of the count line. */
+function countText(content, locale, n) {
+  let form = 'other'
+  try {
+    form = new Intl.PluralRules(locale).select(n)
+  } catch {
+    // An unknown locale keeps the "other" form.
+  }
+  return fill(content.count?.[form] ?? content.count?.other ?? '{n}', { n })
+}
+
+/**
+ * The query for a filter and a page, keeping anything else in it (a tracking tag). The old
+ * page parameter (?p=) goes; "all" and page 1 are the bare URL.
+ */
+function searchFor(params, cat, page) {
+  const next = new URLSearchParams(params)
+  if (!cat || cat === 'all') next.delete('cat')
+  else next.set('cat', cat)
+  next.delete('p')
+  if (!page || page <= 1) next.delete('page')
+  else next.set('page', String(page))
+  const query = next.toString()
+  return query ? `?${query}` : ''
+}
+
+/**
+ * The words beside a card's price: what the price includes, as the prices table says it. A
+ * container's includes its assembly; a Box house's does not when the table has its assembly
+ * figure; a house that arrives ready (the capsule) has none to add; anything else says only
+ * that VAT is in, rather than guess.
+ */
+function priceBasis(entry, basis) {
+  if (entry?.kind === 'wagon') return basis.wagon
+  if (entry?.kind === 'box' && entry.row.arrivesReady && basis.ready) return basis.ready
+  if (entry?.kind === 'box' && entry.row.assemblyGross != null) return basis.box
+  return basis.vat
+}
+
+function GalleryCard({ item, entry, content, locale, location, eager }) {
+  const base = import.meta.env.BASE_URL || '/'
+  const title = displayTitle(item.title)
+  const price = Number(item.price) > 0 ? euro(item.price, locale) : null
 
   return (
-    <div className="gallery-pager" role="navigation" aria-label={position ? `${labels.paginationAria} (${position})` : labels.paginationAria}>
-      <button type="button" className="gpg-btn" onClick={() => onGo(page - 1)} disabled={page === 0} aria-label={labels.prev}>
-        ‹
-      </button>
-      <div className="gpg-pages" aria-label={labels.pages}>
-        {model.map((x, i) => {
-          if (x === '…') return <span key={`e-${i}`} className="gpg-ellipsis" aria-hidden="true">…</span>
-          const n = Number(x)
-          const active = n === page
+    <article className="hp-card gl-card">
+      {item.coverUrl ? (
+        <img
+          className="gl-photo"
+          src={cdnImage(item.coverUrl, { width: 480 })}
+          srcSet={cdnSrcSet(item.coverUrl, [240, 320, 480, 640, 800])}
+          sizes="(max-width: 759px) 50vw, (max-width: 1099px) 33vw, 290px"
+          alt={title}
+          width="1024"
+          height="1024"
+          loading={eager ? 'eager' : 'lazy'}
+          fetchpriority={eager ? 'high' : 'low'}
+          decoding="async"
+          onError={imageFallback(`${base}modular-builds/card.svg`)}
+        />
+      ) : (
+        <div className="gl-photo" aria-hidden="true" />
+      )}
+
+      <div className="gl-body">
+        <h2 className="gl-title">
+          <Link to={item.slug} state={{ backgroundLocation: location }} className="gl-link">
+            {title}
+          </Link>
+        </h2>
+        <p className="gl-cost">
+          {price ? <strong className="gl-price">{price}</strong> : null}
+          <span className="gl-basis">{price ? priceBasis(entry, content.card.basis) : content.detail.priceOnRequest}</span>
+        </p>
+        {/* The link above already names the model; this only shows where the card leads. */}
+        <span className="gl-go" aria-hidden="true">{content.card.more}</span>
+      </div>
+    </article>
+  )
+}
+
+function SkeletonCard() {
+  return (
+    <li aria-hidden="true">
+      <div className="hp-card gl-card gl-card--skel">
+        <div className="gl-photo gl-skel" />
+        <div className="gl-body">
+          <span className="gl-skel gl-skel-line" />
+          <span className="gl-skel gl-skel-line is-short" />
+          <span className="gl-skel gl-skel-line is-price" />
+        </div>
+      </div>
+    </li>
+  )
+}
+
+/** Real links to each page of the list, only when there is more than one. */
+function Pager({ page, pageCount, hrefFor, labels }) {
+  if (pageCount <= 1) return null
+  return (
+    <nav className="gl-pager" aria-label={labels.paginationAria}>
+      <ul>
+        {page > 1 ? (
+          <li><Link className="gl-page" to={hrefFor(page - 1)} rel="prev">‹ {labels.prev}</Link></li>
+        ) : null}
+        {pageModel(page - 1, pageCount).map((x, i) => {
+          if (x === '…') return <li key={`gap-${i}`} className="gl-gap" aria-hidden="true">…</li>
+          const n = Number(x) + 1
           return (
-            <button
-              key={n}
-              type="button"
-              className={['gpg-page', active && 'is-active'].filter(Boolean).join(' ')}
-              onClick={() => onGo(n)}
-              aria-current={active ? 'page' : undefined}
-            >
-              {String(n + 1).padStart(2, '0')}
-            </button>
+            <li key={n}>
+              <Link
+                className="gl-page"
+                to={hrefFor(n)}
+                aria-label={fill(labels.page, { n })}
+                aria-current={n === page ? 'page' : undefined}
+              >
+                {n}
+              </Link>
+            </li>
           )
         })}
-      </div>
-      <button type="button" className="gpg-btn" onClick={() => onGo(page + 1)} disabled={page === pageCount - 1} aria-label={labels.next}>
-        ›
-      </button>
-      <div className="gpg-meta" aria-label={labels.currentPage}>
-        {labels.pageAbbr} {String(page + 1).padStart(2, '0')} / {String(pageCount).padStart(2, '0')}
-      </div>
-    </div>
+        {page < pageCount ? (
+          <li><Link className="gl-page" to={hrefFor(page + 1)} rel="next">{labels.next} ›</Link></li>
+        ) : null}
+      </ul>
+    </nav>
   )
 }
 
 export default function GalleryIndexPage({ locale, content, basePath }) {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeCat = resolveCatParam(searchParams.get('cat'))
-  const currentPage = Math.max(1, Number(searchParams.get('p') || 1))
+  const activeCat = resolveIndexFilter(searchParams.get('cat'))
   const { items, loading, error } = useLocalizedGalleryItems(locale, basePath)
-  const gridTopRef = useRef(null)
+  const listRef = useRef(null)
 
-  const filteredItems = useMemo(() => {
-    if (activeCat === 'all') return items
-    return items.filter((item) => catFromItemCategory(item?.category).includes(activeCat))
-  }, [items, activeCat])
+  // Each model's row in the prices table, keyed by the item itself rather than its id: two
+  // items can share an id (App.galleryEnquiry.test.jsx keeps a pair on purpose).
+  const entries = useMemo(() => {
+    const { box, wagon } = buildPriceSections(items)
+    const map = new Map()
+    for (const row of box) map.set(row.item, { kind: 'box', row })
+    for (const row of wagon) map.set(row.item, { kind: 'wagon', row })
+    return map
+  }, [items])
 
-  const pageCount = useMemo(() => {
-    const total = filteredItems.length || 0
-    return Math.max(1, Math.ceil(total / PAGE_SIZE))
-  }, [filteredItems.length])
+  const filtered = useMemo(() => (
+    activeCat === 'all'
+      ? items
+      : items.filter((item) => catFromItemCategory(item?.category).includes(activeCat))
+  ), [items, activeCat])
 
-  const safePage = clamp(currentPage, 1, pageCount)
-  const page = safePage - 1
-  const start = page * PAGE_SIZE
-  const pageItems = useMemo(() => filteredItems.slice(start, start + PAGE_SIZE), [filteredItems, start])
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const page = resolvePageParam(searchParams.get('page'), pageCount)
+  const pageItems = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page],
+  )
 
-  const emptyMsg = activeCat === 'all' ? content.empty.all : content.empty.filtered
+  // A page link is followed at the foot of the list; the next page starts at its top. Not on
+  // arrival, and not for a filter (the same query rule as ScrollManager.jsx).
+  const shownPage = useRef(page)
+  useEffect(() => {
+    if (shownPage.current === page) return
+    shownPage.current = page
+    listRef.current?.scrollIntoView?.({ block: 'start' })
+  }, [page])
 
-  function updateSearch(nextCat, nextPage) {
-    const next = new URLSearchParams(searchParams)
-    if (!nextCat || nextCat === 'all') next.delete('cat')
-    else next.set('cat', nextCat)
-    if (!nextPage || nextPage <= 1) next.delete('p')
-    else next.set('p', String(nextPage))
-    setSearchParams(next, { replace: true })
+  // A toggle, as on the FAQ hub: pressing the pressed filter again lets it go, back to all.
+  function setFilter(id) {
+    const next = id === activeCat ? 'all' : id
+    setSearchParams(searchFor(searchParams, next, 1), { replace: true })
   }
 
-  function setFilter(catId) {
-    updateSearch(catId, 1)
-  }
+  const hrefFor = (n) => ({ search: searchFor(searchParams, activeCat, n) })
+  const ready = !loading && !error
 
-  function goToPage(next) {
-    const p = clamp(next + 1, 1, pageCount)
-    updateSearch(activeCat, p)
-    requestAnimationFrame(() => {
-      gridTopRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-    })
-  }
+  let status = ''
+  if (loading) status = content.loading
+  else if (!error) status = countText(content, locale, filtered.length)
 
   return (
-    <main className="arx">
+    <main className="hp pp gl">
       {/* The list's url is the bare gallery URL, the page's canonical (GalleryRoutes.jsx): a filter,
-          a page number or a tracking tag in the query is the same list. */}
-      <GalleryListJSONLD items={pageItems} locale={locale} listName={content.schema.listName} listUrl={basePath} />
-      <section className="gallery">
-        <div className="container">
-          <div className="gallery-head">
-            <div>
-              <h1 style={{ fontSize: 'clamp(28px,4vw,40px)', margin: 0 }}>{content.heading}</h1>
-              <p className="mt-2" style={{ opacity: 0.85, marginBottom: 0 }}>{content.sub}</p>
+          a page number or a tracking tag in the query is the same list. Its items are the cards
+          on show. */}
+      <GalleryListJSONLD items={ready ? pageItems : []} locale={locale} listName={content.schema.listName} listUrl={basePath} />
 
-              {!loading && !error && items.length > 0 && (
-                <div className="gallery-filters mt-3" role="tablist" aria-label={content.filtersAria}>
+      <ProductHero titleId="gl-title" eyebrow={content.eyebrow} title={content.heading} lead={content.lead} />
+
+      <div className="gl-list" ref={listRef}>
+        <div className="hp-container">
+          {!error ? (
+            <div className="gl-tools">
+              <div className="gl-chips" role="group" aria-label={content.filtersAria}>
+                <button
+                  type="button"
+                  className="gl-chip"
+                  aria-pressed={activeCat === 'all'}
+                  onClick={() => setFilter('all')}
+                >
+                  {content.filters.all}
+                </button>
+                {INDEX_FILTER_IDS.map((id) => (content.filters.shown?.[id] ? (
                   <button
+                    key={id}
                     type="button"
-                    className={['gfilter', activeCat === 'all' && 'is-on'].filter(Boolean).join(' ')}
-                    onClick={() => setFilter('all')}
-                    role="tab"
-                    aria-selected={activeCat === 'all'}
+                    className="gl-chip"
+                    aria-pressed={activeCat === id}
+                    onClick={() => setFilter(id)}
                   >
-                    {content.filters.all}
+                    {content.filters.shown[id]}
                   </button>
-
-                  {Object.entries(content.filters.categories).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      className={['gfilter', activeCat === id && 'is-on'].filter(Boolean).join(' ')}
-                      onClick={() => setFilter(id)}
-                      role="tab"
-                      aria-selected={activeCat === id}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
+                ) : null))}
+              </div>
+              <p className="gl-count" role="status">{status}</p>
             </div>
+          ) : null}
 
-            {!loading && !error && filteredItems.length > 0 && (
-              <Pager
-                page={page}
-                pageCount={pageCount}
-                onGo={goToPage}
-                labels={content.pagination}
-              />
-            )}
-          </div>
-
-          <div className="gallery-wrap mt-6">
-            {loading && (
-              <div className="gallery-loader" role="status" aria-live="polite">
-                <div className="loader-ring" />
-                <div className="loader-text">{content.loading}</div>
+          {error ? (
+            <div className="hp-card gl-state" role="alert">
+              <p>{content.error}</p>
+              {/* A failed load is remembered for the visit (and the prices page reads the same
+                  data), so the way out is a fresh load of the page. */}
+              <div className="hp-cta-row">
+                <button type="button" className="hp-btn ghost" onClick={() => window.location.reload()}>{content.retry}</button>
               </div>
-            )}
+            </div>
+          ) : null}
 
-            {error && (
-              <div className="mt-6" style={{ opacity: 0.8 }}>{content.error}</div>
-            )}
+          {loading ? (
+            <ul className="gl-grid" aria-busy="true">
+              {Array.from({ length: SKELETONS }, (_, i) => <SkeletonCard key={i} />)}
+            </ul>
+          ) : null}
 
-            {loading && (
-              <div className="gallery-grid">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="gcard gcard--skel">
-                    <div className="skel-img" />
-                    <div className="gcard-skel-info">
-                      <div className="skel-line w-60" />
-                      <div className="skel-line w-30 mt-2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          {ready && filtered.length === 0 ? (
+            <div className="hp-card gl-state">
+              <p>{activeCat === 'all' ? content.empty.all : content.empty.filtered}</p>
+              {activeCat !== 'all' ? (
+                <button type="button" className="hp-btn ghost" onClick={() => setFilter('all')}>
+                  {content.empty.showAll}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
-            {!loading && !error && (
-              <>
-                {filteredItems.length === 0 ? (
-                  <div className="mt-6" style={{ opacity: 0.8 }}>{emptyMsg}</div>
-                ) : (
-                  <div ref={gridTopRef} className="gallery-grid">
-                    {pageItems.map((item, localIndex) => {
-                      const priceText = typeof item.price === 'number'
-                        ? `${item.price} ${item.currency || ''}`.trim()
-                        : content.viewDetails
+          {ready && pageItems.length > 0 ? (
+            <ul className="gl-grid">
+              {pageItems.map((item, index) => (
+                <li key={item.id ?? item.slug ?? index}>
+                  <GalleryCard
+                    item={item}
+                    entry={entries.get(item)}
+                    content={content}
+                    locale={locale}
+                    location={location}
+                    eager={page === 1 && index < EAGER}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
-                      const descShort = snippet(htmlToText(item.description), 135)
-                      const key = item.id ?? item.coverUrl ?? `${start + localIndex}`
-                      // First row is the LCP candidate: load it eagerly with a high priority hint;
-                      // everything below the fold stays lazy.
-                      const eager = localIndex < 4
-                      return (
-                        <Link
-                          key={key}
-                          to={item.slug}
-                          state={{ backgroundLocation: location }}
-                          className="gcard"
-                          style={{ '--i': localIndex }}
-                          aria-label={`${item.title}${item.price ? `, ${priceText}` : ''}`}
-                        >
-                          <img
-                            alt=""
-                            src={cdnImage(item.coverUrl, { width: 600 })}
-                            srcSet={cdnSrcSet(item.coverUrl, [300, 400, 600, 800])}
-                            sizes="(max-width: 700px) 50vw, (max-width: 1000px) 33vw, 25vw"
-                            loading={eager ? 'eager' : 'lazy'}
-                            fetchpriority={eager ? 'high' : 'low'}
-                            decoding="async"
-                          />
-                          <div className="gcard-info">
-                            <div className="gcard-title">{item.title}</div>
-                            <div className="gcard-more" aria-hidden="true">
-                              <div className="gcard-metaRow">
-                                <span className="gcard-price">{priceText}</span>
-                                <span className="gcard-open">{content.openCta}</span>
-                              </div>
-                              {descShort && <div className="gcard-desc">{descShort}</div>}
-                            </div>
-                          </div>
-                          <span className="gcard-glare" aria-hidden="true" />
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {filteredItems.length > 0 && (
-                  <div className="gallery-foot mt-6">
-                    <Pager page={page} pageCount={pageCount} onGo={goToPage} labels={content.pagination} position="2" />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          {ready ? <Pager page={page} pageCount={pageCount} hrefFor={hrefFor} labels={content.pagination} /> : null}
         </div>
-      </section>
+      </div>
     </main>
   )
 }

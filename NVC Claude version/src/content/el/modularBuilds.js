@@ -1,3 +1,5 @@
+import { DELIVERED_CONTAINER } from '../shared/deliveredMedia.js'
+
 // src/content/el/modularBuilds.js
 //
 // The words on the «Οικίσκοι κοντέινερ» page (/el/domikes-kataskeves). No price lives here:
@@ -26,11 +28,12 @@ export default {
       'Συναρμολόγηση στην αποθήκη μας, αν επιλέξετε γερανό με δικά σας έξοδα, ή επί τόπου από δύο τεχνικούς μας',
       'Άλλα μεγέθη από 14 έως 30 m² κατόπιν παραγγελίας',
     ],
-    // A real daylight photo from the gallery (the 8 × 3 m model) until the owner uploads one
-    // of a delivered container in the admin panel. Not the night render.
+    // The owner's photo (2026-10-17) of a container delivered to a customer's plot
+    // (shared/deliveredMedia.js), until another is set in the admin panel. Not the night render.
     photo: {
-      url: '/api/img/gallery/3/37755aa751c74bb5bbcd9848842c3a1e.webp',
-      alt: 'Εσωτερικό κοντέινερ 8 × 3 m με δίρριχτη στέγη',
+      url: DELIVERED_CONTAINER.url,
+      srcSet: DELIVERED_CONTAINER.srcSet,
+      alt: 'Κοντέινερ παραδομένο στο οικόπεδο πελάτη',
       position: '50% 55%',
     },
     // Read only when the admin set a photo but left its description empty: the default
@@ -112,6 +115,45 @@ export default {
     ],
     conditions: 'Η εγγύηση καλύπτει εργοστασιακά ελαττώματα και ισχύει από την ημερομηνία παράδοσης, με κανονική χρήση, κατάλληλη θεμελίωση, σωστή αποστράγγιση και χωρίς μη εξουσιοδοτημένες επεμβάσεις τρίτων. Όλα τα υπόλοιπα στοιχεία ελέγχονται οπτικά κατά την παράδοση ως προς τη συμφωνία τους με τις προδιαγραφές του εργοστασίου.',
     excluded: 'Η εγγύηση δεν καλύπτει μηχανικές ζημιές, λανθασμένη μεταφορά ή εκφόρτωση που δεν έγινε από εμάς, ακατάλληλη θεμελίωση, έλλειψη αερισμού, κακή αποστράγγιση, διαρροές από εξωτερικές συνδέσεις, συμπύκνωση υγρασίας, μεταγενέστερες επισκευές ή αλλαγές από τον αγοραστή ή από τρίτους, ούτε ανωτέρα βία.',
+  },
+
+  // The page's questions (lib/productQuestions.js): the same ids as bg/modularBuilds.js, which
+  // says where each answer comes from. Drafted Greek, like the rest of this file.
+  faq: {
+    heading: 'Ερωτήσεις',
+    // To the hub's containers topic (#t-containers).
+    more: 'Περισσότερες ερωτήσεις →',
+    items: [
+      {
+        id: 'container-kitchen',
+        q: 'Το κοντέινερ έχει κουζίνα;',
+        a: 'Η κουζίνα δεν περιλαμβάνεται. Υπάρχει χώρος που μπορεί να χρησιμοποιηθεί ως κουζίνα.',
+        link: { pathKey: 'modularBuilds', hash: 'specs', label: 'Τι έχει κάθε κοντέινερ →' },
+      },
+      {
+        id: 'container-assembly',
+        q: 'Η συναρμολόγηση περιλαμβάνεται στην τιμή του κοντέινερ;',
+        a: 'Ναι. Περιλαμβάνεται στην τιμή κάθε μοντέλου: τα {containerAssembly} από αυτήν αφορούν τη συναρμολόγηση.',
+        link: { pathKey: 'modularBuilds', hash: 'assembly', label: 'Συναρμολόγηση και παράδοση κοντέινερ →' },
+      },
+      {
+        id: 'container-sizes',
+        q: 'Υπάρχουν κοντέινερ σε άλλα μεγέθη;',
+        a: 'Τα άλλα μεγέθη του καταλόγου δεν τα έχουμε σε απόθεμα, αλλά μπορούμε να τα παραγγείλουμε για εσάς. Ρωτήστε μας.',
+        link: { pathKey: 'modularBuilds', hash: 'units', label: 'Τα κοντέινερ σε απόθεμα, με τιμές →' },
+      },
+      {
+        id: 'container-made-to-order',
+        q: 'Σε πόσο καιρό φτάνει ένα κοντέινερ κατόπιν παραγγελίας;',
+        a: 'Σε περίπου {madeToOrderMonths} μήνες, όσο και ένα σπίτι Box. Ένα κοντέινερ από το απόθεμα είναι σε εσάς μέσα σε {days} ημέρες.',
+      },
+      {
+        id: 'container-finishes',
+        q: 'Μπορώ να επιλέξω τα φινιρίσματα του κοντέινερ;',
+        a: 'Ναι, όταν το κοντέινερ παραγγέλνεται ειδικά για εσάς. Στα κοντέινερ από το απόθεμα τα φινιρίσματα δεν επιλέγονται.',
+      },
+      { id: 'doors-for-containers', from: 'doors' },
+    ],
   },
 
   reviewsHeading: 'Τι λένε οι αγοραστές',

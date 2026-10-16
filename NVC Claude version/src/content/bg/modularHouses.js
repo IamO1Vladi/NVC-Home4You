@@ -8,14 +8,16 @@
 //
 // Every fact is one the gallery, the configurator catalogue or the published case already
 // states, or one the owner gave us (2026-10-12): the Box house sizes, frame, walls and glazing
-// are the gallery descriptions'; the capsule lines are gallery item 100015's and nothing more;
+// are the gallery descriptions'; the capsule lines are gallery item 100015's and nothing more,
+// and its "arrives ready, no assembly" is the owner's answer of 2026-10-17;
 // the hero photo and the proof card are the Paralia Kariani case on /api/cases-page; the
 // delivery line (Bulgaria and Greece, other countries on request) is the owner's answer of
 // 2026-10-15, and what that case in Greece shows. It also carries the page's place name for search, with the title.
 // The lead time in arrival.delivery ({production} and {months}) is the owner's of 2026-10-15,
 // read from deliveryRates.js, and the foundation tip the page shows is his too (pricesCopy's
-// foundationNote, beside arrival.foundationAsk). Do not add a permit here; there is none we
-// can stand behind yet. The "not included" list is NOT here either: the page reads it from
+// foundationNote, beside arrival.foundationAsk). The permit is the FAQ hub's answer
+// (faq.js, id "permit", the owner's of 2026-10-17), not this page's.
+// The "not included" list is NOT here either: the page reads it from
 // pricesCopy so this page and /bg/ceni say it in the same words.
 export default {
   hero: {
@@ -80,8 +82,10 @@ export default {
     },
   },
 
+  // The lines are gallery item 100015's; the basis is the owner's answer of 2026-10-17: the
+  // capsule needs no assembly, it arrives ready.
   capsule: {
-    basis: 'с ДДС, монтаж по запитване',
+    basis: 'с ДДС; пристига готова, не се нуждае от монтаж',
     lines: [
       '38 м², 11,5 × 3,3 м',
       'Рамка от поцинкована стомана 3,5 мм',
@@ -102,7 +106,7 @@ export default {
     ],
     priceLabel: 'Цена от',
     boxPrice: '{price}, без монтаж',
-    capsulePrice: '{price}, монтаж по запитване',
+    capsulePrice: '{price}; пристига готова, не се нуждае от монтаж',
   },
 
   // {folded} and {open} are the 37 m² model's widths from the configurator catalogue.
@@ -122,11 +126,11 @@ export default {
   },
 
   // The warranty as the owner gave it on 2026-10-15, from the annex to our Box-house sales
-  // contract. The lead names the Box houses: the capsule on this page is not covered by it.
-  // {years} is the row's figure from shared/warranty.js, by its key.
+  // contract. The lead names the Box houses and the capsule, which carries the same warranty
+  // (owner, 2026-10-17). {years} is the row's figure from shared/warranty.js, by its key.
   warranty: {
     heading: 'Гаранция',
-    lead: 'За разгъваемите (Бокс) къщи.',
+    lead: 'За разгъваемите (Бокс) къщи и капсулата.',
     rows: [
       { key: 'structure', label: 'Конструкция', text: '{years}\u00a0години — носещата стоманена рамка' },
       { key: 'panels', label: 'Панели', text: '{years}\u00a0години — термопанелите (сандвич панели)' },
@@ -148,6 +152,65 @@ export default {
     // To the case's own card on the cases page (#case-<id>), named for what it shows.
     more: 'Къщата в Паралия Кариани →',
     stars: '{rating} от 5',
+  },
+
+  // The page's questions (lib/productQuestions.js), marked up here and gathered by the FAQ hub
+  // under „Бокс къщи". What the price includes, the appliances, what assembly covers and the
+  // layouts moved here from the hub (2026-10-17), with their figures from the configurator
+  // catalogue and deliveryRates.js. Who assembles and how long ({workers}, {assemblyDays}), the
+  // 18 m² house's assembly ({smallAssembly}, {smallAssemblyGross}) and the lead times
+  // ({production}, {months}) are the owner's answers of 2026-10-17, from prices.js and
+  // deliveryRates.js; so is the capsule arriving ready. Never who connects the utilities.
+  faq: {
+    heading: 'Въпроси',
+    // To the hub's Box houses topic (#t-box).
+    more: 'Още въпроси →',
+    items: [
+      {
+        id: 'box-price',
+        q: 'Какво включва цената на Бокс къщата?',
+        a: 'ДДС, морския превоз от Китай и митницата. За моделите {areas} м² в цената са и напълно оборудваната баня ({bathrooms} варианта по избор), кухнята ({kitchens} варианта по избор, а още {kitchensExtra} — срещу доплащане) и стандартната тераса на късата страна, {terrace}. Монтажът е отделно, а кранът, основата и доставката до парцела не са включени.',
+        link: { pathKey: 'modularHouses', hash: 'sizes', label: 'Размерите и цените на Бокс къщите →' },
+      },
+      {
+        id: 'box-assembly',
+        q: 'Какво включва монтажът на Бокс къщата?',
+        a: 'Поставянето на къщата на подготвената основа и довършителните работи до ключ: къщата е готова за нанасяне. Монтажът не включва крана, основата и доставката до парцела. Кранът е задължителен: около {boxCrane} без ДДС, а според мястото може и повече.',
+        link: { pathKey: 'prices', label: 'Цената на монтажа за всеки модел →' },
+      },
+      {
+        id: 'box-assembly-crew',
+        q: 'Кой монтира Бокс къщата и колко време отнема?',
+        a: 'Монтират я {workers} наши работници, на място при вас, за {assemblyDays} дни.',
+      },
+      {
+        id: 'box-assembly-18',
+        q: 'Колко струва монтажът на къщата от 18 м²?',
+        a: 'Монтажът на разгъваемата къща от 18 м² струва {smallAssembly} без ДДС, или {smallAssemblyGross} с ДДС.',
+      },
+      {
+        id: 'box-lead-times',
+        q: 'Еднакъв ли е срокът за всички размери?',
+        a: 'Да. Всяка Бокс къща, от 18 до 74 м², се произвежда до {production} дни и пристига на вашия адрес за около {months} месеца.',
+      },
+      {
+        id: 'capsule-ready',
+        q: 'Нужен ли е монтаж за капсулата?',
+        a: 'Не. Капсулата пристига готова и няма монтаж. Доставката, кранът, срокът — около {months} месеца до вашия адрес — и гаранцията са същите като при Бокс къщите.',
+      },
+      {
+        id: 'box-layouts',
+        q: 'Мога ли да избера разпределението?',
+        a: 'Да. Започнете от едно от {layouts} разпределения от каталога за моделите {areas} м² или начертайте свое в планера и ни го изпратете за оферта. Банята и входната врата са фиксирани: стоят там, където ги поставя техническият чертеж на модела.',
+        link: { pathKey: 'planner', label: 'Разпределенията в планера →' },
+      },
+      {
+        id: 'box-appliances',
+        q: 'Включени ли са кухненските уреди?',
+        a: 'Не. Уредите не ги доставяме и не ги таксуваме: в конфигуратора посочвате къде ще стои всеки, за да изработим кухнята по мярка, а подготовката за тях (ел. изводи и ВиК) е включена в цената. Мивката обаче я продаваме ние и я избирате в конфигуратора.',
+        link: { pathKey: 'boxConfigurator', label: 'Сглобете къщата си в конфигуратора →' },
+      },
+    ],
   },
 
   catalogues: {

@@ -11,7 +11,11 @@
 // so are the warranty block's years (2026-10-15), from warranty.js.
 // A Box house is quoted the way the home strip quotes it since 2026-10-12, the house with
 // VAT and without its assembly, and the assembly is printed under it (prices.js grosses it
-// up from BOX_ASSEMBLY_NET_BY_ID), or "on request" where we do not know it yet.
+// up from BOX_ASSEMBLY_NET_BY_ID), or "on request" where we do not know it yet. The capsule
+// has none: it arrives ready (owner, 2026-10-17), and its card and comparison row say so.
+//
+// The questions (2026-10-17) are the page's own, filled by lib/productQuestions.js and marked
+// up here; the FAQ hub gathers them under its Box houses topic, which the section links to.
 //
 // The 37, 58 and 73 m² cards open the configurator on that model, so the price tapped is
 // the price the configurator opens on. The others ask for an offer with the model attached.
@@ -31,6 +35,7 @@ import SiblingLinks from '../components/product/SiblingLinks.jsx'
 import WarrantyTerms from '../components/product/WarrantyTerms.jsx'
 import Catalogues from '../components/Catalogues.jsx'
 import FinalCta from '../components/FinalCta.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import { ProductsJSONLD } from '../components/StructuredData.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { paths } from '../routes/paths.js'
@@ -42,6 +47,7 @@ import { PRICE_SECTION_IDS } from '../content/shared/prices.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
+import { hubTopicPath, productQuestions } from '../lib/productQuestions.js'
 
 // The size cards, by gallery id, in the order a visitor reads sizes. `variant` is the same
 // house with veranda and double roof, printed as one line of its card rather than a card of
@@ -138,6 +144,8 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
   const quote = String(published?.quote || '').trim()
   const quoteLang = quote ? langOf(quote) : null
   const rating = Number(published?.rating) || 0
+
+  const faq = productQuestions('modularHouses', c, locale)
 
   const wagonFrom = lowest(wagon)
   const siblings = [
@@ -341,6 +349,21 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
       ) : null}
 
       <Catalogues locale={locale} content={c.catalogues} />
+
+      {faq.length ? (
+        <section id="questions" aria-labelledby="mh-faq-title">
+          <div className="hp-container">
+            <div className="hp-head">
+              <div>
+                <h2 id="mh-faq-title">{c.faq.heading}</h2>
+              </div>
+            </div>
+            <FaqList items={faq} />
+            {/* The FAQ hub's Box houses topic, which gathers these with the rest. */}
+            {c.faq.more ? <p className="pp-links"><Link to={hubTopicPath('modularHouses', locale)}>{c.faq.more}</Link></p> : null}
+          </div>
+        </section>
+      ) : null}
 
       <SiblingLinks heading={c.siblings.heading} go={c.siblings.go} items={siblings} />
 

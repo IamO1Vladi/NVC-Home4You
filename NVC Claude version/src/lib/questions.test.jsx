@@ -5,6 +5,8 @@ import { Link, MemoryRouter } from 'react-router-dom'
 import FaqList from '../components/product/FaqList.jsx'
 import { GATHERED_PAGES, deliveryFigures, fill, markedUp, pageQuestions, partnerFigures, questionFromHash } from './questions.js'
 import { HUB_TOPICS, hubQuestions, hubSections } from './faqHub.js'
+import { PRODUCT_PAGES, productQuestions } from './productQuestions.js'
+import { euro } from './euro.js'
 import bgFaq from '../content/bg/faq.js'
 import enFaq from '../content/en/faq.js'
 import elFaq from '../content/el/faq.js'
@@ -20,6 +22,15 @@ import elDoors from '../content/el/internalDoors.js'
 import bgInteriors from '../content/bg/interiors.js'
 import enInteriors from '../content/en/interiors.js'
 import elInteriors from '../content/el/interiors.js'
+import bgModularBuilds from '../content/bg/modularBuilds.js'
+import enModularBuilds from '../content/en/modularBuilds.js'
+import elModularBuilds from '../content/el/modularBuilds.js'
+import bgModularHouses from '../content/bg/modularHouses.js'
+import enModularHouses from '../content/en/modularHouses.js'
+import elModularHouses from '../content/el/modularHouses.js'
+import bgSteelHouses from '../content/bg/steelHouses.js'
+import enSteelHouses from '../content/en/steelHouses.js'
+import elSteelHouses from '../content/el/steelHouses.js'
 
 // One question, marked up once (2026-10-16). The FAQ hub gathers the delivery, partner, internal
 // doors and interiors pages' questions instead of copying them, and every question is FAQPage
@@ -36,12 +47,23 @@ const PAGES = {
   en: { delivery: enDelivery, partner: enPartner, doors: enDoors, interiors: enInteriors },
   el: { delivery: elDelivery, partner: elPartner, doors: elDoors, interiors: elInteriors },
 }
+// The three product pages (2026-10-17), whose questions lib/productQuestions.js fills.
+const PRODUCTS = {
+  bg: { modularBuilds: bgModularBuilds, modularHouses: bgModularHouses, steelHouses: bgSteelHouses },
+  en: { modularBuilds: enModularBuilds, modularHouses: enModularHouses, steelHouses: enSteelHouses },
+  el: { modularBuilds: elModularBuilds, modularHouses: elModularHouses, steelHouses: elSteelHouses },
+}
+// A product page's questions as the page draws them, the doors page's container question included.
+const productList = (page, locale) => productQuestions(page, PRODUCTS[locale][page], locale, { doors: PAGES[locale].doors })
 
 /** [where, id, question] for every question marked up in one language, hub included. */
 function markedUpEverywhere(locale) {
   return [
     ...hubQuestions(HUB[locale], locale).filter((q) => q.markup).map((q) => ['faq', q.id, q.question]),
     ...GATHERED_PAGES.flatMap((page) => pageQuestions(page, PAGES[locale][page], locale)
+      .filter((q) => q.markup)
+      .map((q) => [page, q.id, q.question])),
+    ...PRODUCT_PAGES.flatMap((page) => productList(page, locale)
       .filter((q) => q.markup)
       .map((q) => [page, q.id, q.question])),
   ]
@@ -66,7 +88,7 @@ describe('questions across the FAQ hub and the four pages', () => {
     const hub = new Set(marked.filter(([where]) => where === 'faq').map(([, , q]) => q))
     expect(marked.filter(([where, , q]) => where !== 'faq' && hub.has(q))).toEqual([])
     // Every page marks up something; the hub marks up all of its own.
-    for (const page of GATHERED_PAGES) expect(marked.some(([where]) => where === page), page).toBe(true)
+    for (const page of [...GATHERED_PAGES, ...PRODUCT_PAGES]) expect(marked.some(([where]) => where === page), page).toBe(true)
     expect(marked.filter(([where]) => where === 'faq')).toHaveLength(HUB[locale].items.length)
   })
 
@@ -138,6 +160,81 @@ describe('questions across the FAQ hub and the four pages', () => {
     expect(fill('{a} and {b}', { a: 1 })).toBe('1 and {b}')
     expect(questionFromHash('#q-delivery-crane')).toBe('delivery-crane')
     for (const hash of ['', '#', '#q-', '#warranty', '#q-Bad', '#q-a b']) expect(questionFromHash(hash), hash).toBeNull()
+  })
+})
+
+// The product pages' questions (Stage 2, 2026-10-17): homed and marked up on their own pages,
+// shown by the hub under its product topics without markup, each with an id of its own.
+describe('the product pages\' questions', () => {
+  const ID = /^[a-z0-9][a-z0-9-]*$/
+  const TOPIC = { modularBuilds: 'containers', modularHouses: 'box', steelHouses: 'steel' }
+
+  it('every product question has a stable ASCII id, the same in all three languages, and no other page\'s', () => {
+    const others = new Set([...HUB.bg.items, ...GATHERED_PAGES.flatMap((page) => PAGES.bg[page].faq.items)].map((item) => item.id))
+    const seen = []
+    for (const page of PRODUCT_PAGES) {
+      const ids = Object.fromEntries(LOCALES.map((l) => [l, PRODUCTS[l][page].faq.items.map((item) => item.id)]))
+      expect(ids.en, page).toEqual(ids.bg)
+      expect(ids.el, page).toEqual(ids.bg)
+      for (const item of PRODUCTS.bg[page].faq.items) {
+        expect(item.id, `${page}: ${item.id}`).toMatch(ID)
+        // Only a question `from` another page carries that page's id.
+        if (item.from) expect(PAGES.bg[item.from].faq.items.map((i) => i.id), item.id).toContain(item.id)
+        else {
+          expect(others.has(item.id), item.id).toBe(false)
+          seen.push(item.id)
+        }
+      }
+    }
+    expect(repeated(seen)).toEqual([])
+    // The ones that moved from the hub to their pages are gone from the hub.
+    for (const id of ['container-kitchen', 'container-assembly', 'container-sizes', 'box-price', 'box-appliances', 'box-assembly', 'box-layouts', 'steel-price', 'steel-delivery']) {
+      expect(seen, id).toContain(id)
+      for (const locale of LOCALES) expect(HUB[locale].items.map((item) => item.id), `${locale} ${id}`).not.toContain(id)
+    }
+  })
+
+  it.each(LOCALES)('%s: with the real figures, the owner\'s answers read as he gave them', (locale) => {
+    const get = (page, id) => productList(page, locale).find((q) => q.id === id).answer.replace(/\s/g, ' ')
+    // Two of our workers, on site, in 3–4 days; the 18 m² house's assembly 1,000 without VAT.
+    expect(get('modularHouses', 'box-assembly-crew')).toMatch({ bg: /двама/, en: /two/, el: /δύο/ }[locale])
+    expect(get('modularHouses', 'box-assembly-crew')).toContain('3–4')
+    expect(get('modularHouses', 'box-assembly-18')).toContain(euro(1000, locale).replace(/\s/g, ' '))
+    expect(get('modularHouses', 'box-assembly-18')).toContain(euro(1200, locale).replace(/\s/g, ' '))
+    // A made-to-order container in 3–4 months; a steel house's architectural project 1,000 €.
+    expect(get('modularBuilds', 'container-made-to-order')).toContain('3–4')
+    expect(get('steelHouses', 'steel-project')).toContain(euro(1000, locale).replace(/\s/g, ' '))
+    // ONE factory, ours, in China.
+    expect(get('steelHouses', 'steel-factory')).toContain({ bg: 'нашата фабрика в Китай', en: 'our factory in China', el: 'εργοστάσιό μας στην Κίνα' }[locale])
+  })
+
+  it.each(LOCALES)('%s: the containers page shows the doors page\'s container question in its words, marked up on the doors page only', (locale) => {
+    const theirs = pageQuestions('doors', PAGES[locale].doors, locale).find((q) => q.id === 'doors-for-containers')
+    const shownHere = productList('modularBuilds', locale).find((q) => q.id === 'doors-for-containers')
+    expect(theirs.markup).toBe(true)
+    expect(shownHere).toMatchObject({ question: theirs.question, answer: theirs.answer, markup: false, ref: 'doors' })
+    // Without the doors page's words it is left out, never drawn empty.
+    expect(productQuestions('modularBuilds', PRODUCTS[locale].modularBuilds, locale).map((q) => q.id)).not.toContain('doors-for-containers')
+  })
+
+  it.each(LOCALES)('%s: the hub shows every product question under its topic, as its page fills it, unmarked, with no {placeholder}', (locale) => {
+    const sections = hubSections(locale, HUB[locale], { ...PAGES[locale], ...PRODUCTS[locale] })
+    for (const page of PRODUCT_PAGES) {
+      const section = sections.find((s) => s.key === TOPIC[page])
+      const own = productList(page, locale).filter((q) => !q.ref)
+      expect(own.length, page).toBeGreaterThan(0)
+      // The page's own questions first, in the page's order.
+      expect(section.items.slice(0, own.length).map((q) => q.id)).toEqual(own.map((q) => q.id))
+      for (const q of own) {
+        const onHub = section.items.find((item) => item.id === q.id)
+        expect(onHub, q.id).toMatchObject({ question: q.question, answer: q.answer, markup: false, from: page })
+        expect(q.markup, q.id).toBe(true)
+        expect(`${q.question} ${q.answer}`, q.id).not.toMatch(/\{\w+\}/)
+      }
+    }
+    // The doors question sits with the containers once, from the doors page.
+    const containers = sections.find((s) => s.key === 'containers').items
+    expect(containers.filter((q) => q.id === 'doors-for-containers').map((q) => q.from)).toEqual(['doors'])
   })
 })
 

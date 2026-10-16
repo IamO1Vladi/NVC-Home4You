@@ -78,10 +78,11 @@ export default {
     factory: {
       title: 'At our factory in China',
       text: 'This is where the containers and Box houses we sell are made.',
-      alt: 'A production hall with module frames and wall panels',
+      alt: 'The production hall of our factory in China: steel profiles and panels stacked on the floor',
       adminAlt: 'Production at our factory in China',
     },
     clips: [
+      { id: 'factory', title: 'At the factory', text: 'Sandwich panels stacked in the production hall of our factory in China.' },
       { id: 'port', title: 'At the port', text: 'The folded Box house arrives by ship; we handle customs.' },
       { id: 'yard', title: 'At our base', text: 'We unload it from the shipping container, at our cost.' },
       { id: 'truck', title: 'On the truck', text: 'A crane lifts it onto the truck that brings it to you.' },

@@ -31,11 +31,12 @@
 .dl-cell-note{ display:block; margin-top:2px; color:var(--hp-muted); font-size:13px; line-height:1.4 }
 .dl-examples td{ font-variant-numeric:tabular-nums }
 
-/* The clips: four in a row on a wide screen; below 900px a row that scrolls sideways inside
-   itself (the page does not), each clip snapping into place with the next one showing at the
-   edge. Two by two on a tablet made each clip 450px tall. The box is 4:5 whether it holds the
-   poster or the video. */
-.dl-clips{ display:grid; gap:16px; grid-template-columns:repeat(4,minmax(0,1fr)); margin:0; padding:0; list-style:none }
+/* The clips: all in one row on a wide screen (four on the delivery page, five on About, whose
+   factory clip comes first; JourneyClips sets --dl-clip-count); below 900px a row that scrolls
+   sideways inside itself (the page does not), each clip snapping into place with the next one
+   showing at the edge. Two by two on a tablet made each clip 450px tall. The box is 4:5 whether
+   it holds the poster or the video. */
+.dl-clips{ display:grid; gap:16px; grid-template-columns:repeat(var(--dl-clip-count, 4),minmax(0,1fr)); margin:0; padding:0; list-style:none }
 @media (max-width:899px){
   .dl-clips-row{
     overflow-x:auto; overscroll-behavior-x:contain;
@@ -44,6 +45,17 @@
   }
   .dl-clips{ display:flex; gap:12px }
   .dl-clip{ flex:0 0 40%; scroll-snap-align:start }
+}
+/* Five clips (About) in one row are 160-185px wide between 900 and 1099px, with the captions
+   running to four or five lines; there the row scrolls too, about three and a half in view. */
+@media (min-width:900px) and (max-width:1099px){
+  .dl-clips-row[data-count="5"]{
+    overflow-x:auto; overscroll-behavior-x:contain;
+    scroll-snap-type:x mandatory; scroll-padding-inline:20px;
+    margin-inline:-20px; padding:0 20px 8px;
+  }
+  .dl-clips-row[data-count="5"] .dl-clips{ display:flex; gap:12px }
+  .dl-clips-row[data-count="5"] .dl-clip{ flex:0 0 26%; scroll-snap-align:start }
 }
 @media (max-width:767px){
   .dl-clips-row{ scroll-padding-inline:16px; margin-inline:-16px; padding:0 16px 8px }

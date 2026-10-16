@@ -15,6 +15,7 @@ import { WAGON_ASSEMBLY_GROSS } from '../content/shared/prices.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { HOME_PHOTOS_SEED_ID, fetchHomePhotos, forgetHomePhotos } from '../lib/homePhotos.js'
+import { DELIVERED_CONTAINER } from '../content/shared/deliveredMedia.js'
 
 // The container units page as the rebuild left it: one H1, six cards built from the
 // gallery's wagon rows, every figure read from those rows, the owner's facts in the copy
@@ -285,10 +286,12 @@ describe.each(['bg', 'en', 'el'])('ModularBuildsPage (%s)', (locale) => {
     expect(fs.existsSync(path.resolve(__dirname, '../style/ModularBuilds.css'))).toBe(false)
   })
 
-  it('opens on the gallery photo, and on the admin\'s photo once one is set', async () => {
+  it('opens on the owner\'s delivered container, and on the admin\'s photo once one is set', async () => {
     const first = await renderLoaded(locale)
     const img = () => first.container.querySelector('.pp-hero-media img')
-    expect(img().getAttribute('src')).toContain('37755aa751c74bb5bbcd9848842c3a1e')
+    // A static file, so its own 800/1200 srcset: nothing resizes /public.
+    expect(img().getAttribute('src')).toBe(DELIVERED_CONTAINER.url)
+    expect(img().getAttribute('srcset')).toBe(DELIVERED_CONTAINER.srcSet)
     expect(img().getAttribute('alt')).toBe(c.hero.photo.alt)
     first.unmount()
 
