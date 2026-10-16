@@ -18,7 +18,6 @@
 // {nights} {travel} from shared/deliveryRates.js; {structureYears} {panelYears} {joineryYears}
 // {sanitaryYears} from shared/warranty.js. No seo block: the title, description, canonical and
 // hreflangs come from routeMeta.js.
-import { routeMapControls as ROUTE_CONTROLS, routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
 import delivery from './delivery.js'
 
 export default {
@@ -101,7 +100,7 @@ export default {
   terms: {
     heading: 'Накратко',
     rows: [
-      { key: 'price', label: 'Цена', text: 'По-ниска според броя: за контейнери от {containerMin} бр., за Бокс къщи от {boxMin} бр. в поръчка. Точната цена е в офертата за количеството.' },
+      { key: 'price', label: 'Цена', text: 'По-ниска според броя: за контейнери от {containerMin} бр., за Бокс къщи от {boxMin} бр. в поръчка. Точната цена е в офертата за количеството.', link: { label: 'Цените за един брой →', pathKey: 'prices' } },
       { key: 'who', label: 'Кой е партньор', text: 'Фирма, която поръчва поне толкова броя наведнъж.' },
       { key: 'payment', label: 'Плащане', text: '100% предплащане, по договор.' },
       { key: 'resale', label: 'Продажба', text: 'Продавате навсякъде и на цена, която определяте вие.' },
@@ -134,6 +133,8 @@ export default {
     containers: { label: 'Контейнерни модули', desc: 'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м, на склад в Марикостиново.', basis: 'с ДДС и монтаж' },
     houses: { label: 'Бокс къщи', desc: 'Разгъваеми къщи 37, 58 и 73 м², които пътуват сгънати.', basis: 'с ДДС, без монтаж' },
     steel: { label: 'Сглобяеми къщи по проект', desc: 'Стоманена конструкция по ваш или по наш проект.' },
+    // A separate product, sold to builders, developers and shops; never for the Box houses.
+    doors: { label: 'Интериорни врати на едро', desc: 'Врати в комплект с каса, панти, дръжка и первази, за вашия обект. Цената зависи от количеството.' },
   },
 
   process: {
@@ -272,6 +273,8 @@ export default {
 
   faq: {
     heading: 'Въпроси от търговци',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'Още въпроси и отговори →',
     items: [
       { id: 'partner-price', q: 'Каква е цената за няколко броя?', a: 'По-ниска от цената на дребно — според броя: за контейнери от {containerMin} бр., за Бокс къщи от {boxMin} бр. в една поръчка. Точната цена е в офертата за вашето количество.' },
       { id: 'partner-who', q: 'Кой може да стане партньор?', a: 'Фирма, която поръчва поне {containerMin} контейнера или поне {boxMin} Бокс къщи в една поръчка.' },
@@ -294,25 +297,6 @@ export default {
     heading: 'Организираме и вашия товар',
     text: 'Ако внасяте сами, можем да организираме превоза — попитайте ни.',
     ask: 'Задайте въпрос',
-    show: 'Покажи маршрутите',
-    loading: 'Картата се зарежда…',
-    unavailable: 'Картата не се зареди. Презаредете страницата, за да я видите.',
-  },
-
-  logisticsWorld: {
-    modeLabel: 'Транспорт:',
-    modeSea: 'Море',
-    modeAir: 'Въздух',
-    modeRail: 'ЖП',
-    seaDestinationLabel: 'Пристанище:',
-    airDestinationLabel: 'Летище:',
-    railDestinationLabel: 'ЖП хъб:',
-    legendLabel: 'Легенда',
-    legendShanghai: 'Шанхай',
-    legendHoChiMinh: 'Хо Ши Мин',
-    legendLaemChabang: 'Лаем Чабанг',
-    destinations: ROUTE_MAP.bg,
-    mapControls: ROUTE_CONTROLS.bg,
   },
 
   finalTitle: 'Да обсъдим вашата поръчка?',

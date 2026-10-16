@@ -1,8 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useModalActions } from '../context/ModalActions.jsx'
 import CasesLightbox from '../components/CasesLightbox.jsx'
 import '../style/CasesPage.css'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
+import { paths, getLocaleFromPath } from '../routes/paths.js'
+import { caseAnchor } from '../lib/usePublishedCase.js'
+
+// A case card's product page, by its category (copy.productLinks words the link). Interiors
+// waits for the owner (Q19: may the bathroom job be published as a case?); logistics was a
+// page that no longer exists; "other" has no page.
+const CASE_PAGE = {
+  modularBuilds: 'modularBuilds',
+  modularHouses: 'modularHouses',
+  steelHouses: 'steelHouses',
+  delivery: 'delivery',
+}
+
+/** The locale this content is for, from its own canonical URL (the page has no locale prop). */
+function localeOf(content) {
+  try {
+    return getLocaleFromPath(new URL(content?.seo?.url || '').pathname) || 'en'
+  } catch {
+    return 'en'
+  }
+}
 
 const FORM_INITIAL = {
   name: '',
@@ -178,6 +200,13 @@ function Stars({ value = 0, className = '' }) {
 export default function CasesPage({ content }) {
   const { openOffer, openQuestion } = useModalActions()
   const copy = content.copy
+  const locale = localeOf(content)
+  const productLink = (category) => {
+    const page = CASE_PAGE[category]
+    const to = page ? paths[page]?.[locale] : null
+    const label = copy.productLinks?.[category]
+    return to && label ? { to, label } : null
+  }
   const API_BASE = import.meta.env.VITE_API_BASE || ''
 
   const [loading, setLoading] = useState(true)
@@ -210,6 +239,16 @@ export default function CasesPage({ content }) {
       active = false
     }
   }, [API_BASE, content.api])
+
+  // A direct load of #case-<id> (a shared link to one delivered house): the cards only exist
+  // once the API has answered, after the browser's own jump found nothing. A link inside the
+  // site is ScrollManager's. window.location, not the router's: the page renders without one
+  // in its tests.
+  useEffect(() => {
+    if (loading || typeof window === 'undefined') return
+    const match = /^#(case-[\w-]+)$/.exec(window.location.hash || '')
+    if (match) document.getElementById(match[1])?.scrollIntoView?.({ block: 'start' })
+  }, [loading])
 
   const clients = useMemo(() => {
     return payload.clients.length ? payload.clients : uniqueClientsFromCases(payload.cases)
@@ -415,7 +454,7 @@ export default function CasesPage({ content }) {
           {filteredCases.length ? (
             <div className="cs-cases-grid">
               {filteredCases.map((item) => (
-                <article className="card cs-case-card" key={item.id}>
+                <article className="card cs-case-card" key={item.id} id={caseAnchor(item.id)}>
                   {item.imageUrl ? (
                     <div className="cs-case-gallery">
                       <button
@@ -500,6 +539,11 @@ export default function CasesPage({ content }) {
                     ) : null}
 
                     {item.quote ? <blockquote className="cs-quote">“{item.quote}”</blockquote> : null}
+
+                    {(() => {
+                      const more = productLink(item.category)
+                      return more ? <p className="cs-case-more"><Link to={more.to}>{more.label}</Link></p> : null
+                    })()}
 
                     <div className="cs-case-foot">
                       <div className="cs-rating-box">

@@ -67,7 +67,7 @@ export default {
       noCrane: 'Σπίτι Box χωρίς γερανό δεν παραδίδεται.',
       included: 'Η θαλάσσια μεταφορά από την Κίνα και ο εκτελωνισμός περιλαμβάνονται ήδη στην τιμή του σπιτιού.',
       assembly: 'Η συναρμολόγηση τιμολογείται χωριστά.',
-      assemblyLink: 'Δείτε τις τιμές',
+      assemblyLink: 'Τιμές των σπιτιών Box με τη συναρμολόγηση →',
     },
     project: {
       text: 'Η παράδοση τιμολογείται μαζί με το έργο· τον εκτελωνισμό τον αναλαμβάνουμε εμείς.',
@@ -181,6 +181,7 @@ export default {
     },
     unfoldHeading: 'Ανοίγει επί τόπου',
     unfoldText: 'Το σπίτι Box ταξιδεύει διπλωμένο και ανοίγει μόνο όταν φτάσει στη θέση του.',
+    plannerLink: 'Πώς ανοίγει και οι κατόψεις του, στον σχεδιαστή →',
     truck: {
       heading: 'Διαστάσεις και βάρος μεταφοράς',
       columns: ['Μοντέλο', 'Διαστάσεις μεταφοράς (Μ × Π × Υ)', 'Βάρος'],
@@ -216,11 +217,14 @@ export default {
       alt: 'Το αναπτυσσόμενο σπίτι 58 m² με βεράντα, παραδομένο στην Παραλία Καριανής',
     },
     stars: '{rating} από 5',
-    more: 'Δείτε το έργο →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'Το σπίτι στην Παραλία Καριανής →',
   },
 
   faq: {
     heading: 'Ερωτήσεις για την παράδοση',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'Περισσότερες ερωτήσεις και απαντήσεις →',
     items: [
       {
         id: 'delivery-both-ways',

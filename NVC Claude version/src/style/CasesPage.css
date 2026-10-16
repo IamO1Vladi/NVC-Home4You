@@ -285,6 +285,28 @@
   color: var(--cs-muted);
 }
 
+/* A case card's link to its product page. */
+.cs-case-more {
+  margin: 1.1rem 0 1.25rem;
+  text-wrap: pretty;
+}
+.cs-case-more a {
+  color: var(--cs-accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:root[data-theme='light'] .cs-case-more a {
+  color: #2B63C9;
+}
+@media (max-width: 767px) {
+  .cs-case-more a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+/* Landed on from another page's #case-N link: clear of the sticky header. */
+.cs-case-card {
+  scroll-margin-top: 96px;
+}
+
 .cs-rating-box,
 .cs-review-rating {
   display: inline-flex;

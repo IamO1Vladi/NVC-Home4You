@@ -1,22 +1,23 @@
 // src/routes/bg/BgPrivacyRoute.jsx
 import SEO from '../../components/SEO.jsx'
+import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import PrivacyPage from '../../pages/PrivacyPage.jsx'
 import bgContent from '../../content/bg/privacy.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs (all three languages) come from routeMeta.js, as
+// on every other route. Breadcrumbs as on the other pages: the home page, then this one.
 export default function BgPrivacyRoute() {
+  const seo = getRouteSeo(paths.privacy.bg, 'bg')
+
   return (
     <>
-      <SEO
-        title="Политика за поверителност и бисквитки | NVC Home4You"
-        description="Как NVC Home4You събира, използва и защитава личните Ви данни, включително данните за изготвяне на оферта, и как да управлявате бисквитките — съгласно GDPR."
-        url="https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki"
-        canonical="https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki"
-        locale="bg"
-        hreflangs={[
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/poveritelnost-i-biskvitki' },
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/privacy-and-cookies' },
-          { hrefLang: 'el', href: 'https://nvc-home4you.eu/el/aporrito-kai-cookies' },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/privacy-and-cookies' },
+      <SEO {...seo} />
+      <BreadcrumbsJSONLD
+        items={[
+          { name: bgContent.home, url: 'https://nvc-home4you.eu/bg' },
+          { name: bgContent.title, url: seo.url },
         ]}
       />
       <PrivacyPage locale="bg" content={bgContent} />

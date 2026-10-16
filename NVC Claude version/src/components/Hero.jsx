@@ -106,9 +106,14 @@ export default function Hero({ locale = 'en', content, slides, onOpenOffer }) {
 
           {Array.isArray(content.facts) && content.facts.length ? (
             <ul className="hp-facts">
-              {content.facts.map((fact) => (
-                <li key={fact}><Tick />{fact}</li>
-              ))}
+              {content.facts.map((fact, i) => {
+                // A fact that names a page links there, in the same words (content.factLinks).
+                const pathKey = (content.factLinks || []).find((link) => link.fact === i)?.pathKey
+                const to = pathKey ? paths[pathKey]?.[locale] || paths[pathKey]?.en : null
+                return (
+                  <li key={fact}><Tick />{to ? <Link className="hp-fact-link" to={to}>{fact}</Link> : fact}</li>
+                )
+              })}
             </ul>
           ) : null}
 

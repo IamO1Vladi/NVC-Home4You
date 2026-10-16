@@ -56,6 +56,7 @@ export default {
     sub: 'The house price includes VAT; assembly is extra and shown beneath it. The 37, 58 and 73 m² models can be built in the configurator.',
     allPrices: 'The full price table →',
     allPhotos: 'Photos of every modular house →',
+    plannerLink: 'Layouts and the 3D unfold in the planner →',
     // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
     partnerLink: 'More than one, or for resale? →',
     basis: 'incl. VAT, assembly extra',
@@ -142,7 +143,8 @@ export default {
       { url: '/api/img/cases/1/5f6e02eabc11410c89ab824cb2496488.webp', alt: 'The living room and kitchen of the house in Paralia Kariani' },
       { url: '/api/img/cases/1/268f1b6801134d16ab11f700ac46faf5.webp', alt: 'The bathroom and its shower cabin in the house in Paralia Kariani' },
     ],
-    more: 'See the project →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'The house in Paralia Kariani →',
     stars: '{rating} out of 5',
   },
 

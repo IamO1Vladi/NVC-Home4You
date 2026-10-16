@@ -198,6 +198,7 @@ export default function ModularBuildsPage({ locale = 'en', content }) {
             <Link to={pricesHref}>{c.units.pricesLink}</Link>
             <Link to={galleryHref}>{c.units.galleryLink}</Link>
             {c.units.partnerLink ? <Link to={`${paths.partner[locale] || paths.partner.en}#zapitvane`}>{c.units.partnerLink}</Link> : null}
+            {c.specs.doorsLink ? <Link to={paths.doors[locale] || paths.doors.en}>{c.specs.doorsLink}</Link> : null}
           </p>
         </div>
       </section>

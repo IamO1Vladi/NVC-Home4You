@@ -15,6 +15,7 @@
 // questions (FaqList: #q-{id} links, also FAQ JSON-LD; the FAQ hub shows them too); the sibling
 // pages; the closing card. The breadcrumbs and the Service markup are the route's.
 import React, { useRef } from 'react'
+import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
 import '../style/ProductSteel.css'
@@ -300,6 +301,8 @@ export default function InteriorsPage({ locale = 'bg', content }) {
             </div>
           </div>
           <FaqList items={faq} />
+          {/* The FAQ hub, which gathers these and answers the rest (prices, warranty, customs). */}
+          {c.faq.more ? <p className="pp-links"><Link to={pathOf('faq')}>{c.faq.more}</Link></p> : null}
         </div>
       </section>
 

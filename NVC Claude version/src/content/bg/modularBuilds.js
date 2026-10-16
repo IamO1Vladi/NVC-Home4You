@@ -64,6 +64,8 @@ export default {
   specs: {
     heading: 'Какво има във всеки контейнер',
     lead: 'Еднакво за шестте модела, освен където е отбелязано.',
+    // Container buyers can choose their doors from the internal doors range (owner, 2026-10-15).
+    doorsLink: 'Интериорни врати за контейнера →',
     rows: [
       { label: 'Конструкция', value: 'Поцинкована стоманена рамка, 2,3 мм' },
       { label: 'Стени и изолация', value: 'Панели 50 мм с каменна вата 100 кг/м³' },

@@ -49,7 +49,9 @@ export const paths = {
   // service, and the buyer's real question (what it costs to get the house onto the plot)
   // is the delivery page's.
   // Program.cs 301s each old URL to the delivery page in its own language. The route map it
-  // shared with the partner page (LogisticsWorld) was kept there: the owner can organise
+  // shared with the partner page (LogisticsWorld) lived on there until 2026-10-16, when the
+  // owner had it removed (routes from Ho Chi Minh and Laem Chabang, not our factory in China);
+  // the partner page keeps the cargo offer as a card with a question: the owner can organise
   // cargo for others.
   partner: {
    bg: '/bg/stani-partnjor',

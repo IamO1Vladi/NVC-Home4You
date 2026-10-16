@@ -369,14 +369,34 @@ describe('AboutPage', () => {
     }
   })
 
-  it.each(LOCALES)('%s: links on to Cases, FAQ, Gallery, Delivery, Prices and Interiors', async (locale) => {
+  it.each(LOCALES)('%s: links on to Cases, FAQ, Gallery, Delivery, Prices, Interiors, Partner and Doors', async (locale) => {
     const { container } = await ready(locale)
     const hrefs = [...container.querySelectorAll('main a[href]')].map((a) => a.getAttribute('href'))
-    for (const key of ['cases', 'faq', 'gallery', 'delivery', 'prices', 'interiors']) expect(hrefs, key).toContain(paths[key][locale])
+    for (const key of ['cases', 'faq', 'gallery', 'delivery', 'prices', 'interiors', 'partner', 'doors']) expect(hrefs, key).toContain(paths[key][locale])
     expect(hrefs.some((h) => h.startsWith('tel:'))).toBe(true)
     expect(hrefs.some((h) => h.startsWith('mailto:'))).toBe(true)
+    // The four cards, then partner and doors (2026-10-16).
     const siblings = within(container.querySelector('#ab-siblings'))
-    expect(siblings.getAllByRole('link')).toHaveLength(4)
+    expect(siblings.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
+      ['cases', 'faq', 'gallery', 'delivery', 'partner', 'doors'].map((key) => paths[key][locale]),
+    )
+  })
+
+  it.each(LOCALES)('%s: the timeline links 2024, 2025 and 2026 to the containers, Box and steel pages', async (locale) => {
+    const { container } = await ready(locale)
+    const step = (year) => container.querySelector(`.ab-step[data-year="${year}"]`)
+    expect(step('2021').querySelector('a')).toBeNull()
+    for (const [year, key] of [['2024', 'modularBuilds'], ['2025', 'modularHouses'], ['2026', 'steelHouses']]) {
+      const link = within(step(year)).getByRole('link')
+      expect(link).toHaveAttribute('href', paths[key][locale])
+      expect(link).toHaveTextContent(CONTENT[locale].story.timeline.find((s) => s.year === year).link)
+    }
+  })
+
+  it.each(LOCALES)('%s: the delivered case links to its own card on the cases page', async (locale) => {
+    const { container } = await ready(locale)
+    const link = within(container).getByRole('link', { name: CONTENT[locale].proof.more })
+    expect(link).toHaveAttribute('href', `${paths.cases[locale]}#case-${CONTENT[locale].proof.case.id}`)
   })
 
   it('opens the offer and the question forms with the page\'s lead source', async () => {

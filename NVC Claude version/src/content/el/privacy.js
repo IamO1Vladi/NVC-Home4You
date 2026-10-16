@@ -2,6 +2,8 @@
 // Πολιτική Απορρήτου & Cookies (GDPR). Το περιεχόμενο είναι δομημένο ώστε να
 // αποδίδεται από το ίδιο PrivacyPage component. Ενημερώστε την ημερομηνία σε κάθε αλλαγή.
 export default {
+  // The breadcrumb's first step (the route's BreadcrumbsJSONLD); the second is the title.
+  home: 'Αρχική',
   title: 'Πολιτική Απορρήτου & Cookies',
   updated: 'Τελευταία ενημέρωση: 15 Οκτωβρίου 2026',
   intro:

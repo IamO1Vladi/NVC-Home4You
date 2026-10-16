@@ -65,6 +65,8 @@ export default {
   specs: {
     heading: 'Τι έχει κάθε κοντέινερ',
     lead: 'Ίδια και στα έξι μοντέλα, εκτός αν σημειώνεται αλλιώς.',
+    // Container buyers can choose their doors from the internal doors range (owner, 2026-10-15).
+    doorsLink: 'Εσωτερικές πόρτες για το κοντέινερ σας →',
     rows: [
       { label: 'Κατασκευή', value: 'Γαλβανισμένος χαλύβδινος σκελετός, 2,3 mm' },
       { label: 'Τοίχοι και μόνωση', value: 'Πάνελ 50 mm με πετροβάμβακα 100 kg/m³' },

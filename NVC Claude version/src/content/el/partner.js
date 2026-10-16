@@ -10,7 +10,6 @@
 // {boxCrane} {days} {production} {months} {nights} {travel} from shared/deliveryRates.js;
 // {structureYears} {panelYears} {joineryYears} {sanitaryYears} from shared/warranty.js. No seo block:
 // routeMeta.js has the title and description.
-import { routeMapControls as ROUTE_CONTROLS, routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
 import delivery from './delivery.js'
 
 export default {
@@ -86,7 +85,7 @@ export default {
   terms: {
     heading: 'Με μια ματιά',
     rows: [
-      { key: 'price', label: 'Τιμή', text: 'Χαμηλότερη ανάλογα με την ποσότητα: για κοντέινερ από {containerMin} τεμάχια, για σπίτια Box από {boxMin} σε μία παραγγελία. Η ακριβής τιμή είναι στην προσφορά για την ποσότητά σας.' },
+      { key: 'price', label: 'Τιμή', text: 'Χαμηλότερη ανάλογα με την ποσότητα: για κοντέινερ από {containerMin} τεμάχια, για σπίτια Box από {boxMin} σε μία παραγγελία. Η ακριβής τιμή είναι στην προσφορά για την ποσότητά σας.', link: { label: 'Οι τιμές για ένα τεμάχιο →', pathKey: 'prices' } },
       { key: 'who', label: 'Ποιος είναι συνεργάτης', text: 'Μια επιχείρηση που παραγγέλνει τουλάχιστον τόσα τεμάχια μαζί.' },
       { key: 'payment', label: 'Πληρωμή', text: '100% προκαταβολικά, με σύμβαση.' },
       { key: 'resale', label: 'Πώληση', text: 'Πουλάτε οπουδήποτε και στην τιμή που ορίζετε εσείς.' },
@@ -117,6 +116,8 @@ export default {
     containers: { label: 'Οικίσκοι κοντέινερ', desc: 'Κοντέινερ κατοικίας και γραφείου 6×3, 7×3 και 8×3 m, σε απόθεμα στο Μαρικοστίνοβο.', basis: 'με ΦΠΑ και συναρμολόγηση' },
     houses: { label: 'Σπίτια Box', desc: 'Αναπτυσσόμενα σπίτια 37, 58 και 73 m² που ταξιδεύουν διπλωμένα.', basis: 'με ΦΠΑ, χωρίς συναρμολόγηση' },
     steel: { label: 'Μεταλλικά σπίτια σε σχέδιο', desc: 'Μεταλλικός σκελετός, σε δικό σας ή δικό μας σχέδιο.' },
+    // A separate product, sold to builders, developers and shops; never for the Box houses.
+    doors: { label: 'Εσωτερικές πόρτες χονδρικής', desc: 'Πόρτες σε σετ με κάσα, μεντεσέδες, πόμολο και περβάζια, για το έργο σας. Η τιμή εξαρτάται από την ποσότητα.' },
   },
 
   process: {
@@ -250,6 +251,8 @@ export default {
 
   faq: {
     heading: 'Ερωτήσεις μεταπωλητών',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'Περισσότερες ερωτήσεις και απαντήσεις →',
     items: [
       { id: 'partner-price', q: 'Ποια είναι η τιμή για περισσότερα τεμάχια;', a: 'Λιγότερο από την τιμή λιανικής, ανάλογα με την ποσότητα: για κοντέινερ από {containerMin} τεμάχια και για σπίτια Box από {boxMin} σε μία παραγγελία. Η ακριβής τιμή είναι στην προσφορά για την ποσότητά σας.' },
       { id: 'partner-who', q: 'Ποιος μπορεί να γίνει συνεργάτης;', a: 'Μια επιχείρηση που παραγγέλνει τουλάχιστον {containerMin} κοντέινερ ή τουλάχιστον {boxMin} σπίτια Box σε μία παραγγελία.' },
@@ -272,25 +275,6 @@ export default {
     heading: 'Οργανώνουμε και το δικό σας φορτίο',
     text: 'Αν κάνετε εισαγωγή μόνοι σας, μπορούμε να οργανώσουμε τη μεταφορά. Ρωτήστε μας.',
     ask: 'Κάντε μια ερώτηση',
-    show: 'Εμφάνιση διαδρομών',
-    loading: 'Ο χάρτης φορτώνει…',
-    unavailable: 'Ο χάρτης δεν φόρτωσε. Ανανεώστε τη σελίδα για να τον δείτε.',
-  },
-
-  logisticsWorld: {
-    modeLabel: 'Μέσο:',
-    modeSea: 'Θαλάσσια',
-    modeAir: 'Αεροπορική',
-    modeRail: 'Σιδηροδρομική',
-    seaDestinationLabel: 'Λιμάνι προορισμού:',
-    airDestinationLabel: 'Αεροδρόμιο:',
-    railDestinationLabel: 'Σιδηροδρομικός κόμβος:',
-    legendLabel: 'Υπόμνημα',
-    legendShanghai: 'Σαγκάη',
-    legendHoChiMinh: 'Χο Τσι Μινχ',
-    legendLaemChabang: 'Λάεμ Τσαμπάνγκ',
-    destinations: ROUTE_MAP.el,
-    mapControls: ROUTE_CONTROLS.el,
   },
 
   finalTitle: 'Να συζητήσουμε την παραγγελία σας;',

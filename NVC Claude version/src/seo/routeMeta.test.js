@@ -231,3 +231,62 @@ describe('the partner page', () => {
     expect(seo.hreflangs.map((h) => h.hrefLang)).toEqual(['bg', 'en', 'el', 'x-default'])
   })
 })
+
+describe('every page, in every language', () => {
+  // Since 2026-10-16 every public route reads its head from here (seoUrls.test.js pins that), so
+  // these hold for what each page ships, the server's manifest and the prerendered snapshot alike.
+  const ALL = Object.entries(paths).flatMap(([pageKey, localized]) =>
+    Object.entries(localized).map(([locale, path]) => ({ pageKey, locale, path })))
+
+  it.each(ALL)('$pageKey.$locale: a title and description a results page shows whole', ({ locale, path }) => {
+    const seo = getRouteSeo(path, locale)
+    expect(seo).not.toBeNull()
+    expect(seo.title).toMatch(/\| NVC Home4You$/)
+    expect(seo.title.length).toBeLessThanOrEqual(70)
+    expect(seo.description.length).toBeGreaterThanOrEqual(130)
+    expect(seo.description.length).toBeLessThanOrEqual(160)
+    expect(seo.canonical).toBe(`${SITE}${path}`)
+    expect(seo.hreflangs.map((h) => h.hrefLang)).toEqual(['bg', 'en', 'el', 'x-default'])
+    if (locale !== 'bg') expect(`${seo.title} ${seo.description}`).not.toMatch(CYRILLIC)
+  })
+
+  it.each(LOCALES)('%s: no two pages share a title or a description', (locale) => {
+    const heads = Object.values(paths).map((localized) => getRouteSeo(localized[locale], locale))
+    expect(new Set(heads.map((h) => h.title)).size).toBe(heads.length)
+    expect(new Set(heads.map((h) => h.description)).size).toBe(heads.length)
+  })
+})
+
+describe('the home snippet', () => {
+  // The Bulgarian title the live snapshot already ranks with, word for word; the English and
+  // Greek ones no longer lead with the page keys ("Modular builds", "Δομικές κατασκευές").
+  it('bg: keeps the title it shipped with', () => {
+    expect(getRouteSeo(paths.home.bg, 'bg').title).toBe('Контейнери за живеене, модулни и сглобяеми къщи | NVC Home4You')
+  })
+
+  it.each(['en', 'el'])('%s: names no page key', (locale) => {
+    const { title, description } = getRouteSeo(paths.home[locale], locale)
+    expect(`${title} ${description}`).not.toMatch(/modular builds|δομικές κατασκευές/i)
+  })
+})
+
+describe('the gallery snippet', () => {
+  // The priced catalogue: containers and Box houses with the capsule. The content files' old
+  // copy promised garages (there are none) and "its own URL and detail page".
+  it.each(LOCALES)('%s: no garages and no developer talk', (locale) => {
+    const { title, description } = getRouteSeo(paths.gallery[locale], locale)
+    expect(`${title} ${description}`).not.toMatch(/гараж|garage|γκαράζ|\bURL\b|завършени|completed|ολοκληρωμένα/i)
+    expect(title).toMatch(/Box|Бокс/)
+  })
+})
+
+describe('the cases snippet', () => {
+  // Reviews and published cases, which the page shows whatever is published next; not the
+  // company buyers (none is published), the logistics or the interiors the old copy promised.
+  it.each(LOCALES)('%s: promises only what the page shows', (locale) => {
+    const { description } = getRouteSeo(paths.cases[locale], locale)
+    expect(description).not.toMatch(/логистик|logistic|εφοδιαστ|фирмени клиенти|buyer compan|εταιρείες-πελάτες|интериор|interior|εσωτερικ/i)
+    expect(description).toMatch(/1/)
+    expect(description).toMatch(/5/)
+  })
+})

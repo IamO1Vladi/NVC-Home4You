@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { catFromItemCategory, resolveCatParam, slugify, FILTER_IDS, getCategoryLabels, formatGalleryPrice } from './galleryUtils'
+import { catFromItemCategory, resolveCatParam, slugify, FILTER_IDS, getCategoryLabels, formatGalleryPrice, htmlToText, blockText, offerAvailability, getCurrency } from './galleryUtils'
 import elGallery from '../content/el/gallery.js'
 import enGallery from '../content/en/gallery.js'
 import bgGallery from '../content/bg/gallery.js'
@@ -194,5 +194,42 @@ describe('formatGalleryPrice', () => {
 
   it('formats Bulgarian as bg-BG, like the rest of the Bulgarian site', () => {
     expect(plain(formatGalleryPrice(14840, 'EUR', 'bg'))).toBe('14 840 €')
+  })
+})
+
+// The gallery's rich text as the admin editor writes it (one live item's opening, 2026-10-16).
+// textContent alone glued it into "ОписаниеЦената включва сглобяване и ДДСРазмери: 6 × 3 м", and
+// that is what the gallery cards, the item pages' meta descriptions and their Product markup
+// published.
+const RICH = '<p><strong>Описание</strong></p><p>Цената включва сглобяване и ДДС<br><br><strong>Размери:</strong> 6 × 3 м</p><h3>Спецификации</h3><p>Душ трей</p>'
+
+describe('the rich text as plain text', () => {
+  it('htmlToText keeps a space between blocks', () => {
+    expect(htmlToText(RICH)).toBe('Описание Цената включва сглобяване и ДДС Размери: 6 × 3 м Спецификации Душ трей')
+  })
+
+  it('blockText reads it as sentences', () => {
+    expect(blockText(RICH)).toBe('Описание. Цената включва сглобяване и ДДС. Размери: 6 × 3 м. Спецификации. Душ трей')
+  })
+
+  it('leaves inline markup inside a block alone', () => {
+    expect(htmlToText('<p>A <strong>steel</strong> frame</p>')).toBe('A steel frame')
+    expect(htmlToText('')).toBe('')
+  })
+})
+
+describe('the offer a model publishes', () => {
+  // The owner: the six gallery containers are stock models (2026-10-12); a Box house takes up to
+  // 40 days to make and about 3–4 months to reach the buyer (2026-10-15). Every offer used to say
+  // InStock.
+  it('a container is in stock, a Box house (and the capsule, filed with them) made to order', () => {
+    expect(offerAvailability({ category: 'wagon' })).toBe('https://schema.org/InStock')
+    expect(offerAvailability({ category: 'modular' })).toBe('https://schema.org/MadeToOrder')
+    expect(offerAvailability({ category: 'Модулна къща' })).toBe('https://schema.org/MadeToOrder')
+  })
+
+  it('is priced in euro when the API names no currency, in every language', () => {
+    for (const locale of ['bg', 'en', 'el']) expect(getCurrency({ price: 4300 }, locale)).toBe('EUR')
+    expect(getCurrency({ currency: 'EUR' }, 'bg')).toBe('EUR')
   })
 })

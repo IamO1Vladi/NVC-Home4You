@@ -131,6 +131,12 @@ const BOX_ASSEMBLY_NET_BY_ID = {
  */
 export const WAGON_ASSEMBLY_GROSS = 1000
 
+/**
+ * The ids of the prices page's two sections, which other pages link to: the delivery
+ * calculator's Box result and the Box page's "prices with assembly" go to #prices-box.
+ */
+export const PRICE_SECTION_IDS = { box: 'prices-box', wagon: 'prices-wagon' }
+
 /** Categories, as /api/gallery labels them. Matched case-insensitively against either. */
 const CATEGORY_LABELS = {
   box: ['модулна къща', 'modular house', 'modular', 'δομικό σπίτι'],

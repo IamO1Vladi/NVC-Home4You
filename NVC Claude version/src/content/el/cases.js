@@ -5,9 +5,7 @@ export default {
     reviewsEndpoint: '/api/reviews',
   },
   seo: {
-    title: 'Έργα, εταιρείες-πελάτες και κριτικές | NVC Home4You',
-    description:
-      'Δημόσιες μελέτες περιπτώσεων, εταιρείες-πελάτες και κριτικές πελατών για δομικές κατασκευές, παράδοση, εφοδιαστική και εσωτερικούς χώρους από την NVC Home4You.',
+    // The title and description are routeMeta.js's (META.cases), read by the cases routes.
     url: 'https://nvc-home4you.eu/el/erga-kai-kritikes',
   },
   breadcrumbs: [
@@ -17,7 +15,7 @@ export default {
   copy: {
     heroTitle: 'Έργα & Κριτικές',
     heroLead:
-      'Μια δημόσια σελίδα όπου οι επισκέπτες βλέπουν πραγματικά έργα, εταιρείες-πελάτες και αξιολογήσεις πελατών.',
+      'Παραδόσεις σε πελάτες μας και οι κριτικές τους: τι αγόρασαν, πού παραδόθηκε, φωτογραφίες και βαθμολογίες από 1 έως 5 αστέρια.',
     heroPoints: [
       'Δημοσιευμένα έργα με εταιρεία, προϊόν και τοποθεσία',
       'Ορατές αξιολογήσεις πελατών και γραπτές κριτικές',
@@ -25,7 +23,7 @@ export default {
     ],
     ctaPrimary: 'Λάβετε προσφορά',
     ctaSecondary: 'Κάντε μια ερώτηση',
-    panelTitle: 'Τι αποδεικνύει αυτή η σελίδα',
+    panelTitle: 'Τι θα βρείτε εδώ',
     stats: {
       cases: 'Δημοσιευμένα έργα',
       rating: 'Μέση αξιολόγηση',
@@ -34,12 +32,12 @@ export default {
     },
     buyersTitle: 'Ποιοι αγοράζουν από εμάς',
     buyersLead:
-      'Χρησιμοποιήστε αυτήν την ενότητα για να προβάλετε αναγνωρίσιμες εταιρείες και κλάδους που ήδη αγοράζουν από εσάς.',
+      'Εταιρείες και κλάδοι που αγοράζουν από εμάς.',
     buyersEmpty:
       'Δεν υπάρχουν ακόμη δημοσιευμένες εταιρείες-πελάτες.',
     casesTitle: 'Πρόσφατα έργα',
     casesLead:
-      'Δείξτε τι πουλήσατε, σε ποιον, πού παραδόθηκε και ποιο ήταν το αποτέλεσμα.',
+      'Τι παραδώσαμε, σε ποιον και πού, με την κριτική του πελάτη.',
     filters: {
       all: 'Όλα',
       modularBuilds: 'Μονάδες-κοντέινερ',
@@ -49,6 +47,14 @@ export default {
       delivery: 'Παράδοση',
       logistics: 'Εφοδιαστική',
       other: 'Άλλο',
+    },
+    // Each case card's link to its product page, by the card's category (CasesPage.jsx
+    // CASE_PAGE). A category with no line here (interiors, logistics, other) gets no link.
+    productLinks: {
+      modularBuilds: 'Περισσότερα για τα κοντέινερ →',
+      modularHouses: 'Περισσότερα για τα σπίτια Box →',
+      steelHouses: 'Περισσότερα για τα σπίτια σε δικό σας σχέδιο →',
+      delivery: 'Περισσότερα για την παράδοση και τη συναρμολόγηση →',
     },
     labels: {
       buyer: 'Αγοραστής',

@@ -65,7 +65,7 @@ export default {
       noCrane: 'A Box house cannot be delivered without a crane.',
       included: 'Shipping from China and customs are already in the house price.',
       assembly: 'Assembly is quoted separately.',
-      assemblyLink: 'See prices',
+      assemblyLink: 'Box house prices with assembly →',
     },
     project: {
       text: 'Delivery is quoted with the project; we handle customs.',
@@ -179,6 +179,7 @@ export default {
     },
     unfoldHeading: 'It unfolds on site',
     unfoldText: 'The Box house travels folded and opens out only once it is in place.',
+    plannerLink: 'The unfold and the layouts in the planner →',
     truck: {
       heading: 'Size and weight in transport',
       columns: ['Model', 'Size in transport (L × W × H)', 'Weight'],
@@ -214,11 +215,14 @@ export default {
       alt: 'The 58 m² expandable house with veranda delivered to Paralia Kariani, Greece',
     },
     stars: '{rating} out of 5',
-    more: 'See the project →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'The house in Paralia Kariani →',
   },
 
   faq: {
     heading: 'Questions about delivery',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'More questions and answers →',
     items: [
       {
         id: 'delivery-both-ways',

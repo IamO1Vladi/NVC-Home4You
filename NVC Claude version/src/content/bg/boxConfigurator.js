@@ -1,8 +1,7 @@
 export default {
   locale: 'bg',
   seo: {
-    title: 'Конфигуратор за Бокс къщи | NVC Home4You',
-    description: 'Конфигурирайте Бокс къща на NVC по модел, разпределение, външни и вътрешни решения, отопление, панорамни прозорци и електрически контакти.',
+    // The title and description are routeMeta.js's (META.boxConfigurator).
     url: 'https://nvc-home4you.eu/bg/konfigurator-box-kyshti',
     breadcrumb: 'Конфигуратор за Бокс къщи',
   },
@@ -13,6 +12,11 @@ export default {
   page: {
     title: 'Конфигурирайте своята Бокс къща',
     lead: 'Конфигуратор, изграден върху актуалния каталог за Бокс къщи. Изберете модел, разпределение, външен и вътрешен пакет, позиционирайте контакти и експортирайте резултата като PDF-готово обобщение.',
+    // Onward links under the lead: the Box houses page and the planner.
+    links: {
+      houses: 'Бокс къщите: размери, монтаж, доставка и гаранция →',
+      planner: 'Подредете стаите в планера →',
+    },
     steps: [
       { key: 'model', label: 'Модел' },
       { key: 'layout', label: 'Разпределение' },

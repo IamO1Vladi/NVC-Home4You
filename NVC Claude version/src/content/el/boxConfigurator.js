@@ -1,8 +1,7 @@
 export default {
   locale: 'el',
   seo: {
-    title: 'Διαμορφωτής Box Σπιτιού | NVC Home4You',
-    description: 'Διαμορφώστε ένα σπίτι NVC Box ανά μοντέλο, διάταξη, εξωτερικό, εσωτερικό, θέρμανση, πανοραμικά παράθυρα και πρίζες.',
+    // The title and description are routeMeta.js's (META.boxConfigurator).
     url: 'https://nvc-home4you.eu/el/diamorfotis-box-spitiou',
     breadcrumb: 'Διαμορφωτής Box σπιτιού',
   },
@@ -13,6 +12,11 @@ export default {
   page: {
     title: 'Διαμορφώστε το Box σπίτι σας',
     lead: 'Ένας διαμορφωτής έτοιμος για προσφορά, βασισμένος στον τρέχοντα κατάλογο Box σπιτιών. Επιλέξτε μοντέλο, διάταξη, εξωτερικό και εσωτερικό πακέτο, τοποθετήστε σημεία πριζών και εξάγετε το αποτέλεσμα ως σύνοψη έτοιμη για PDF.',
+    // Onward links under the lead: the Box houses page and the planner.
+    links: {
+      houses: 'Τα σπίτια Box: μεγέθη, συναρμολόγηση, παράδοση και εγγύηση →',
+      planner: 'Τακτοποιήστε τα δωμάτια στον σχεδιασμό κάτοψης →',
+    },
     steps: [
       { key: 'model', label: 'Μοντέλο' },
       { key: 'layout', label: 'Διάταξη' },

@@ -65,7 +65,13 @@ function headTags(seo) {
     `<meta name="twitter:image:alt" content="${escAttr(imageAlt)}" />`,
     `<link rel="canonical" href="${escAttr(canonical || url)}" />`,
     ...alternates,
-  ].join('\n    ')
+  ]
+    // Marked as react-helmet's own (data-rh), so the page's <SEO> REPLACES these tags when it
+    // renders instead of adding a second set beside them (the gallery index's x-default and a
+    // product page's description were doubled that way). The <title> is left alone: helmet
+    // sets document.title, and a data-rh on <title> lists attributes, not ownership.
+    .map((tag) => (tag.startsWith('<title') ? tag : tag.replace(/ \/>$/, ' data-rh="true" />')))
+    .join('\n    ')
 }
 
 const manifest = {}

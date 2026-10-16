@@ -79,7 +79,7 @@ export default {
       noCrane: 'Бокс къща не се доставя без кран.',
       included: 'Морският превоз от Китай и митницата вече са в цената на къщата.',
       assembly: 'Монтажът се оферира отделно.',
-      assemblyLink: 'Вижте цените',
+      assemblyLink: 'Цени на Бокс къщите с монтажа →',
     },
     project: {
       text: 'Доставката се оферира с проекта; митницата поемаме ние.',
@@ -197,6 +197,7 @@ export default {
     },
     unfoldHeading: 'На място се разгъва',
     unfoldText: 'Бокс къщата пътува сгъната и се разгъва едва на мястото си.',
+    plannerLink: 'Разгъването и разпределенията в планера →',
     truck: {
       heading: 'Размери и тегло при транспорт',
       columns: ['Модел', 'Размери при транспорт (Д × Ш × В)', 'Тегло'],
@@ -235,11 +236,14 @@ export default {
       alt: 'Разгъваема къща от 58 м² с веранда, доставена в Паралия Кариани, Гърция',
     },
     stars: '{rating} от 5',
-    more: 'Вижте проекта →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'Къщата в Паралия Кариани →',
   },
 
   faq: {
     heading: 'Въпроси за доставката',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'Още въпроси и отговори →',
     items: [
       {
         id: 'delivery-both-ways',

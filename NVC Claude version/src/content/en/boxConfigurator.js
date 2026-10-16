@@ -1,8 +1,7 @@
 export default {
   locale: 'en',
   seo: {
-    title: 'Box House Configurator | NVC Home4You',
-    description: 'Configure an NVC Box house by model, layout, exterior, interior, heating, panoramic windows, and electrical sockets.',
+    // The title and description are routeMeta.js's (META.boxConfigurator).
     url: 'https://nvc-home4you.eu/en/box-house-configurator',
     breadcrumb: 'Box house configurator',
   },
@@ -13,6 +12,11 @@ export default {
   page: {
     title: 'Configure your Box house',
     lead: 'A quote-ready configurator built around the current Box house catalogue. Pick the model, choose a layout, set the exterior and interior package, place socket points, and export the result as a PDF-ready summary.',
+    // Onward links under the lead: the Box houses page and the planner.
+    links: {
+      houses: 'The Box houses: sizes, assembly, delivery and warranty →',
+      planner: 'Arrange the rooms in the planner →',
+    },
     steps: [
       { key: 'model', label: 'Model' },
       { key: 'layout', label: 'Layout' },

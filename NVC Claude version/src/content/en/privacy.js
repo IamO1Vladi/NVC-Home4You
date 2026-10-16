@@ -2,6 +2,8 @@
 // Privacy & Cookie Policy (GDPR). Content is data-driven so the same PrivacyPage
 // component renders every locale. Update the "updated" date whenever the policy changes.
 export default {
+  // The breadcrumb's first step (the route's BreadcrumbsJSONLD); the second is the title.
+  home: 'Home',
   title: 'Privacy & Cookie Policy',
   updated: 'Last updated: 15 October 2026',
   intro:

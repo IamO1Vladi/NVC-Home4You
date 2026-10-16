@@ -5,9 +5,7 @@ export default {
     reviewsEndpoint: '/api/reviews',
   },
   seo: {
-    title: 'Cases, buyer companies and reviews | NVC Home4You',
-    description:
-      'Public case studies, buyer companies and customer reviews for modular builds, delivery, logistics and interiors by NVC Home4You.',
+    // The title and description are routeMeta.js's (META.cases), read by the cases routes.
     url: 'https://nvc-home4you.eu/en/cases',
   },
   breadcrumbs: [
@@ -17,7 +15,7 @@ export default {
   copy: {
     heroTitle: 'Cases & Reviews',
     heroLead:
-      'A public page where visitors can see real projects, buyer companies, and customer ratings.',
+      'Deliveries to our customers and their reviews: what they bought, where it went, photos and ratings from 1 to 5 stars.',
     heroPoints: [
       'Published cases with company, product, and location',
       'Visible customer ratings and written reviews',
@@ -25,7 +23,7 @@ export default {
     ],
     ctaPrimary: 'Get an Offer',
     ctaSecondary: 'Ask a Question',
-    panelTitle: 'What this page should prove',
+    panelTitle: 'What you will find here',
     stats: {
       cases: 'Published cases',
       rating: 'Average rating',
@@ -34,12 +32,12 @@ export default {
     },
     buyersTitle: 'Who buys from us',
     buyersLead:
-      'Use this section to show recognizable companies and industries that already buy from you.',
+      'Companies and sectors that buy from us.',
     buyersEmpty:
       'No published buyer companies yet.',
     casesTitle: 'Recent cases',
     casesLead:
-      'Show what you sold, to whom, where it was delivered, and what the outcome was.',
+      'What we delivered, to whom and where, with the customer\'s own review.',
     filters: {
       all: 'All',
       modularBuilds: 'Container units',
@@ -49,6 +47,14 @@ export default {
       delivery: 'Delivery',
       logistics: 'Logistics',
       other: 'Other',
+    },
+    // Each case card's link to its product page, by the card's category (CasesPage.jsx
+    // CASE_PAGE). A category with no line here (interiors, logistics, other) gets no link.
+    productLinks: {
+      modularBuilds: 'More about the containers →',
+      modularHouses: 'More about the Box houses →',
+      steelHouses: 'More about the houses built to a plan →',
+      delivery: 'More about delivery and assembly →',
     },
     labels: {
       buyer: 'Buyer',

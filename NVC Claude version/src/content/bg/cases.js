@@ -5,9 +5,7 @@ export default {
     reviewsEndpoint: '/api/reviews',
   },
   seo: {
-    title: 'Казуси, фирмени клиенти и отзиви | NVC Home4You',
-    description:
-      'Публични казуси, фирмени клиенти и клиентски отзиви за модулни решения, доставка, логистика и интериори от NVC Home4You.',
+    // The title and description are routeMeta.js's (META.cases), read by the cases routes.
     url: 'https://nvc-home4you.eu/bg/kazusi-i-otzivi',
   },
   breadcrumbs: [
@@ -17,7 +15,7 @@ export default {
   copy: {
     heroTitle: 'Казуси и отзиви',
     heroLead:
-      'Публична страница, в която посетителите виждат реални проекти, фирми клиенти и клиентски оценки.',
+      'Доставки при наши клиенти и техните отзиви: какво са купили, къде е доставено, снимки и оценки от 1 до 5 звезди.',
     heroPoints: [
       'Публикувани казуси с фирма, продукт и локация',
       'Видими клиентски оценки и текстови отзиви',
@@ -25,7 +23,7 @@ export default {
     ],
     ctaPrimary: 'Получи оферта',
     ctaSecondary: 'Задай въпрос',
-    panelTitle: 'Какво трябва да доказва тази страница',
+    panelTitle: 'Какво ще намерите тук',
     stats: {
       cases: 'Публикувани казуси',
       rating: 'Среден рейтинг',
@@ -34,12 +32,12 @@ export default {
     },
     buyersTitle: 'Кой купува от нас',
     buyersLead:
-      'Тази секция показва разпознаваеми фирми и сектори, които вече купуват от вас.',
+      'Фирми и сектори, които купуват от нас.',
     buyersEmpty:
       'Все още няма публикувани фирми клиенти.',
     casesTitle: 'Последни казуси',
     casesLead:
-      'Покажете какво сте продали, на кого, къде е доставено и какъв е резултатът.',
+      'Какво сме доставили, на кого и къде, с отзива на клиента.',
     filters: {
       all: 'Всички',
       modularBuilds: 'Контейнерни модули',
@@ -49,6 +47,14 @@ export default {
       delivery: 'Доставка',
       logistics: 'Логистика',
       other: 'Други',
+    },
+    // Each case card's link to its product page, by the card's category (CasesPage.jsx
+    // CASE_PAGE). A category with no line here (interiors, logistics, other) gets no link.
+    productLinks: {
+      modularBuilds: 'Още за контейнерите →',
+      modularHouses: 'Още за Бокс къщите →',
+      steelHouses: 'Още за къщите по проект →',
+      delivery: 'Още за доставката и монтажа →',
     },
     labels: {
       buyer: 'Клиент',

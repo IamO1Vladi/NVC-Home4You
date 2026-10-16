@@ -119,6 +119,26 @@ describe('self-referential SEO URLs', () => {
   // (`path={paths.faq.el}`), but the three gallery routes are literal wildcards
   // (`path="/bg/galeriq/*"`) because they carry a slug — and React Router matches the bare
   // path against a trailing `/*` too, so those are genuinely routed.
+  // ONE HEAD PER URL. The home, gallery, cases, configurator and privacy routes used to type
+  // their own titles and descriptions while the server's manifest was built from routeMeta.js,
+  // so twelve URLs had two titles, depending on whether a snapshot existed. Every route that
+  // renders <SEO> now spreads getRouteSeo()'s result, and no content file carries a title or
+  // description of its own for one to drift from.
+  it('every route takes its head from routeMeta.js, and no content file carries one', () => {
+    const routes = sourceFiles(join(here, 'routes')).filter((file) => /<SEO\b/.test(readFileSync(file, 'utf8')))
+    // 15 pages x 3 locales with a route file each, plus the one gallery route the three share.
+    expect(routes.length).toBe(46)
+    const own = routes.filter((file) => {
+      const source = readFileSync(file, 'utf8')
+      return !source.includes('getRouteSeo(') || /<SEO\s+(?!\{\.\.\.)/.test(source)
+    })
+    expect(own.map((file) => file.replace(here, 'src'))).toEqual([])
+
+    const typed = sourceFiles(join(here, 'content')).filter((file) =>
+      /\bseo:\s*\{[^}]*\b(?:title|description):/s.test(readFileSync(file, 'utf8')))
+    expect(typed.map((file) => file.replace(here, 'src'))).toEqual([])
+  })
+
   it('every path in paths.js has a route registered in App.jsx', () => {
     const appSource = readFileSync(join(here, 'App.jsx'), 'utf8')
 

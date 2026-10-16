@@ -2,6 +2,8 @@
 // Политика за поверителност и бисквитки (GDPR). Съдържанието е структурирано,
 // за да се ползва от същия PrivacyPage компонент. Обновявайте датата при промяна.
 export default {
+  // The breadcrumb's first step (the route's BreadcrumbsJSONLD); the second is the title.
+  home: 'Начало',
   title: 'Политика за поверителност и бисквитки',
   updated: 'Последна актуализация: 15 октомври 2026 г.',
   intro:

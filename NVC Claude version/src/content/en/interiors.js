@@ -149,6 +149,8 @@ export default {
 
   faq: {
     heading: 'Frequently asked questions',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'More questions and answers →',
     items: [
       { id: 'renovation-price', q: 'How much does a renovation cost?', a: 'The price depends on the work and the materials, so we give it after the free site visit, in a written offer.' },
       { id: 'renovation-visit', q: 'Do you charge for the site visit?', a: 'No, the site visit is free. After it you get a written offer.' },

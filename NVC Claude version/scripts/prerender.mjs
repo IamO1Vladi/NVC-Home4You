@@ -127,6 +127,10 @@ async function settle(page, pending, { interval = 300, stableFor = 2, cap = 15 }
  * Helmet's copy wins, because it is what a visitor actually ends up with — matching it is
  * what keeps the static file honest about the rendered page.
  *
+ * Since 2026-10-16 the server's block is itself marked data-rh (generate-seo-manifest.mjs,
+ * GallerySeoService, index.html's defaults), so helmet removes it on mount and this pass
+ * usually finds nothing left to drop. It stays for a server or a shell built before that.
+ *
  * <title> is the exception and must not be touched: helmet retitles the EXISTING element
  * rather than adding a tagged one, so there is only ever one, and it already holds helmet's
  * text. Dropping it as a "server tag" would ship pages with no title at all.

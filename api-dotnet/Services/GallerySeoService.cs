@@ -221,8 +221,22 @@ public sealed class GallerySeoService
 
         lines.Add($"<link rel=\"alternate\" hreflang=\"x-default\" href=\"{EscAttr(GallerySlugs.UrlFor(item, "en"))}\" />");
 
-        return string.Join("\n    ", lines);
+        // Every tag but the <title> is marked as react-helmet's own (data-rh), so the page's
+        // <SEO> (GalleryItemPage.jsx) REPLACES them once the product has loaded instead of
+        // adding a second description, og:image and og:type beside them. Crawlers that run no
+        // JavaScript read these as they are; the attribute means nothing to them. Same marking
+        // as scripts/generate-seo-manifest.mjs.
+        return string.Join("\n    ", lines.Select(MarkForHelmet));
     }
+
+    /// <summary>
+    /// The tag with <c>data-rh="true"</c> before its closing <c>/&gt;</c>; the <c>&lt;title&gt;</c>
+    /// untouched (helmet retitles the existing element, and a data-rh there lists attributes).
+    /// </summary>
+    private static string MarkForHelmet(string tag) =>
+        tag.StartsWith("<title", StringComparison.Ordinal) || !tag.EndsWith(" />", StringComparison.Ordinal)
+            ? tag
+            : tag[..^3] + " data-rh=\"true\" />";
 
     /// <summary>
     /// Absolute URL for the social image, or null when the item has no photo.

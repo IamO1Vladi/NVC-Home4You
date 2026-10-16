@@ -9,7 +9,6 @@
 // {boxCrane} {days} {production} {months} {nights} {travel} from shared/deliveryRates.js;
 // {structureYears} {panelYears} {joineryYears} {sanitaryYears} from shared/warranty.js. No seo block:
 // routeMeta.js has the title and description.
-import { routeMapControls as ROUTE_CONTROLS, routeMapDestinations as ROUTE_MAP } from '../shared/routeMap.js'
 import delivery from './delivery.js'
 
 export default {
@@ -85,7 +84,7 @@ export default {
   terms: {
     heading: 'At a glance',
     rows: [
-      { key: 'price', label: 'Price', text: 'Lower by quantity: from {containerMin} units for containers and from {boxMin} for Box houses in one order. The exact price is in the offer for your quantity.' },
+      { key: 'price', label: 'Price', text: 'Lower by quantity: from {containerMin} units for containers and from {boxMin} for Box houses in one order. The exact price is in the offer for your quantity.', link: { label: 'Prices for a single unit →', pathKey: 'prices' } },
       { key: 'who', label: 'Who is a partner', text: 'A company ordering at least that many units in one order.' },
       { key: 'payment', label: 'Payment', text: '100% in advance, under a contract.' },
       { key: 'resale', label: 'Selling', text: 'Sell anywhere, at the price you set.' },
@@ -116,6 +115,8 @@ export default {
     containers: { label: 'Container units', desc: 'Living and office containers, 6×3, 7×3 and 8×3 m, in stock at Marikostinovo.', basis: 'incl. VAT and assembly' },
     houses: { label: 'Box houses', desc: 'Expandable houses of 37, 58 and 73 m² that travel folded.', basis: 'incl. VAT, without assembly' },
     steel: { label: 'Steel-frame houses to a plan', desc: 'A steel frame, to your plan or ours.' },
+    // A separate product, sold to builders, developers and shops; never for the Box houses.
+    doors: { label: 'Internal doors in bulk', desc: 'Doors as a set with frame, hinges, handle and trims, for your site. The price depends on the quantity.' },
   },
 
   process: {
@@ -249,6 +250,8 @@ export default {
 
   faq: {
     heading: 'Questions from resellers',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'More questions and answers →',
     items: [
       { id: 'partner-price', q: 'What does it cost for several units?', a: 'Less than the retail price, depending on the quantity: from {containerMin} units for containers and from {boxMin} for Box houses in one order. The exact price is in the offer for your quantity.' },
       { id: 'partner-who', q: 'Who can become a partner?', a: 'A company ordering at least {containerMin} containers or at least {boxMin} Box houses in one order.' },
@@ -271,25 +274,6 @@ export default {
     heading: 'We organise your cargo too',
     text: 'If you import yourself, we can organise the shipping. Ask us.',
     ask: 'Ask a question',
-    show: 'Show the routes',
-    loading: 'Loading the map…',
-    unavailable: 'The map did not load. Reload the page to see it.',
-  },
-
-  logisticsWorld: {
-    modeLabel: 'Mode:',
-    modeSea: 'Sea',
-    modeAir: 'Air',
-    modeRail: 'Rail',
-    seaDestinationLabel: 'Port destination:',
-    airDestinationLabel: 'Airport:',
-    railDestinationLabel: 'Rail hub:',
-    legendLabel: 'Legend',
-    legendShanghai: 'Shanghai',
-    legendHoChiMinh: 'Ho Chi Minh',
-    legendLaemChabang: 'Laem Chabang',
-    destinations: ROUTE_MAP.en,
-    mapControls: ROUTE_CONTROLS.en,
   },
 
   finalTitle: 'Shall we talk about your order?',

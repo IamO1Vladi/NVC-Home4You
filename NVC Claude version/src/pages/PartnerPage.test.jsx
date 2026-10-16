@@ -19,8 +19,9 @@ import { getRouteSeo } from '../seo/routeMeta.js'
 // typed into the copy would show); the warranty, answered the same day, is drawn with every
 // year from warranty.js (mocked the same way) and for containers and Box houses only, never the
 // steel-frame houses; nothing waiting for the owner's answer is drawn or sent to Google;
-// "factories" never appears, in any language, since the owner's rule is one factory; the route
-// map is not loaded with the page; the FAQ markup is the questions shown, except the warranty,
+// "factories" never appears, in any language, since the owner's rule is one factory; the cargo
+// offer is a card with its question and no route map (removed 2026-10-16; that nothing asks for
+// Leaflet is PartnerPage.map.test.jsx's); the FAQ markup is the questions shown, except the warranty,
 // which the FAQ hub answers too and marks up (one question, marked up once per language).
 
 const TERMS = vi.hoisted(() => ({ container: 7, box: 4 }))
@@ -37,12 +38,6 @@ vi.mock('../lib/productRows.js', async (importOriginal) => ({
   useProductRows: () => ({ ...ROWS, loading: false, error: null, items: [], galleryPath: '/bg/galeriq' }),
 }))
 
-// jsdom has no vector renderer for Leaflet's route lines.
-vi.mock('react-leaflet', async (importOriginal) => ({
-  ...(await importOriginal()),
-  Polyline: () => null,
-}))
-
 const CONTENT = { bg: bgContent, en: enContent, el: elContent }
 const LOCALES = ['bg', 'en', 'el']
 const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
@@ -56,18 +51,17 @@ const CASE = {
 let cases = [CASE]
 const json = (body) => Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
 
-let observers = []
+// jsdom has neither; the journey drawing and the steps ask for them.
 class FakeObserver {
-  constructor(callback, options) { this.callback = callback; this.options = options; this.targets = []; observers.push(this) }
+  constructor(callback, options) { this.callback = callback; this.options = options; this.targets = [] }
   observe(el) { this.targets.push(el) }
   unobserve() {}
   disconnect() { this.targets = [] }
 }
-const mapObservers = () => observers.filter((o) => o.options?.rootMargin === '400px 0px' && o.targets.length)
 
-function setPhone(phone) {
+function stubMatchMedia() {
   vi.stubGlobal('matchMedia', (query) => ({
-    matches: phone && query.includes('max-width: 767px'),
+    matches: false,
     media: query,
     addEventListener() {},
     removeEventListener() {},
@@ -81,13 +75,12 @@ const openQuestion = vi.fn()
 
 beforeEach(() => {
   cases = [CASE]
-  observers = []
   forgetHomePhotos()
   window.sessionStorage.clear()
   openOffer.mockClear()
   openQuestion.mockClear()
   vi.stubGlobal('IntersectionObserver', FakeObserver)
-  setPhone(false)
+  stubMatchMedia()
   vi.stubGlobal('fetch', vi.fn((url) => {
     if (String(url).includes('/api/cases-page')) return json({ cases, reviews: [] })
     return Promise.resolve({ ok: false, status: 404 })
@@ -252,28 +245,25 @@ describe('PartnerPage', () => {
     expect(blocks.some((b) => JSON.stringify(b).includes('"Offer"'))).toBe(false)
   })
 
-  describe('the route map', () => {
-    it('is not loaded with the page, only once its section nears the screen', async () => {
-      const { container } = renderPage('bg')
+  describe('the cargo card', () => {
+    // The route map that stood here (routes from Ho Chi Minh and Laem Chabang, against "our
+    // factory in China") was removed on 2026-10-16: the offer is the heading, the line and the
+    // question, in one card, and nothing else.
+    it.each(LOCALES)('is one card: the heading, the line and the question, no map (%s)', async (locale) => {
+      const c = CONTENT[locale]
+      const { container } = renderPage(locale)
       await ready(container)
-      expect(container.querySelector('.leaflet-container, .wr-card')).toBeNull()
-      expect(screen.getByRole('button', { name: bgContent.cargo.show })).toBeInTheDocument()
-
-      const near = mapObservers()
-      expect(near).toHaveLength(1)
-      act(() => { near[0].callback([{ target: near[0].targets[0], isIntersecting: true }], near[0]) })
-      expect(await within(container.querySelector('#ptn-cargo')).findByRole('button', { name: bgContent.logisticsWorld.modeSea }, { timeout: 4000 })).toBeInTheDocument()
-      expect(container.querySelector('.leaflet-container')).not.toBeNull()
-    })
-
-    it('on a phone waits for a tap', async () => {
-      setPhone(true)
-      const { container } = renderPage('bg')
-      await ready(container)
-      expect(mapObservers()).toHaveLength(0)
-      expect(container.querySelector('.leaflet-container')).toBeNull()
-      fireEvent.click(screen.getByRole('button', { name: bgContent.cargo.show }))
-      expect(await within(container.querySelector('#ptn-cargo')).findByRole('button', { name: bgContent.logisticsWorld.modeSea }, { timeout: 4000 })).toBeInTheDocument()
+      const section = container.querySelector('#ptn-cargo')
+      const card = section.querySelector('.hp-card.ptn-cargo')
+      expect(card).not.toBeNull()
+      expect(within(card).getByRole('heading', { level: 2, name: c.cargo.heading })).toHaveAttribute('id', 'ptn-cargo-title')
+      expect(card.querySelector('.ptn-cargo-text p').textContent).toBe(c.cargo.text)
+      expect(within(section).getAllByRole('button').map((b) => b.textContent)).toEqual([c.cargo.ask])
+      expect(container.querySelector('.leaflet-container, .ptn-map, .wr-card')).toBeNull()
+      expect(Object.keys(c.cargo).sort()).toEqual(['ask', 'heading', 'text'])
+      expect(c.logisticsWorld).toBeUndefined()
+      // Not a destination of the old map anywhere on the page.
+      expect(container.querySelector('main').textContent).not.toMatch(/Ho Chi Minh|Хо Ши Мин|Χο Τσι Μινχ|Laem Chabang|Лаем Чабанг|Λάεμ Τσαμπάνγκ/)
     })
 
     it('asks its question tagged as cargo, then tags the page again', async () => {
@@ -313,10 +303,12 @@ describe('PartnerPage', () => {
     const { container } = renderPage('bg')
     await ready(container)
     const cards = [...container.querySelectorAll('#ptn-products .pp-sib')].map((a) => flat(a.textContent))
-    expect(cards).toHaveLength(3)
+    // Containers, Box houses, steel, and since 2026-10-16 the internal doors (sold in bulk, no price).
+    expect(cards).toHaveLength(4)
     expect(cards[0]).toContain(flat(euro(8600, 'bg')))
     expect(cards[1]).toContain(flat(euro(15500, 'bg')))
     expect(cards[2]).not.toMatch(/€/)
+    expect(cards[3]).not.toMatch(/€/)
   })
 
   it('shows the delivered case only while it is published, and the reviews always', async () => {
@@ -377,5 +369,24 @@ describe('PartnerPage', () => {
     await ready(container)
     await waitFor(() => expect(container.querySelector('#ptn-terms .ptn-photo img').getAttribute('src')).toContain('abc'))
     expect(container.querySelector('.pp-hero img')).toBeNull()
+  })
+})
+
+// 2026-10-16: the price term links the single-unit prices, the product cards add the internal
+// doors (a bulk product too), and the delivered case links its own card on the cases page.
+describe('PartnerPage onward links', () => {
+  it.each(LOCALES)('%s: prices from the price term, the doors card, and the case card', async (locale) => {
+    const c = CONTENT[locale]
+    const { container } = renderPage(locale)
+    await ready(container)
+    const price = container.querySelector('[data-term="price"]')
+    const priceRow = c.terms.rows.find((r) => r.key === 'price')
+    expect(within(price).getByRole('link', { name: priceRow.link.label })).toHaveAttribute('href', paths.prices[locale])
+    const cards = [...container.querySelectorAll('#ptn-products .pp-sib')]
+    expect(cards.map((a) => a.getAttribute('href'))).toEqual(
+      ['modularBuilds', 'modularHouses', 'steelHouses', 'doors'].map((key) => paths[key][locale]),
+    )
+    expect(cards[3]).toHaveTextContent(c.products.doors.label)
+    expect(within(container).getByRole('link', { name: c.proof.more })).toHaveAttribute('href', `${paths.cases[locale]}#case-${c.proof.case.id}`)
   })
 })

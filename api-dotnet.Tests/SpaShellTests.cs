@@ -91,6 +91,8 @@ public class SpaShellTests
         Assert.Contains(title, tags);
         // Every one of them still tells crawlers to drop it.
         Assert.Contains("noindex", tags);
+        // Marked as react-helmet's, so NotFoundPage's own robots tag replaces it, not joins it.
+        Assert.Contains("<meta name=\"robots\" content=\"noindex,follow\" data-rh=\"true\" />", tags);
     }
 
     [Fact]

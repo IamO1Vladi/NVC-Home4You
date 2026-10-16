@@ -225,6 +225,8 @@ export default {
 
   faq: {
     heading: 'Frequently asked questions',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'More questions and answers →',
     items: [
       { id: 'doors-separate', q: 'Do you sell the doors on their own?', a: 'Yes. Internal doors are a separate product. We sell them to builders, developers, shops and private buyers; you do not need to buy a house from us.' },
       { id: 'doors-minimum', q: 'Is there a minimum order?', a: 'No. You can order a single door. The price per door and the delivery depend on the quantity ordered.' },

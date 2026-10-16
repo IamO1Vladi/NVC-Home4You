@@ -3,23 +3,17 @@ import SEO from '../../components/SEO.jsx'
 import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import BoxHouseConfiguratorPage from '../../pages/BoxHouseConfiguratorPage.jsx'
 import content from '../../content/el/boxConfigurator.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs (all three languages) come from routeMeta.js,
+// as on every other route; the content file's seo block keeps only the url and the breadcrumb.
 export default function ElBoxHouseConfiguratorRoute() {
+  const seo = getRouteSeo(paths.boxConfigurator.el, 'el')
+
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={content.seo.url}
-        canonical={content.seo.url}
-        locale="el"
-        hreflangs={[
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/box-house-configurator' },
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/konfigurator-box-kyshti' },
-          { hrefLang: 'el', href: content.seo.url },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/box-house-configurator' },
-        ]}
-      />
+      <SEO {...seo} />
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
       <BoxHouseConfiguratorPage content={content} />
     </>

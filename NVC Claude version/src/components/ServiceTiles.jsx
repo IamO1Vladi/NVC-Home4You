@@ -50,6 +50,11 @@ export default function ServiceTiles({ locale = 'en', content }) {
             </Link>
           ))}
         </div>
+
+        {/* For buyers of several units and resellers: the partner page. */}
+        {content.partnerLink && paths.partner?.[locale] ? (
+          <p className="hp-tiles-more"><Link to={paths.partner[locale]}>{content.partnerLink}</Link></p>
+        ) : null}
       </div>
     </section>
   )

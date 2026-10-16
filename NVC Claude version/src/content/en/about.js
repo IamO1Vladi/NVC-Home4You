@@ -35,9 +35,10 @@ export default {
     timelineLabel: 'Our path, year by year',
     timeline: [
       { year: '2021', title: 'Logistics', text: 'We set up NVC Home4You as a logistics firm.' },
-      { year: '2024', title: 'Containers', text: 'We begin importing living containers.' },
-      { year: '2025', title: 'Box houses', text: 'We add the expandable Box houses.' },
-      { year: '2026', title: 'Steel-frame houses', text: 'We start offering steel-frame houses too, built to your design.' },
+      // A step with a pathKey links to the page of what it started (paths.js key, words in `link`).
+      { year: '2024', title: 'Containers', text: 'We begin importing living containers.', pathKey: 'modularBuilds', link: 'The living containers →' },
+      { year: '2025', title: 'Box houses', text: 'We add the expandable Box houses.', pathKey: 'modularHouses', link: 'The Box houses →' },
+      { year: '2026', title: 'Steel-frame houses', text: 'We start offering steel-frame houses too, built to your design.', pathKey: 'steelHouses', link: 'Houses built to your design →' },
     ],
     todayHeading: 'Today',
     paragraphs: [
@@ -100,7 +101,8 @@ export default {
       alt: 'The 58 m² expandable house with veranda delivered to Paralia Kariani, Greece',
     },
     stars: '{rating} out of 5',
-    more: 'See the project →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'The house in Paralia Kariani →',
   },
 
   inWriting: {
@@ -137,6 +139,8 @@ export default {
     faq: { label: 'Questions', desc: 'Prices, delivery, assembly and the warranty.' },
     gallery: { label: 'Gallery with prices', desc: 'The models, with photos and prices incl. VAT.' },
     delivery: { label: 'Delivery and assembly', desc: 'What delivery to you costs, with a calculator.' },
+    partner: { label: 'For companies and partners', desc: 'Containers and Box houses for resellers and bulk orders.' },
+    doors: { label: 'Internal doors', desc: 'Doors as a set with frame, hinges, handle and trims, and fitting if you want it.' },
   },
 
   finalTitle: 'Shall we talk about your project?',

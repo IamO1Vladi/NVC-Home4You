@@ -75,6 +75,26 @@
   line-height: 1.65;
 }
 
+/* The hero's onward links (the Box houses page, the planner): text links under the buttons,
+   the site's accent, 44px tall so a thumb finds each on a phone. */
+.bhc-hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
+  margin: 12px 0 0;
+  font-weight: 600;
+}
+.bhc-hero-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--brand-blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+:root[data-theme='light'] .bhc-hero-links a { color: #2B63C9; }
+
 .bhc-section-title {
   font-size: 12px;
   letter-spacing: .16em;

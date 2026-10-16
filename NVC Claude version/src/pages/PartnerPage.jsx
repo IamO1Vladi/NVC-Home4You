@@ -25,12 +25,18 @@
 // every step and photo in the markup); who takes care of what; real deliveries (the published
 // Paralia Kariani case, the reviews; the steps already show the delivery photos, so the
 // delivery page's clips are not repeated); the enquiry form at #zapitvane; the
-// questions (FaqList: #q-{id} links, also FAQ JSON-LD); the route map, loaded only near the
-// screen (on a phone, only after a tap); the closing card. The breadcrumbs and Service markup are the route's.
+// questions (FaqList: #q-{id} links, also FAQ JSON-LD); the cargo card (we can organise the
+// shipping for someone who imports himself: one line and a question tagged as cargo); the
+// closing card. The breadcrumbs and Service markup are the route's.
+//
+// No map. The route map that stood under the cargo line (the old Leaflet widget, with routes
+// from Ho Chi Minh and Laem Chabang besides Shanghai) was removed on 2026-10-16 at the owner's
+// word: it contradicted „нашата фабрика в Китай" and repeated the hero's journey. Leaflet stays
+// the delivery calculator's alone; nothing on this page asks for it.
 //
 // On mount the page writes a prefill (configPrefill.js), so the header's offer and question
 // forms opened here are tagged as a partner's enquiry, as the delivery calculator tags its own.
-import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
@@ -45,7 +51,7 @@ import PartnerJourney from '../components/partner/PartnerJourney.jsx'
 import FaqList from '../components/product/FaqList.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
-import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
+import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 import { useProductRows, lowest } from '../lib/productRows.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { euro } from '../lib/euro.js'
@@ -54,17 +60,10 @@ import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { PAGE_PHOTO_DEFAULTS, usePagePhoto } from '../lib/homePhotos.js'
 import { paths } from '../routes/paths.js'
 
-// Leaflet and its tiles are fetched only when the map is about to be seen.
-const LogisticsWorld = lazy(() => import('../components/LogisticsWorld.jsx'))
-
 // The default page photo, the delivery page's crane lift, in its 800 and 1500 wide crops
 // (scripts/delivery/clips.mjs). The admin's page-partner slot replaces it.
 const BASE = import.meta.env.BASE_URL || '/'
 const CRANE = { wide: PAGE_PHOTO_DEFAULTS.partner || PAGE_PHOTO_DEFAULTS.delivery, small: `${BASE}delivery/crane-lift-800.webp` }
-
-// How far ahead of the screen the map starts loading on a wide screen.
-const MAP_MARGIN = '400px 0px'
-const PHONE_QUERY = '(max-width: 767px)'
 
 // The page's figures and its "not pending" filter, now in lib/questions.js so the FAQ hub fills
 // the partner questions it gathers exactly as this page does; exported here as before.
@@ -104,54 +103,6 @@ function PagePhoto({ admin, locale, c }) {
       loading="lazy"
       decoding="async"
     />
-  )
-}
-
-// A failed map chunk (offline, a stale deploy) must not take the page and its form down,
-// as UnfoldHouse's CanvasBoundary keeps the planner: the fallback stands in its place.
-class MapBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { failed: false } }
-  static getDerivedStateFromError() { return { failed: true } }
-  render() { return this.state.failed ? this.props.fallback : this.props.children }
-}
-
-/**
- * The route map, mounted only when wanted: on a wide screen once its section comes within
- * MAP_MARGIN of the screen, on a phone only after a tap (a phone that never opens it never
- * downloads Leaflet or a tile). Until then the button stands in its place.
- */
-function RouteMap({ content, c }) {
-  const boxRef = useRef(null)
-  const [wanted, setWanted] = useState(false)
-
-  useEffect(() => {
-    const box = boxRef.current
-    if (wanted || !box || typeof window === 'undefined' || typeof window.IntersectionObserver !== 'function') return undefined
-    if (window.matchMedia?.(PHONE_QUERY).matches) return undefined
-    const near = new window.IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        setWanted(true)
-        near.disconnect()
-      }
-    }, { rootMargin: MAP_MARGIN })
-    near.observe(box)
-    return () => near.disconnect()
-  }, [wanted])
-
-  return (
-    <div className="ptn-map" ref={boxRef}>
-      {wanted ? (
-        <MapBoundary fallback={<p className="ptn-map-wait" role="status">{c.cargo.unavailable}</p>}>
-          <Suspense fallback={<p className="ptn-map-wait" role="status">{c.cargo.loading}</p>}>
-            <LogisticsWorld content={content} />
-          </Suspense>
-        </MapBoundary>
-      ) : (
-        <button type="button" className="hp-btn ghost ptn-map-show" onClick={() => setWanted(true)}>
-          {c.cargo.show}
-        </button>
-      )}
-    </div>
   )
 }
 
@@ -204,7 +155,7 @@ export default function PartnerPage({ locale = 'bg', content }) {
     formHeadingRef.current?.focus?.({ preventScroll: true })
   }
 
-  // The map's question: tagged as cargo for this one opening (App reads the prefill as the
+  // The cargo card's question: tagged as cargo for this one opening (App reads the prefill as the
   // form opens), then the page's own tag again for whatever is opened next.
   const askCargo = () => {
     writeConfiguratorPrefill({
@@ -229,6 +180,8 @@ export default function PartnerPage({ locale = 'bg', content }) {
     { to: pathOf('modularBuilds'), label: c.products.containers.label, desc: c.products.containers.desc, price: priceLine(lowest(wagon), c.products.containers.basis) },
     { to: pathOf('modularHouses'), label: c.products.houses.label, desc: c.products.houses.desc, price: priceLine(lowest(box, (row) => row.house), c.products.houses.basis) },
     { to: pathOf('steelHouses'), label: c.products.steel.label, desc: c.products.steel.desc },
+    // The doors are sold in bulk too (owner, 2026-10-15): builders, developers, shops.
+    c.products.doors ? { to: pathOf('doors'), label: c.products.doors.label, desc: c.products.doors.desc } : null,
   ]
 
   const steps = c.process.steps.map((step) => ({ ...step, text: fill(step.text, v) }))
@@ -372,7 +325,7 @@ export default function PartnerPage({ locale = 'bg', content }) {
                     {fill(c.proof.stars, { rating })}
                   </p>
                 ) : null}
-                <p className="pp-links"><Link to={pathOf('cases')}>{c.proof.more}</Link></p>
+                <p className="pp-links"><Link to={caseHref(pathOf('cases'), c.proof.case?.id)}>{c.proof.more}</Link></p>
               </article>
               {casePhoto ? (
                 <img
@@ -404,19 +357,21 @@ export default function PartnerPage({ locale = 'bg', content }) {
             </div>
           </div>
           <FaqList items={faq} />
+          {/* The FAQ hub, which gathers these and answers the rest (prices, warranty, customs). */}
+          {c.faq.more ? <p className="pp-links"><Link to={pathOf('faq')}>{c.faq.more}</Link></p> : null}
         </div>
       </section>
 
-      <section className="pp-band" id="ptn-cargo" aria-labelledby="ptn-cargo-title">
+      {/* One offer, one card: the line and its question, nothing else (no map since 2026-10-16). */}
+      <section className="pp-band ptn-cargo-band" id="ptn-cargo" aria-labelledby="ptn-cargo-title">
         <div className="hp-container">
-          <div className="hp-head">
-            <div>
+          <div className="hp-card ptn-cargo">
+            <div className="ptn-cargo-text">
               <h2 id="ptn-cargo-title">{c.cargo.heading}</h2>
-              <p className="hp-sub">{c.cargo.text}</p>
+              <p>{c.cargo.text}</p>
             </div>
             <button type="button" className="hp-btn ghost" onClick={askCargo}>{c.cargo.ask}</button>
           </div>
-          <RouteMap content={c.logisticsWorld} c={c} />
         </div>
       </section>
 

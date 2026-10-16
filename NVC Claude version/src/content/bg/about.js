@@ -55,9 +55,10 @@ export default {
     timelineLabel: 'Нашият път по години',
     timeline: [
       { year: '2021', title: 'Логистика', text: 'Основаваме NVC Home4You като логистична фирма.' },
-      { year: '2024', title: 'Контейнери', text: 'Започваме да внасяме контейнери за живеене.' },
-      { year: '2025', title: 'Бокс къщи', text: 'Добавяме разгъваемите Бокс къщи.' },
-      { year: '2026', title: 'Стоманени къщи', text: 'Започваме да правим и къщи със стоманена конструкция, по проект.' },
+      // A step with a pathKey links to the page of what it started (paths.js key, words in `link`).
+      { year: '2024', title: 'Контейнери', text: 'Започваме да внасяме контейнери за живеене.', pathKey: 'modularBuilds', link: 'Контейнерите за живеене →' },
+      { year: '2025', title: 'Бокс къщи', text: 'Добавяме разгъваемите Бокс къщи.', pathKey: 'modularHouses', link: 'Бокс къщите →' },
+      { year: '2026', title: 'Стоманени къщи', text: 'Започваме да правим и къщи със стоманена конструкция, по проект.', pathKey: 'steelHouses', link: 'Къщите по проект →' },
     ],
     todayHeading: 'Днес',
     paragraphs: [
@@ -126,7 +127,8 @@ export default {
       alt: 'Разгъваема къща от 58 м² с веранда, доставена в Паралия Кариани, Гърция',
     },
     stars: '{rating} от 5',
-    more: 'Вижте проекта →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'Къщата в Паралия Кариани →',
   },
 
   inWriting: {
@@ -164,6 +166,8 @@ export default {
     faq: { label: 'Въпроси', desc: 'Цени, доставка, монтаж и гаранция.' },
     gallery: { label: 'Галерия с цени', desc: 'Моделите със снимки и цени с ДДС.' },
     delivery: { label: 'Доставка и монтаж', desc: 'Колко струва доставката до вас, с калкулатор.' },
+    partner: { label: 'За фирми и партньори', desc: 'Контейнери и Бокс къщи за търговци и поръчки на едро.' },
+    doors: { label: 'Интериорни врати', desc: 'Врати в комплект с каса, панти, дръжка и первази — и монтаж, ако желаете.' },
   },
 
   finalTitle: 'Да поговорим за вашия проект?',

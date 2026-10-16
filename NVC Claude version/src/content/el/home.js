@@ -64,6 +64,18 @@ export default {
     },
     mobileMenuButtonAria: 'Άνοιγμα μενού',
   },
+  // The footer's site map on every page (SiteFooter.jsx). Only the group headings are here: each
+  // link is named with the header's own label above (servicesMenu, nav) and goes to its paths.js
+  // path, so the menu and the footer cannot name a page two ways.
+  footer: {
+    siteMapLabel: 'Χάρτης ιστότοπου',
+    groups: {
+      products: 'Προϊόντα',
+      buy: 'Αγορά',
+      company: 'Η εταιρεία',
+      contact: 'Επικοινωνία',
+    },
+  },
   home: {
     hero: {
       eyebrow: 'Προκατασκευασμένα σπίτια και σπίτια-κοντέινερ',
@@ -76,6 +88,8 @@ export default {
       primaryCta: 'Ζητήστε προσφορά',
       pricesCta: 'Δείτε μοντέλα & τιμές',
       facts: ['87 σπίτια παραδόθηκαν', 'Τιμές με ΦΠΑ', 'Εταιρεία από το 2021'],
+      // A fact that names a page links there, its words unchanged (`fact` is its place in facts).
+      factLinks: [{ fact: 2, pathKey: 'about' }],
       slidesLabel: 'Φωτογραφίες',
       photoLabelPattern: 'Φωτογραφία {n} από {total}: {label}',
       showcase: {
@@ -108,6 +122,7 @@ export default {
       incl: 'με ΦΠΑ, χωρίς συναρμολόγηση',
       cta: 'Ξεκινήστε με αυτό →',
       all: 'Όλες οι τιμές →',
+      gallery: 'Όλα τα μοντέλα με φωτογραφίες →',
       planner: 'Σχεδιάστε την κάτοψη →',
       paperPrefix: 'Προτιμάτε χαρτί;',
       paperLink: 'Κατεβάστε τον κατάλογο (PDF)',
@@ -119,6 +134,8 @@ export default {
       heading: 'Τι κατασκευάζουμε',
       subheading: 'Από ένα δωμάτιο 14 m² μέχρι οικογενειακό σπίτι — και τα μπάνια και οι κουζίνες μέσα.',
       button: 'Ανακαλύψτε →',
+      // Under the tiles: the partner page, for buyers of several units and resellers.
+      partnerLink: 'Αγοράζετε πολλά τεμάχια ή μεταπωλείτε; →',
       items: [
         {
           key: 'modularBuilds',

@@ -2,21 +2,17 @@ import React from 'react'
 import SEO from '../../components/SEO.jsx'
 import HomePage from '../../pages/HomePage.jsx'
 import bgHome from '../../content/bg/home.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs (all three languages) come from routeMeta.js,
+// the copy the SEO manifest is built from too, so the server and the page say the same thing.
 export default function BgHomeRoute() {
+  const seo = getRouteSeo(paths.home.bg, 'bg')
+
   return (
     <>
-      <SEO
-        title="Контейнери за живеене, модулни и сглобяеми къщи | NVC Home4You"
-        description="Контейнери за живеене, модулни и сглобяеми къщи в България. Разгледайте модели, доставка и индивидуални решения от NVC Home4You."
-        url="https://nvc-home4you.eu/bg"
-        canonical="https://nvc-home4you.eu/bg"
-        hreflangs={[
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg' },
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en' },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en' },
-        ]}
-      />
+      <SEO {...seo} />
       <HomePage locale="bg" bundle={bgHome} />
     </>
   )

@@ -22,9 +22,12 @@ describe('ConfiguratorStrip', () => {
       </MemoryRouter>,
     )
     const links = within(container.querySelector('.hp-head-links')).getAllByRole('link')
-    expect(links.map((a) => a.getAttribute('href'))).toEqual([paths.prices[locale], paths.planner[locale]])
-    expect(links[1]).toHaveTextContent(strip.planner)
-    expect(links[1].getAttribute('class')).toBeNull()
+    // Prices, then the gallery (2026-10-16: the home page's link to every model with photos),
+    // then the planner.
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([paths.prices[locale], paths.gallery[locale], paths.planner[locale]])
+    expect(links[1]).toHaveTextContent(strip.gallery)
+    expect(links[2]).toHaveTextContent(strip.planner)
+    expect(links[2].getAttribute('class')).toBeNull()
   })
 
   it('leaves no rule in the home styles that hides a link on phones', () => {

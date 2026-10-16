@@ -157,7 +157,26 @@ public class GalleryStoreWiringTests
         var (_, tags) = await Seo(scope).TryBuildAsync("/en/gallery/space-house", CancellationToken.None);
 
         Assert.Contains(
-            "<link rel=\"canonical\" href=\"https://nvc-home4you.eu/en/gallery/space-house\" />", tags);
+            "<link rel=\"canonical\" href=\"https://nvc-home4you.eu/en/gallery/space-house\" data-rh=\"true\" />", tags);
+    }
+
+    [Fact]
+    public async Task A_resolved_page_hands_its_tags_to_the_page_head()
+    {
+        // Marked data-rh, so react-helmet replaces them when GalleryItemPage renders its own
+        // head instead of leaving the page with two descriptions, two og:image and two og:type.
+        // The <title> is the one tag left unmarked: helmet retitles the existing element.
+        using var sp = Container(new FakeStore(SpaceHouse));
+        using var scope = sp.CreateScope();
+
+        var (_, tags) = await Seo(scope).TryBuildAsync("/en/gallery/space-house", CancellationToken.None);
+        Assert.NotNull(tags);
+        var lines = tags!.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
+
+        Assert.StartsWith("<title>", lines[0]);
+        Assert.DoesNotContain("data-rh", lines[0]);
+        Assert.All(lines.Skip(1), line => Assert.EndsWith(" data-rh=\"true\" />", line));
+        Assert.Contains("<meta property=\"og:type\" content=\"product\" data-rh=\"true\" />", tags);
     }
 
     [Fact]

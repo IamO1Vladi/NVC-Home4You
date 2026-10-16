@@ -4,7 +4,7 @@
    first, so the --hp-* tokens, the hero, cards, terms, siblings and section rhythm are theirs
    and follow data-theme light and dark with no colours of its own. Only what this page has and
    those do not lives here, every class ptn-: the two doors, the "at a glance" terms, the "who
-   takes care of what" columns and the map's place.
+   takes care of what" columns and the cargo card.
 
    It replaces 876 lines of ppr- rules (a full-bleed PNG hero, glass pills and a scroll-driven
    road) that nothing renders any more. Phones first: one column at 390px, nothing sideways. */
@@ -74,11 +74,21 @@
 .ptn-case{ margin-bottom:32px }
 .ptn #ptn-proof .pp-links{ margin-top:20px }
 
-/* The route map: its place, held by the button until it loads. */
-.ptn-map{ margin-top:8px }
-.ptn-map-wait{ display:flex; align-items:center; justify-content:center; min-height:200px; color:var(--hp-muted) }
+/* The cargo offer: one card on the band, the line and its question side by side; the band
+   tighter than a full section, as it holds one card (no map since 2026-10-16). Below 720px
+   the button goes under the words, the card's full width under 600px. */
+.ptn .ptn-cargo-band{ padding:40px 0 }
+.ptn-cargo{ display:flex; align-items:center; justify-content:space-between; gap:16px 32px; padding:24px 28px; min-width:0 }
+.ptn-cargo-text{ display:grid; gap:6px; min-width:0 }
+.hp .ptn-cargo h2{ font-size:clamp(22px, 1rem + 1vw, 26px); line-height:1.25 }
+.ptn-cargo p{ color:var(--hp-muted); line-height:1.5; max-width:75ch; text-wrap:pretty }
+.ptn-cargo .hp-btn{ flex:none }
+@media (max-width:719px){
+  .ptn-cargo{ flex-direction:column; align-items:flex-start; padding:20px 18px }
+}
+@media (max-width:767px){ .ptn .ptn-cargo-band{ padding:32px 0 } }
 @media (max-width:599px){ .ptn #ptn-cargo .hp-btn{ width:100% } }
 
-/* What you can order: the three product lines side by side on a wide screen rather than two
-   and an orphan (the product pages show two siblings, this page all three). */
-@media (min-width:1000px){ .ptn #ptn-products .pp-sibs{ grid-template-columns:repeat(3,minmax(0,1fr)) } }
+/* What you can order: four product lines since the internal doors joined (2026-10-16), so the
+   product pages' two columns (ProductPage.css .pp-sibs) lay them out 2 x 2; the three-column
+   rule this replaced left the doors alone on a second row. */

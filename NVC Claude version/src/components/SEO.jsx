@@ -62,9 +62,10 @@ export default function SEO({
       <meta property="og:url" content={pageUrl} />
       <meta property="og:image" content={ogImage} />
       <meta property="og:image:secure_url" content={ogImage} />
-      <meta property="og:image:type" content={imageType} />
-      <meta property="og:image:width" content={String(imageWidth)} />
-      <meta property="og:image:height" content={String(imageHeight)} />
+      {/* null leaves a field out: a gallery product's photo has no known size or type here. */}
+      {imageType != null && <meta property="og:image:type" content={imageType} />}
+      {imageWidth != null && <meta property="og:image:width" content={String(imageWidth)} />}
+      {imageHeight != null && <meta property="og:image:height" content={String(imageHeight)} />}
       <meta property="og:image:alt" content={imageAlt || title || 'NVC Home4You'} />
 
       {/* Twitter / X */}

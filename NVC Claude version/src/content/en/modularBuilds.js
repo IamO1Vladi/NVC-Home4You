@@ -65,6 +65,8 @@ export default {
   specs: {
     heading: 'What every container has',
     lead: 'The same in all six models, except where noted.',
+    // Container buyers can choose their doors from the internal doors range (owner, 2026-10-15).
+    doorsLink: 'Internal doors for your container →',
     rows: [
       { label: 'Structure', value: 'Galvanised steel frame, 2.3 mm' },
       { label: 'Walls and insulation', value: '50 mm panels with 100 kg/m³ rock wool' },

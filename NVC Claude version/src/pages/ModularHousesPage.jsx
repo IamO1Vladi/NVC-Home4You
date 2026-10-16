@@ -38,9 +38,10 @@ import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, disp
 import { usePagePhoto } from '../lib/homePhotos.js'
 import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
+import { PRICE_SECTION_IDS } from '../content/shared/prices.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
-import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
+import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 
 // The size cards, by gallery id, in the order a visitor reads sizes. `variant` is the same
 // house with veranda and double roof, printed as one line of its card rather than a card of
@@ -222,6 +223,7 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
           <p className="pp-links">
             <Link to={pricesPath}>{c.sizes.allPrices}</Link>
             <Link to={`${galleryPath}?cat=modular`}>{c.sizes.allPhotos}</Link>
+            {c.sizes.plannerLink ? <Link to={paths.planner[locale] || paths.planner.en}>{c.sizes.plannerLink}</Link> : null}
             {c.sizes.partnerLink ? <Link to={`${paths.partner[locale] || paths.partner.en}#zapitvane`}>{c.sizes.partnerLink}</Link> : null}
           </p>
 
@@ -262,7 +264,7 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
               .map((text) => <p key={text}>{fill(text, widths)}</p>)}
             <p>{fill(c.arrival.delivery, { rate: euro(BOX_DELIVERY.perKm, locale), crane: euro(BOX_DELIVERY.crane.about, locale), production: LEAD_TIMES.boxProductionDays, months: LEAD_TIMES.boxToAddressMonths })}</p>
             <p className="pp-links">
-              <Link to={pricesPath}>{c.arrival.pricesLink}</Link>
+              <Link to={`${pricesPath}#${PRICE_SECTION_IDS.box}`}>{c.arrival.pricesLink}</Link>
               <Link to={`${paths.delivery[locale]}?product=box`}>{c.arrival.deliveryLink}</Link>
             </p>
           </div>
@@ -332,7 +334,7 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
               ) : null}
             </div>
             <p className="pp-links">
-              <Link to={paths.cases[locale]}>{c.proof.more}</Link>
+              <Link to={caseHref(paths.cases[locale], c.case?.id)}>{c.proof.more}</Link>
             </p>
           </div>
         </section>

@@ -3,25 +3,17 @@ import SEO from '../../components/SEO.jsx'
 import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import CasesPage from '../../pages/CasesPage.jsx'
 import content from '../../content/el/cases.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs (all three languages) come from routeMeta.js,
+// as on every other route; the content file's seo block keeps only the page's url.
 export default function ElCasesRoute() {
-  const pageUrl = content.seo.url
+  const seo = getRouteSeo(paths.cases.el, 'el')
 
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={pageUrl}
-        canonical={pageUrl}
-        locale="el"
-        hreflangs={[
-          { hrefLang: 'en', href: 'https://nvc-home4you.eu/en/cases' },
-          { hrefLang: 'bg', href: 'https://nvc-home4you.eu/bg/kazusi-i-otzivi' },
-          { hrefLang: 'el', href: pageUrl },
-          { hrefLang: 'x-default', href: 'https://nvc-home4you.eu/en/cases' },
-        ]}
-      />
+      <SEO {...seo} />
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 

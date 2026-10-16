@@ -3,25 +3,17 @@ import SEO from '../../components/SEO.jsx'
 import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import CasesPage from '../../pages/CasesPage.jsx'
 import content from '../../content/en/cases.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
+// Title, description, canonical and hreflangs (all three languages) come from routeMeta.js,
+// as on every other route; the content file's seo block keeps only the page's url.
 export default function EnCasesRoute() {
-  const pageUrl = content.seo.url
-  const alternateBg = 'https://nvc-home4you.eu/bg/kazusi-i-otzivi'
+  const seo = getRouteSeo(paths.cases.en, 'en')
 
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={pageUrl}
-        canonical={pageUrl}
-        locale="en"
-        hreflangs={[
-          { hrefLang: 'en', href: pageUrl },
-          { hrefLang: 'bg', href: alternateBg },
-          { hrefLang: 'x-default', href: pageUrl },
-        ]}
-      />
+      <SEO {...seo} />
 
       <BreadcrumbsJSONLD items={content.breadcrumbs} />
 

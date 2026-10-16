@@ -1780,6 +1780,9 @@ public static class SpaShell
             "el" => "Η σελίδα δεν βρέθηκε",
             _ => "Page not found",
         };
-        return $"<title>{title} | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" />";
+        // The robots tag is marked as react-helmet's own (data-rh), as the manifest's and the
+        // gallery's tags are, so NotFoundPage.jsx's <SEO noindex> replaces it rather than
+        // adding a second robots tag beside it.
+        return $"<title>{title} | NVC Home4You</title>\n    <meta name=\"robots\" content=\"noindex,follow\" data-rh=\"true\" />";
     }
 }

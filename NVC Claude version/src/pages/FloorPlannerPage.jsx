@@ -19,6 +19,8 @@ import PlannerTemplates, {
 import { buildPlannerPrefill } from '../components/planner/plannerOffer.js'
 import { usePlannerText } from '../components/planner/plannerText.js'
 import FinalCta from '../components/FinalCta.jsx'
+import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import { paths } from '../routes/paths.js'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { trackEvent } from '../lib/analytics.js'
@@ -319,6 +321,18 @@ export default function FloorPlannerPage({ content, locale = 'bg' }) {
       </section>
 
       <PlannerHowItWorks content={content} values={values} wide={wide} />
+
+      {/* On from the plan: the Box houses page (sizes, prices, delivery, warranty) and the
+          configurator, which prices the house the plan is for. Real links, in the markup. */}
+      <SiblingLinks
+        id="fpp-siblings"
+        heading={content?.siblings?.heading}
+        go={content?.siblings?.go}
+        items={[
+          { to: paths.modularHouses[locale] || paths.modularHouses.en, ...content?.siblings?.houses },
+          { to: paths.boxConfigurator[locale] || paths.boxConfigurator.en, ...content?.siblings?.configurator },
+        ]}
+      />
 
       <FinalCta
         locale={locale}

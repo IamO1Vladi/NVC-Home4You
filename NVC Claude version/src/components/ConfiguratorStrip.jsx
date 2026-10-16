@@ -57,6 +57,7 @@ export default function ConfiguratorStrip({ locale = 'en', content, photos = {} 
           </div>
           <div className="hp-head-links">
             <Link to={pricesPath}>{content.all}</Link>
+            {content.gallery ? <Link to={paths.gallery[locale] || paths.gallery.en}>{content.gallery}</Link> : null}
             {/* On phones too since 2026-10-15: the redesigned planner page works there (the 3D
                 unfold, the layouts, send for an offer); only its editor needs a 900px screen. */}
             <Link to={plannerPath}>{content.planner}</Link>

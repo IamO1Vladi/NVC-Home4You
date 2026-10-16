@@ -3,10 +3,10 @@ import { Link, useLocation } from 'react-router-dom'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { paths } from '../routes/paths.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
-import { buildPriceSections, startingPrice } from '../content/shared/prices.js'
+import { buildPriceSections, startingPrice, PRICE_SECTION_IDS } from '../content/shared/prices.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { ProductsJSONLD } from '../components/StructuredData.jsx'
-import { useLocalizedGalleryItems } from '../gallery/galleryUtils.js'
+import { offerAvailability, useLocalizedGalleryItems } from '../gallery/galleryUtils.js'
 
 // What everything in the catalogue costs, finished.
 //
@@ -63,6 +63,8 @@ export default function PricesPage({ locale = 'en' }) {
       image: row.item.coverUrl,
       price: row.assemblyGross == null ? row.house : row.total,
       currency: row.item.currency || 'EUR',
+      // A container is a stock model, a Box house is made to order (galleryUtils.js).
+      availability: offerAvailability(row.item),
     }))
   ), [box, wagon, pageUrl, t.colTotal, t.colHouse, t.colAssemblyGross, t.assemblyOnRequest, locale])
 
@@ -74,7 +76,9 @@ export default function PricesPage({ locale = 'en' }) {
   // what the browser would have done, and it does not animate for visitors who asked for
   // reduced motion.
   React.useEffect(() => {
-    const match = /^#(item-\d+)$/.exec(location.hash || '')
+    // The two sections' own ids too (#prices-box, #prices-wagon: the delivery calculator and the
+    // Box page link there).
+    const match = /^#(item-\d+|prices-box|prices-wagon)$/.exec(location.hash || '')
     if (!match) return
     document.getElementById(match[1])?.scrollIntoView({ block: 'start' })
   }, [location.hash, box, wagon])
@@ -96,8 +100,12 @@ export default function PricesPage({ locale = 'en' }) {
       <ProductsJSONLD items={products} listName={t.tableCaption} listUrl={pageUrl} />
 
       {/* --- Box houses --------------------------------------------------------------- */}
+      {/* Each section ends with a link to its product page, and carries an id other pages
+          link to: #prices-box, #prices-wagon (the delivery calculator's Box result, the Box
+          page's "prices with assembly"). */}
       {box.length > 0 && (
         <PriceSection
+          id={PRICE_SECTION_IDS.box}
           rows={box}
           t={t}
           money={money}
@@ -106,12 +114,14 @@ export default function PricesPage({ locale = 'en' }) {
           // Box assembly is an addition, and half of it is quoted net — the table needs
           // all four money columns.
           columns="full"
+          more={{ to: paths.modularHouses[locale] || paths.modularHouses.en, label: t.boxSectionLink }}
         />
       )}
 
       {/* --- Wagons -------------------------------------------------------------------- */}
       {wagon.length > 0 && (
         <PriceSection
+          id={PRICE_SECTION_IDS.wagon}
           rows={wagon}
           t={t}
           money={money}
@@ -120,8 +130,16 @@ export default function PricesPage({ locale = 'en' }) {
           // A wagon's list price IS the total; its table splits assembly out of it rather
           // than adding it on, and everything is gross. Fewer columns, different headings.
           columns="included"
+          more={{ to: paths.modularBuilds[locale] || paths.modularBuilds.en, label: t.wagonSectionLink }}
         />
       )}
+
+      {/* Volume prices, the partner page's thresholds (shared/partnerTerms.js), to its form. */}
+      {t.volumeLink && (box.length > 0 || wagon.length > 0) ? (
+        <p className="prices-more prices-volume">
+          <Link to={`${paths.partner[locale] || paths.partner.en}#zapitvane`}>{t.volumeLink}</Link>
+        </p>
+      ) : null}
 
       {/* What assembly does and does not cover — the section that makes the numbers above
           believable. Every competitor publishes a price that turns out to exclude
@@ -140,6 +158,11 @@ export default function PricesPage({ locale = 'en' }) {
             {t.excluded.map((item) => <li key={item}>{item}</li>)}
           </ul>
           <p className="prices-foundation">{t.foundationNote}</p>
+          {t.excludedLink ? (
+            <p className="prices-more">
+              <Link to={paths.delivery[locale] || paths.delivery.en}>{t.excludedLink}</Link>
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -163,12 +186,13 @@ export default function PricesPage({ locale = 'en' }) {
   )
 }
 
-// One catalogue section: its cards, then its table, directly underneath.
-function PriceSection({ rows, t, money, title, intro, columns }) {
+// One catalogue section: its cards, then its table, directly underneath, then the link to
+// the section's product page.
+function PriceSection({ id, rows, t, money, title, intro, columns, more }) {
   const full = columns === 'full'
 
   return (
-    <section className="prices-section">
+    <section className="prices-section" id={id}>
       <h2 className="prices-section-head">{title}</h2>
       {intro ? <p className="prices-section-intro">{intro}</p> : null}
 
@@ -281,6 +305,9 @@ function PriceSection({ rows, t, money, title, intro, columns }) {
         </table>
       </div>
       <p className="prices-vat-note">{full ? t.vatNote : t.wagonVatNote}</p>
+      {more?.to && more?.label ? (
+        <p className="prices-more"><Link to={more.to}>{more.label}</Link></p>
+      ) : null}
     </section>
   )
 }

@@ -11,22 +11,31 @@ const SITE_URL = 'https://nvc-home4you.eu'
 
 const { container: CONTAINER, box: BOX } = DELIVERY_RATES.products
 
+// EVERY public route reads its head from here through getRouteSeo() (2026-10-16): the home,
+// gallery, cases and configurator routes used to set their own copy, so the server manifest
+// (built from this file) and the prerendered page (built from the route) carried two titles
+// for the same URL. seoUrls.test.js fails the moment a route file sets its own again.
 const META = {
+  // The copy the live snapshots served (the route files' own until 2026-10-16), moved here so
+  // the manifest agrees with them. The Bulgarian title stays word for word; the English and
+  // Greek ones name the same three lines in their buyers' words ("Modular builds" was the
+  // English page key, "Δομικές κατασκευές" the Greek one), within 62 characters. No claim is
+  // added: the same countries and the same offer as before, plus the prices page.
   home: {
     en: {
-      title: 'NVC Home4You | Modular & Prefab Homes — Design, Build & EU Delivery',
+      title: 'Container Homes, Modular and Prefab Houses | NVC Home4You',
       description:
-        'Modular and prefabricated homes designed, built and delivered across Bulgaria and the EU. Container houses, steel houses, interiors and door-to-door logistics.',
+        'Container homes, modular houses and prefab homes in Bulgaria and Europe. Explore models, prices, delivery and custom solutions from NVC Home4You.',
     },
     bg: {
-      title: 'NVC Home4You | Модулни и сглобяеми къщи — проектиране, изграждане и доставка в ЕС',
+      title: 'Контейнери за живеене, модулни и сглобяеми къщи | NVC Home4You',
       description:
-        'Модулни и сглобяеми къщи — проектиране, изграждане и доставка в България и ЕС. Контейнерни къщи, стоманени къщи, интериори и логистика до врата.',
+        'Контейнери за живеене, модулни и сглобяеми къщи в България. Разгледайте модели, цени, доставка и индивидуални решения от NVC Home4You.',
     },
     el: {
-      title: 'NVC Home4You | Δομικά & Προκατασκευασμένα Σπίτια — Σχεδιασμός, Κατασκευή & Παράδοση στην ΕΕ',
+      title: 'Προκατασκευασμένα σπίτια και σπίτια-κοντέινερ | NVC Home4You',
       description:
-        'Δομικά και προκατασκευασμένα σπίτια — σχεδιασμός, κατασκευή και παράδοση σε Βουλγαρία και ΕΕ. Σπίτια-κοντέινερ, μεταλλικά σπίτια, εσωτερικοί χώροι και μεταφορά πόρτα-πόρτα.',
+        'Προκατασκευασμένα σπίτια και σπίτια-κοντέινερ σε Βουλγαρία και Ευρώπη. Δείτε μοντέλα, τιμές, παράδοση και εξατομικευμένες λύσεις από την NVC Home4You.',
     },
   },
   // The three product pages. Each URL has one job and one head query, and the title names
@@ -50,14 +59,17 @@ const META = {
   // to your project or one we design for you, and the five steps from one to the other.
   modularBuilds: {
     en: {
-      title: 'Residential Containers for Living and Office | NVC Home4You',
+      // The page's own H1 ("Containers for living, office and site use"), title-cased.
+      title: 'Containers for Living, Office and Site Use | NVC Home4You',
       description:
         'Residential and office containers, 6×3, 7×3 and 8×3 m, with a bathroom, electrics and plumbing. Every model priced with VAT and assembly; other sizes to order.',
     },
     bg: {
       title: 'Контейнери за живеене и модулни постройки | NVC Home4You',
       description:
-        'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м с баня, ел. и ВиК инсталация. Всеки модел е с цена с ДДС и монтаж, а другите размери можем да ги поръчаме за вас.',
+        // "фургони": five of the six cards are titled "Жилищен фургон", and the prices page
+        // heads the section "Фургони и контейнери".
+        'Жилищни и офис контейнери (фургони) 6×3, 7×3 и 8×3 м с баня, ел. и ВиК инсталация. Цени с ДДС и монтаж; другите размери можем да ги поръчаме за вас.',
     },
     el: {
       title: 'Οικίσκοι κοντέινερ για κατοικία και γραφείο | NVC Home4You',
@@ -102,20 +114,22 @@ const META = {
   // The FAQ hub (rebuilt 2026-10-16). The FAQ routes read this through getRouteSeo() and their
   // content files no longer carry an seo block. The description names only what the hub answers
   // (its own questions and the ones it gathers from the delivery, partner, doors and interiors
-  // pages), 130–160 characters; no figure, so nothing here can go stale.
+  // pages), 130–160 characters; no figure, so nothing here can go stale. The titles name the
+  // two product lines most of its answers are about (release A shipped the bare "FAQ | brand",
+  // which no one searches for), within 70 characters.
   faq: {
     en: {
-      title: 'FAQ | NVC Home4You',
+      title: 'FAQ About Containers and Box Houses | NVC Home4You',
       description:
         'Answers about prices and VAT, delivery and the crane, the warranty, customs, documents and visits, plus partner terms, internal doors and interior renovations.',
     },
     bg: {
-      title: 'Често задавани въпроси | NVC Home4You',
+      title: 'Често задавани въпроси за контейнери и Бокс къщи | NVC Home4You',
       description:
         'Отговори за цените с ДДС, доставката и крана, гаранцията, митницата, документите и посещенията при нас, както и за партньорите, интериорните врати и ремонтите.',
     },
     el: {
-      title: 'Συχνές ερωτήσεις | NVC Home4You',
+      title: 'Συχνές ερωτήσεις για κοντέινερ και σπίτια Box | NVC Home4You',
       description:
         'Απαντήσεις για τιμές και ΦΠΑ, παράδοση και γερανό, εγγύηση, εκτελωνισμό, έγγραφα και επισκέψεις, καθώς και για συνεργάτες, εσωτερικές πόρτες και ανακαινίσεις.',
     },
@@ -142,21 +156,25 @@ const META = {
         `NVC Home4You, Μαρικοστίνοβο Πέτριτς: κοντέινερ και σπίτια Box από το εργοστάσιό μας, εκτελωνισμός από εμάς, εγγύηση ${WARRANTY_YEARS.structure} ετών στον σκελετό, παράδοση στην Ελλάδα.`,
     },
   },
+  // The gallery is the priced catalogue: the six containers and the Box houses with the capsule,
+  // each with photos and its price with VAT (the /api/gallery models, 2026-10-16). Not "completed
+  // projects", and no garages: the old content-file copy promised both. The sizes are the ones
+  // the containers' and the houses' snippets above already name.
   gallery: {
     en: {
-      title: 'Gallery | NVC Home4You',
+      title: 'Gallery: Containers and Box Houses with Prices | NVC Home4You',
       description:
-        'Browse completed modular homes, container houses and projects delivered by NVC Home4You across Bulgaria and the EU.',
+        'Every model we sell, with photos and prices incl. VAT: living and office containers 6×3, 7×3 and 8×3 m, Box houses from 18 to 74 m² and a capsule.',
     },
     bg: {
-      title: 'Галерия | NVC Home4You',
+      title: 'Галерия: контейнери и Бокс къщи с цени | NVC Home4You',
       description:
-        'Разгледайте завършени модулни къщи, контейнерни домове и проекти, реализирани от NVC Home4You в България и ЕС.',
+        'Всички наши модели със снимки и цени с ДДС: жилищни и офис контейнери 6×3, 7×3 и 8×3 м, Бокс къщи от 18 до 74 м² и капсула. Отворете модел за подробности.',
     },
     el: {
-      title: 'Γκαλερί | NVC Home4You',
+      title: 'Γκαλερί: κοντέινερ και σπίτια Box με τιμές | NVC Home4You',
       description:
-        'Δείτε ολοκληρωμένα δομικά σπίτια, σπίτια-κοντέινερ και έργα που παραδόθηκαν από την NVC Home4You σε Βουλγαρία και ΕΕ.',
+        'Όλα τα μοντέλα μας με φωτογραφίες και τιμές με ΦΠΑ: κοντέινερ κατοικίας και γραφείου 6×3, 7×3 και 8×3 m, σπίτια Box από 18 έως 74 m² και κάψουλα.',
     },
   },
   // The interiors page: bathroom and kitchen renovations by NVC's own builders, from Sofia to
@@ -238,7 +256,7 @@ const META = {
   // catalogue's Box houses the page's templates are drawn for; no price, as everywhere here.
   planner: {
     en: {
-      title: 'Box House Layout Planner | NVC Home4You',
+      title: 'Box House Layout Planner: 37, 58 and 73 m² | NVC Home4You',
       description:
         'Start from a catalogue layout for the 37, 58 or 73 m² Box house, or draw your own online. The bathroom stays in its fixed place. Send us the plan for an offer.',
     },
@@ -248,26 +266,29 @@ const META = {
         'Изберете готово разпределение от каталога на Бокс къщите 37, 58 и 73 м² или начертайте свое онлайн. Банята е на мястото си. Изпратете плана за оферта.',
     },
     el: {
-      title: 'Σχεδιασμός κάτοψης για σπίτι Box | NVC Home4You',
+      title: 'Σχεδιασμός κάτοψης για σπίτι Box 37, 58 ή 73 m² | NVC Home4You',
       description:
         'Ξεκινήστε από μια κάτοψη του καταλόγου για σπίτι Box 37, 58 ή 73 m² ή σχεδιάστε τη δική σας διαδικτυακά. Το μπάνιο μένει στη θέση του. Στείλτε μας το σχέδιο.',
     },
   },
+  // The configurator: the catalogue's three Box models (boxConfiguratorCatalog.js) and its own
+  // steps, in the order the page walks them, ending in the offer request it sends. Its route
+  // files read this; the content files' seo block keeps only the url and the breadcrumb.
   boxConfigurator: {
     en: {
-      title: 'Box House Configurator | NVC Home4You',
+      title: 'Box House Configurator: 37, 58 and 73 m² | NVC Home4You',
       description:
-        'Configure your box house online — choose layout, kitchen, bathroom and finishes with NVC Home4You.',
+        'Configure a 37, 58 or 73 m² NVC Box house online: model, layout, exterior, interior, heating, panoramic windows and sockets, then send it to us for an offer.',
     },
     bg: {
-      title: 'Конфигуратор на Box къщи | NVC Home4You',
+      title: 'Конфигуратор за Бокс къщи 37, 58 и 73 м² | NVC Home4You',
       description:
-        'Конфигурирайте своята box къща онлайн — изберете разпределение, кухня, баня и довършване с NVC Home4You.',
+        'Конфигурирайте онлайн Бокс къща от 37, 58 или 73 м²: модел, разпределение, екстериор, интериор, отопление, панорамни прозорци и контакти. Изпратете я за оферта.',
     },
     el: {
-      title: 'Διαμορφωτής Box Σπιτιού | NVC Home4You',
+      title: 'Διαμορφωτής σπιτιού Box 37, 58 και 73 m² | NVC Home4You',
       description:
-        'Διαμορφώστε online το box σπίτι σας — επιλέξτε κάτοψη, κουζίνα, μπάνιο και φινιρίσματα με την NVC Home4You.',
+        'Διαμορφώστε online σπίτι Box 37, 58 ή 73 m²: μοντέλο, διάταξη, εξωτερικό, εσωτερικό, θέρμανση, πανοραμικά παράθυρα και πρίζες. Στείλτε το για προσφορά.',
     },
   },
   // The internal doors page (rebuilt 2026-10-15): a separate product, sold on its own. The four
@@ -290,21 +311,25 @@ const META = {
         'Εσωτερικές πόρτες WPC με γραμμές, αφανείς ή με τζάμι. Σε σετ με κάσα και εξαρτήματα, τοποθέτηση κατόπιν αιτήματος, τιμή ανάλογα με την ποσότητα.',
     },
   },
+  // The cases page: what it shows whatever the admin publishes next (the customers' reviews and
+  // ratings, the published cases with product, place and photos, the 1–5 star form). No company
+  // buyers (none is published), no logistics and no interiors promised, as the content files'
+  // old copy did; the title keeps the page's H1 ("Казуси и отзиви").
   cases: {
     en: {
-      title: 'Cases & Reviews | NVC Home4You',
+      title: 'Cases and Reviews from Our Customers | NVC Home4You',
       description:
-        'Real projects and customer reviews from NVC Home4You modular and prefab home builds across the EU.',
+        'Reviews and ratings from our customers, and published cases with the product, place and photos. Bought from us? Leave a review and a rating from 1 to 5 stars.',
     },
     bg: {
-      title: 'Казуси и отзиви | NVC Home4You',
+      title: 'Казуси и отзиви от наши клиенти | NVC Home4You',
       description:
-        'Реални проекти и отзиви от клиенти за модулните и сглобяеми къщи на NVC Home4You в ЕС.',
+        'Отзиви и оценки от наши клиенти и публикувани казуси с продукт, място и снимки. Купили сте от нас? Оставете своя отзив и оценка от 1 до 5 звезди.',
     },
     el: {
-      title: 'Έργα & Κριτικές | NVC Home4You',
+      title: 'Έργα και κριτικές από τους πελάτες μας | NVC Home4You',
       description:
-        'Πραγματικά έργα και κριτικές πελατών από τις δομικές και προκατασκευασμένες κατασκευές της NVC Home4You σε όλη την ΕΕ.',
+        'Κριτικές και αξιολογήσεις πελατών μας και δημοσιευμένα έργα με προϊόν, τοποθεσία και φωτογραφίες. Αγοράσατε από εμάς; Αφήστε κριτική και 1 έως 5 αστέρια.',
     },
   },
   // `services` removed 2026-08-17 with the page itself — see paths.js.
@@ -330,7 +355,9 @@ const META = {
         'Колко струва завършена сглобяема къща: цена на модула, монтаж на място и ДДС за моделите 37, 58 и 73 м². Ясни крайни суми и какво не е включено.',
     },
     el: {
-      title: 'Τιμές προκατασκευασμένων σπιτιών 2026 | Από 14.840 € με ΦΠΑ | NVC Home4You',
+      // "προκάτ", the Greek buyer's word (the houses' description uses it too): the long form
+      // made this 74 characters, past the 70 every other title keeps to.
+      title: 'Τιμές προκάτ σπιτιών 2026 | Από 14.840 € με ΦΠΑ | NVC Home4You',
       description:
         'Πόσο κοστίζει ένα ολοκληρωμένο σπίτι: τιμή μονάδας, συναρμολόγηση και ΦΠΑ για τα μοντέλα 37, 58 και 73 τ.μ. Καθαρά σύνολα και τι δεν περιλαμβάνεται.',
     },
@@ -349,7 +376,7 @@ const META = {
     el: {
       title: 'Πολιτική Απορρήτου & Cookies | NVC Home4You',
       description:
-        'Πώς η NVC Home4You συλλέγει, χρησιμοποιεί και προστατεύει τα προσωπικά σας δεδομένα, συμπεριλαμβανομένων όσων τηρούμε για τη δημιουργία προσφοράς, και πώς να διαχειρίζεστε τα cookies — σύμφωνα με τον GDPR.',
+        'Πώς η NVC Home4You συλλέγει, χρησιμοποιεί και προστατεύει τα δεδομένα σας, όσα τηρούμε για την προσφορά σας και πώς διαχειρίζεστε τα cookies (GDPR).',
     },
   },
 }

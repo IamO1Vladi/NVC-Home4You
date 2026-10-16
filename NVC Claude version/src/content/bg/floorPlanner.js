@@ -88,6 +88,13 @@ export default {
     title: 'Да обсъдим вашето разпределение?',
     desc: 'Изпратете ни плана си или задайте въпрос — ще ви отговорим с оферта за вашата къща.',
   },
+  // The cards before the closing card (SiblingLinks): the Box houses page and the configurator.
+  siblings: {
+    heading: 'Къде още да погледнете',
+    go: 'Разгледайте →',
+    houses: { label: 'Бокс къщите: размери и цени', desc: 'Всички размери с цените с ДДС, монтажа, доставката и гаранцията.' },
+    configurator: { label: 'Изчислете цената в конфигуратора', desc: 'Изберете дограмата, банята и кухнята и вижте цената на всяка стъпка.' },
+  },
   planner: {
     title: 'Планировчик на разпределение',
     subtitle: '{area} м² · {w}×{d} {unitM}',

@@ -20,9 +20,6 @@ import bgHome from './bg/home.js'
 import enHome from './en/home.js'
 import bgModularHouses from './bg/modularHouses.js'
 import enModularHouses from './en/modularHouses.js'
-import bgPartner from './bg/partner.js'
-import enPartner from './en/partner.js'
-import { routeMapControls, routeMapDestinations } from './shared/routeMap.js'
 import { getRouteSeo } from '../seo/routeMeta.js'
 import { paths } from '../routes/paths.js'
 
@@ -181,32 +178,9 @@ describe('header Planning dropdown', () => {
   })
 })
 
-describe('route map destinations', () => {
-  const KINDS = ['sea', 'air', 'rail']
-  const { el, en, bg } = routeMapDestinations
-
-  it('el names the same places as en, and every one in Greek script', () => {
-    for (const kind of KINDS) {
-      expect(Object.keys(el[kind])).toEqual(Object.keys(en[kind]))
-      for (const name of Object.values(el[kind])) expect(name).toMatch(/[Α-Ωα-ωάέήίόύώ]/)
-    }
-  })
-
-  it('keeps the IATA codes in the Greek airport names', () => {
-    for (const [id, name] of Object.entries(en.air)) {
-      const code = name.match(/(([A-Z]{3}))/)[1]
-      expect(el.air[id]).toContain(`(${code})`)
-    }
-  })
-
-  it('bg keeps exactly the names it showed before, and the partner page reads the shared lists', () => {
-    expect(bg).toEqual(en)
-    expect(bgPartner.logisticsWorld.destinations).toBe(bg)
-    expect(enPartner.logisticsWorld.destinations).toBe(en)
-    expect(elPartner.default.logisticsWorld.destinations).toBe(el)
-    expect(elPartner.default.logisticsWorld.mapControls).toBe(routeMapControls.el)
-  })
-})
+// The route map's destination names (shared/routeMap.js) were checked here until the map left
+// the partner page (2026-10-16, the owner's word); el/partner.js's own strings are still read
+// by the scan above.
 
 describe('modular houses comparison table', () => {
   // The old cell was hardcoded "37м2 / 58м2 / 78м2", with a Cyrillic м on all three sites

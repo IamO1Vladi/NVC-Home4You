@@ -237,7 +237,8 @@ describe('the result', () => {
     expect(within(result(s)).queryByRole('heading', { name: s.container.noCraneTitle })).toBeNull()
     expect(text).not.toContain(s.container.noCrane.slice(0, 20))
     expect(text).not.toContain('фиксирана')
-    expect(within(result(s)).getByRole('link', { name: s.box.assemblyLink })).toHaveAttribute('href', '/bg/ceni')
+    // To the Box houses' own section of the prices page (2026-10-16), named for what it is.
+    expect(within(result(s)).getByRole('link', { name: s.box.assemblyLink })).toHaveAttribute('href', '/bg/ceni#prices-box')
   })
 
   it('box at the Varna base: no "около 0 €" transport row, the total is the crane', async () => {

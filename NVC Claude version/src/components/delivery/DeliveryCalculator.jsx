@@ -49,6 +49,7 @@ import { CONFIG_PREFILL_KEY, readConfiguratorPrefill, writeConfiguratorPrefill }
 import { trackEvent } from '../../lib/analytics.js'
 import { useModalActions } from '../../context/ModalActions.jsx'
 import { paths } from '../../routes/paths.js'
+import { PRICE_SECTION_IDS } from '../../content/shared/prices.js'
 import {
   PRODUCTS,
   buildOfferText,
@@ -462,7 +463,8 @@ export default function DeliveryCalculator({ locale = 'bg', content, initialProd
                 <p className="dc-ok">{s.box?.included}</p>
                 <p className="dc-extra">
                   {s.box?.assembly}{' '}
-                  {pricesPath ? <Link to={pricesPath}>{s.box?.assemblyLink}</Link> : null}
+                  {/* The Box houses' section of the prices page, where every size has its assembly. */}
+                  {pricesPath ? <Link to={`${pricesPath}#${PRICE_SECTION_IDS.box}`}>{s.box?.assemblyLink}</Link> : null}
                 </p>
               </>
             ) : null}

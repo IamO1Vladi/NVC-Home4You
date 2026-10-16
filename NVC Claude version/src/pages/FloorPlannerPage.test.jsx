@@ -12,6 +12,7 @@ import { getTemplate, templateLayout } from '../content/shared/plannerModels.js'
 import bgContent from '../content/bg/floorPlanner.js'
 import elContent from '../content/el/floorPlanner.js'
 import enContent from '../content/en/floorPlanner.js'
+import { paths } from '../routes/paths.js'
 
 // The floor planner's editor (src/components/planner/PlannerEditor.jsx), mounted the way the
 // page mounts it. These pin what a visitor sees and what the page relies on: room names in the
@@ -762,5 +763,32 @@ describe('the page around the editor', () => {
       </MemoryRouter>
     )
     expect(container.querySelector('.fp-grid')).not.toBeNull()
+  })
+})
+
+// The planner page linked nowhere but its own #templates and #editor (2026-10-16 audit). It
+// now ends with two cards: the Box houses page and the configurator, real links in the markup.
+describe('the planner page links on', () => {
+  it.each([
+    ['bg', bgContent],
+    ['en', enContent],
+    ['el', elContent],
+  ])('%s: to the Box houses page and the configurator, in its own words', (locale, content) => {
+    localStorage.clear()
+    const { container } = render(
+      <MemoryRouter>
+        <ModalActionsProvider onOpenOffer={() => {}} onOpenQuestion={() => {}}>
+          <FloorPlannerPage content={content} locale={locale} />
+        </ModalActionsProvider>
+      </MemoryRouter>
+    )
+    const section = container.querySelector('#fpp-siblings')
+    expect(within(section).getByRole('heading', { name: content.siblings.heading })).toBeInTheDocument()
+    const links = within(section).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([paths.modularHouses[locale], paths.boxConfigurator[locale]])
+    expect(links[0]).toHaveTextContent(content.siblings.houses.label)
+    expect(links[1]).toHaveTextContent(content.siblings.configurator.label)
+    // Words only: the sizes and prices are the Box page's, never typed here.
+    expect(JSON.stringify(content.siblings)).not.toMatch(/\d/)
   })
 })

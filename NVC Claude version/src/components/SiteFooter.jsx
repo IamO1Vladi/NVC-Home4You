@@ -4,12 +4,23 @@ import { paths, getLocaleFromPath } from '../routes/paths.js'
 import { useTheme } from '../context/ThemeContext.jsx'
 import { getHomeContent } from '../content/home/index.js'
 
-// Site-wide footer in two rows. Row one says where the company is and when it answers,
-// the facts the JSON-LD already carried but no page showed. Row two is the legal row:
-// the © line, the Privacy & Cookie Policy and a "Cookie settings" control on every page
-// (the dismissable consent card alone cannot guarantee it), plus the theme select, which
-// moved here from the header because it is a setting, not navigation. No phone or email
-// here: the contact card above the footer carries them.
+// Site-wide footer: a site map, then the contact block, then the legal row.
+//
+// THE SITE MAP (2026-10-16) is the one place every public page links to every other in plain
+// HTML. The header's dropdowns and the phone drawer only exist after a click, so the prerendered
+// header carries four page links; crawlers, and a visitor before they open a menu, saw the doors,
+// About, FAQ, the planner, cases, delivery and interiors only where a page body happened to link
+// them. Three groups (products, buying, the company), each a heading over a list of real router
+// links. Each link is named with the header's own label (servicesMenu by pathKey, else nav) and
+// goes to its paths.js path, so the menu and the footer cannot name or point at a page two ways;
+// a key with no label or no path in this locale is simply not drawn. Nothing collapses: on a
+// phone the groups sit two to a row.
+//
+// The contact block says where the company is and when it answers, the facts the JSON-LD already
+// carried but no page showed. The legal row: the © line, the Privacy & Cookie Policy and a
+// "Cookie settings" control on every page (the dismissable consent card alone cannot guarantee
+// it), plus the theme select, which moved here from the header because it is a setting, not
+// navigation. No phone or email here: the contact card above the footer carries them.
 const COPY = {
   en: {
     privacy: 'Privacy & Cookies',
@@ -40,8 +51,23 @@ const COPY = {
   },
 }
 
+// The site map's groups and the paths.js keys in each, in the order they are listed.
+export const SITE_MAP = [
+  { key: 'products', pages: ['modularBuilds', 'modularHouses', 'steelHouses', 'doors', 'interiors'] },
+  { key: 'buy', pages: ['prices', 'gallery', 'boxConfigurator', 'planner', 'delivery'] },
+  { key: 'company', pages: ['about', 'cases', 'faq', 'partner'] },
+]
+
 const MAPS_HREF = 'https://www.google.com/maps/search/?api=1&query=Marikostinovo%2C%202850%20Petrich%2C%20Bulgaria'
 const FACEBOOK_HREF = 'https://www.facebook.com/profile.php?id=61581135006737'
+
+/** The header's label for a page: its services-menu item, else its nav entry. */
+function headerLabel(header, pageKey) {
+  const item = (header?.servicesMenu?.columns || [])
+    .flatMap((column) => column.items || [])
+    .find((entry) => entry.pathKey === pageKey)
+  return item?.label || header?.nav?.[pageKey] || null
+}
 
 export default function SiteFooter({ locale = 'en' }) {
   const location = useLocation()
@@ -58,9 +84,18 @@ export default function SiteFooter({ locale = 'en' }) {
   const mapsHref = str(business.mapsHref) || str(bundle?.home?.band?.mapsHref) || MAPS_HREF
   const themeCopy = { ...t.theme, ...(bundle?.header?.theme || {}) }
   const cataloguesLabel = bundle?.header?.nav?.catalogues || t.catalogues
+  const footerCopy = bundle?.footer || {}
   const year = new Date().getFullYear()
   const privacyPath = paths.privacy[current] || paths.privacy.en
   const homePath = paths.home[current] || paths.home.en
+
+  const groups = SITE_MAP.map((group) => ({
+    key: group.key,
+    heading: footerCopy.groups?.[group.key],
+    links: group.pages
+      .map((pageKey) => ({ pageKey, to: paths[pageKey]?.[current], label: headerLabel(bundle?.header, pageKey) }))
+      .filter((link) => link.to && link.label),
+  })).filter((group) => group.links.length)
 
   const openConsent = () => {
     if (typeof window === 'undefined') return
@@ -75,18 +110,37 @@ export default function SiteFooter({ locale = 'en' }) {
   return (
     <footer className="site-footer" data-nosnippet>
       <div className="container">
-        <div className="site-footer-row">
-          <div className="site-footer-group">
-            <span>
-              NVC Home4You · <a href={mapsHref} target="_blank" rel="noopener noreferrer">{t.address}</a>
-            </span>
-            <span>{hours}</span>
-            <a href={FACEBOOK_HREF} target="_blank" rel="noopener noreferrer">Facebook</a>
-            {/* A plain anchor on purpose: the router has no hash scrolling, the browser does. */}
-            <a href={`${homePath}#catalogues`}>{cataloguesLabel}</a>
+        <div className="site-footer-map">
+          <nav className="site-footer-nav" aria-label={footerCopy.siteMapLabel}>
+            {groups.map((group) => (
+              <div className="site-footer-col" key={group.key} data-group={group.key}>
+                {group.heading ? <h2 className="site-footer-h" id={`site-footer-${group.key}`}>{group.heading}</h2> : null}
+                <ul className="site-footer-list" aria-labelledby={group.heading ? `site-footer-${group.key}` : undefined}>
+                  {group.links.map((link) => (
+                    <li key={link.pageKey}>
+                      <Link to={link.to} aria-current={location.pathname === link.to ? 'page' : undefined}>{link.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+
+          <div className="site-footer-col site-footer-contact" data-group="contact">
+            {footerCopy.groups?.contact ? <h2 className="site-footer-h">{footerCopy.groups.contact}</h2> : null}
+            <ul className="site-footer-list">
+              <li>
+                NVC Home4You · <a href={mapsHref} target="_blank" rel="noopener noreferrer">{t.address}</a>
+              </li>
+              <li>{hours}</li>
+              <li><a href={FACEBOOK_HREF} target="_blank" rel="noopener noreferrer">Facebook</a></li>
+              {/* A plain anchor on purpose: the browser loads the home page and its fragment. */}
+              <li><a href={`${homePath}#catalogues`}>{cataloguesLabel}</a></li>
+            </ul>
           </div>
         </div>
-        <div className="site-footer-row">
+
+        <div className="site-footer-row site-footer-legal">
           <div className="site-footer-group">
             <span>© {year} NVC Home4You — {t.rights}</span>
             <Link to={privacyPath}>{t.privacy}</Link>

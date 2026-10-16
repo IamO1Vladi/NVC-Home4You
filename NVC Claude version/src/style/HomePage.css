@@ -93,6 +93,10 @@
 .hp-facts{ display:flex; flex-wrap:wrap; gap:6px 18px; margin:20px 0 0; padding:0; list-style:none; color:var(--hp-muted); font-size:14px }
 .hp-facts li{ display:inline-flex; align-items:center; gap:6px }
 .hp-facts svg{ width:16px; height:16px; stroke:var(--hp-sage); fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round }
+/* A fact that names a page ("Фирма от 2021 г." -> About): the fact's own words and colour,
+   underlined so it reads as a link. */
+.hp .hp-fact-link{ color:inherit; text-decoration:underline; text-decoration-color:color-mix(in srgb, currentColor 45%, transparent); text-underline-offset:3px }
+.hp .hp-fact-link:hover{ color:var(--hp-text); text-decoration-color:currentColor }
 .hp-nums-row{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:30px }
 .hp-nums{ display:flex; align-items:center; gap:2px }
 .hp-num{
@@ -147,6 +151,8 @@
 /* Tiles */
 .hp-tiles{ display:grid; gap:16px; grid-template-columns:1fr }
 @media (min-width:900px){ .hp-tiles{ grid-template-columns:1fr 1fr } }
+.hp-tiles-more{ margin:20px 0 0; font-weight:600 }
+@media (max-width:767px){ .hp-tiles-more a{ display:inline-flex; align-items:center; min-height:44px } }
 .hp-tile{
   position:relative; display:block; aspect-ratio:4/3; max-width:100%; border-radius:var(--hp-r-m); overflow:hidden;
   border:1px solid var(--hp-line); background:var(--hp-surface-2); color:#fff; text-decoration:none; transition:transform .2s ease;

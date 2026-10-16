@@ -303,3 +303,17 @@ describe('DeliveryPage', () => {
     expect(CONTENT[locale].seo).toBeUndefined()
   })
 })
+
+// 2026-10-16: the "it unfolds on site" passage links the planner, where the same house unfolds
+// with the catalogue's layouts, and the delivered case links to its own card on the cases page.
+describe('DeliveryPage onward links', () => {
+  it.each(['bg', 'en', 'el'])('%s: the unfold passage links the planner; the case links its own card', async (locale) => {
+    const { container } = renderPage(locale)
+    await ready(container)
+    const c = CONTENT[locale]
+    const unfold = container.querySelector('.dl-unfold')
+    expect(within(unfold).getByRole('link', { name: c.journey.plannerLink })).toHaveAttribute('href', paths.planner[locale])
+    await waitFor(() => expect(container.textContent).toContain(CASE.quote))
+    expect(within(container).getByRole('link', { name: c.proof.more })).toHaveAttribute('href', `${paths.cases[locale]}#case-${c.proof.case.id}`)
+  })
+})

@@ -232,9 +232,48 @@ section{padding:48px 0}
 .close-x{position:absolute;right:10px;top:8px;opacity:.7;cursor:pointer}
 
 footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18px 0}
-/* The site-wide footer (SiteFooter.jsx): row one is where and when, row two is legal. The
-   theme token for the text, not a hard-coded grey: this renders on both themes. */
-.site-footer{border-top:1px solid color-mix(in srgb, var(--text) 12%, transparent);color:var(--muted);text-align:left;padding:22px 0 28px;font-size:14px;line-height:1.5}
+/* The site-wide footer (SiteFooter.jsx): the site map and the contact block, then the legal
+   row. Coloured with the site's own --text/--muted on both themes, never the home page's
+   --hp-* tokens: HomePage.css declares those on :root and they stay loaded for the rest of a
+   visit once any hp-* page has shown, so the same footer used to look two ways depending on
+   the page the visitor came from. It sits on the site's background, not the home page's warm
+   one. Four columns on a wide screen, two from a phone up (the contact block across the full
+   width), never a sideways scroll. */
+.site-footer{
+  --sf-text:var(--text); --sf-muted:var(--muted);
+  --sf-line:color-mix(in srgb, var(--text) 12%, transparent);
+  border-top:1px solid var(--sf-line);color:var(--sf-muted);text-align:left;padding:32px 0 28px;font-size:14px;line-height:1.5
+}
+.site-footer-map{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;padding-bottom:24px;border-bottom:1px solid var(--sf-line);margin-bottom:16px}
+.site-footer-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 20px}
+.site-footer-col{min-width:0}
+/* Phones: room under the legal row for the floating "call or chat" pill (.contact-dock). */
+@media (max-width:767px){ .site-footer{padding-bottom:calc(88px + env(safe-area-inset-bottom, 0px))} }
+@media (min-width:900px){
+  .site-footer-map{grid-template-columns:minmax(0,3fr) minmax(0,1.2fr);gap:32px}
+  .site-footer-nav{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px 32px}
+}
+/* Two to a row below 900px left the third group (the company) alone in half a row: it spans
+   the row instead, its links in two columns. */
+@media (max-width:899px){
+  .site-footer-col[data-group="company"]{grid-column:1 / -1}
+  .site-footer-col[data-group="company"] .site-footer-list{columns:2;column-gap:20px}
+  .site-footer-col[data-group="company"] .site-footer-list li{break-inside:avoid}
+}
+.site-footer-h{margin:0 0 8px;font-size:14px;line-height:1.3;font-weight:600;color:var(--sf-text)}
+.site-footer-list{margin:0;padding:0;list-style:none}
+.site-footer-list li{padding:3px 0;overflow-wrap:anywhere}
+.site-footer-list a{display:inline-block;padding:2px 0}
+.site-footer .site-footer-nav a{color:var(--sf-muted);text-decoration:none}
+.site-footer .site-footer-nav a:hover{color:var(--sf-text);text-decoration:underline}
+/* The current page: the text colour and an underline, not the group heading's weight. */
+.site-footer .site-footer-nav a[aria-current="page"]{color:var(--sf-text);text-decoration:underline;text-underline-offset:3px}
+/* Phones: every site-map link and the prices page's onward links at least 44px tall. */
+@media (max-width:767px){
+  .site-footer-list li{padding:0}
+  .site-footer-list a{display:inline-flex;align-items:center;min-height:44px;padding:0}
+  .prices-more a{display:inline-flex;align-items:center;min-height:44px}
+}
 .site-footer-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 20px}
 .site-footer-row + .site-footer-row{margin-top:10px}
 .site-footer-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px}
@@ -936,6 +975,19 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 .prices-list { margin: 0; padding-left: 1.15rem; display: grid; gap: .4rem; line-height: 1.55; }
 .prices-foundation { margin: .8rem 0 0; font-size: .925rem; opacity: .8; line-height: 1.55; }
 
+/* The onward links: each section's product page, the delivery calculator, the volume
+   prices. Accent-coloured and underlined, because every other link here inherits the text
+   colour (a card title, a button) and a plain line would not read as a link. */
+.prices-more { margin: .9rem 0 0; line-height: 1.5; text-wrap: pretty; }
+.prices-more a { color: var(--brand-blue); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+:root[data-theme='light'] .prices-more a { color: #2B63C9; }
+/* The volume line, boxed like the cards below so it reads as the containers' note, not a stray
+   link between two sections. */
+.prices-volume { margin: -1.5rem 0 2.5rem; padding: 1rem 1.25rem; border: 1px solid rgba(128, 128, 128, .28); border-radius: 12px; }
+/* A section or a card landed on from another page (#prices-box, #item-13: the gallery's price
+   links) clears the sticky header. */
+.prices-section, .prices-card-model { scroll-margin-top: 96px; }
+
 .prices-others { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem; }
 .prices-card { border: 1px solid rgba(128, 128, 128, .28); border-radius: 12px; padding: 1.25rem; display: grid; gap: .6rem; align-content: start; }
 .prices-card h2 { font-size: 1.1rem; margin: 0; }
@@ -966,3 +1018,9 @@ footer{border-top:1px solid #ffffff1a;color:#cbd5e1;text-align:center;padding:18
 .prices-card-model:focus-within{outline:2px solid currentColor;outline-offset:2px}
 .prices-card-title{margin:0}
 .prices-card-media{cursor:pointer}
+
+/* The placeholder a page's code stands behind while it loads (App.jsx's Suspense fallback). The
+   footer sits outside it, so with no height the footer was drawn under the header and then
+   pushed down when the page arrived: a layout shift of 0.35 at 1280px and 0.92 on a phone, on
+   every first load. A screen's height keeps the footer below the fold until then. */
+.page-loading{min-height:100vh;min-height:100svh}

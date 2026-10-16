@@ -58,6 +58,7 @@ export default {
     sub: 'Цената на къщата е с ДДС, а монтажът е отделно и е показан под нея. Моделите 37, 58 и 73 м² можете да сглобите в конфигуратора.',
     allPrices: 'Пълната таблица с цени →',
     allPhotos: 'Снимки на всички модулни къщи →',
+    plannerLink: 'Разпределения и 3D разгъване в планера →',
     // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
     partnerLink: 'Повече от един брой или за препродажба? →',
     basis: 'с ДДС, без монтаж',
@@ -144,7 +145,8 @@ export default {
       { url: '/api/img/cases/1/5f6e02eabc11410c89ab824cb2496488.webp', alt: 'Дневната и кухнята в къщата в Паралия Кариани' },
       { url: '/api/img/cases/1/268f1b6801134d16ab11f700ac46faf5.webp', alt: 'Банята с душ кабина в къщата в Паралия Кариани' },
     ],
-    more: 'Вижте проекта →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'Къщата в Паралия Кариани →',
     stars: '{rating} от 5',
   },
 

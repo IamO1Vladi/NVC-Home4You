@@ -88,6 +88,13 @@ export default {
     title: 'Shall we talk about your layout?',
     desc: 'Send us your plan or ask a question — we reply with an offer for your house.',
   },
+  // The cards before the closing card (SiblingLinks): the Box houses page and the configurator.
+  siblings: {
+    heading: 'Where to look next',
+    go: 'Take a look →',
+    houses: { label: 'The Box houses: sizes and prices', desc: 'Every size with its price incl. VAT, the assembly, delivery and warranty.' },
+    configurator: { label: 'Price it in the configurator', desc: 'Choose the windows, bathroom and kitchen and see the price at every step.' },
+  },
   planner: {
     title: 'Floor plan builder',
     subtitle: '{area} m² · {w}×{d} {unitM}',

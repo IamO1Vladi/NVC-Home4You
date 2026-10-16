@@ -27,10 +27,16 @@ export function LocalBusinessJSONLD({
     closes: '19:00',
   },
 }) {
+  // The same business as the Organization index.html publishes, by its @id (ORGANIZATION_ID),
+  // so search engines read one company with its shop details rather than a second one beside
+  // it; the logo is the Organization's. No priceRange: a typed one would go stale the day a
+  // gallery price changes.
   const data = {
     '@context': 'https://schema.org',
     '@type': 'HomeAndConstructionBusiness',
+    '@id': ORGANIZATION_ID,
     name,
+    logo: 'https://nvc-home4you.eu/logo3.jpg',
     image,
     url,
     telephone,

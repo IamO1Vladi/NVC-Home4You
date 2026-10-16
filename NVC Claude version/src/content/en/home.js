@@ -66,6 +66,18 @@ export default {
     },
     mobileMenuButtonAria: 'Open menu',
   },
+  // The footer's site map on every page (SiteFooter.jsx). Only the group headings are here: each
+  // link is named with the header's own label above (servicesMenu, nav) and goes to its paths.js
+  // path, so the menu and the footer cannot name a page two ways.
+  footer: {
+    siteMapLabel: 'Site map',
+    groups: {
+      products: 'Products',
+      buy: 'Buying',
+      company: 'Company',
+      contact: 'Contact',
+    },
+  },
   home: {
     hero: {
       eyebrow: 'Prefab & container homes',
@@ -78,6 +90,8 @@ export default {
       primaryCta: 'Get a Quote',
       pricesCta: 'See models & prices',
       facts: ['87 homes delivered', 'Prices include VAT', 'In business since 2021'],
+      // A fact that names a page links there, its words unchanged (`fact` is its place in facts).
+      factLinks: [{ fact: 2, pathKey: 'about' }],
       slidesLabel: 'Hero photos',
       photoLabelPattern: 'Photo {n} of {total}: {label}',
       showcase: {
@@ -111,6 +125,7 @@ export default {
       incl: 'incl. VAT, assembly extra',
       cta: 'Start with this one →',
       all: 'All prices →',
+      gallery: 'All models with photos →',
       planner: 'Plan the layout →',
       paperPrefix: 'Prefer paper?',
       paperLink: 'Download the catalogue (PDF)',
@@ -122,6 +137,8 @@ export default {
       heading: 'What we build',
       subheading: 'From a 14 m² cabin to a family house — and the bathrooms and kitchens inside.',
       button: 'Explore →',
+      // Under the tiles: the partner page, for buyers of several units and resellers.
+      partnerLink: 'Buying several, or reselling? →',
       items: [
         {
           key: 'modularBuilds',

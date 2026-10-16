@@ -10,7 +10,8 @@ import { getRouteSeo } from '../../seo/routeMeta.js'
 // Title, description, canonical, hreflangs (all three languages) and the share picture come
 // from routeMeta.js, as on the product, delivery and partner routes; the content file has no
 // seo block. The page is an AboutPage of the site's Organization (index.html), with only the
-// fields the page backs: no founding date or company number until the owner confirms them.
+// fields the page backs; the founding year (2021) and the VAT number the owner confirmed are on
+// that Organization itself (foundingDate, vatID), so they are not repeated here.
 export default function EnAboutRoute() {
   const seo = getRouteSeo(paths.about.en, 'en')
 

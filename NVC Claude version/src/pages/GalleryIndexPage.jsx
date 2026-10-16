@@ -99,7 +99,9 @@ export default function GalleryIndexPage({ locale, content, basePath }) {
 
   return (
     <main className="arx">
-      <GalleryListJSONLD items={pageItems} locale={locale} listName={content.schema.listName} listUrl={basePath + (location.search || '')} />
+      {/* The list's url is the bare gallery URL, the page's canonical (GalleryRoutes.jsx): a filter,
+          a page number or a tracking tag in the query is the same list. */}
+      <GalleryListJSONLD items={pageItems} locale={locale} listName={content.schema.listName} listUrl={basePath} />
       <section className="gallery">
         <div className="container">
           <div className="gallery-head">

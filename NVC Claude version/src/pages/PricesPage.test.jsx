@@ -186,3 +186,86 @@ describe('a link to one card', () => {
     unmount()
   })
 })
+
+// The page's onward links (2026-10-16): until then it linked only to the steel page and the
+// configurator, so the containers and Box pages, the delivery calculator and the partner page
+// were not reachable from the prices a visitor came for.
+describe('PricesPage onward links', () => {
+  beforeAll(stubGallery)
+  afterAll(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: each section ends with a link to its product page, and carries its id', async (locale) => {
+    const t = getPricesCopy(locale)
+    const { container, unmount } = renderPrices(locale)
+    await waitFor(() => expect(container.querySelector('#item-13')).not.toBeNull())
+
+    const box = container.querySelector('#prices-box')
+    const wagon = container.querySelector('#prices-wagon')
+    expect(box).toContainElement(container.querySelector('#item-10'))
+    expect(wagon).toContainElement(container.querySelector('#item-13'))
+    const last = (section) => [...section.querySelectorAll('a[href]')].at(-1)
+    expect(last(box)).toHaveAttribute('href', paths.modularHouses[locale])
+    expect(last(box)).toHaveTextContent(t.boxSectionLink)
+    expect(last(wagon)).toHaveAttribute('href', paths.modularBuilds[locale])
+    expect(last(wagon)).toHaveTextContent(t.wagonSectionLink)
+    unmount()
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: "not included" links to the delivery calculator', async (locale) => {
+    const t = getPricesCopy(locale)
+    const { container, unmount } = renderPrices(locale)
+    await waitFor(() => expect(container.querySelector('#item-13')).not.toBeNull())
+    const scope = container.querySelector('.prices-scope')
+    const link = [...scope.querySelectorAll('a')].find((a) => a.textContent === t.excludedLink)
+    expect(link).toHaveAttribute('href', paths.delivery[locale])
+    unmount()
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: the volume line names the partner thresholds from partnerTerms.js and opens its form', async (locale) => {
+    const { PARTNER_MIN_UNITS } = await import('../content/shared/partnerTerms.js')
+    const t = getPricesCopy(locale)
+    expect(t.volumeLink).not.toMatch(/\{\w+\}/)
+    expect(t.volumeLink).toContain(String(PARTNER_MIN_UNITS.container))
+    expect(t.volumeLink).toContain(String(PARTNER_MIN_UNITS.box))
+    const { container, unmount } = renderPrices(locale)
+    await waitFor(() => expect(container.querySelector('#item-13')).not.toBeNull())
+    const link = container.querySelector('.prices-volume a')
+    expect(link).toHaveAttribute('href', `${paths.partner[locale]}#zapitvane`)
+    expect(link).toHaveTextContent(t.volumeLink)
+    unmount()
+  })
+
+  it('types no threshold into the copy: the figures are placeholders', async () => {
+    const { PRICES_COPY } = await import('../content/shared/pricesCopy.js')
+    for (const copy of Object.values(PRICES_COPY)) {
+      expect(copy.volumeLink).toContain('{containerMin}')
+      expect(copy.volumeLink).toContain('{boxMin}')
+      expect(copy.volumeLink).not.toMatch(/\d/)
+    }
+  })
+})
+
+describe('PricesPage section anchors', () => {
+  let scrolled
+  beforeAll(stubGallery)
+  afterAll(() => {
+    vi.unstubAllGlobals()
+  })
+  beforeEach(() => {
+    scrolled = []
+    Element.prototype.scrollIntoView = function scrollIntoView(options) { scrolled.push({ id: this.id, options }) }
+  })
+  afterEach(() => {
+    delete Element.prototype.scrollIntoView
+  })
+
+  it.each(['prices-box', 'prices-wagon'])('scrolls to #%s on a direct load, once the rows have rendered', async (id) => {
+    const { unmount } = renderPrices('bg', { entry: `${paths.prices.bg}#${id}` })
+    await waitFor(() => expect(scrolled.map((s) => s.id)).toContain(id))
+    expect(scrolled.at(-1).options).toEqual({ block: 'start' })
+    unmount()
+  })
+})
+

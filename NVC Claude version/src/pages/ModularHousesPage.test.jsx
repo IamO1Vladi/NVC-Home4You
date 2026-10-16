@@ -390,6 +390,21 @@ describe('ModularHousesPage', () => {
     expect(flat(links[0].textContent)).toContain(flat(euro(4300, locale)))
   })
 
+  // 2026-10-16: the planner (3D unfold, the catalogue's layouts), the Box houses' own section
+  // of the prices page, and the delivered house's own card on the cases page. Never the doors
+  // page: the owner said the internal doors are not for the Box houses.
+  it.each(['bg', 'en', 'el'])("links the planner, the prices page's Box section and the case's own card, never the doors (%s)", async (locale) => {
+    const { container } = renderPage(locale)
+    await ready(container)
+    const c = CONTENT[locale]
+    const link = (name) => [...container.querySelectorAll('main a')].find((a) => a.textContent === name)
+    expect(link(c.sizes.plannerLink)).toHaveAttribute('href', paths.planner[locale])
+    expect(link(c.arrival.pricesLink)).toHaveAttribute('href', `${paths.prices[locale]}#prices-box`)
+    expect(link(c.proof.more)).toHaveAttribute('href', `${paths.cases[locale]}#case-${c.case.id}`)
+    const hrefs = [...container.querySelectorAll('main a[href]')].map((a) => a.getAttribute('href'))
+    expect(hrefs.some((h) => h.startsWith(paths.doors[locale]))).toBe(false)
+  })
+
   it.each(['bg', 'en', 'el'])('publishes Product markup in EUR for the houses it shows (%s)', async (locale) => {
     const { container } = renderPage(locale)
     await ready(container)

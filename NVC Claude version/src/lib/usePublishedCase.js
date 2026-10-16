@@ -33,3 +33,16 @@ export function langOf(text) {
   if (/[Α-Ωα-ωάέήίόύώ]/.test(text)) return 'el'
   return 'en'
 }
+
+/**
+ * The id a case card carries on the cases page, case-<id>, and so the #hash that lands on it:
+ * the Box, delivery, partner and About pages link "the house in Paralia Kariani" to #case-2.
+ */
+export function caseAnchor(id) {
+  return `case-${String(id ?? '').replace(/[^\w-]/g, '')}`
+}
+
+/** The cases page in this locale, at one case's card. */
+export function caseHref(casesPath, id) {
+  return id == null || id === '' ? casesPath : `${casesPath}#${caseAnchor(id)}`
+}

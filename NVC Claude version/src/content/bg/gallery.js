@@ -1,9 +1,6 @@
 export default {
-  seo: {
-    title: 'Галерия с модели контейнери за живеене, модулни и сглобяеми къщи | NVC Home4You',
-    description: 'Разгледайте модели контейнери за живеене, модулни къщи, сглобяеми къщи и гаражи. Всеки модел има собствен URL и детайлна страница.',
-  },
-  heading: 'Галерия с модели',
+  // The title and description are routeMeta.js's (META.gallery), read by GalleryRoutes.jsx.
+  heading: 'Галерия: контейнери и Бокс къщи',
   sub: 'Разгледайте наличните модели и отворете детайлна страница за всяко решение.',
   loading: 'Зареждане на модели…',
   error: 'Галерията не можа да се зареди. Опитайте по-късно.',
@@ -50,6 +47,19 @@ export default {
     error: 'Моделът не можа да бъде зареден. Опитайте отново.',
     notFoundTitle: 'Моделът не е намерен',
     notFoundText: 'Този URL не съвпада с наличен модел от API.',
+    // The links under the request button (src/gallery/itemLinks.js): its product page, its row in
+    // the prices table, the configurator on its model (37, 58 and 73 m² only) and the delivery
+    // calculator for its kind of product. A link the item has no target for is not drawn.
+    links: {
+      heading: 'Още за този модел',
+      containers: 'Всичко за контейнерите: монтаж, доставка, гаранция →',
+      box: 'Бокс къщите: размери, монтаж, гаранция →',
+      prices: 'Цената с монтажа в таблицата с цени →',
+      // For a house whose assembly is still quoted on request (its row says so).
+      pricesNoAssembly: 'Цената в таблицата с цени →',
+      configurator: 'Сглобете тази къща в конфигуратора →',
+      delivery: 'Изчислете доставката до вас →',
+    },
   },
   altBase: {
     bg: 'https://nvc-home4you.eu/bg/galeriq',

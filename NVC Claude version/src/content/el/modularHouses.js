@@ -58,6 +58,7 @@ export default {
     sub: 'Η τιμή του σπιτιού περιλαμβάνει ΦΠΑ· η συναρμολόγηση είναι χωριστή και φαίνεται από κάτω. Τα μοντέλα 37, 58 και 73 m² μπορείτε να τα διαμορφώσετε στον διαμορφωτή.',
     allPrices: 'Ο πλήρης πίνακας τιμών →',
     allPhotos: 'Φωτογραφίες όλων των δομικών σπιτιών →',
+    plannerLink: 'Κατόψεις και το σπίτι σε 3D στον σχεδιαστή →',
     // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
     partnerLink: 'Περισσότερα από ένα τεμάχιο ή για μεταπώληση; →',
     basis: 'με ΦΠΑ, χωρίς συναρμολόγηση',
@@ -146,7 +147,8 @@ export default {
       { url: '/api/img/cases/1/5f6e02eabc11410c89ab824cb2496488.webp', alt: 'Το καθιστικό και η κουζίνα του σπιτιού στην Παραλία Καριανής' },
       { url: '/api/img/cases/1/268f1b6801134d16ab11f700ac46faf5.webp', alt: 'Το μπάνιο με την καμπίνα ντους στο σπίτι στην Παραλία Καριανής' },
     ],
-    more: 'Δείτε το έργο →',
+    // To the case's own card on the cases page (#case-<id>), named for what it shows.
+    more: 'Το σπίτι στην Παραλία Καριανής →',
     stars: '{rating} από 5',
   },
 

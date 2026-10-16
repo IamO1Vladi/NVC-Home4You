@@ -40,7 +40,7 @@ import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
 import { LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { WARRANTY_YEARS } from '../content/shared/warranty.js'
-import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
+import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 import { useReviewSummary } from '../lib/useReviewSummary.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { paths } from '../routes/paths.js'
@@ -160,6 +160,8 @@ export default function AboutPage({ locale = 'bg', content }) {
     { to: paths.faq[locale], ...c.siblings.faq },
     { to: paths.gallery[locale], ...c.siblings.gallery },
     { to: deliveryPath, ...c.siblings.delivery },
+    { to: paths.partner[locale], ...c.siblings.partner },
+    { to: paths.doors[locale], ...c.siblings.doors },
   ]
 
   return (
@@ -213,6 +215,10 @@ export default function AboutPage({ locale = 'bg', content }) {
                 <span className="ab-step-year">{step.year}</span>
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
+                {/* The products the company started, to their pages (owner's timeline, 2026-10-15). */}
+                {step.pathKey && step.link && paths[step.pathKey]?.[locale] ? (
+                  <p className="ab-step-link"><Link to={paths[step.pathKey][locale]}>{step.link}</Link></p>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -308,7 +314,7 @@ export default function AboutPage({ locale = 'bg', content }) {
                     {fill(c.proof.stars, { rating })}
                   </p>
                 ) : null}
-                <p className="pp-links"><Link to={paths.cases[locale]}>{c.proof.more}</Link></p>
+                <p className="pp-links"><Link to={caseHref(paths.cases[locale], c.proof.case?.id)}>{c.proof.more}</Link></p>
               </article>
               {casePhoto ? (
                 <img

@@ -14,6 +14,7 @@
 
 import { euro } from '../../lib/euro.js'
 import { DELIVERY_RATES } from './deliveryRates.js'
+import { PARTNER_MIN_UNITS } from './partnerTerms.js'
 
 const SHARED = {
   vatRatePercent: 20,
@@ -22,6 +23,9 @@ const SHARED = {
 export const PRICES_COPY = {
   bg: {
     ...SHARED,
+    // The breadcrumb (the prices routes' BreadcrumbsJSONLD): the home page, then this page.
+    home: 'Начало',
+    breadcrumb: 'Цени',
     h1: 'Цени на сглобяеми къщи',
     lead: 'Цената на къщата, монтажът на място и ДДС — събрани в една таблица, за да видите крайната сума, а не начална цена, която после расте.',
     fromLabel: 'Завършена къща от',
@@ -64,6 +68,14 @@ export const PRICES_COPY = {
     ],
     foundationNote: 'За основа препоръчваме Siana Burgas, ако изберете наземни винтове.',
 
+    // Links: each section to its product page, the "not included" list to the delivery
+    // calculator, and the volume line to the partner form ({containerMin} and {boxMin} from
+    // shared/partnerTerms.js, filled below).
+    boxSectionLink: 'Бокс къщите: размери, монтаж и гаранция →',
+    wagonSectionLink: 'Контейнерите: какво има във всеки и как се монтират →',
+    excludedLink: 'Изчислете доставката и крана до вас →',
+    volumeLink: 'По-ниски цени за количество: контейнери от {containerMin} бр., Бокс къщи от {boxMin} бр. в една поръчка →',
+
     // The steel-frame line, in the words its own page uses (steelHouses.price.body). It said
     // "modular houses" until 2026-10, which the modular houses page, priced from the gallery,
     // now contradicts.
@@ -79,6 +91,8 @@ export const PRICES_COPY = {
 
   en: {
     ...SHARED,
+    home: 'Home',
+    breadcrumb: 'Prices',
     h1: 'Prefab house prices',
     lead: 'House price, on-site assembly and VAT in one table — so you see the finished figure rather than a starting price that grows later.',
     fromLabel: 'A finished house from',
@@ -101,9 +115,9 @@ export const PRICES_COPY = {
     loadError: 'The prices did not load. Please try again.',
     boxSectionTitle: 'Expandable box houses',
     boxSectionIntro: 'The house price includes VAT; assembly is added separately and shown both without and with VAT.',
-    wagonSectionTitle: 'Wagons & containers',
-    wagonSectionIntro: 'Wagon prices include assembly — the table shows how much of the price it is.',
-    wagonColHouse: 'Wagon (incl. VAT)',
+    wagonSectionTitle: 'Living and office containers',
+    wagonSectionIntro: 'Container prices include assembly — the table shows how much of the price it is.',
+    wagonColHouse: 'Container (incl. VAT)',
     wagonColAssembly: 'Incl. assembly',
     wagonVatNote: 'All figures in euro, VAT included. Assembly is part of the price, not an addition to it.',
     assemblyOnRequest: 'on request',
@@ -120,6 +134,11 @@ export const PRICES_COPY = {
     ],
     foundationNote: 'For the foundation we recommend Siana Burgas, if you go with ground screws.',
 
+    boxSectionLink: 'The Box houses: sizes, assembly and warranty →',
+    wagonSectionLink: 'The containers: what each one has and how it is assembled →',
+    excludedLink: 'Work out the delivery and the crane to you →',
+    volumeLink: 'Lower prices by quantity: containers from {containerMin} units, Box houses from {boxMin} in one order →',
+
     customTitle: 'Steel-frame prefab houses to your plan',
     customBody: 'Steel-frame houses are built to an individual design, so they have no catalogue price. Tell us what you need and we will send a quote.',
     customLink: 'How we work to your plan →',
@@ -132,6 +151,8 @@ export const PRICES_COPY = {
 
   el: {
     ...SHARED,
+    home: 'Αρχική',
+    breadcrumb: 'Τιμές',
     h1: 'Τιμές προκατασκευασμένων σπιτιών',
     lead: 'Τιμή σπιτιού, συναρμολόγηση και ΦΠΑ σε έναν πίνακα — για να βλέπετε το τελικό ποσό, όχι μια αρχική τιμή που ανεβαίνει μετά.',
     fromLabel: 'Ολοκληρωμένο σπίτι από',
@@ -154,9 +175,9 @@ export const PRICES_COPY = {
     loadError: 'Οι τιμές δεν φορτώθηκαν. Δοκιμάστε ξανά.',
     boxSectionTitle: 'Αναδιπλούμενα box σπίτια',
     boxSectionIntro: 'Η τιμή του σπιτιού περιλαμβάνει ΦΠΑ· η συναρμολόγηση προστίθεται χωριστά και εμφανίζεται χωρίς και με ΦΠΑ.',
-    wagonSectionTitle: 'Δομικές μονάδες & κοντέινερ',
-    wagonSectionIntro: 'Στις μονάδες η συναρμολόγηση περιλαμβάνεται στην τιμή — ο πίνακας δείχνει πόσο από αυτή είναι.',
-    wagonColHouse: 'Μονάδα (με ΦΠΑ)',
+    wagonSectionTitle: 'Οικίσκοι κοντέινερ',
+    wagonSectionIntro: 'Στα κοντέινερ η συναρμολόγηση περιλαμβάνεται στην τιμή — ο πίνακας δείχνει πόσο από αυτή είναι.',
+    wagonColHouse: 'Κοντέινερ (με ΦΠΑ)',
     wagonColAssembly: 'Περιλ. συναρμολόγηση',
     wagonVatNote: 'Όλα τα ποσά σε ευρώ με ΦΠΑ. Η συναρμολόγηση είναι μέρος της τιμής, όχι πρόσθετο.',
     assemblyOnRequest: 'κατόπιν αιτήματος',
@@ -172,6 +193,11 @@ export const PRICES_COPY = {
       'Την παράδοση στο οικόπεδό σας: {containerRate} ανά χιλιόμετρο για κοντέινερ, περίπου {boxRate} για σπίτι Box, και για τις δύο κατευθύνσεις, χωρίς ΦΠΑ.',
     ],
     foundationNote: 'Για τη βάση προτείνουμε τη Siana Burgas, αν επιλέξετε βίδες εδάφους.',
+
+    boxSectionLink: 'Τα σπίτια Box: μεγέθη, συναρμολόγηση και εγγύηση →',
+    wagonSectionLink: 'Τα κοντέινερ: τι έχει το καθένα και πώς συναρμολογείται →',
+    excludedLink: 'Υπολογίστε το κόστος παράδοσης και γερανού σε εσάς →',
+    volumeLink: 'Χαμηλότερες τιμές για ποσότητα: κοντέινερ από {containerMin} τεμάχια, σπίτια Box από {boxMin} σε μία παραγγελία →',
 
     customTitle: 'Μεταλλικά σπίτια σε δικό σας σχέδιο',
     customBody: 'Τα σπίτια με μεταλλικό σκελετό κατασκευάζονται σε ατομικό σχέδιο, οπότε δεν έχουν τιμή καταλόγου. Πείτε μας τι χρειάζεστε και θα σας στείλουμε προσφορά.',
@@ -196,7 +222,10 @@ function withDeliveryFigures(copy, locale) {
     boxCrane: euro(box.crane.about, locale),
   }
   const fill = (line) => Object.entries(figures).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), line)
-  return { ...copy, excluded: copy.excluded.map(fill) }
+  // The volume line's thresholds are the partner page's (shared/partnerTerms.js).
+  const units = { containerMin: PARTNER_MIN_UNITS.container, boxMin: PARTNER_MIN_UNITS.box }
+  const volumeLink = Object.entries(units).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, String(value)), copy.volumeLink || '')
+  return { ...copy, excluded: copy.excluded.map(fill), volumeLink }
 }
 
 const FILLED = Object.fromEntries(

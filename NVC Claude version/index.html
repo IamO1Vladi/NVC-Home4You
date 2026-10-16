@@ -33,34 +33,36 @@
     <link rel="stylesheet" href="/fonts/commissioner.css" />
 
     <!-- Static SEO defaults: crawlers that don't run JS see these; react-helmet overrides them per route.
+         Marked data-rh (react-helmet's own), as the server's per-route tags are, so a page's <SEO> replaces them
+         rather than rendering a second canonical and a second description beside them.
          The .NET server replaces everything between SEO-START / SEO-END per route (see api-dotnet/Program.cs). -->
     <!--SEO-START-->
     <title>NVC Home4You | Modular &amp; Prefab Homes — Design, Build &amp; EU Delivery</title>
-    <meta name="description" content="NVC Home4You designs, builds and delivers modular and prefabricated homes across Bulgaria and the EU — container houses, steel houses, interiors, internal doors and door-to-door logistics." />
-    <link rel="canonical" href="https://nvc-home4you.eu/" />
-    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="description" content="NVC Home4You designs, builds and delivers modular and prefabricated homes across Bulgaria and the EU — container houses, steel houses, interiors, internal doors and door-to-door logistics." data-rh="true" />
+    <link rel="canonical" href="https://nvc-home4you.eu/" data-rh="true" />
+    <meta name="robots" content="index,follow,max-image-preview:large" data-rh="true" />
 
     <!-- Open Graph: link previews on Facebook, WhatsApp, LinkedIn, Telegram -->
-    <meta property="og:site_name" content="NVC Home4You" />
-    <meta property="og:type" content="website" />
-    <meta property="og:locale" content="bg_BG" />
-    <meta property="og:locale:alternate" content="en_GB" />
-    <meta property="og:locale:alternate" content="el_GR" />
-    <meta property="og:title" content="NVC Home4You | Modular &amp; Prefab Homes" />
-    <meta property="og:description" content="Modular and prefabricated homes designed, built and delivered across Bulgaria and the EU." />
-    <meta property="og:url" content="https://nvc-home4you.eu/" />
-    <meta property="og:image" content="https://nvc-home4you.eu/og/default.jpg" />
-    <meta property="og:image:secure_url" content="https://nvc-home4you.eu/og/default.jpg" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="NVC Home4You — modular and prefab homes" />
+    <meta property="og:site_name" content="NVC Home4You" data-rh="true" />
+    <meta property="og:type" content="website" data-rh="true" />
+    <meta property="og:locale" content="bg_BG" data-rh="true" />
+    <meta property="og:locale:alternate" content="en_GB" data-rh="true" />
+    <meta property="og:locale:alternate" content="el_GR" data-rh="true" />
+    <meta property="og:title" content="NVC Home4You | Modular &amp; Prefab Homes" data-rh="true" />
+    <meta property="og:description" content="Modular and prefabricated homes designed, built and delivered across Bulgaria and the EU." data-rh="true" />
+    <meta property="og:url" content="https://nvc-home4you.eu/" data-rh="true" />
+    <meta property="og:image" content="https://nvc-home4you.eu/og/default.jpg" data-rh="true" />
+    <meta property="og:image:secure_url" content="https://nvc-home4you.eu/og/default.jpg" data-rh="true" />
+    <meta property="og:image:type" content="image/jpeg" data-rh="true" />
+    <meta property="og:image:width" content="1200" data-rh="true" />
+    <meta property="og:image:height" content="630" data-rh="true" />
+    <meta property="og:image:alt" content="NVC Home4You — modular and prefab homes" data-rh="true" />
 
     <!-- Twitter / X -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="NVC Home4You | Modular &amp; Prefab Homes" />
-    <meta name="twitter:description" content="Modular and prefabricated homes designed, built and delivered across Bulgaria and the EU." />
-    <meta name="twitter:image" content="https://nvc-home4you.eu/og/default.jpg" />
+    <meta name="twitter:card" content="summary_large_image" data-rh="true" />
+    <meta name="twitter:title" content="NVC Home4You | Modular &amp; Prefab Homes" data-rh="true" />
+    <meta name="twitter:description" content="Modular and prefabricated homes designed, built and delivered across Bulgaria and the EU." data-rh="true" />
+    <meta name="twitter:image" content="https://nvc-home4you.eu/og/default.jpg" data-rh="true" />
     <!--SEO-END-->
 
     <!-- Site-wide structured data (served in raw HTML so crawlers see brand, logo & site without running JS) -->

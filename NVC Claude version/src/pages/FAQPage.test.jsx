@@ -449,7 +449,13 @@ describe('the FAQ routes', () => {
     expect(seo.description.length).toBeLessThanOrEqual(160)
     // The old one promised logistics, payments and customisation, which the page does not answer.
     expect(seo.description).not.toMatch(/логистик|плащан|персонализ|logistic|payment|customi|εφοδιαστ|πληρωμ|εξατομ|\d/i)
-    if (locale === 'el') expect(seo.title).toBe('Συχνές ερωτήσεις | NVC Home4You')
+    // The titles name the two lines most answers are about (release A shipped a bare 'FAQ | brand').
+    const TITLE = {
+      bg: 'Често задавани въпроси за контейнери и Бокс къщи | NVC Home4You',
+      en: 'FAQ About Containers and Box Houses | NVC Home4You',
+      el: 'Συχνές ερωτήσεις για κοντέινερ και σπίτια Box | NVC Home4You',
+    }
+    expect(seo.title).toBe(TITLE[locale])
   })
 
   it.each(LOCALES)('%s: breadcrumbs, and one FAQPage block', async (locale) => {

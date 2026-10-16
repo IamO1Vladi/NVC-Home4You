@@ -31,7 +31,7 @@ import SiblingLinks from '../components/product/SiblingLinks.jsx'
 import FinalCta from '../components/FinalCta.jsx'
 import DeliveryCalculator from '../components/delivery/DeliveryCalculator.jsx'
 import JourneyClips from '../components/delivery/JourneyClips.jsx'
-import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
+import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 import { quoteFor, formatKm } from '../components/delivery/deliveryQuote.js'
 import UnfoldHouse from '../components/planner/UnfoldHouse.jsx'
 import FaqList from '../components/product/FaqList.jsx'
@@ -296,6 +296,10 @@ export default function DeliveryPage({ locale = 'bg', content }) {
                 <p className="pp-note">{c.journey.truck.note}</p>
               </div>
             </div>
+            {/* The same house unfolds in the planner, with the catalogue's layouts. */}
+            {c.journey.plannerLink ? (
+              <p className="pp-links"><Link to={paths.planner[locale] || paths.planner.en}>{c.journey.plannerLink}</Link></p>
+            ) : null}
           </div>
         </div>
       </section>
@@ -346,7 +350,7 @@ export default function DeliveryPage({ locale = 'bg', content }) {
                     {fill(c.proof.stars, { rating })}
                   </p>
                 ) : null}
-                <p className="pp-links"><Link to={paths.cases[locale]}>{c.proof.more}</Link></p>
+                <p className="pp-links"><Link to={caseHref(paths.cases[locale], c.proof.case?.id)}>{c.proof.more}</Link></p>
               </article>
               {casePhoto ? (
                 <img
@@ -374,6 +378,8 @@ export default function DeliveryPage({ locale = 'bg', content }) {
             </div>
           </div>
           <FaqList items={faq} />
+          {/* The FAQ hub, which gathers these and answers the rest (prices, warranty, customs). */}
+          {c.faq.more ? <p className="pp-links"><Link to={paths.faq[locale] || paths.faq.en}>{c.faq.more}</Link></p> : null}
         </div>
       </section>
 

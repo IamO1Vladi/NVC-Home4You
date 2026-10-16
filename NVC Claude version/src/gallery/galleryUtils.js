@@ -26,14 +26,41 @@ export function snippet(text, n = 120) {
   return s.length > n ? `${s.slice(0, n).trimEnd()}…` : s
 }
 
+// The tags that end a block of the gallery's rich text (the admin editor writes <p>, <h3>, <li>,
+// <br>), so a word at the end of one block is not glued to the first word of the next.
+const BLOCK_END = /<\/(?:p|li|h[1-6]|div|tr|dt|dd|blockquote)>|<br\s*\/?>/gi
+
+/**
+ * Plain text from the gallery's rich text. textContent alone glued the blocks together
+ * ("ОписаниеЦената включва сглобяване и ДДСРазмери: 6 × 3 м"), in the gallery cards, the item
+ * page's meta description and the Product markup, so a space goes after every block's end first.
+ */
 export function htmlToText(html) {
   if (!html) return ''
+  const spaced = String(html).replace(BLOCK_END, '$& ')
   try {
-    const doc = new DOMParser().parseFromString(String(html), 'text/html')
+    const doc = new DOMParser().parseFromString(spaced, 'text/html')
     return (doc.body.textContent || '').replace(/\s+/g, ' ').trim()
   } catch {
-    return String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+    return spaced.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
   }
+}
+
+// An invisible separator, not whitespace, so htmlToText's whitespace collapse keeps it.
+const BLOCK_BREAK = '⁣'
+
+/**
+ * The gallery's rich text as sentences: each block's end is marked before the tags go, and a
+ * block that does not already end in punctuation gets a full stop, so "Описание", "Цената
+ * включва сглобяване и ДДС" and "Размери: 6 × 3 м" read as three sentences. For a meta
+ * description and the Product markup, where a run of bare phrases reads as one garbled one.
+ */
+export function blockText(html) {
+  const marked = String(html || '').replace(BLOCK_END, `$&${BLOCK_BREAK}`)
+  const parts = htmlToText(marked).split(BLOCK_BREAK).map((part) => part.trim()).filter(Boolean)
+  return parts
+    .map((part, i) => (i < parts.length - 1 && !/[.!?:;…]$/.test(part) ? `${part}.` : part))
+    .join(' ')
 }
 
 export function pageModel(current, total) {
@@ -172,10 +199,26 @@ export function getCoverUrl(item) {
   return item?.coverUrl || item?.coverURL || getItemImages(item)[0] || ''
 }
 
-export function getCurrency(item, locale) {
+// Every price on the site is in euro (Bulgaria's currency since 2026-01-01; the API returns EUR
+// for all 16 models). The old fallback said BGN for a Bulgarian item with no currency, which
+// would have told Google a €4,300 container cost 4,300 leva.
+export function getCurrency(item) {
   if (item?.currency) return item.currency
   if (item?.priceCurrency) return item.priceCurrency
-  return locale === 'bg' ? 'BGN' : 'EUR'
+  return 'EUR'
+}
+
+/**
+ * The schema.org availability of a model's offer. The containers in the gallery are stock
+ * models (the owner, 2026-10-12: "the six gallery units are stock models"); a Box house is made
+ * to order — up to 40 days in production, about 3–4 months to the buyer's address (the owner,
+ * 2026-10-15; the delivery page's lead times) — so it is not "in stock". The capsule is filed
+ * with the Box houses ("modular") and follows them.
+ */
+export function offerAvailability(item) {
+  return catFromItemCategory(item?.category).includes('modular')
+    ? 'https://schema.org/MadeToOrder'
+    : 'https://schema.org/InStock'
 }
 
 export function getItemSlug(item, locale) {

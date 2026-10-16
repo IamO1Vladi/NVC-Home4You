@@ -88,6 +88,13 @@ export default {
     title: 'Να συζητήσουμε την κάτοψή σας;',
     desc: 'Στείλτε μας το σχέδιό σας ή κάντε μια ερώτηση — απαντάμε με προσφορά για το σπίτι σας.',
   },
+  // The cards before the closing card (SiblingLinks): the Box houses page and the configurator.
+  siblings: {
+    heading: 'Πού αλλού να κοιτάξετε',
+    go: 'Δείτε →',
+    houses: { label: 'Τα σπίτια Box: μεγέθη και τιμές', desc: 'Όλα τα μεγέθη με τις τιμές με ΦΠΑ, τη συναρμολόγηση, την παράδοση και την εγγύηση.' },
+    configurator: { label: 'Υπολογίστε την τιμή στον διαμορφωτή', desc: 'Διαλέξτε κουφώματα, μπάνιο και κουζίνα και δείτε την τιμή σε κάθε βήμα.' },
+  },
   planner: {
     title: 'Δημιουργός κάτοψης',
     subtitle: '{area} m² · {w}×{d} {unitM}',

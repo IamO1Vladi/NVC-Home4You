@@ -8,6 +8,8 @@ import enHome from '../content/en/home.js'
 import { getPriceRows } from '../content/shared/prices.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { forgetHomePhotos } from '../lib/homePhotos.js'
+import { getHomeContent } from '../content/home/index.js'
+import { paths } from '../routes/paths.js'
 
 // The home page as the redesign left it: the section order, the figures that must come
 // from the price helpers rather than the copy, the links that must carry the real model
@@ -260,5 +262,41 @@ describe('HomePage', () => {
     expect(cards[0]).toContain('box-config/')
     expect(cards[1]).toContain('/api/img/gallery/8/fiftyeight.webp')
     expect(cards[2]).toContain('box-config/')
+  })
+})
+
+// 2026-10-16: the home page links the About page from the "since 2021" fact (its words
+// unchanged), every model with photos from the prices strip, and the partner page under the
+// tiles.
+describe('HomePage onward links', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener() {}, removeEventListener() {} })))
+    vi.stubGlobal('fetch', stubFetch())
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    forgetHomePhotos()
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: About from the founding fact, the gallery from the strip, the partner page under the tiles', (locale) => {
+    const bundle = getHomeContent(locale)
+    const { container } = render(
+      <MemoryRouter initialEntries={[paths.home[locale]]}>
+        <ModalActionsProvider onOpenOffer={() => {}} onOpenQuestion={() => {}}>
+          <HomePage locale={locale} bundle={bundle} />
+        </ModalActionsProvider>
+      </MemoryRouter>,
+    )
+    const home = bundle.home
+    // The facts read exactly as before; only the third is a link.
+    const facts = [...container.querySelectorAll('.hp-facts li')]
+    expect(facts.map((li) => li.textContent)).toEqual(home.hero.facts)
+    expect(facts.map((li) => li.querySelector('a')?.getAttribute('href') ?? null)).toEqual([null, null, paths.about[locale]])
+
+    const strip = container.querySelector('.hp-strip .hp-head-links')
+    expect(within(strip).getByRole('link', { name: home.strip.gallery })).toHaveAttribute('href', paths.gallery[locale])
+
+    const tiles = container.querySelector('.hp-tiles-section')
+    expect(within(tiles).getByRole('link', { name: home.serviceTiles.partnerLink })).toHaveAttribute('href', paths.partner[locale])
   })
 })

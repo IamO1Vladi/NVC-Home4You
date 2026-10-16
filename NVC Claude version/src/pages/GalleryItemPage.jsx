@@ -5,7 +5,7 @@ import '../style/Gallery.css'
 import GalleryModal, { GalleryRichText } from '../components/GalleryModal.jsx'
 import { GalleryBreadcrumbsJSONLD, GalleryProductJSONLD } from '../components/GalleryStructuredData.jsx'
 import {
-  htmlToText,
+  blockText,
   snippet,
   useGalleryItems,
   findItemBySlug,
@@ -22,6 +22,8 @@ import {
 } from '../gallery/galleryUtils.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { paths } from '../routes/paths.js'
+import { galleryItemLinks, routerPath } from '../gallery/itemLinks.js'
+import { absoluteUrl } from '../lib/productRows.js'
 
 function ProductBody({ item, content, locale, onRequestModel, onClose }) {
   const [activeImage, setActiveImage] = useState(0)
@@ -37,6 +39,7 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
     ? `${content.pricePrefix}${formatGalleryPrice(item.price, currency, locale)}`
     : content.priceOnRequest
   const categoryText = getCategoryLabels(item?.category, content.categories).join(' · ')
+  const links = galleryItemLinks(item, locale, content.links)
 
   return (
     <div className="gdetail-grid">
@@ -72,7 +75,7 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
 
         {description ? (
           <div className="gdetail-section">
-            <div className="gdetail-sectionTitle">{content.descriptionTitle}</div>
+            <h2 className="gdetail-sectionTitle">{content.descriptionTitle}</h2>
             <GalleryRichText description={description} />
           </div>
         ) : null}
@@ -105,6 +108,22 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
             {content.requestCta}
           </button>
         </div>
+
+        {/* Onward from this model: its product page, its price with assembly, the configurator
+            on it and the delivery calculator (src/gallery/itemLinks.js). Real links in the
+            markup, so the prerender carries them. */}
+        {links.length ? (
+          <div className="gdetail-section gdetail-more">
+            <h2 className="gdetail-sectionTitle" id={`gdetail-more-${item.id}`}>{content.links?.heading}</h2>
+            <ul className="gdetail-links" aria-labelledby={`gdetail-more-${item.id}`}>
+              {links.map((link) => (
+                <li key={link.key} data-link={link.key}>
+                  <Link to={link.to}>{link.label}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -117,8 +136,12 @@ export default function GalleryItemPage({ locale, content, basePath, listPath, m
 
   const item = useMemo(() => findItemBySlug(items, slug, locale), [items, slug, locale])
   const title = item ? getLocalizedTitle(item, locale) : content.notFoundTitle
-  const descriptionText = item ? htmlToText(getLocalizedDescription(item, locale)) : content.notFoundText
+  const descriptionText = item ? blockText(getLocalizedDescription(item, locale)) : content.notFoundText
   const url = item ? `${basePath}/${getItemSlug(item, locale)}` : basePath
+  // The back link is a router path. listPath is the absolute gallery URL the breadcrumbs'
+  // markup needs, and a <Link> to it sent every other host (a preview, the dev server) to
+  // production.
+  const backTo = routerPath(listPath)
 
   const trackedViewContentRef = useRef(new Set())
 
@@ -181,7 +204,7 @@ useEffect(() => {
       <div className={modal ? 'gdetail-panel gdetail-panel--modal' : 'gdetail-panel'}>
         {!modal && (
           <div className="gdetail-head">
-            <Link className="gdetail-back" to={listPath}>{content.backToGallery}</Link>
+            <Link className="gdetail-back" to={backTo}>{content.backToGallery}</Link>
           </div>
         )}
 
@@ -191,7 +214,7 @@ useEffect(() => {
           <div className="gdetail-state">
             <h1 className="gdetail-title">{content.notFoundTitle}</h1>
             <p className="gdetail-copy">{content.notFoundText}</p>
-            {!modal && <Link className="btn mt-3" to={listPath}>{content.backToGallery}</Link>}
+            {!modal && <Link className="btn mt-3" to={backTo}>{content.backToGallery}</Link>}
           </div>
         )}
         {!loading && !error && item && <ProductBody item={item} content={content} locale={locale} onRequestModel={onRequestModel} onClose={closeForOffer} />}
@@ -207,16 +230,31 @@ useEffect(() => {
     )
   }
 
+  // The head, once the gallery has answered. Until then (and if it fails) the page keeps the
+  // tags the server put in for this product (GallerySeoService), which react-helmet replaces
+  // when this renders (they are marked data-rh), rather than a "not found" title and a
+  // canonical to the gallery for as long as the list loads. A product the gallery does not hold
+  // is noindex, as the server's 404 for it already says. The share card is the product's own
+  // photo and an og:type of product, as the server's tags have it; the photo's size is not
+  // known here, so no width or height is claimed for it.
+  const cover = item ? getCoverUrl(item) : ''
+  const head = !loading && !error ? (
+    <SEO
+      title={item ? `${title} | NVC Home4You` : `${content.notFoundTitle} | NVC Home4You`}
+      description={snippet(descriptionText || content.notFoundText, 155)}
+      url={url}
+      canonical={url}
+      locale={locale}
+      hreflangs={hreflangs}
+      noindex={!item}
+      type={item ? 'product' : 'website'}
+      {...(cover ? { image: absoluteUrl(cover), imageWidth: null, imageHeight: null, imageType: null } : {})}
+    />
+  ) : null
+
   return (
     <main className="arx gdetail-page">
-      <SEO
-        title={item ? `${title} | NVC Home4You` : `${content.notFoundTitle} | NVC Home4You`}
-        description={snippet(descriptionText || content.notFoundText, 155)}
-        url={url}
-        canonical={url}
-        locale={locale}
-        hreflangs={hreflangs}
-      />
+      {head}
       {panel}
     </main>
   )

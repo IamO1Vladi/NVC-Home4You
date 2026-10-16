@@ -3575,6 +3575,16 @@ export default function BoxHouseConfiguratorPage({ content }) {
 
 
   function renderHeroSection() {
+    // Onward from the hero: the Box houses page (sizes, assembly, delivery, warranty) and the
+    // planner (the rooms of the same three models). Plain anchors, like the delivery note's:
+    // the page also renders outside a router (its tests), where a <Link> cannot.
+    const heroLinks = t.links?.houses || t.links?.planner ? (
+      <p className="bhc-hero-links">
+        {t.links?.houses ? <a href={paths.modularHouses[locale] || paths.modularHouses.en}>{t.links.houses}</a> : null}
+        {t.links?.planner ? <a href={paths.planner[locale] || paths.planner.en}>{t.links.planner}</a> : null}
+      </p>
+    ) : null
+
     if (!isMobileShell) {
       return (
         <section className="bhc-hero">
@@ -3587,6 +3597,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
                 <button className="btn ghost" onClick={handleOpenQuestion}>{actions.question}</button>
                 <button className="btn ghost" onClick={resetAll}>{actions.reset}</button>
               </div>
+              {heroLinks}
             </div>
             <div className="bhc-spec-panel">
               <div className="bhc-section-title">{labels.included}</div>
@@ -3611,6 +3622,7 @@ export default function BoxHouseConfiguratorPage({ content }) {
               <button className="btn ghost" onClick={handleOpenQuestion}>{actions.question}</button>
               <button className="btn ghost" onClick={resetAll}>{actions.reset}</button>
             </div>
+            {heroLinks}
           </div>
           <MobileDisclosure title={labels.included} summary={labels.showIncluded}>
             <ul className="bhc-bullets">

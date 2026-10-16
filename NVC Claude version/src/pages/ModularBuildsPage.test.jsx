@@ -341,3 +341,13 @@ describe('the content files', () => {
     expect(keys(el)).toEqual(keys(bg))
   })
 })
+
+// 2026-10-16: container buyers can choose the internal doors (internalDoors.js says so), so the
+// specs links end with the doors page.
+describe.each(['bg', 'en', 'el'])('ModularBuildsPage doors link (%s)', (locale) => {
+  it('links the internal doors from what every container has', async () => {
+    const { container } = await renderLoaded(locale)
+    const specs = container.querySelector('#specs')
+    expect(within(specs).getByRole('link', { name: CONTENT[locale].specs.doorsLink })).toHaveAttribute('href', paths.doors[locale])
+  })
+})

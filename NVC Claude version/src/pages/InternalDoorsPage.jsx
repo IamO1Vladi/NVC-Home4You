@@ -21,6 +21,7 @@
 // JSON-LD; the FAQ hub shows them too); the other pages;
 // the closing card. No price anywhere: none exists.
 import React, { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
 import '../style/PartnerEnquiry.css'
@@ -406,6 +407,8 @@ export default function InternalDoorsPage({ locale = 'bg', content }) {
             </div>
           </div>
           <FaqList items={faq} />
+          {/* The FAQ hub, which gathers these and answers the rest (prices, warranty, customs). */}
+          {c.faq.more ? <p className="pp-links"><Link to={pathOf('faq')}>{c.faq.more}</Link></p> : null}
         </div>
       </section>
 

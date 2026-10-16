@@ -16,7 +16,7 @@
 import { useMemo } from 'react'
 import { paths } from '../routes/paths.js'
 import { buildPriceSections } from '../content/shared/prices.js'
-import { getLocalizedTitle, getItemSlug, getMetaContentId, htmlToText, snippet, useLocalizedGalleryItems } from '../gallery/galleryUtils.js'
+import { blockText, getLocalizedTitle, getItemSlug, getMetaContentId, offerAvailability, snippet, useLocalizedGalleryItems } from '../gallery/galleryUtils.js'
 
 export const SITE_ORIGIN = 'https://nvc-home4you.eu'
 
@@ -118,22 +118,8 @@ export function absoluteUrl(path) {
   return `${SITE_ORIGIN}${value.startsWith('/') ? '' : '/'}${value}`
 }
 
-// An invisible separator, not whitespace, so htmlToText's whitespace collapse keeps it.
-const BLOCK_BREAK = '\u2063'
-
-/**
- * The gallery's rich text as sentences. htmlToText reads textContent, which glues a heading,
- * its paragraph and every list item into one word ("ОписаниеЦената включва…изградениБаня"),
- * so each block's end is marked before the tags go, and a block that does not already end
- * in punctuation gets a full stop.
- */
-function blockText(html) {
-  const marked = String(html || '').replace(/<\/(?:p|li|h[1-6]|div|tr|dt|dd|blockquote)>|<br\s*\/?>/gi, `$&${BLOCK_BREAK}`)
-  const parts = htmlToText(marked).split(BLOCK_BREAK).map((part) => part.trim()).filter(Boolean)
-  return parts
-    .map((part, i) => (i < parts.length - 1 && !/[.!?:;…]$/.test(part) ? `${part}.` : part))
-    .join(' ')
-}
+// The gallery's rich text as sentences is blockText, now in galleryUtils.js beside htmlToText,
+// so the gallery item page's meta description and its Product markup read it the same way.
 
 /**
  * The items ProductsJSONLD takes, from the same rows the cards render: the gallery item
@@ -161,6 +147,8 @@ export function productJsonLdItems(rows, { pick = (row) => row.total, category }
         image: absoluteUrl(item.coverUrl),
         price: Number(price),
         currency: 'EUR',
+        // A container is a stock model, a Box house is made to order (galleryUtils.js).
+        availability: offerAvailability(item),
         category,
       }
     })

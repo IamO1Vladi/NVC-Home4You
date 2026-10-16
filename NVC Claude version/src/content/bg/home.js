@@ -64,6 +64,18 @@ export default {
     },
     mobileMenuButtonAria: 'Отвори меню',
   },
+  // The footer's site map on every page (SiteFooter.jsx). Only the group headings are here: each
+  // link is named with the header's own label above (servicesMenu, nav) and goes to its paths.js
+  // path, so the menu and the footer cannot name a page two ways.
+  footer: {
+    siteMapLabel: 'Карта на сайта',
+    groups: {
+      products: 'Продукти',
+      buy: 'Покупка',
+      company: 'Фирмата',
+      contact: 'Контакти',
+    },
+  },
   home: {
     hero: {
       eyebrow: 'Сглобяеми и контейнерни домове',
@@ -76,6 +88,8 @@ export default {
       primaryCta: 'Заяви оферта',
       pricesCta: 'Виж моделите и цените',
       facts: ['87 доставени дома', 'Цените са с ДДС', 'Фирма от 2021 г.'],
+      // A fact that names a page links there, its words unchanged (`fact` is its place in facts).
+      factLinks: [{ fact: 2, pathKey: 'about' }],
       slidesLabel: 'Снимки в началото',
       photoLabelPattern: 'Снимка {n} от {total}: {label}',
       showcase: {
@@ -108,6 +122,7 @@ export default {
       incl: 'с ДДС, без монтаж',
       cta: 'Започни с този →',
       all: 'Всички цени →',
+      gallery: 'Всички модели със снимки →',
       planner: 'Планирай разпределението →',
       paperPrefix: 'Предпочитате на хартия?',
       paperLink: 'Свалете каталога (PDF)',
@@ -119,6 +134,8 @@ export default {
       heading: 'Какво правим',
       subheading: 'От 14 м² бунгало до семейна къща — и баните и кухните вътре.',
       button: 'Разгледай →',
+      // Under the tiles: the partner page, for buyers of several units and resellers.
+      partnerLink: 'Купувате няколко броя или препродавате? →',
       items: [
         {
           key: 'modularBuilds',

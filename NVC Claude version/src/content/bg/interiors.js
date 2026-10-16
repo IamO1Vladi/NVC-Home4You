@@ -160,6 +160,8 @@ export default {
 
   faq: {
     heading: 'Често задавани въпроси',
+    // The link to the FAQ hub under the questions (the hub gathers these and answers more).
+    more: 'Още въпроси и отговори →',
     items: [
       { id: 'renovation-price', q: 'Колко струва ремонтът?', a: 'Цената зависи от работите и материалите, затова я даваме след безплатния оглед, в писмена оферта.' },
       { id: 'renovation-visit', q: 'Платен ли е огледът?', a: 'Не, огледът на място е безплатен. След него получавате писмена оферта.' },
