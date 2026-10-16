@@ -252,12 +252,14 @@ describe('DeliveryPage', () => {
     const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent))
     const faq = blocks.find((b) => b['@type'] === 'FAQPage')
     expect(faq.mainEntity).toHaveLength(6)
-    const shown = [...container.querySelectorAll('.dl-faq-item')].map((d) => ({
+    const shown = [...container.querySelectorAll('.pp-faq-item')].map((d) => ({
       q: d.querySelector('summary').textContent,
       a: d.querySelector('p').textContent,
     }))
     expect(faq.mainEntity.map((e) => ({ q: e.name, a: e.acceptedAnswer.text }))).toEqual(shown)
     expect(flat(faq.mainEntity[1].acceptedAnswer.text)).toContain(flat(euro(BOX.crane.about, 'bg')))
+    // Each one a #q- target, the ids the FAQ hub links to.
+    expect([...container.querySelectorAll('.pp-faq-item')].map((d) => d.id)).toEqual(bgContent.faq.items.map((item) => `q-${item.id}`))
     // No price markup for an estimate.
     expect(blocks.some((b) => JSON.stringify(b).includes('"Offer"'))).toBe(false)
   })

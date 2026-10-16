@@ -17,18 +17,18 @@
 //
 // Sections, in order: the hero (the catalogue's cover); what every door has; the four types
 // (each opens its drawing, details and catalogue models); the builder (#izbor); sliding doors;
-// wall panels; how ordering works; the form; the questions (also FAQ JSON-LD); the other pages;
+// wall panels; how ordering works; the form; the questions (FaqList: #q-{id} links, also FAQ
+// JSON-LD; the FAQ hub shows them too); the other pages;
 // the closing card. No price anywhere: none exists.
 import React, { useRef, useState } from 'react'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
-import '../style/Delivery.css'
 import '../style/PartnerEnquiry.css'
 import '../style/InternalDoors.css'
 import ProductHero from '../components/product/ProductHero.jsx'
 import SiblingLinks from '../components/product/SiblingLinks.jsx'
 import FinalCta from '../components/FinalCta.jsx'
-import { FAQJSONLD } from '../components/StructuredData.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import DoorBuilder from '../components/doors/DoorBuilder.jsx'
 import DoorsEnquiry from '../components/doors/DoorsEnquiry.jsx'
 import { BUILDER_TYPES, STANDARD_FINISHES, fill, initialSelection, photoColourOf } from '../components/doors/doorOptions.js'
@@ -41,6 +41,7 @@ import {
   WALL_PANELS,
 } from '../content/shared/doorsCatalogue.js'
 import { paths } from '../routes/paths.js'
+import { markedUp, pageQuestions } from '../lib/questions.js'
 
 // The features in the order the page shows them: the owner-confirmed four (fire, sound, water,
 // WPC), then the two the catalogue adds (eco, termite). Sound and WPC are the owner's, not in
@@ -68,9 +69,9 @@ function Icon({ name }) {
   return <svg className="hp-ico" viewBox="0 0 24 24" aria-hidden="true">{FEATURE_ICONS[name]}</svg>
 }
 
-/** The questions as the page prints them and as the FAQ markup publishes them: one list. */
+/** The questions as the FAQ markup publishes them: every one the page prints (lib/questions.js). */
 export function faqItems(c) {
-  return (c.faq.items || []).map((item) => ({ question: item.q, answer: item.a }))
+  return markedUp(pageQuestions('doors', c))
 }
 
 function TypeCard({ type, locale, c, onChoose }) {
@@ -186,7 +187,7 @@ export default function InternalDoorsPage({ locale = 'bg', content }) {
     toBuilder()
   }
 
-  const faq = faqItems(c)
+  const faq = pageQuestions('doors', c, locale)
   const panelSizes = WALL_PANELS.sizes.map((s) => ({
     label: s.code,
     values: [fill(c.panels.mm, { n: s.widthMm }), fill(c.panels.mm, { n: s.thicknessMm }), s.joint],
@@ -404,15 +405,7 @@ export default function InternalDoorsPage({ locale = 'bg', content }) {
               <h2 id="idp-faq-title">{c.faq.heading}</h2>
             </div>
           </div>
-          <div className="dl-faq">
-            {faq.map((item) => (
-              <details key={item.question} className="dl-faq-item">
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-          <FAQJSONLD questions={faq} />
+          <FaqList items={faq} />
         </div>
       </section>
 

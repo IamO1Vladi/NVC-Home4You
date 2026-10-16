@@ -9,16 +9,17 @@
 // assembly "from" from prices.js, the truck sizes and weights from the configurator catalogue,
 // and the example km from deliveryPlaces/examples.json, priced with the calculator's own
 // quoteFor so the table and the calculator agree. The content files hold words with
-// {placeholders}; figures() below is the one place they are filled.
+// {placeholders}; figures() below is the one place they are filled: lib/questions.js
+// deliveryFigures() (shared with the FAQ hub, which shows these questions too) plus the assembly.
 //
 // Delivery and crane figures are WITHOUT VAT and every line that prints one says so.
 //
 // Sections, in order: the hero with the calculator; what the price includes, per product;
 // example prices; from the port to the plot (four clips, the lead times, the Box house
 // unfolding and its size on the truck); what to prepare; the published Paralia Kariani case;
-// the delivery questions (also FAQ JSON-LD); the product pages; the closing card, whose offer
-// button carries the calculator's estimate once one is made (App.jsx reads the prefill by
-// pathname). The breadcrumbs and Service markup are the route's.
+// the delivery questions (FaqList: #q-{id} links, also FAQ JSON-LD); the product pages; the
+// closing card, whose offer button carries the calculator's estimate once one is made (App.jsx
+// reads the prefill by pathname). The breadcrumbs and Service markup are the route's.
 import React from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import '../style/HomePage.css'
@@ -33,21 +34,19 @@ import JourneyClips from '../components/delivery/JourneyClips.jsx'
 import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
 import { quoteFor, formatKm } from '../components/delivery/deliveryQuote.js'
 import UnfoldHouse from '../components/planner/UnfoldHouse.jsx'
-import { FAQJSONLD } from '../components/StructuredData.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
-import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { getPriceRows } from '../content/shared/prices.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import EXAMPLES from '../content/shared/deliveryPlaces/examples.json'
 import { euro } from '../lib/euro.js'
+import { deliveryFigures, fill, pageQuestions } from '../lib/questions.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { PAGE_PHOTO_DEFAULTS, usePagePhoto } from '../lib/homePhotos.js'
 import { paths } from '../routes/paths.js'
 
-const CONTAINER = DELIVERY_RATES.products.container
-const BOX = DELIVERY_RATES.products.box
 const PRODUCTS = ['container', 'box', 'project']
 const NUMBER_LOCALES = { bg: 'bg-BG', en: 'en-GB', el: 'el-GR' }
 
@@ -60,28 +59,15 @@ const CRANE = {
   portrait: `${BASE}delivery/crane-lift-portrait.webp`,
 }
 
-export const fill = (pattern, values = {}) => String(pattern ?? '').replace(
-  /\{(\w+)\}/g,
-  (m, key) => (values[key] == null ? m : String(values[key])),
-)
-
-/** Every figure the page's copy names, formatted for one locale. */
+/**
+ * Every figure the page's copy names, formatted for one locale: the delivery figures the FAQ hub
+ * fills these questions with too (lib/questions.js), and the cheapest Box house assembly, quoted
+ * without VAT as prices.js keeps it. The assembly stays here because it needs the configurator
+ * catalogue, which the hub's shared helper does not load; no question names it.
+ */
 export function figures(locale) {
-  const money = (value) => euro(value, locale)
-  // The cheapest Box house assembly, quoted without VAT as prices.js keeps it.
   const assemblyFrom = Math.min(...getPriceRows(locale).map((row) => row.standard.assemblyNet))
-  return {
-    containerRate: money(CONTAINER.perKm),
-    boxRate: money(BOX.perKm),
-    containerCrane: money(CONTAINER.crane.about),
-    boxCrane: money(BOX.crane.about),
-    nights: CONTAINER.noCrane.nights,
-    travel: money(CONTAINER.noCrane.travelMax),
-    days: LEAD_TIMES.containerInStockDays,
-    production: LEAD_TIMES.boxProductionDays,
-    months: LEAD_TIMES.boxToAddressMonths,
-    assembly: money(assemblyFrom),
-  }
+  return { ...deliveryFigures(locale), assembly: euro(assemblyFrom, locale) }
 }
 
 /**
@@ -183,7 +169,7 @@ export default function DeliveryPage({ locale = 'bg', content }) {
 
   const facts = PRODUCTS.map((key) => fill(c.hero.facts[key], v))
   const examples = exampleRows(locale, c)
-  const faq = c.faq.items.map((item) => ({ question: item.q, answer: fill(item.a, v) }))
+  const faq = pageQuestions('delivery', c, locale)
 
   const casePhoto = published && (published.images || []).includes(c.proof.photo.url) ? c.proof.photo : null
   const quote = String(published?.quote || '').trim()
@@ -387,15 +373,7 @@ export default function DeliveryPage({ locale = 'bg', content }) {
               <h2 id="dl-faq-title">{c.faq.heading}</h2>
             </div>
           </div>
-          <div className="dl-faq">
-            {faq.map((item) => (
-              <details key={item.question} className="dl-faq-item">
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-          <FAQJSONLD questions={faq} />
+          <FaqList items={faq} />
         </div>
       </section>
 

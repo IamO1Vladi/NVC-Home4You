@@ -23,6 +23,8 @@ import enModularHouses from './en/modularHouses.js'
 import bgPartner from './bg/partner.js'
 import enPartner from './en/partner.js'
 import { routeMapControls, routeMapDestinations } from './shared/routeMap.js'
+import { getRouteSeo } from '../seo/routeMeta.js'
+import { paths } from '../routes/paths.js'
 
 // ROADMAP #11, the Greek audit: English and Bulgarian-in-Latin words that sat inside the
 // Greek copy outside the configurator. Each pattern below was a real string on a /el page
@@ -80,23 +82,33 @@ const LEAKS = [
   /\b(Marikostinovo|Petrich|Blagoevgrad|Cherni|Vrah|Blvd|Prof\.|Tsvetan|Lazarov|Laem|Chabang)\b/,
 ]
 
+/** The [path, text] pairs that carry one of the LEAKS, as readable lines. */
+function leaks(pairs) {
+  return pairs
+    .filter(([, text]) => LEAKS.some((re) => re.test(text)))
+    .map(([at, text]) => `${at}: ${text}`)
+}
+
+/**
+ * The words spelt in a mix of Greek and Latin letters. Greek ο and Latin o look the same; a
+ * transliterated name typed with one of each ("Λαζάρoβ") reads fine and breaks search,
+ * sorting and screen readers.
+ */
+function mixedWords(pairs) {
+  return pairs.flatMap(([at, text]) =>
+    (text.match(/[A-Za-z\u0370-\u03FF\u1F00-\u1FFF]+/g) || [])
+      .filter((word) => /[A-Za-z]/.test(word) && /[\u0370-\u03FF\u1F00-\u1FFF]/.test(word))
+      .map((word) => `${at}: ${word}`),
+  )
+}
+
 describe('Greek copy outside the configurator', () => {
   it.each(Object.keys(EL_FILES))('%s has none of the English or Latin-script words the audit found', (file) => {
-    const hits = strings(EL_FILES[file])
-      .filter(([, text]) => LEAKS.some((re) => re.test(text)))
-      .map(([at, text]) => `${at}: ${text}`)
-    expect(hits).toEqual([])
+    expect(leaks(strings(EL_FILES[file]))).toEqual([])
   })
 
   it.each(Object.keys(EL_FILES))('%s spells no word in a mix of Greek and Latin letters', (file) => {
-    // Greek ο and Latin o look the same; a transliterated name typed with one of each
-    // ("Λαζάρoβ") reads fine and breaks search, sorting and screen readers.
-    const mixed = strings(EL_FILES[file]).flatMap(([at, text]) =>
-      (text.match(/[A-Za-zͰ-Ͽἀ-῿]+/g) || [])
-        .filter((word) => /[A-Za-z]/.test(word) && /[Ͱ-Ͽἀ-῿]/.test(word))
-        .map((word) => `${at}: ${word}`),
-    )
-    expect(mixed).toEqual([])
+    expect(mixedWords(strings(EL_FILES[file]))).toEqual([])
   })
 
   it('names the delivery menu column and link in Greek', () => {
@@ -110,6 +122,54 @@ describe('Greek copy outside the configurator', () => {
       const keys = home.header.servicesMenu.columns.flatMap((c) => c.items.map((item) => item.pathKey))
       expect(keys).not.toContain('logistics')
     }
+  })
+})
+
+// The Greek titles, descriptions and share-picture alts live in routeMeta.js, not in the
+// content files, so the scans above never read them, and the home description said
+// "logistics" until 2026-10-16. getRouteSeo() gives what each /el page actually ships; a page
+// with no Greek entry gets the English one, which the Latin-word check below fails word by word.
+const EL_SEO = Object.entries(paths)
+  .filter(([, localized]) => localized.el)
+  .flatMap(([pageKey, localized]) => {
+    const seo = getRouteSeo(localized.el, 'el') || {}
+    return ['title', 'description', 'imageAlt']
+      .filter((field) => seo[field])
+      .map((field) => [`routeMeta ${pageKey}.${field}`, seo[field]])
+  })
+
+// The only Latin-script words a Greek snippet may carry, compared in lower case: the brand
+// (NVC Home4You), the product name Box (also "box σπίτι"), the m of m², the CE mark, WPC (the
+// doors' material), GDPR, and two loanwords Greek writes in Latin letters, cookies and online.
+const SEO_LATIN = new Set(['nvc', 'home4you', 'box', 'm', 'ce', 'wpc', 'gdpr', 'cookies', 'online'])
+
+describe('Greek search snippets in routeMeta.js', () => {
+  it('reads a title and a description for every Greek page', () => {
+    // A scan of nothing would pass.
+    const read = EL_SEO.map(([at]) => at)
+    for (const [pageKey, localized] of Object.entries(paths)) {
+      if (!localized.el) continue
+      expect(read).toContain(`routeMeta ${pageKey}.title`)
+      expect(read).toContain(`routeMeta ${pageKey}.description`)
+    }
+    expect(read).toContain('routeMeta home.description')
+  })
+
+  it('has none of the English or Latin-script words the audit found', () => {
+    expect(leaks(EL_SEO)).toEqual([])
+  })
+
+  it('spells no word in a mix of Greek and Latin letters', () => {
+    expect(mixedWords(EL_SEO)).toEqual([])
+  })
+
+  it('uses no Latin-script word but the brand, Box, the units, marks and loanwords allowed', () => {
+    const hits = EL_SEO.flatMap(([at, text]) =>
+      (text.match(/[A-Za-z][A-Za-z0-9]*/g) || [])
+        .filter((word) => !SEO_LATIN.has(word.toLowerCase()))
+        .map((word) => `${at}: ${word}`),
+    )
+    expect(hits).toEqual([])
   })
 })
 

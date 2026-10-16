@@ -58,6 +58,6 @@ it('keeps the page and its form when the map cannot load', async () => {
 
   expect(await screen.findByText(bgContent.cargo.unavailable, {}, { timeout: 4000 })).toBeInTheDocument()
   expect(container.querySelector('section#zapitvane form')).not.toBeNull()
-  expect(container.querySelector('#ptn-faq .dl-faq-item')).not.toBeNull()
+  expect(container.querySelector('#ptn-faq .pp-faq-item')).not.toBeNull()
   expect(screen.getByRole('heading', { level: 1, name: bgContent.hero.h1 })).toBeInTheDocument()
 })

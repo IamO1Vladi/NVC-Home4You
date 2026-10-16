@@ -17,6 +17,11 @@
    under .pp, so the home page itself looks exactly as it did. */
 
 .pp [id^="item-"]{ scroll-margin-top:96px }
+/* A section reached by its #id from another page (the FAQ hub's "Какво има във всеки
+   контейнер →" to #specs, its warranty topic to About's #in-writing) lands with its heading
+   below the sticky header (65px, 69px on a phone) rather than under it. Zero specificity, so
+   any section's own scroll-margin-top (.pp .fq-topic, .idp #izbor, .pe) still wins. */
+:where(.pp section[id]){ scroll-margin-top:72px }
 
 /* Buttons in a row share it evenly on a phone, two side by side rather than one wide and
    one wrapped under it at a different width; a longer Greek label wraps inside its button. */
@@ -71,7 +76,7 @@
   /* One fact per line, the tick at the first line of a fact that wraps. */
   .pp-hero .hp-facts{ flex-direction:column; gap:6px; margin-top:18px; font-size:14px; line-height:1.45 }
   .pp-hero .hp-facts li{ align-items:flex-start }
-  .pp-hero .hp-facts svg{ margin-top:2px }
+  .pp-hero .hp-facts svg{ flex-shrink:0; margin-top:2px }
 }
 
 /* Unit cards: the home strip's card, with a price that is always shown and two actions.
@@ -195,6 +200,30 @@
 @media (min-width:720px){ .pp-terms > div{ grid-template-columns:200px minmax(0,1fr) } }
 /* The warranty's two lines under its terms keep the list's measure, not the page's. */
 .pp-warranty .pp-note{ max-width:820px }
+
+/* Questions (components/product/FaqList.jsx): plain <details>, a hairline between them, the
+   whole question tappable. The delivery, partner, internal doors and interiors pages and the
+   FAQ hub, so the five look alike (it was the delivery page's .dl-faq until 2026-10-16). A
+   #q-{id} link lands the question under the sticky header, not behind it. */
+.pp-faq{ max-width:820px; border-top:1px solid var(--hp-line) }
+.pp-faq-item{ border-bottom:1px solid var(--hp-line); scroll-margin-top:96px }
+.pp-faq-item summary{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  min-height:56px; padding:12px 0; cursor:pointer; list-style:none;
+  font-size:17px; font-weight:600; line-height:1.4;
+}
+.pp-faq-item summary::-webkit-details-marker{ display:none }
+.pp-faq-item summary::after{
+  content:""; flex:none; width:10px; height:10px; margin-right:4px;
+  border-right:2px solid var(--hp-muted); border-bottom:2px solid var(--hp-muted);
+  transform:rotate(45deg) translateY(-3px); transition:transform .2s ease;
+}
+.pp-faq-item[open] summary::after{ transform:rotate(-135deg) translate(-2px,-2px) }
+.pp-faq-item p{ padding:0 0 16px; max-width:68ch; color:var(--hp-text); line-height:1.6 }
+/* The page an answer continues on, under it (the hub's product questions). */
+.pp-faq-item .pp-faq-more{ margin-top:-10px; padding-bottom:10px; font-weight:600 }
+.pp .pp-faq-more a{ display:inline-flex; align-items:center; min-height:44px }
+@media (max-width:767px){ .pp-faq-item summary{ font-size:16px } }
 
 /* Phone tap targets for the text links a section carries under or beside its heading. */
 @media (max-width:767px){

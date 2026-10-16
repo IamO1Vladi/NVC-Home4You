@@ -91,23 +91,8 @@
 .dl-proof-img{ aspect-ratio:4/3 }
 @media (max-width:599px){ .dl-prep-img,.dl-proof-img{ border-radius:var(--hp-r-m) } }
 
-/* Questions: plain <details>, a hairline between them, the whole question tappable. */
-.dl-faq{ max-width:820px; border-top:1px solid var(--hp-line) }
-.dl-faq-item{ border-bottom:1px solid var(--hp-line) }
-.dl-faq-item summary{
-  display:flex; align-items:center; justify-content:space-between; gap:16px;
-  min-height:56px; padding:12px 0; cursor:pointer; list-style:none;
-  font-size:17px; font-weight:600; line-height:1.4;
-}
-.dl-faq-item summary::-webkit-details-marker{ display:none }
-.dl-faq-item summary::after{
-  content:""; flex:none; width:10px; height:10px; margin-right:4px;
-  border-right:2px solid var(--hp-muted); border-bottom:2px solid var(--hp-muted);
-  transform:rotate(45deg) translateY(-3px); transition:transform .2s ease;
-}
-.dl-faq-item[open] summary::after{ transform:rotate(-135deg) translate(-2px,-2px) }
-.dl-faq-item p{ padding:0 0 16px; max-width:68ch; color:var(--hp-text); line-height:1.6 }
-@media (max-width:767px){ .dl-faq-item summary{ font-size:16px } }
+/* The questions' style moved to ProductPage.css (.pp-faq) on 2026-10-16: the partner, doors and
+   interiors pages and the FAQ hub draw theirs the same way (FaqList.jsx). */
 
 /* With the case unpublished (or still loading) the proof band is not drawn, and the two plain
    sections would run together on one background: a hairline keeps them apart. */

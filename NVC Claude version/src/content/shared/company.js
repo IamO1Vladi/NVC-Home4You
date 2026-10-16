@@ -9,7 +9,17 @@ export const COMPANY = {
   // Started as a logistics firm in 2021; containers from 2024, Box houses from 2025 and
   // steel-frame houses from 2026 (the About page's timeline).
   foundingYear: 2021,
+  // Homes delivered, as the home page states it (owner, confirmed 2026-10-16). The About
+  // page's tile reads it; the home page's hero fact and stats repeat it in words, and
+  // AboutPage.test.jsx checks they say the same number.
+  homesDelivered: 87,
 }
+
+// The phone number the site publishes (the header, the closing card, the footer, the
+// LocalBusiness markup). The admin reply composer signs with it for the people in
+// AdminPipelinePage's WEBSITE_PHONE_SIGNERS; AdminPipelinePage.test.jsx checks it is the
+// number the home content prints, so the two cannot drift.
+export const WEBSITE_PHONE = { display: '+359 87 935 5269', tel: '+359879355269' }
 
 // The team's photos, by the slug each person has in the about content (team.people[].slug).
 // The page draws a monogram for anyone not listed here, so add a line only once the file is in

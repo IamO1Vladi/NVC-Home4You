@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { WARRANTY_YEARS } from './shared/warranty.js'
+import { hubQuestions } from '../lib/faqHub.js'
 
 // The owner's warranty of 2026-10-15 (the annex to our Box-house sales contract, the same
 // terms for containers), held to every file that words it: the years live in
@@ -76,10 +77,14 @@ describe('warranty facts across the content', () => {
   })
 
   it.each(LOCALES)('%s: the FAQ answer gives every year from the module, and no other', (locale) => {
-    const items = content(locale, 'faq').groups.flatMap((group) => group.items)
-    const asked = items.filter((item) => WARRANTY.test(item.q))
+    // The hub's own questions, filled as the page shows them; the warranty is one of them, worded
+    // with the module's placeholders as the partner page's answer is.
+    const asked = hubQuestions(content(locale, 'faq'), locale).filter((item) => WARRANTY.test(item.question))
     expect(asked).toHaveLength(1)
-    const { a } = asked[0]
+    expect(asked[0].id).toBe('warranty')
+    const words = content(locale, 'faq').items.find((item) => item.id === 'warranty').a
+    for (const key of ['structureYears', 'panelYears', 'joineryYears', 'sanitaryYears']) expect(words).toContain(`{${key}}`)
+    const a = asked[0].answer
     for (const n of Object.values(WARRANTY_YEARS)) expect(a).toMatch(yearsOf(n))
     const counts = [...a.matchAll(ANY_YEARS)].map((m) => Number(m[1]))
     expect(counts.length).toBe(Object.keys(WARRANTY_YEARS).length)

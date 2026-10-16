@@ -48,8 +48,9 @@ export const paths = {
   // /el/diethnis-efodiastiki). It sold freight forwarding the owner does not offer as a
   // service, and the buyer's real question (what it costs to get the house onto the plot)
   // is the delivery page's.
-  // Program.cs 301s each old URL to the delivery page in its own language. The partner
-  // page's route map, the last of its forwarding claims, went with it.
+  // Program.cs 301s each old URL to the delivery page in its own language. The route map it
+  // shared with the partner page (LogisticsWorld) was kept there: the owner can organise
+  // cargo for others.
   partner: {
    bg: '/bg/stani-partnjor',
    en: '/en/partner',

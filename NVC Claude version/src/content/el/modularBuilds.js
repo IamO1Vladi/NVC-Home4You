@@ -1,6 +1,6 @@
 // src/content/el/modularBuilds.js
 //
-// The words on the «Μονάδες-κοντέινερ» page (/el/domikes-kataskeves). No price lives here:
+// The words on the «Οικίσκοι κοντέινερ» page (/el/domikes-kataskeves). No price lives here:
 // the prices, the "from" figure, the assembly share of a price and the delivery rate come
 // from the gallery (/api/gallery), prices.js and deliveryRates.js, and are filled into
 // {amount}, {rate}, {crane}, {travel} and {price}. The title and description search engines read are in
@@ -12,7 +12,7 @@
 // figures, in deliveryRates.js). Drafted Greek; a native read is still to come.
 export default {
   hero: {
-    eyebrow: 'Μονάδες-κοντέινερ',
+    eyebrow: 'Οικίσκοι κοντέινερ',
     h1: 'Κοντέινερ για κατοικία, γραφείο και εργοτάξιο',
     lead: 'Κοντέινερ κατοικίας και γραφείου 6×3, 7×3 και 8×3 m με μπάνιο, ηλεκτρολογική και υδραυλική εγκατάσταση — τα παραδίδουμε και τα συναρμολογούμε εμείς.',
     from: 'από',
@@ -21,7 +21,9 @@ export default {
     call: 'Καλέστε μας',
     facts: [
       'Μπάνιο, ηλεκτρολογικά και υδραυλικά έτοιμα',
-      'Συναρμολόγηση επί τόπου από δύο τεχνικούς μας ή με γερανό, με δικά σας έξοδα',
+      // The short form of assembly.crane and assembly.noCrane below: with a crane the
+      // container is assembled in our warehouse and arrives built, never on site.
+      'Συναρμολόγηση στην αποθήκη μας, αν επιλέξετε γερανό με δικά σας έξοδα, ή επί τόπου από δύο τεχνικούς μας',
       'Άλλα μεγέθη από 14 έως 30 m² κατόπιν παραγγελίας',
     ],
     // A real daylight photo from the gallery (the 8 × 3 m model) until the owner uploads one
@@ -139,6 +141,6 @@ export default {
   finalTitle: 'Να μιλήσουμε για το κοντέινερ σας;',
 
   // Product markup: the list's name and each model's category.
-  listName: 'Μονάδες-κοντέινερ',
+  listName: 'Οικίσκοι κοντέινερ',
   schemaCategory: 'Κοντέινερ κατοικίας',
 }

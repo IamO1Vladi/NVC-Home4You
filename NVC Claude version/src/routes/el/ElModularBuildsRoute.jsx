@@ -26,7 +26,7 @@ export default function ElModularBuildsRoute() {
       <BreadcrumbsJSONLD
         items={[
           { name: 'Αρχική', url: 'https://nvc-home4you.eu/el' },
-          { name: 'Μονάδες-κοντέινερ', url: seo.url },
+          { name: 'Οικίσκοι κοντέινερ', url: seo.url },
         ]}
       />
 

@@ -18,6 +18,7 @@ import { submitInBackground } from './lib/backgroundSubmit.js'
 import { loadRep } from './lib/repAttribution.js'
 import SubmitStatus from './components/SubmitStatus.jsx'
 import HoneypotField from './components/HoneypotField.jsx'
+import ScrollManager from './components/ScrollManager.jsx'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -387,6 +388,8 @@ function AppShell() {
     <div>
       <ModalActionsProvider onOpenOffer={openOfferModal} onOpenQuestion={openQuestionModal} onRequestModel={requestModel}>
         <LocalePathGate>
+          {/* A new page opens at its top, or at its #hash; back and forward are the browser's. */}
+          <ScrollManager />
           {(() => {
             const routeSeo = getRouteSeo(location.pathname, currentLocale)
             return routeSeo ? <SEO {...routeSeo} /> : null

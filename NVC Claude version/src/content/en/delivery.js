@@ -221,27 +221,33 @@ export default {
     heading: 'Questions about delivery',
     items: [
       {
-        q: 'How is "both ways" counted?',
+        id: 'delivery-both-ways',
+        q: 'How is the delivery price counted "both ways"?',
         a: 'The road km from our base to your town, times two, times the rate per km: {containerRate} for a container and about {boxRate} for a Box house, excl. VAT. A Box house is counted from Marikostinovo or Varna, whichever is closer.',
       },
       {
+        id: 'delivery-crane',
         q: 'What does the crane cost?',
         a: 'A Box house needs a crane: about {boxCrane} excl. VAT, and it can be more depending on the location. For a container it is your choice, about {containerCrane} excl. VAT; we then assemble the container in our warehouse and it arrives built.',
       },
       {
+        id: 'delivery-without-crane',
         q: 'Can it be done without a crane?',
         a: 'A container, yes: two of our workers assemble it on site over {nights} nights. Their travel adds up to {travel} excl. VAT, depending on the location, and you arrange their accommodation. A Box house, no: it is not possible without a crane.',
       },
       {
+        id: 'delivery-abroad',
         q: 'Do you deliver to Greece and other countries?',
         a: 'To Greece, yes, at the same rates; we have already delivered a Box house to Paralia Kariani. Other countries on request.',
       },
       {
-        q: 'How long does it take?',
+        id: 'delivery-lead-time',
+        q: 'How long until a container or a Box house reaches me?',
         a: 'A container in stock is with you within {days} days. A Box house is made in up to {production} days and reaches your address in about {months} months.',
       },
       {
-        q: 'Is this the final price?',
+        id: 'delivery-final-price',
+        q: 'Is the calculator’s price final?',
         a: 'The figure is an estimate, by road to the town centre, excl. VAT. For a container the rate is fixed; for a Box house the price is approximate. The exact price is in the quote. More than one container or Box house is quoted separately.',
       },
     ],

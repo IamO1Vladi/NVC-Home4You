@@ -30,14 +30,15 @@ import elPrivacy from '../content/el/privacy.js'
 // pin, in every language:
 // - the sections in their order, one H1 naming the brand, no skipped heading level;
 // - none of the old false or unbacked figures ("40+ suppliers", "6 countries", "8 weeks", the
-//   "2019"/"2022" years, the renovation-first story), and no homes count, which waits for him;
+//   "2019"/"2022" years, the renovation-first story);
 // - the owner's timeline (2021 logistics, 2024 containers, 2025 Box houses, 2026 steel-frame
 //   houses), the six people of the team, the company's VAT number from shared/company.js, the
 //   documents, the factory quality check and visits by appointment;
 // - the home page's hero and the privacy page agreeing with the About page;
 // - every figure from its module (LEAD_TIMES, WARRANTY_YEARS) or the live reviews, none typed
 //   in the content, and the review tile hidden rather than zero when the reviews do not answer;
-// - nothing in content.pending ever on the page;
+// - the homes count from shared/company.js, as the home page states it, and the opening hours
+//   from the home content's contact band, as the footer prints them (owner, 2026-10-16);
 // - one factory, ours, in China; no suppliers;
 // - only the owner's own photos (the crane lift, the delivery clips, the factory floor, the case);
 // - links to Cases, FAQ, Gallery, Delivery and Prices, and the lead source on both buttons;
@@ -144,7 +145,7 @@ describe('AboutPage', () => {
     levels.forEach((level, i) => { if (i) expect(level - levels[i - 1]).toBeLessThanOrEqual(1) })
   })
 
-  it.each(LOCALES)('%s: none of the old figures or years, no renovation-first story, no homes count', async (locale) => {
+  it.each(LOCALES)('%s: none of the old figures or years, no renovation-first story', async (locale) => {
     const { container } = await ready(locale)
     const text = mainText(container)
     expect(text).not.toMatch(/40\+/)
@@ -155,8 +156,6 @@ describe('AboutPage', () => {
     for (const year of ['2019', '2022']) expect(text).not.toContain(year)
     // The old story began with interior renovations; the business began in logistics.
     expect(text).not.toMatch(/Започнахме с интериорни|started out in interior|Ξεκινήσαμε με ανακαινίσεις/i)
-    // (The phone number, +359 87 ..., is the one 87 the page may carry.)
-    expect(text).not.toMatch(/87\s*(доставени|дома|homes|σπίτια)/i)
     expect(text).not.toMatch(/ЕИК|EIK|ΕΙΚ|БУЛСТАТ/i)
   })
 
@@ -276,6 +275,7 @@ describe('AboutPage', () => {
   it.each(LOCALES)('%s: every figure from its module or the reviews feed, no placeholder left', async (locale) => {
     const { container } = await ready(locale)
     const tile = (key) => flat(container.querySelector(`[data-fact="${key}"]`)?.textContent)
+    expect(tile('homes')).toContain(String(COMPANY.homesDelivered))
     expect(tile('container')).toContain(String(LEAD_TIMES.containerInStockDays))
     expect(tile('production')).toContain(String(LEAD_TIMES.boxProductionDays))
     expect(tile('toAddress')).toContain(String(LEAD_TIMES.boxToAddressMonths))
@@ -304,7 +304,7 @@ describe('AboutPage', () => {
     const { container } = renderPage('bg')
     await waitFor(() => expect(container.querySelector('.ab-proof')).not.toBeNull())
     expect(container.querySelector('[data-fact="reviews"]')).toBeNull()
-    expect(container.querySelectorAll('[data-fact]')).toHaveLength(4)
+    expect(container.querySelectorAll('[data-fact]')).toHaveLength(5)
     expect(container.querySelector('.testimonials')).toBeNull()
     expect(mainText(container)).not.toMatch(/\b0\.0\b|— от/)
   })
@@ -314,7 +314,7 @@ describe('AboutPage', () => {
     const { container } = renderPage('bg')
     await waitFor(() => expect(container.querySelector('.testimonials')).not.toBeNull())
     expect(container.querySelector('[data-fact="reviews"]')).toBeNull()
-    expect(container.querySelectorAll('[data-fact]')).toHaveLength(4)
+    expect(container.querySelectorAll('[data-fact]')).toHaveLength(5)
   })
 
   it.each(LOCALES)('%s: the case line carries the year of the published case, not a typed one', async (locale) => {
@@ -342,17 +342,18 @@ describe('AboutPage', () => {
     expect(mainText(container)).not.toContain('Паралия Кариани')
   })
 
-  it.each(LOCALES)('%s: nothing that waits for the owner is ever on the page', async (locale) => {
+  it.each(LOCALES)('%s: the homes count and the hours the owner confirmed, each from one place', async (locale) => {
     const { container } = await ready(locale)
-    const pending = strings(CONTENT[locale].pending)
-    // The homes count and the hours: the rest moved into the page on 2026-10-15.
-    expect(Object.keys(CONTENT[locale].pending)).toEqual(['homes', 'hours'])
-    expect(pending.length).toBe(4)
-    const text = mainText(container)
-    for (const [at, s] of pending) expect(text, at).not.toContain(flat(s))
-    // No opening hours in the body copy: only the closing card shows them, as on every page.
-    const body = [...container.querySelectorAll('main > section')].filter((s) => s.id !== 'final-cta')
-    for (const section of body) expect(section.textContent).not.toMatch(/\d{2}:\d{2}/)
+    const home = { bg: bgHome, en: enHome, el: elHome }[locale].home
+    // The figure is read from shared/company.js, and the home page states the same number.
+    expect(home.hero.facts.join(' ')).toContain(String(COMPANY.homesDelivered))
+    expect(home.stats.items[0].value).toBe(COMPANY.homesDelivered)
+    expect(JSON.stringify(CONTENT[locale].facts)).not.toContain(String(COMPANY.homesDelivered))
+    expect(Object.keys(CONTENT[locale])).not.toContain('pending')
+    // The hours are the footer's, from the home content's contact band, never typed here.
+    const hours = flat(container.querySelector('#who [data-term="hours"] dd').textContent)
+    expect(hours).toBe(flat(home.band.hours))
+    expect(JSON.stringify(CONTENT[locale].story)).not.toMatch(/\d{2}:\d{2}/)
   })
 
   it.each(LOCALES)('%s: only the owner\'s own photos', async (locale) => {

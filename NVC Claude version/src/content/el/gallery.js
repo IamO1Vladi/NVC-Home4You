@@ -39,7 +39,7 @@ export default {
     gallery: 'Γκαλερί',
   },
   detail: {
-    backToGallery: '← Επιστροφή στη γκαλερί',
+    backToGallery: '← Επιστροφή στην γκαλερί',
     descriptionTitle: 'Περιγραφή',
     requestCta: 'Ζητήστε προσφορά',
     pricePrefix: 'Από ',

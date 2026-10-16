@@ -92,74 +92,6 @@ export const dictionaries = {
       request: 'Request this model'
     },
     gallery: { heading: 'Gallery', sub: 'Browse product types. Click to open a detail view with more photos.', open: 'Open to view images' },
-  faq: {
-  heading: 'Frequently Asked Questions',
-  search: 'Search questions...',
-  noResults: 'No results',
-  groups: [
-    {
-      title: 'Products & Specifications',
-      items: [
-        { q: 'What types of homes do you offer?', a: 'Container houses, expandable box houses, light steel prefab houses, and panoramic capsules.' },
-        { q: 'Are your homes suitable for permanent living?', a: 'Yes. Our homes are designed for year-round, permanent habitation.' },
-        { q: 'What insulation options are available?', a: 'Stone wool, PU, or SPC in different thicknesses depending on the model.' },
-        { q: 'Do the houses include bathrooms and kitchens?', a: 'Yes, bathrooms are included by default; kitchens are included by default for certain products and optional for others.' },
-        { q: 'What sizes are available?', a: 'Sizes vary by model and can be adapted to project requirements.' },
-      ],
-    },
-
-    {
-      title: 'Customization & Design',
-      items: [
-        { q: 'Can I customize the layout?', a: 'Yes. You can choose from existing layouts or request a fully custom design.' },
-        { q: 'Can I choose finishes and materials?', a: 'Yes. We offer multiple finish packages and customization options.' },
-        { q: 'Can you adapt a model to my plot?', a: 'Yes. We take site conditions into account during planning.' },
-        { q: 'Do you accept client-provided plans or sketches?', a: 'Yes. Even a basic sketch is enough to start.' },
-        { q: 'Can I assemble on my own?', a: 'We provide guidance and an assembly plan for clients who want to save on assembly cost.' },
-      ],
-    },
-
-    {
-      title: 'Pricing & Payments',
-      items: [
-        { q: 'Are prices transparent?', a: 'Yes. All prices are itemized with specifications—no hidden costs.' },
-        { q: 'What does the listed price include?', a: 'The structure, insulation, standard finishes, and defined inclusions per model.' },
-        { q: 'What is not included in the price?', a: 'Foundations, permits, and site utilities unless stated otherwise.' },
-        { q: 'What payment terms do you offer?', a: 'Payment is milestone-based and agreed before production starts.' },
-      ],
-    },
-
-    {
-      title: 'Delivery, Logistics & Assembly',
-      items: [
-        { q: 'Do you deliver across Europe?', a: 'Yes. We deliver across Europe.' },
-        { q: 'Do you provide assembly?', a: 'In Bulgaria — full assembly. Outside Bulgaria — delivery and installation coordination on request.' },
-        { q: 'How long does delivery take?', a: 'Depending on destination and model, typically 30–45 days after production.' },
-        { q: 'What transport methods do you use?', a: 'Sea (LCL/FCL), rail, road, or multimodal transport.' },
-        { q: 'What do I need to prepare on site?', a: 'Foundation, access for delivery, and utility connection points.' },
-      ],
-    },
-
-    {
-      title: 'Warranty, Support & Aftercare',
-      items: [
-        { q: 'Do you provide a warranty?', a: 'Yes. Warranty terms depend on the product and components.' },
-        { q: 'Do you offer spare parts?', a: 'Yes. Spare parts and replacements are available.' },
-        { q: 'Can I upgrade my home later?', a: 'Yes. Additions such as decks, finishes, or technical upgrades are possible.' },
-      ],
-    },
-
-    {
-      title: 'Business & Bulk Orders',
-      items: [
-        { q: 'Do you work with developers and businesses?', a: 'Yes. We work with developers, investors, and businesses on residential, commercial, and mixed-use projects.' },
-        { q: 'Can you deliver to multiple locations?', a: 'Yes. We can organize phased deliveries to multiple sites according to your project schedule.' },
-        { q: 'Do you support large-scale projects?', a: 'Yes. We support large-scale projects with volume pricing, coordinated logistics, and a clear delivery plan.' },
-      ],
-    },
-  ],
-},
-
     cta: { title: 'Ready to start your project?', desc: 'Get a no-obligation quote or ask us anything. We respond within 24 hours.' },
     services: {
       heading: 'Our Services', sub: 'Three categories, each with three specialized offerings.',
@@ -310,15 +242,6 @@ delivery: {
 
   incoterms: 'We support EXW/FOB → DAP/DDP shipments and multimodal routes, including customs handling.',
   heroNote: 'Stages and time windows match the brochure promises.',
-
-  faq: {
-    q1: 'Can you consolidate purchases from multiple suppliers?',
-    a1: 'Yes — we can consolidate, pack and ship them as a single consignment with unified tracking.',
-    q2: 'Can you hold goods until my site is ready?',
-    a2: 'Yes — short‑term warehousing is available so delivery matches your schedule.',
-    q3: 'Do you handle insurance?',
-    a3: 'We can insure the shipment end‑to‑end according to your requirements.',
-  },
 },
 
 //End of Delivery
@@ -774,74 +697,6 @@ internalDoors: {
       request: 'Заяви този модел'
     },
     gallery: { heading: 'Галерия', sub: 'Разгледайте типовете продукти. Клик за повече снимки.', open: 'Отвори галерията' },
-   faq: {
-  heading: 'Често задавани въпроси',
-  search: 'Търсене...',
-  noResults: 'Няма резултати',
-  groups: [
-    {
-      title: 'Продукти и спецификации',
-      items: [
-        { q: 'Какви типове домове предлагате?', a: 'Контейнерни къщи, разтегателни (бокс) къщи, сглобяеми къщи от лека стоманена конструкция и панорамни капсули.' },
-        { q: 'Подходящи ли са домовете за постоянно обитаване?', a: 'Да. Нашите домове са проектирани за целогодишно и постоянно обитаване.' },
-        { q: 'Какви изолации се предлагат?', a: 'Каменна вата, PU или SPC в различни дебелини, в зависимост от модела.' },
-        { q: 'Включени ли са баня и кухня?', a: 'Да. Банята е включена по подразбиране; кухнята е включена по подразбиране при определени модели и е опция при други.' },
-        { q: 'Какви размери се предлагат?', a: 'Размерите варират според модела и могат да бъдат адаптирани спрямо изискванията на проекта.' },
-      ],
-    },
-
-    {
-      title: 'Персонализация и дизайн',
-      items: [
-        { q: 'Мога ли да персонализирам разпределението?', a: 'Да. Можете да изберете от готови разпределения или да заявите изцяло индивидуален проект.' },
-        { q: 'Мога ли да избирам материали и довършителни?', a: 'Да. Предлагаме различни пакети и опции за персонализация.' },
-        { q: 'Може ли моделът да бъде съобразен с моя парцел?', a: 'Да. В процеса на планиране отчитаме условията на терена.' },
-        { q: 'Приемате ли скици или планове от клиента?', a: 'Да. Дори базова скица е достатъчна, за да започнем.' },
-        { q: 'Мога ли да монтирам сам?', a: 'Да. Предоставяме инструкции и монтажен план за клиенти, които желаят да спестят от разходите за монтаж.' },
-      ],
-    },
-
-    {
-      title: 'Цени и плащания',
-      items: [
-        { q: 'Прозрачни ли са цените?', a: 'Да. Всички цени са с подробна разбивка на спецификации — без скрити разходи.' },
-        { q: 'Какво включва обявената цена?', a: 'Конструкцията, изолацията, стандартните довършителни и включените елементи за конкретния модел.' },
-        { q: 'Какво не е включено в цената?', a: 'Основа, разрешителни и присъединяване към комуникации, освен ако не е упоменато друго.' },
-        { q: 'Какви са условията за плащане?', a: 'Плащането е поетапно и се договаря предварително, преди започване на производството.' },
-      ],
-    },
-
-    {
-      title: 'Доставка, логистика и монтаж',
-      items: [
-        { q: 'Доставяте ли в цяла Европа?', a: 'Да. Доставяме в цяла Европа.' },
-        { q: 'Предлагате ли монтаж?', a: 'В България — пълен монтаж. Извън България — доставка и координация на монтаж при запитване.' },
-        { q: 'Колко време отнема доставката?', a: 'В зависимост от дестинацията и модела, обикновено 30–45 дни след производството.' },
-        { q: 'Какви транспортни методи използвате?', a: 'Морски (LCL/FCL), ЖП, автомобилен или комбиниран транспорт.' },
-        { q: 'Какво трябва да подготвя на обекта?', a: 'Основа, достъп за доставка и точки за ел. и ВиК инсталации.' },
-      ],
-    },
-
-    {
-      title: 'Гаранция, поддръжка и следпродажбено обслужване',
-      items: [
-        { q: 'Предоставяте ли гаранция?', a: 'Да. Гаранционните условия зависят от продукта и компонентите.' },
-        { q: 'Предлагате ли резервни части?', a: 'Да. Осигуряваме резервни части и подмяна при нужда.' },
-        { q: 'Мога ли да надграждам дома си в бъдеще?', a: 'Да. Възможни са допълнения като декинг, довършителни и технически ъпгрейди.' },
-      ],
-    },
-
-    {
-      title: 'Бизнес и поръчки на едро',
-      items: [
-        { q: 'Работите ли с инвеститори и бизнес клиенти?', a: 'Да. Работим с инвеститори, строителни предприемачи и бизнес клиенти по жилищни, търговски и смесени проекти.' },
-        { q: 'Можете ли да доставяте до няколко локации?', a: 'Да. Можем да организираме поетапни доставки до няколко локации според графика на проекта.' },
-        { q: 'Подкрепяте ли мащабни проекти?', a: 'Да. Подкрепяме мащабни проекти с преференциални цени, координирана логистика и ясен план за доставка.' },
-      ],
-    },
-  ],
-},
-
     about: {
       heading: 'За нас',
       missionH: 'Нашата мисия',
@@ -1031,15 +886,6 @@ delivery: {
 
   incoterms: 'Поддържаме EXW/FOB → DAP/DDP пратки и комбинирани маршрути, включително митническо оформяне.',
   heroNote: 'Етапите и сроковете следват обещанията в брошурата.',
-
-  faq: {
-    q1: 'Може ли консолидация от няколко доставчика?',
-    a1: 'Да — консолидаме, опаковаме и изпращаме като една пратка с общо проследяване.',
-    q2: 'Може ли временно складиране?',
-    a2: 'Да — краткосрочно складиране, за да съвпадне доставката с вашия график.',
-    q3: 'Осигурявате ли застраховка?',
-    a3: 'Поемаме застраховане на пратката от край до край според изискванията.',
-  },
 },
 
 //End of delivery

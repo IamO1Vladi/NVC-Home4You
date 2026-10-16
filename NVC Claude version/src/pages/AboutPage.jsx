@@ -14,8 +14,8 @@
 // Китай"; delivery "в целия ЕС", Bulgaria and Greece priced by the calculator; customs ours;
 // insurance and tracking offered; the CE certificate, materials list and drawings for every
 // buyer, a quality check at our factory before shipping, visits to the base by appointment only
-// (owner, 2026-10-15). What still waits for him (the homes count, the hours in body copy) sits
-// in content.pending and is never read here.
+// (owner, 2026-10-15). The homes count (shared/company.js) and the opening hours (the home
+// content's contact band, the footer's source too) were confirmed on 2026-10-16.
 //
 // Sections, in order: the hero (the owner's crane-lift photo); the facts strip; who we are (the
 // owner's timeline, 2021 logistics to 2026 steel-frame houses, then today, the base, visits and
@@ -72,6 +72,7 @@ export function aboutFigures(reviews) {
   // two figures on one page read the same.
   const score = reviews?.average ? reviews.average.toFixed(1) : null
   return {
+    homes: COMPANY.homesDelivered,
     days: LEAD_TIMES.containerInStockDays,
     production: LEAD_TIMES.boxProductionDays,
     months: LEAD_TIMES.boxToAddressMonths,
@@ -82,7 +83,7 @@ export function aboutFigures(reviews) {
   }
 }
 
-const TILE_ORDER = ['container', 'production', 'toAddress', 'warranty', 'reviews']
+const TILE_ORDER = ['homes', 'container', 'production', 'toAddress', 'warranty', 'reviews']
 
 /** "Владимир Владимиров" -> "ВВ": the first letter of the first and the family name. */
 export const initials = (name) => String(name || '')
@@ -127,6 +128,8 @@ export default function AboutPage({ locale = 'bg', content }) {
   const home = getHomeContent(locale)?.home || {}
   const business = home.localBusiness || {}
   const telephone = business.telephone || ''
+  // The hours as the footer prints them; without them the term is left out.
+  const hours = String(home.band?.hours || '').trim()
   const v = aboutFigures(reviews)
   // origin: the server's key for this page, so staff read "Запитване от страницата „За нас“"
   // above the visitor's words and the mail says "[За нас]" (EnquiryOrigin in the API).
@@ -224,11 +227,11 @@ export default function AboutPage({ locale = 'bg', content }) {
               </p>
             </div>
             <dl className="pp-terms ab-who-terms">
-              {c.story.terms.map((term) => (
+              {c.story.terms.filter((term) => term.key !== 'hours' || hours).map((term) => (
                 <div key={term.key} data-term={term.key}>
                   <dt>{term.label}</dt>
                   <dd>
-                    {fill(term.text, { vat: COMPANY.vatID })}
+                    {fill(term.text, { vat: COMPANY.vatID, hours })}
                     {term.map && business.mapsHref ? (
                       <> <a href={business.mapsHref} target="_blank" rel="noopener noreferrer">{term.map}</a></>
                     ) : null}

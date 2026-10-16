@@ -1,212 +1,236 @@
-// src/pages/FAQPage.jsx
-import React, { useEffect, useMemo, useState } from 'react'
-import { m } from 'framer-motion'
-
-const ALL_KEY = '__all__'
-
-function Segmented({ options, value, onChange, ariaLabel }) {
-  return (
-    <div className="segmented" role="tablist" aria-label={ariaLabel}>
-      {options.map((opt) => {
-        const active = opt.key === value
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            className={'seg-btn' + (active ? ' active' : '')}
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(opt.key)}
-          >
-            {opt.label}
-          </button>
-        )}
-      )}
-    </div>
-  )
-}
-
-function FilterSelect({ options, value, onChange, label }) {
-  return (
-    <div className="faqp-selectWrap">
-      <label className="visually-hidden" htmlFor="faqCategorySelect">{label}</label>
-      <select
-        id="faqCategorySelect"
-        className="faqp-select"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-      >
-        {options.map((opt) => (
-          <option key={opt.key} value={opt.key}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-// One question and its answer.
+// /bg/chesto-zadavani-vyprosi, „Често задавани въпроси": the site's questions in one place,
+// rebuilt 2026-10-16 on the product pages' system (<main class="hp pp fq">: HomePage.css,
+// ProductPage.css, then Faq.css for the search and the topic chips). It replaces the old dark
+// glass page (framer-motion, ARIA tabs with no tab panels, a separate <select> on phones, three
+// answers nothing backed and no link to any other page).
 //
-// THE ANSWER IS ALWAYS IN THE DOM, collapsed with height rather than unmounted. It used to
-// be `{open && <answer>}`, which meant a closed answer did not exist in the HTML at all —
-// and this page ships FAQPage structured data declaring all six answers. Google requires
-// content asserted in FAQPage markup to be present on the page, so the schema was claiming
-// text no crawler could find: markup ignored at best, a manual action at worst. It also left
-// the whole FAQ page prerendering to ~540 characters.
+// EACH ANSWER IS WRITTEN ONCE; THE HUB GATHERS. Its own questions are content/{locale}/faq.js,
+// filled by lib/faqHub.js from the modules. The delivery, partner, internal doors and interiors
+// pages' questions are shown here in their pages' words and figures (lib/questions.js), so a
+// figure changed in deliveryRates.js changes the page and the hub together. Only the hub's own
+// questions are its FAQPage markup; a gathered one is marked up on its own page, once.
 //
-// Collapsed-behind-an-accordion is explicitly fine — Google indexes content in expandable
-// sections. Absent from the HTML is not.
-function QAItem({ q, a, tag, hidden = false }) {
-  const [open, setOpen] = useState(false)
-  const answerId = React.useId()
+// EVERY ANSWER IS ALWAYS IN THE DOM. The search and the topic chips only set the `hidden`
+// attribute on what they leave out; nothing is unmounted. The FAQPage markup declares every
+// one of the hub's questions, and Google requires content asserted in FAQPage markup to be on
+// the page: collapsed (a closed <details>) or hidden by a filter is indexed, absent from the
+// HTML is not. The old page learned this twice (an answer rendered only when open, and a tab
+// that filtered the array), and the prerendered page had about 540 characters.
+//
+// #q-{id} opens that question and brings it into view, on load and on a hash change, clearing
+// a search or a topic that hides it (useQuestionHash). The topic chips are one row of toggle
+// buttons at every width, "all" first; on a phone the row scrolls sideways inside itself.
+//
+// Sections, in order: the hero (no photo); the search, the topics and the count; one section
+// per topic, each ending with a link to its page; the other pages; the closing card. The head,
+// the breadcrumbs and nothing else are the route's.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import '../style/HomePage.css'
+import '../style/ProductPage.css'
+import '../style/Faq.css'
+import ProductHero from '../components/product/ProductHero.jsx'
+import SiblingLinks from '../components/product/SiblingLinks.jsx'
+import FinalCta from '../components/FinalCta.jsx'
+import { FaqItem, useQuestionHash } from '../components/product/FaqList.jsx'
+import { FAQJSONLD } from '../components/StructuredData.jsx'
+import { useModalActions } from '../context/ModalActions.jsx'
+import { fill, markedUp } from '../lib/questions.js'
+import { hubFigures, hubPath, hubSections } from '../lib/faqHub.js'
 
-  return (
-    <div className={'faqp-item' + (open ? ' open' : '') + (hidden ? ' is-filtered' : '')}>
-      <button
-        type="button"
-        className="faqp-q"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={answerId}
-      >
-        <span className="faqp-qwrap">
-          {tag ? <span className="faqp-tag">{tag}</span> : null}
-          <span className="faqp-qtext">{q}</span>
-        </span>
+export const ALL = 'all'
+// How long the count waits after the last keystroke before it changes (and is read out).
+const SETTLE_MS = 600
 
-        <m.span
-          aria-hidden="true"
-          initial={false}
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="chev"
-        >
-          ⌄
-        </m.span>
-      </button>
+/** Lower case, without accents or the Greek tonos, so "εγγυηση" finds "εγγύηση". */
+export const normalize = (text) => String(text || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
-      {/* Rendered whether or not it is open; only its height changes. aria-hidden keeps a
-          screen reader from reading every collapsed answer, which is safe here because the
-          answers are plain strings with nothing focusable in them. */}
-      <m.div
-        id={answerId}
-        className="faqp-a"
-        aria-hidden={!open}
-        initial={false}
-        animate={{ height: open ? 'auto' : 0, opacity: open ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
-        style={{ overflow: 'hidden' }}
-      >
-        <div className="faqp-a-inner">{a}</div>
-      </m.div>
-    </div>
-  )
+/** True when every word of the query is in the question or its answer. */
+export function matches(item, query) {
+  const words = normalize(query).split(/\s+/).filter(Boolean)
+  if (!words.length) return true
+  const text = normalize(`${item.question} ${item.answer}`)
+  return words.every((word) => text.includes(word))
 }
 
-export default function FAQPage({ content }) {
-  const groups = Array.isArray(content?.groups) ? content.groups : []
+const PLURAL_LOCALES = { bg: 'bg', en: 'en', el: 'el' }
+const countText = (forms, n, locale) => fill(
+  new Intl.PluralRules(PLURAL_LOCALES[locale] || 'en').select(n) === 'one' ? forms.one : forms.other,
+  { n },
+)
 
-  const options = useMemo(() => {
-    const allLabel = content?.allLabel || 'All'
-    const prefix = content?.categoryFallbackPrefix || 'Category'
-    const out = [{ key: ALL_KEY, label: allLabel }]
+function SearchIcon() {
+  return <svg className="fq-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+}
+function ClearIcon() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+}
 
-    for (let i = 0; i < groups.length; i += 1) {
-      out.push({
-        key: String(i),
-        label: groups[i]?.title || `${prefix} ${i + 1}`,
-      })
-    }
-
-    return out
-  }, [groups, content?.allLabel, content?.categoryFallbackPrefix])
-
-  const [tab, setTab] = useState(() => (groups.length ? '0' : ALL_KEY))
+/**
+ * @param locale   'bg' | 'en' | 'el'
+ * @param content  content/{locale}/faq.js
+ * @param pages    { delivery, partner, doors, interiors }: those pages' content in the locale,
+ *                 whose questions the hub gathers (the route imports them, not the pages)
+ */
+export default function FAQPage({ locale = 'bg', content, pages }) {
+  const { openQuestion } = useModalActions()
+  const c = content
   const [query, setQuery] = useState('')
+  const [topic, setTopic] = useState(ALL)
+  const inputRef = useRef(null)
 
+  const sections = useMemo(() => (c ? hubSections(locale, c, pages || {}) : []), [locale, c, pages])
+  // Once per language, not per keystroke: it reads the configurator catalogue.
+  const v = useMemo(() => hubFigures(locale), [locale])
+  const items = useMemo(() => sections.flatMap((section) => section.items), [sections])
+  const ids = useMemo(() => items.map((item) => item.id), [items])
+  const sectionOf = useMemo(() => new Map(sections.flatMap((s) => s.items.map((item) => [item.id, s.key]))), [sections])
+
+  // A #q- link to a question the search or the topic hides shows it again first.
+  const filters = useRef({ query, topic })
+  filters.current = { query, topic }
+  const reveal = useCallback((id) => {
+    const item = items.find((entry) => entry.id === id)
+    const { query: q, topic: t } = filters.current
+    if (t !== ALL && t !== sectionOf.get(id)) setTopic(ALL)
+    if (item && !matches(item, q)) setQuery('')
+  }, [items, sectionOf])
+  useQuestionHash(ids, reveal)
+
+  const view = useMemo(() => sections.map((section) => {
+    const inTopic = topic === ALL || topic === section.key
+    const rows = section.items.map((item) => ({ item, visible: inTopic && matches(item, query) }))
+    return { ...section, rows, count: rows.filter((row) => row.visible).length }
+  }), [sections, topic, query])
+  const total = view.reduce((n, section) => n + section.count, 0)
+
+  // The count under the chips is also what a screen reader hears: polite, and only once the
+  // typing pauses, rather than a number per keystroke.
+  // With nothing found it says "0 questions"; the card under it explains and offers a way out.
+  const message = c ? countText(c.count, total, locale) : ''
+  const [said, setSaid] = useState(message)
   useEffect(() => {
-    const keys = new Set(options.map((o) => o.key))
-    setTab((prev) => (keys.has(prev) ? prev : (groups.length ? '0' : ALL_KEY)))
-  }, [options, groups.length])
+    const timer = setTimeout(() => setSaid(message), SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [message])
 
-  // EVERY question is rendered, every time; the tab and the search box only decide which are
-  // shown. Filtering the array instead meant the page loaded on its first tab with two of
-  // the six questions in the DOM — while the FAQPage markup below declared all six. Schema
-  // has to describe content the page actually contains, and hiding the rest with CSS is the
-  // accepted way to do that: Google indexes content behind tabs and accordions.
-  const list = useMemo(() => {
-    const all = groups.flatMap((group, index) => {
-      const arr = Array.isArray(group?.items) ? group.items : []
-      return arr.map((item) => ({ ...item, _group: String(index), _tag: group?.title || '' }))
-    })
+  if (!c) return null
 
-    const ql = query.trim().toLowerCase()
+  const markup = markedUp(items)
+  const clear = () => {
+    setQuery('')
+    inputRef.current?.focus()
+  }
+  // The button removes itself; the focus goes to the search field, not to <body> (from where
+  // the next Tab would skip every question).
+  const showAll = () => {
+    setQuery('')
+    setTopic(ALL)
+    inputRef.current?.focus()
+  }
+  // On a phone the chips are one row that scrolls sideways; a chip reached with Tab is brought
+  // whole into it, focus ring included, rather than left cut off at the edge.
+  const chipInView = (e) => e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  const renderLink = (link) => (link.to ? <Link to={link.to}>{link.label}</Link> : null)
 
-    return all.map((item) => ({
-      ...item,
-      _visible: (tab === ALL_KEY || item._group === tab)
-        && (!ql || `${item.q || ''} ${item.a || ''}`.toLowerCase().includes(ql)),
-    }))
-  }, [groups, tab, query])
-
-  const visibleCount = list.filter((item) => item._visible).length
+  const siblings = [
+    { to: hubPath(locale, 'delivery'), ...c.siblings.delivery },
+    { to: hubPath(locale, 'prices'), ...c.siblings.prices },
+    { to: hubPath(locale, 'partner'), label: c.siblings.partner.label, desc: fill(c.siblings.partner.desc, v) },
+    { to: hubPath(locale, 'about'), ...c.siblings.about },
+  ]
 
   return (
-    <main className="arx">
-      <section>
-        <div className="container">
-          <h1 style={{ fontSize: 'clamp(28px,4vw,40px)', margin: 0 }}>{content.heading}</h1>
+    <main className="hp pp fq">
+      <ProductHero titleId="fq-hero-title" eyebrow={c.hero.eyebrow} title={c.hero.h1} lead={c.hero.lead} />
 
-          <div className="card p-6 mt-6">
-            <div className="faqp-top">
-              <Segmented
-                options={options}
-                value={tab}
-                onChange={setTab}
-                ariaLabel={content.categoriesAria}
+      <div className="fq-tools">
+        <div className="hp-container">
+          <div className="fq-search" role="search">
+            <label className="fq-label" htmlFor="fq-query">{c.search.label}</label>
+            <div className="fq-field">
+              <SearchIcon />
+              <input
+                ref={inputRef}
+                id="fq-query"
+                className="fq-input"
+                type="search"
+                value={query}
+                placeholder={c.search.placeholder}
+                autoComplete="off"
+                spellCheck="false"
+                enterKeyHint="search"
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.preventDefault(); setQuery('') } }}
               />
-
-              <FilterSelect
-                options={options}
-                value={tab}
-                onChange={setTab}
-                label={content.categoryLabel}
-              />
-
-              <div className="faqp-search">
-                <input
-                  type="search"
-                  placeholder={content.searchPlaceholder}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  aria-label={content.searchAria}
-                />
-              </div>
-            </div>
-
-            <div className="faqp-list">
-              {visibleCount === 0 && (
-                <div style={{ opacity: 0.75, paddingTop: 8 }}>{content.noResultsText}</div>
-              )}
-
-              {list.map((item, i) => (
-                <QAItem
-                  // Keyed on the question rather than the tab, so switching tabs hides and
-                  // shows the same elements instead of remounting them — which would reset
-                  // every answer somebody had opened.
-                  key={`${item.q || 'q'}-${i}`}
-                  q={item.q}
-                  a={item.a}
-                  tag={tab === ALL_KEY ? item._tag : ''}
-                  hidden={!item._visible}
-                />
-              ))}
+              {query ? (
+                <button type="button" className="fq-clear" aria-label={c.search.clear} onClick={clear}>
+                  <ClearIcon />
+                </button>
+              ) : null}
             </div>
           </div>
+
+          <div className="fq-chips" role="group" aria-label={c.topicsLabel}>
+            <button type="button" className="fq-chip" aria-pressed={topic === ALL} onClick={() => setTopic(ALL)} onFocus={chipInView}>{c.all}</button>
+            {/* A toggle: pressing the pressed topic again lets it go, back to all of them. */}
+            {sections.map((section) => (
+              <button
+                key={section.key}
+                type="button"
+                className="fq-chip"
+                aria-pressed={topic === section.key}
+                onClick={() => setTopic(topic === section.key ? ALL : section.key)}
+                onFocus={chipInView}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+
+          <p className="fq-count" aria-live="polite" aria-atomic="true">{said}</p>
         </div>
-      </section>
+      </div>
+
+      <div className="fq-list">
+        <div className="hp-container">
+          {view.map((section) => (
+            <section
+              key={section.key}
+              id={`t-${section.key}`}
+              className="fq-topic"
+              aria-labelledby={`fq-t-${section.key}`}
+              hidden={!section.count || undefined}
+            >
+              <h2 id={`fq-t-${section.key}`}>{section.label}</h2>
+              <div className="pp-faq">
+                {section.rows.map(({ item, visible }) => (
+                  <FaqItem key={item.id} item={item} hidden={!visible} renderLink={renderLink} />
+                ))}
+              </div>
+              {section.link ? (
+                <p className="pp-links fq-topic-link"><Link to={section.link.to}>{section.link.label}</Link></p>
+              ) : null}
+            </section>
+          ))}
+
+          {total === 0 ? (
+            <div className="hp-card fq-empty">
+              <p>{c.empty.text}</p>
+              <div className="hp-cta-row">
+                <button type="button" className="hp-btn" onClick={showAll}>{c.empty.reset}</button>
+                <button type="button" className="hp-btn ghost" onClick={openQuestion}>{c.empty.ask}</button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {markup.length ? <FAQJSONLD questions={markup} /> : null}
+
+      <SiblingLinks id="fq-siblings" heading={c.siblings.heading} go={c.siblings.go} items={siblings} />
+
+      <FinalCta locale={locale} title={c.finalTitle} />
     </main>
   )
 }

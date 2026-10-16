@@ -101,9 +101,11 @@ export default {
     link: 'Τιμές των έτοιμων μοντέλων →',
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
-    galleryLink: 'Φωτογραφίες των έτοιμων μοντέλων στη γκαλερί →',
-    // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
-    partnerLink: 'Περισσότερα από ένα τεμάχιο ή για μεταπώληση; →',
+    galleryLink: 'Φωτογραφίες των έτοιμων μοντέλων στην γκαλερί →',
+    // No link to the partner form for now: the partner terms cover only containers and Box
+    // houses (partnerTerms.js). The page draws nothing while this is empty; the words come back
+    // ('Περισσότερα από ένα τεμάχιο ή για μεταπώληση; →') if volume prices apply to steel (Q18).
+    partnerLink: '',
   },
 
   ready: {
@@ -111,7 +113,7 @@ export default {
     go: 'Δείτε →',
     from: 'από',
     containers: {
-      label: 'Μονάδες-κοντέινερ',
+      label: 'Οικίσκοι κοντέινερ',
       desc: 'Οικίσκοι κατοικίας και γραφείου 6×3, 7×3 και 8×3 m, που τους παραδίδουμε και τους συναρμολογούμε εμείς.',
       basis: 'με ΦΠΑ και συναρμολόγηση',
     },

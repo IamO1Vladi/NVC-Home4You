@@ -20,7 +20,8 @@ import { getRouteSeo } from '../seo/routeMeta.js'
 // year from warranty.js (mocked the same way) and for containers and Box houses only, never the
 // steel-frame houses; nothing waiting for the owner's answer is drawn or sent to Google;
 // "factories" never appears, in any language, since the owner's rule is one factory; the route
-// map is not loaded with the page; the FAQ markup is the questions shown.
+// map is not loaded with the page; the FAQ markup is the questions shown, except the warranty,
+// which the FAQ hub answers too and marks up (one question, marked up once per language).
 
 const TERMS = vi.hoisted(() => ({ container: 7, box: 4 }))
 vi.mock('../content/shared/partnerTerms.js', () => ({ PARTNER_MIN_UNITS: TERMS }))
@@ -181,7 +182,7 @@ describe('PartnerPage', () => {
     expect(terms).toHaveLength(c.terms.rows.length)
 
     const row = container.querySelector('[data-term="warranty"] dd').textContent
-    const question = [...container.querySelectorAll('.dl-faq-item')].find((d) => WARRANTY_WORD[locale].test(d.querySelector('summary').textContent))
+    const question = [...container.querySelectorAll('.pp-faq-item')].find((d) => WARRANTY_WORD[locale].test(d.querySelector('summary').textContent))
     expect(question).toBeDefined()
     const answer = question.querySelector('p').textContent
     for (const text of [row, answer]) {
@@ -198,13 +199,17 @@ describe('PartnerPage', () => {
 
     // The steel-frame houses' row says nothing of a warranty, and only the one question does.
     expect(container.querySelector('[data-term="steel"] dd').textContent).not.toMatch(WARRANTY_WORD[locale])
-    const asking = [...container.querySelectorAll('.dl-faq-item')].filter((d) => WARRANTY_WORD[locale].test(d.textContent))
+    const asking = [...container.querySelectorAll('.pp-faq-item')].filter((d) => WARRANTY_WORD[locale].test(d.textContent))
     expect(asking).toEqual([question])
 
-    // And Google gets the same question and answer.
+    // Shown here, but marked up on the FAQ hub, which answers the same question (id
+    // 'warranty'); the page's markup carries the rest of its questions but the customs and the
+    // lead time, which the hub and the delivery page mark up.
+    expect(question.id).toBe('q-warranty')
     const ld = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent))
     const faq = ld.find((b) => b['@type'] === 'FAQPage')
-    expect(faq.mainEntity.find((e) => e.name === question.querySelector('summary').textContent).acceptedAnswer.text).toBe(answer)
+    expect(faq.mainEntity.map((e) => e.name)).not.toContain(question.querySelector('summary').textContent)
+    expect(faq.mainEntity.length).toBe(c.faq.items.length - 3)
   })
 
   it('still never draws a row or a question marked as waiting for the owner', () => {
@@ -233,12 +238,17 @@ describe('PartnerPage', () => {
     await ready(container)
     const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent))
     const faq = blocks.find((b) => b['@type'] === 'FAQPage')
-    const shown = [...container.querySelectorAll('.dl-faq-item')].map((d) => ({
+    const shown = [...container.querySelectorAll('.pp-faq-item')].map((d) => ({
       q: d.querySelector('summary').textContent,
       a: d.querySelector('p').textContent,
     }))
     expect(shown).toHaveLength(bgContent.faq.items.filter((item) => !item.pending).length)
-    expect(faq.mainEntity.map((e) => ({ q: e.name, a: e.acceptedAnswer.text }))).toEqual(shown)
+    // Every question it shows but the three another page marks up: the customs and the warranty
+    // (the FAQ hub's) and the lead time (the delivery page's).
+    const elsewhere = bgContent.faq.items.filter((item) => item.markup).map((item) => item.id)
+    expect(elsewhere).toEqual(['partner-customs', 'partner-lead-time', 'warranty'])
+    const handed = bgContent.faq.items.filter((item) => item.markup).map((item) => item.q)
+    expect(faq.mainEntity.map((e) => ({ q: e.name, a: e.acceptedAnswer.text }))).toEqual(shown.filter((item) => !handed.includes(item.q)))
     expect(blocks.some((b) => JSON.stringify(b).includes('"Offer"'))).toBe(false)
   })
 

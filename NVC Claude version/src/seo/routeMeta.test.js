@@ -143,6 +143,18 @@ describe('the houses page names Bulgaria', () => {
   })
 })
 
+describe('the containers snippet', () => {
+  // The owner (2026-10-12): the other catalogue sizes are not in stock, but we can order
+  // them, as the page's madeToOrder line says. Until 2026-10-16 the Bulgarian description
+  // said "изработваме по поръчка", that we make them.
+  it('bg: says the other sizes can be ordered, in the page\'s own words', () => {
+    const { description } = getRouteSeo(paths.modularBuilds.bg, 'bg')
+    expect(bgBuilds.units.madeToOrder).toContain('можем да ги поръчаме')
+    expect(description).toContain('можем да ги поръчаме')
+    expect(description).not.toMatch(/изработва/)
+  })
+})
+
 describe('the delivery page', () => {
   // The one page that DOES print figures in its snippet: the per-km rates and the crane are
   // what people search for. They are composed from deliveryRates.js, so the snippet moves

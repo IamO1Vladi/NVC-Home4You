@@ -1,42 +1,36 @@
 // src/routes/en/EnFaqRoute.jsx
 import React from 'react'
 import SEO from '../../components/SEO.jsx'
-import { FAQJSONLD } from '../../components/StructuredData.jsx'
+import { BreadcrumbsJSONLD } from '../../components/StructuredData.jsx'
 import FAQPage from '../../pages/FAQPage.jsx'
 import content from '../../content/en/faq.js'
+import delivery from '../../content/en/delivery.js'
+import partner from '../../content/en/partner.js'
+import doors from '../../content/en/internalDoors.js'
+import interiors from '../../content/en/interiors.js'
+import { paths } from '../paths.js'
+import { getRouteSeo } from '../../seo/routeMeta.js'
 
-function toJsonLdQuestions(groups = []) {
-  return groups.flatMap((group) => {
-    const items = Array.isArray(group?.items) ? group.items : []
-    return items
-      .filter((item) => item?.q && item?.a)
-      .map((item) => ({ question: item.q, answer: item.a }))
-  })
-}
+// The head from routeMeta.js (all three languages in the hreflangs), the breadcrumbs here, the
+// page's own FAQPage markup in the page; the four pages' questions gathered from their content
+// files. See BgFaqRoute.jsx.
+const PAGES = { delivery, partner, doors, interiors }
 
 export default function EnFaqRoute() {
-  const pageUrl = content.seo.url
-  const alternateBg = 'https://nvc-home4you.eu/bg/chesto-zadavani-vyprosi'
-  const questions = toJsonLdQuestions(content.groups)
+  const seo = getRouteSeo(paths.faq.en, 'en')
 
   return (
     <>
-      <SEO
-        title={content.seo.title}
-        description={content.seo.description}
-        url={pageUrl}
-        canonical={pageUrl}
-        locale="en"
-        hreflangs={[
-          { hrefLang: 'en', href: pageUrl },
-          { hrefLang: 'bg', href: alternateBg },
-          { hrefLang: 'x-default', href: pageUrl },
+      <SEO {...seo} />
+
+      <BreadcrumbsJSONLD
+        items={[
+          { name: content.home, url: 'https://nvc-home4you.eu/en' },
+          { name: content.breadcrumb, url: seo.url },
         ]}
       />
 
-      <FAQJSONLD questions={questions} />
-
-      <FAQPage content={content} />
+      <FAQPage locale="en" content={content} pages={PAGES} />
     </>
   )
 }

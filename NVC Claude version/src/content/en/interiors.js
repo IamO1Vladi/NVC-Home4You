@@ -150,13 +150,13 @@ export default {
   faq: {
     heading: 'Frequently asked questions',
     items: [
-      { q: 'How much does a renovation cost?', a: 'The price depends on the work and the materials, so we give it after the free site visit, in a written offer.' },
-      { q: 'Do you charge for the site visit?', a: 'No, the site visit is free. After it you get a written offer.' },
-      { q: 'Where do you work?', a: 'In the area from Sofia to Petrich, in Bulgaria. Tell us where the property is and we will get back to you.' },
-      { q: 'Who does the renovation?', a: 'Our own team of builders: from the demolition, plumbing and electrics to the tiles, the paint, the floors and fitting the kitchen.' },
-      { q: 'Who provides the materials?', a: 'As you prefer: we can supply them, or you provide them and our team puts them in.' },
-      { q: 'Is there a contract and a warranty?', a: 'Yes. We sign a contract before we start, and the work carries a warranty under the contract.' },
-      { q: 'How long does a renovation take?', a: 'It depends on the work, so we do not give a time in advance. We discuss it with you after the site visit.' },
+      { id: 'renovation-price', q: 'How much does a renovation cost?', a: 'The price depends on the work and the materials, so we give it after the free site visit, in a written offer.' },
+      { id: 'renovation-visit', q: 'Do you charge for the site visit?', a: 'No, the site visit is free. After it you get a written offer.' },
+      { id: 'renovation-area', q: 'Where do you work?', a: 'In the area from Sofia to Petrich, in Bulgaria. Tell us where the property is and we will get back to you.' },
+      { id: 'renovation-team', q: 'Who does the renovation?', a: 'Our own team of builders: from the demolition, plumbing and electrics to the tiles, the paint, the floors and fitting the kitchen.' },
+      { id: 'renovation-materials', q: 'Who provides the materials?', a: 'As you prefer: we can supply them, or you provide them and our team puts them in.' },
+      { id: 'renovation-warranty', q: 'Is there a contract and a warranty for the renovation?', a: 'Yes. We sign a contract before we start, and the work carries a warranty under the contract.' },
+      { id: 'renovation-time', q: 'How long does a renovation take?', a: 'It depends on the work, so we do not give a time in advance. We discuss it with you after the site visit.' },
     ],
   },
 

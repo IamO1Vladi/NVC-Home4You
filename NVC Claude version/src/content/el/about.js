@@ -1,8 +1,7 @@
 // The About page, /el/sxetika-me-emas. The same shape and the same facts as bg/about.js, whose
 // header gives the rules: words only, every figure a {placeholder} filled from a module, one
-// factory («το εργοστάσιό μας στην Κίνα»), delivery across the EU as the home page says it, and
-// `pending` never rendered. Place names in Greek script (greekCopy.test.js). No seo block:
-// routeMeta.js has it.
+// factory («το εργοστάσιό μας στην Κίνα»), delivery across the EU as the home page says it.
+// Place names in Greek script (greekCopy.test.js). No seo block: routeMeta.js has it.
 export default {
   breadcrumb: 'Σχετικά με εμάς',
   home: 'Αρχική',
@@ -19,6 +18,7 @@ export default {
   facts: {
     heading: 'Τι μπορείτε να περιμένετε',
     tiles: {
+      homes: { value: '{homes}', label: 'σπίτια παραδόθηκαν' },
       container: { value: 'έως {days}\u00a0ημέρες', label: 'για να φτάσει ένα κοντέινερ σε απόθεμα στη διεύθυνσή σας' },
       production: { value: 'έως {production}\u00a0ημέρες', label: 'για την κατασκευή ενός σπιτιού Box στο εργοστάσιό μας' },
       toAddress: { value: 'περίπου {months}\u00a0μήνες', label: 'για ένα σπίτι Box, από την παραγγελία έως τη διεύθυνσή σας' },
@@ -50,6 +50,7 @@ export default {
     terms: [
       { key: 'base', label: 'Η βάση μας', text: 'Μαρικοστίνοβο, 2850 Πέτριτς, Βουλγαρία.', map: 'Δείτε τη στον χάρτη' },
       { key: 'visits', label: 'Επισκέψεις', text: 'Μπορείτε να μας επισκεφθείτε στη βάση μόνο κατόπιν ραντεβού.' },
+      { key: 'hours', label: 'Ωράριο', text: '{hours}' },
       { key: 'factory', label: 'Πού κατασκευάζονται', text: 'Τα κοντέινερ και τα σπίτια Box: στο εργοστάσιό μας στην Κίνα.' },
       { key: 'answer', label: 'Ποιος απαντά', text: 'Ένας πραγματικός άνθρωπος, στο τηλέφωνο ή με email, μέσα σε 24 ώρες.' },
       { key: 'company', label: 'Εταιρεία', text: 'NVC Home4You, αριθμός ΦΠΑ {vat}' },
@@ -139,16 +140,4 @@ export default {
   },
 
   finalTitle: 'Να μιλήσουμε για το έργο σας;',
-
-  // WAITING FOR THE OWNER, NEVER RENDERED (see bg/about.js).
-  pending: {
-    homes: {
-      ask: 'Ισχύει ακόμη το «87 σπίτια παραδομένα» και μετρά μαζί κοντέινερ και σπίτια;',
-      draft: '87 σπίτια παραδομένα',
-    },
-    hours: {
-      ask: 'Ισχύει το ωράριο Δευ–Παρ 07:00–19:00;',
-      draft: 'Ωράριο λειτουργίας',
-    },
-  },
 }

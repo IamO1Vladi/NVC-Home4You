@@ -12,8 +12,8 @@
 // renovations (two muted clips, lazy as on the delivery page, the finished kitchen, and the
 // before/after pairs); how we work (five steps, no pictures: the photos are above); where we
 // work and the terms at a glance; the enquiry form at #zapitvane (origin 'interiors'); the
-// questions (also FAQ JSON-LD); the sibling pages; the closing card. The breadcrumbs and the
-// Service markup are the route's.
+// questions (FaqList: #q-{id} links, also FAQ JSON-LD; the FAQ hub shows them too); the sibling
+// pages; the closing card. The breadcrumbs and the Service markup are the route's.
 import React, { useRef } from 'react'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
@@ -26,16 +26,17 @@ import SiblingLinks from '../components/product/SiblingLinks.jsx'
 import FinalCta from '../components/FinalCta.jsx'
 import { ClipMedia } from '../components/delivery/JourneyClips.jsx'
 import InteriorsEnquiry, { INTERIORS_LEAD_SOURCE } from '../components/interiors/InteriorsEnquiry.jsx'
-import { FAQJSONLD } from '../components/StructuredData.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
 import { INTERIORS_CLIPS, INTERIORS_PAIRS, INTERIORS_PHOTOS, photoSrcSet } from '../content/shared/interiorsMedia.js'
 import { cdnImage, cdnSrcSet, imageFallback } from '../lib/img.js'
 import { paths } from '../routes/paths.js'
+import { markedUp, pageQuestions } from '../lib/questions.js'
 
-/** The questions as the page prints them and as the FAQ markup publishes them: one list. */
+/** The questions as the FAQ markup publishes them: every one the page prints (lib/questions.js). */
 export function faqItems(c) {
-  return (c?.faq?.items || []).filter((item) => item && item.q && item.a).map((item) => ({ question: item.q, answer: item.a }))
+  return markedUp(pageQuestions('interiors', c))
 }
 
 // One line icon per work, drawn in currentColor.
@@ -121,7 +122,7 @@ export default function InteriorsPage({ locale = 'bg', content }) {
   const home = getHomeContent(locale)?.home
   const telephone = home?.localBusiness?.telephone || ''
   const pathOf = (key) => paths[key]?.[locale] || paths[key]?.en
-  const faq = faqItems(c)
+  const faq = pageQuestions('interiors', c, locale)
 
   // The closing card's first button goes to the page's own form (the free site visit, with the
   // service, the town and a phone), under the hero's words; the generic offer modal asks for
@@ -298,15 +299,7 @@ export default function InteriorsPage({ locale = 'bg', content }) {
               <h2 id="ir-faq-title">{c.faq.heading}</h2>
             </div>
           </div>
-          <div className="dl-faq">
-            {faq.map((item) => (
-              <details key={item.question} className="dl-faq-item">
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-          <FAQJSONLD questions={faq} />
+          <FaqList items={faq} />
         </div>
       </section>
 

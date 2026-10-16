@@ -10,9 +10,11 @@
 // EVERY CLAIM IS THE OWNER'S AND EVERY FIGURE IS READ. The thresholds come from
 // partnerTerms.js, the rates, crane and lead times from deliveryRates.js, the warranty's years
 // from warranty.js (containers and Box houses only), the "from" prices from the gallery rows
-// (useProductRows); the content files hold words with {placeholders} and figures() below is
+// (useProductRows); the content files hold words with {placeholders} and figures()
+// (lib/questions.js partnerFigures, shared with the FAQ hub, which shows these questions too) is
 // the one place they are filled. A row or question marked `pending` waits for the owner's
-// answer and is never drawn, nor sent to Google as FAQ markup.
+// answer and is never drawn, nor sent to Google as FAQ markup. The warranty question is drawn
+// here but marked up on the FAQ hub, which answers it too (one question, marked up once).
 //
 // The hero's right column is the journey drawing (PartnerJourney.jsx: factory, sea, rail or air,
 // a warehouse); the admin's page-partner photo (the crane lift by default) sits beside
@@ -23,8 +25,8 @@
 // every step and photo in the markup); who takes care of what; real deliveries (the published
 // Paralia Kariani case, the reviews; the steps already show the delivery photos, so the
 // delivery page's clips are not repeated); the enquiry form at #zapitvane; the
-// questions (also FAQ JSON-LD); the route map, loaded only near the screen (on a phone, only
-// after a tap); the closing card. The breadcrumbs and Service markup are the route's.
+// questions (FaqList: #q-{id} links, also FAQ JSON-LD); the route map, loaded only near the
+// screen (on a phone, only after a tap); the closing card. The breadcrumbs and Service markup are the route's.
 //
 // On mount the page writes a prefill (configPrefill.js), so the header's offer and question
 // forms opened here are tagged as a partner's enquiry, as the delivery calculator tags its own.
@@ -40,25 +42,20 @@ import ProcessSteps from '../components/product/ProcessSteps.jsx'
 import FinalCta from '../components/FinalCta.jsx'
 import PartnerEnquiry from '../components/partner/PartnerEnquiry.jsx'
 import PartnerJourney from '../components/partner/PartnerJourney.jsx'
-import { FAQJSONLD } from '../components/StructuredData.jsx'
+import FaqList from '../components/product/FaqList.jsx'
 import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
-import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
-import { PARTNER_MIN_UNITS } from '../content/shared/partnerTerms.js'
-import { WARRANTY_YEARS } from '../content/shared/warranty.js'
 import { usePublishedCase, langOf } from '../lib/usePublishedCase.js'
 import { useProductRows, lowest } from '../lib/productRows.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { euro } from '../lib/euro.js'
+import { fill, pageQuestions, partnerFigures as figures, shown } from '../lib/questions.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { PAGE_PHOTO_DEFAULTS, usePagePhoto } from '../lib/homePhotos.js'
 import { paths } from '../routes/paths.js'
 
 // Leaflet and its tiles are fetched only when the map is about to be seen.
 const LogisticsWorld = lazy(() => import('../components/LogisticsWorld.jsx'))
-
-const CONTAINER = DELIVERY_RATES.products.container
-const BOX = DELIVERY_RATES.products.box
 
 // The default page photo, the delivery page's crane lift, in its 800 and 1500 wide crops
 // (scripts/delivery/clips.mjs). The admin's page-partner slot replaces it.
@@ -69,39 +66,9 @@ const CRANE = { wide: PAGE_PHOTO_DEFAULTS.partner || PAGE_PHOTO_DEFAULTS.deliver
 const MAP_MARGIN = '400px 0px'
 const PHONE_QUERY = '(max-width: 767px)'
 
-export const fill = (pattern, values = {}) => String(pattern ?? '').replace(
-  /\{(\w+)\}/g,
-  (m, key) => (values[key] == null ? m : String(values[key])),
-)
-
-/** Every figure the page's copy names, formatted for one locale. */
-export function figures(locale) {
-  const money = (value) => euro(value, locale)
-  return {
-    containerMin: PARTNER_MIN_UNITS.container,
-    boxMin: PARTNER_MIN_UNITS.box,
-    containerRate: money(CONTAINER.perKm),
-    boxRate: money(BOX.perKm),
-    boxCrane: money(BOX.crane.about),
-    nights: CONTAINER.noCrane.nights,
-    travel: money(CONTAINER.noCrane.travelMax),
-    days: LEAD_TIMES.containerInStockDays,
-    production: LEAD_TIMES.boxProductionDays,
-    months: LEAD_TIMES.boxToAddressMonths,
-    structureYears: WARRANTY_YEARS.structure,
-    panelYears: WARRANTY_YEARS.panels,
-    joineryYears: WARRANTY_YEARS.joinery,
-    sanitaryYears: WARRANTY_YEARS.sanitary,
-  }
-}
-
-/** What the page may show: everything not waiting for the owner's answer. */
-export const shown = (list) => (list || []).filter((item) => item && !item.pending)
-
-/** The questions as the page prints them and as the FAQ markup publishes them: one list. */
-export function faqItems(c, v) {
-  return shown(c.faq.items).map((item) => ({ question: item.q, answer: fill(item.a, v) }))
-}
+// The page's figures and its "not pending" filter, now in lib/questions.js so the FAQ hub fills
+// the partner questions it gathers exactly as this page does; exported here as before.
+export { figures, shown }
 
 function Tick() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
@@ -255,7 +222,7 @@ export default function PartnerPage({ locale = 'bg', content }) {
 
   const facts = c.hero.facts.map((fact) => fill(fact, v))
   const terms = shown(c.terms.rows)
-  const faq = faqItems(c, v)
+  const faq = pageQuestions('partner', c, locale)
 
   const priceLine = (value, basis) => (value == null ? undefined : `${c.products.from} ${euro(value, locale)} ${basis}`)
   const products = [
@@ -436,15 +403,7 @@ export default function PartnerPage({ locale = 'bg', content }) {
               <h2 id="ptn-faq-title">{c.faq.heading}</h2>
             </div>
           </div>
-          <div className="dl-faq">
-            {faq.map((item) => (
-              <details key={item.question} className="dl-faq-item">
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-          <FAQJSONLD questions={faq} />
+          <FaqList items={faq} />
         </div>
       </section>
 

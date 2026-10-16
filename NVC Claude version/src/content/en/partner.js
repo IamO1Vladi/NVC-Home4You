@@ -250,17 +250,20 @@ export default {
   faq: {
     heading: 'Questions from resellers',
     items: [
-      { q: 'What does it cost for several units?', a: 'Less than the retail price, depending on the quantity: from {containerMin} units for containers and from {boxMin} for Box houses in one order. The exact price is in the offer for your quantity.' },
-      { q: 'Who can become a partner?', a: 'A company ordering at least {containerMin} containers or at least {boxMin} Box houses in one order.' },
-      { q: 'How is payment made?', a: 'The full amount in advance, under a contract with us.' },
-      { q: 'Can I sell anywhere, at my own price?', a: 'Yes. You sell wherever you like, at the price you set.' },
-      { q: 'Do you deliver to my client or my warehouse? And outside Bulgaria?', a: 'Yes: to you, to your warehouse or straight to your client. In Bulgaria and Greece at the calculator\'s rates: a container {containerRate}/km, a Box house about {boxRate}/km plus a crane of about {boxCrane}, km counted both ways, excl. VAT. Other countries on request.' },
-      { q: 'What documents do I get?', a: 'A list of materials, CAD drawings, a CE certificate and any other documents needed, for the containers and for the houses.' },
-      { q: 'Who handles customs?', a: 'We do, for everything we deliver.' },
-      { q: 'How long does it take?', a: 'A container from stock is with you within {days} days. A Box house is made in up to {production} days and reaches the address in about {months} months.' },
-      { q: 'Can I see the stock?', a: 'Yes. Our yard is at Marikostinovo, Bulgaria: visits by appointment.' },
-      { q: 'Can I use my own logistics?', a: 'Yes. You can pay the factory directly and arrange the transport yourself.' },
-      { q: 'What warranty do the containers and Box houses carry?', a: 'The load-bearing steel structure {structureYears}\u00a0years; the thermal panels {panelYears}\u00a0years; the windows and doors (profiles and glazing) {joineryYears}\u00a0years; the sanitary ware and plumbing fittings {sanitaryYears}\u00a0years. Everything else is checked visually at handover. The warranty covers factory defects and runs from the day of handover, with normal use, a suitable foundation, proper drainage and no unauthorised work by third parties. It does not cover mechanical damage, improper transport or unloading not carried out by us, an unsuitable foundation, lack of ventilation, poor drainage, leaks from external connections, condensation, later repairs or changes by the buyer or third parties, or force majeure.' },
+      { id: 'partner-price', q: 'What does it cost for several units?', a: 'Less than the retail price, depending on the quantity: from {containerMin} units for containers and from {boxMin} for Box houses in one order. The exact price is in the offer for your quantity.' },
+      { id: 'partner-who', q: 'Who can become a partner?', a: 'A company ordering at least {containerMin} containers or at least {boxMin} Box houses in one order.' },
+      { id: 'partner-payment', q: 'How do partners pay?', a: 'The full amount in advance, under a contract with us.' },
+      { id: 'partner-resale', q: 'Can I sell anywhere, at my own price?', a: 'Yes. You sell wherever you like, at the price you set.' },
+      { id: 'partner-delivery', q: 'Do you deliver to my client or my warehouse? And outside Bulgaria?', a: 'Yes: to you, to your warehouse or straight to your client. In Bulgaria and Greece at the calculator\'s rates: a container {containerRate}/km, a Box house about {boxRate}/km plus a crane of about {boxCrane}, km counted both ways, excl. VAT. Other countries on request.' },
+      { id: 'partner-documents', q: 'What documents do I get?', a: 'A list of materials, CAD drawings, a CE certificate and any other documents needed, for the containers and for the houses.' },
+      // The hub's own customs answer and the delivery page's lead time say the same and are
+      // marked up there: these two are shown here and marked up there, once.
+      { id: 'partner-customs', markup: 'faq', q: 'Who handles customs?', a: 'We do, for everything we deliver.' },
+      { id: 'partner-lead-time', markup: 'delivery', q: 'How long does it take?', a: 'A container from stock is with you within {days} days. A Box house is made in up to {production} days and reaches the address in about {months} months.' },
+      { id: 'partner-visit', q: 'Can I see the stock?', a: 'Yes. Our yard is at Marikostinovo, Bulgaria: visits by appointment.' },
+      { id: 'partner-own-logistics', q: 'As a partner, can I use my own logistics?', a: 'Yes. You can pay the factory directly and arrange the transport yourself.' },
+      // Also the FAQ hub's question (id 'warranty'): shown here, marked up there, once.
+      { id: 'warranty', markup: 'faq', q: 'What warranty do the containers and Box houses carry?', a: 'The load-bearing steel structure {structureYears}\u00a0years; the thermal panels {panelYears}\u00a0years; the windows and doors (profiles and glazing) {joineryYears}\u00a0years; the sanitary ware and plumbing fittings {sanitaryYears}\u00a0years. Everything else is checked visually at handover. The warranty covers factory defects and runs from the day of handover, with normal use, a suitable foundation, proper drainage and no unauthorised work by third parties. It does not cover mechanical damage, improper transport or unloading not carried out by us, an unsuitable foundation, lack of ventilation, poor drainage, leaks from external connections, condensation, later repairs or changes by the buyer or third parties, or force majeure.' },
     ],
   },
 

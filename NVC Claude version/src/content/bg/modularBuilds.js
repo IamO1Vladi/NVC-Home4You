@@ -20,7 +20,9 @@ export default {
     call: 'Обадете се',
     facts: [
       'Баня, ел. и ВиК инсталация — изградени',
-      'Монтаж на място от двама наши работници или с кран за ваша сметка',
+      // The short form of assembly.crane and assembly.noCrane below: with a crane the
+      // container is assembled in our warehouse and arrives built, never on site.
+      'Монтаж в нашия склад, ако изберете кран за ваша сметка, или на място от двама наши работници',
       'Други размери от 14 до 30 м² — по поръчка',
     ],
     // Истинска дневна снимка от галерията (модел 8 × 3 м), докато собственикът не качи

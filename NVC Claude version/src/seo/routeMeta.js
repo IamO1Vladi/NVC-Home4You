@@ -26,7 +26,7 @@ const META = {
     el: {
       title: 'NVC Home4You | Δομικά & Προκατασκευασμένα Σπίτια — Σχεδιασμός, Κατασκευή & Παράδοση στην ΕΕ',
       description:
-        'Δομικά και προκατασκευασμένα σπίτια — σχεδιασμός, κατασκευή και παράδοση σε Βουλγαρία και ΕΕ. Σπίτια-κοντέινερ, μεταλλικά σπίτια, εσωτερικοί χώροι και logistics έως την πόρτα σας.',
+        'Δομικά και προκατασκευασμένα σπίτια — σχεδιασμός, κατασκευή και παράδοση σε Βουλγαρία και ΕΕ. Σπίτια-κοντέινερ, μεταλλικά σπίτια, εσωτερικοί χώροι και μεταφορά πόρτα-πόρτα.',
     },
   },
   // The three product pages. Each URL has one job and one head query, and the title names
@@ -57,7 +57,7 @@ const META = {
     bg: {
       title: 'Контейнери за живеене и модулни постройки | NVC Home4You',
       description:
-        'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м с баня, ел. и ВиК инсталация. Всеки модел е с цена с ДДС и монтаж, а други размери изработваме по поръчка.',
+        'Жилищни и офис контейнери 6×3, 7×3 и 8×3 м с баня, ел. и ВиК инсталация. Всеки модел е с цена с ДДС и монтаж, а другите размери можем да ги поръчаме за вас.',
     },
     el: {
       title: 'Οικίσκοι κοντέινερ για κατοικία και γραφείο | NVC Home4You',
@@ -99,21 +99,25 @@ const META = {
         'Προκατασκευασμένα σπίτια με γαλβανισμένο μεταλλικό σκελετό, με βάση τη μελέτη σας ή μια μελέτη που εκπονούμε εμείς. Δείτε τα πέντε βήματα, ζητήστε προσφορά.',
     },
   },
+  // The FAQ hub (rebuilt 2026-10-16). The FAQ routes read this through getRouteSeo() and their
+  // content files no longer carry an seo block. The description names only what the hub answers
+  // (its own questions and the ones it gathers from the delivery, partner, doors and interiors
+  // pages), 130–160 characters; no figure, so nothing here can go stale.
   faq: {
     en: {
       title: 'FAQ | NVC Home4You',
       description:
-        'Answers to common questions about modular homes, pricing, delivery and installation from NVC Home4You.',
+        'Answers about prices and VAT, delivery and the crane, the warranty, customs, documents and visits, plus partner terms, internal doors and interior renovations.',
     },
     bg: {
       title: 'Често задавани въпроси | NVC Home4You',
       description:
-        'Отговори на често задавани въпроси за модулни къщи, цени, доставка и монтаж от NVC Home4You.',
+        'Отговори за цените с ДДС, доставката и крана, гаранцията, митницата, документите и посещенията при нас, както и за партньорите, интериорните врати и ремонтите.',
     },
     el: {
-      title: 'Συχνές Ερωτήσεις | NVC Home4You',
+      title: 'Συχνές ερωτήσεις | NVC Home4You',
       description:
-        'Απαντήσεις σε συχνές ερωτήσεις για δομικά σπίτια, τιμές, παράδοση και τοποθέτηση από την NVC Home4You.',
+        'Απαντήσεις για τιμές και ΦΠΑ, παράδοση και γερανό, εγγύηση, εκτελωνισμό, έγγραφα και επισκέψεις, καθώς και για συνεργάτες, εσωτερικές πόρτες και ανακαινίσεις.',
     },
   },
   // The About page (rebuilt 2026-10-15). The place, what we sell and why it is safe to buy:

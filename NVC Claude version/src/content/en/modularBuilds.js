@@ -21,7 +21,9 @@ export default {
     call: 'Call us',
     facts: [
       'Bathroom, electrics and plumbing fitted',
-      'Assembled on site by two of our workers, or by crane at your cost',
+      // The short form of assembly.crane and assembly.noCrane below: with a crane the
+      // container is assembled in our warehouse and arrives built, never on site.
+      'Assembled in our warehouse if you choose a crane at your cost, or on site by two of our workers',
       'Other sizes from 14 to 30 m² can be ordered',
     ],
     // A real daylight photo from the gallery (the 8 × 3 m model) until the owner uploads one

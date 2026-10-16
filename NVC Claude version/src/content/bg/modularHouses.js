@@ -11,10 +11,12 @@
 // are the gallery descriptions'; the capsule lines are gallery item 100015's and nothing more;
 // the hero photo and the proof card are the Paralia Kariani case on /api/cases-page; the
 // delivery line (Bulgaria and Greece, other countries on request) is the owner's answer of
-// 2026-10-15, and what that case in Greece shows. It also carries the page's place name for search, with the title. Do not
-// add a lead time, a permit or a foundation recommendation here; there is none we can stand
-// behind yet. The "not included" list is NOT here either: the page reads it from pricesCopy so
-// this page and /bg/ceni say it in the same words.
+// 2026-10-15, and what that case in Greece shows. It also carries the page's place name for search, with the title.
+// The lead time in arrival.delivery ({production} and {months}) is the owner's of 2026-10-15,
+// read from deliveryRates.js, and the foundation tip the page shows is his too (pricesCopy's
+// foundationNote, beside arrival.foundationAsk). Do not add a permit here; there is none we
+// can stand behind yet. The "not included" list is NOT here either: the page reads it from
+// pricesCopy so this page and /bg/ceni say it in the same words.
 export default {
   hero: {
     eyebrow: 'Разгъваеми къщи и капсули',

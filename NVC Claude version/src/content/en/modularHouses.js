@@ -9,10 +9,12 @@
 // Every fact is one the gallery, the configurator catalogue or the published case already
 // states, or one the owner gave us (2026-10-12): the Box house sizes, frame, walls and glazing
 // are the gallery descriptions'; the capsule lines are gallery item 100015's and nothing more;
-// the hero photo and the proof card are the Paralia Kariani case on /api/cases-page. Do not
-// add a lead time, a permit or a foundation recommendation here; there is none we can stand
-// behind yet. The "not included" list is NOT here either: the page reads it from pricesCopy so
-// this page and /en/prices say it in the same words.
+// the hero photo and the proof card are the Paralia Kariani case on /api/cases-page.
+// The lead time in arrival.delivery ({production} and {months}) is the owner's of 2026-10-15,
+// read from deliveryRates.js, and the foundation tip the page shows is his too (pricesCopy's
+// foundationNote, beside arrival.foundationAsk). Do not add a permit here; there is none we
+// can stand behind yet. The "not included" list is NOT here either: the page reads it from
+// pricesCopy so this page and /en/prices say it in the same words.
 export default {
   hero: {
     eyebrow: 'Expandable houses and capsules',

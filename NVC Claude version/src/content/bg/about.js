@@ -12,8 +12,8 @@
 // customs is ours for everything; transport insurance and tracking are offered; the photos are
 // the owner's own (the crane lift, the delivery clips, the factory floor, the Kariani case).
 //
-// `pending` is what waits for the owner's answer. The page NEVER renders it (the test checks
-// every string in it against the rendered page); when he answers, the text moves into a section.
+// The homes count ({homes}, shared/company.js) and the opening hours ({hours}, the home content's
+// contact band, which the footer prints too) were confirmed by the owner on 2026-10-16.
 //
 // No seo block: the title, description, canonical, hreflangs and share picture come from
 // routeMeta.js.
@@ -35,6 +35,7 @@ export default {
   facts: {
     heading: 'Какво можете да очаквате',
     tiles: {
+      homes: { value: '{homes}', label: 'доставени дома' },
       container: { value: 'до {days}\u00a0дни', label: 'контейнер от склада до вашия адрес' },
       production: { value: 'до {production}\u00a0дни', label: 'изработка на Бокс къща в нашата фабрика' },
       toAddress: { value: 'около {months}\u00a0месеца', label: 'Бокс къща от поръчката до вашия адрес' },
@@ -70,6 +71,7 @@ export default {
     terms: [
       { key: 'base', label: 'Базата ни', text: 'Марикостиново, 2850 Петрич.', map: 'Вижте на картата' },
       { key: 'visits', label: 'Посещения', text: 'Можете да ни посетите в базата само след предварителна уговорка.' },
+      { key: 'hours', label: 'Работно време', text: '{hours}' },
       { key: 'factory', label: 'Къде се правят', text: 'Контейнерите и Бокс къщите — в нашата фабрика в Китай.' },
       { key: 'answer', label: 'Кой отговаря', text: 'Истински човек, по телефона или по имейла — до 24 часа.' },
       { key: 'company', label: 'Фирма', text: 'NVC Home4You, ДДС номер {vat}' },
@@ -165,17 +167,4 @@ export default {
   },
 
   finalTitle: 'Да поговорим за вашия проект?',
-
-  // WAITING FOR THE OWNER, NEVER RENDERED. `ask` is the question, `draft` the words the page
-  // would print once he confirms them. Until then neither may appear anywhere on the page.
-  pending: {
-    homes: {
-      ask: 'Актуално ли е „87 доставени дома“ и брои ли контейнерите и къщите заедно?',
-      draft: '87 доставени дома',
-    },
-    hours: {
-      ask: 'Вярно ли е работното време пон–пет 07:00–19:00?',
-      draft: 'Работно време',
-    },
-  },
 }

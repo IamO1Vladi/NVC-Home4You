@@ -1,7 +1,7 @@
 // The About page, /en/about. The same shape and the same facts as bg/about.js, whose header
 // gives the rules: words only, every figure a {placeholder} filled from a module, one factory
-// ("our factory in China"), delivery across the EU as the home page says it, and `pending`
-// never rendered. No seo block: routeMeta.js has it.
+// ("our factory in China"), delivery across the EU as the home page says it. No seo block:
+// routeMeta.js has it.
 export default {
   breadcrumb: 'About us',
   home: 'Home',
@@ -18,6 +18,7 @@ export default {
   facts: {
     heading: 'What you can expect',
     tiles: {
+      homes: { value: '{homes}', label: 'homes delivered' },
       container: { value: 'up to {days}\u00a0days', label: 'for a container in stock to reach your address' },
       production: { value: 'up to {production}\u00a0days', label: 'to make a Box house at our factory' },
       toAddress: { value: 'about {months}\u00a0months', label: 'for a Box house, from order to your address' },
@@ -49,6 +50,7 @@ export default {
     terms: [
       { key: 'base', label: 'Our base', text: 'Marikostinovo, 2850 Petrich, Bulgaria.', map: 'See it on the map' },
       { key: 'visits', label: 'Visits', text: 'You are welcome at our base, by prior appointment only.' },
+      { key: 'hours', label: 'Opening hours', text: '{hours}' },
       { key: 'factory', label: 'Where they are made', text: 'Containers and Box houses are made at our factory in China.' },
       { key: 'answer', label: 'Who answers', text: 'A real person, by phone or email, within 24 hours.' },
       { key: 'company', label: 'Company', text: 'NVC Home4You, VAT number {vat}' },
@@ -138,16 +140,4 @@ export default {
   },
 
   finalTitle: 'Shall we talk about your project?',
-
-  // WAITING FOR THE OWNER, NEVER RENDERED (see bg/about.js).
-  pending: {
-    homes: {
-      ask: 'Is "87 homes delivered" current, and does it count containers and houses together?',
-      draft: '87 homes delivered',
-    },
-    hours: {
-      ask: 'Are the hours Mon–Fri 07:00–19:00 right?',
-      draft: 'Opening hours',
-    },
-  },
 }

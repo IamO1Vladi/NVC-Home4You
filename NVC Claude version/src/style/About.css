@@ -15,15 +15,16 @@
    or it ran five lines beside the photo. */
 .ab .pp-title{ font-size:clamp(28px, 1.1rem + 1.7vw, 42px) }
 
-/* Facts: four tiles from the modules, and a fifth, the live review score, once the feed answers.
-   The count changes, so the row is a wrapping flex row, not a fixed grid: four or five always
-   fill their rows (one row on a wide screen, two by two on a phone, a fifth taking the last row
+/* Facts: five tiles from the modules (the homes count first), and a sixth, the live review score,
+   once the feed answers. The count changes, so the row is a wrapping flex row, not a fixed grid:
+   five or six always fill their rows (two by two on a phone, the odd one taking the last row
    whole), with no empty cell whatever the feed does. */
 .ab-tiles{ display:flex; flex-wrap:wrap; gap:12px; margin:0; padding:0; list-style:none }
 .ab-tiles > li{ flex:1 1 160px }
-@media (min-width:1100px){
-  /* Five across: "έως 40 ημέρες" still on one line. */
-  .ab .ab-tile-value{ font-size:25px }
+@media (min-width:900px){
+  /* Three across: six across wrapped "около 3–4 месеца" and "έως 40 ημέρες" onto two lines.
+     Six tiles make two full rows; five leave two in the last row, each half as wide. */
+  .ab-tiles > li{ flex-basis:calc((100% - 24px) / 3) }
 }
 .ab-tile{ display:grid; gap:6px; align-content:start; min-width:0; padding:18px 16px 20px }
 .ab-tile-value{ font-size:clamp(24px, 1rem + 1.2vw, 30px); font-weight:600; line-height:1.15; font-variant-numeric:tabular-nums; color:var(--hp-text) }

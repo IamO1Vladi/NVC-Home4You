@@ -102,8 +102,10 @@ export default {
     // The gallery has the containers and the Box houses, not steel-frame houses, and the
     // words say so.
     galleryLink: 'Photos of the ready models in the gallery →',
-    // To the partner page's enquiry form (#zapitvane): more than one unit, or for resale.
-    partnerLink: 'More than one, or for resale? →',
+    // No link to the partner form for now: the partner terms cover only containers and Box
+    // houses (partnerTerms.js). The page draws nothing while this is empty; the words come back
+    // ('More than one, or for resale? →') if volume prices apply to steel (Q18).
+    partnerLink: '',
   },
 
   ready: {
