@@ -1,5 +1,5 @@
 import React from 'react'
-import { blockText, getCategoryLabels, getCoverUrl, getCurrency, getItemSlug, getLocalizedDescription, getLocalizedTitle, offerAvailability } from '../gallery/galleryUtils.js'
+import { blockText, getCategoryLabels, getCoverUrl, getCurrency, getItemSlug, getLocalizedDescription, getLocalizedTitle, isPrefabItem, offerAvailability } from '../gallery/galleryUtils.js'
 import { absoluteUrl, displayTitle } from '../lib/productRows.js'
 
 // The same model is one Product wherever it is marked up: the gallery index, its own page, the
@@ -9,6 +9,13 @@ import { absoluteUrl, displayTitle } from '../lib/productRows.js'
 // mean nothing out of context), and the availability is the model's own (offerAvailability: a
 // container in stock, a Box house made to order). The description reads the rich text block by
 // block (blockText), not glued into one run.
+//
+// A steel-frame project already built (prefab, 2026-10-17) carries no Offer, priced or not: its
+// price is what that one project cost, and a house like it is priced per project (the owner).
+// The card's "за този проект" does not reach the markup, so an Offer would read as a house to
+// be had at that price.
+const hasOffer = (item) => typeof item?.price === 'number' && !isPrefabItem(item)
+
 const productSku = (item, fallback) => (item?.id != null ? `gal-${item.id}` : fallback)
 
 function JsonLD({ data }) {
@@ -64,7 +71,7 @@ export function GalleryListJSONLD({ items = [], locale, listName, listUrl }) {
             // JSON.stringify drops undefined: no photo, no image property.
             image: item.coverUrl ? [absoluteUrl(item.coverUrl)] : undefined,
             sku: productSku(item, item.slug),
-            offers: typeof item.price === 'number' ? {
+            offers: hasOffer(item) ? {
               '@type': 'Offer',
               price: item.price,
               priceCurrency: item.currency || 'EUR',
@@ -106,7 +113,7 @@ export function GalleryProductJSONLD({ item, locale, url, categoryLabels }) {
         },
         // Left out rather than sent raw when no label resolves; JSON.stringify drops undefined.
         category: category || undefined,
-        offers: typeof item.price === 'number' ? {
+        offers: hasOffer(item) ? {
           '@type': 'Offer',
           price: item.price,
           priceCurrency: currency,

@@ -348,6 +348,8 @@ export default {
       },
       // Labels the line naming the gallery model an offer was requested for.
       model: 'Model',
+      // The same line for a steel-frame project (gallery prefab): the enquiry is for one like it.
+      like: 'A house similar to',
       submit: 'Submit',
     },
     question: {

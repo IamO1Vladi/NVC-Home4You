@@ -74,7 +74,7 @@ const TEXT = {
     modelFree: 'свободен текст — без връзка с модел от галерията',
     modelNoCatalogue: 'свободен текст — каталогът няма модели в тази категория',
     categories: {
-      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', garage: 'Гараж',
+      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', capsule: 'Космическа капсула', garage: 'Гараж',
     },
     newDeal: 'Нов лийд',
     newDealHint: 'За клиенти, които не са писали през сайта — обаждане, изложение, препоръка.',
@@ -183,7 +183,7 @@ const TEXT = {
     modelFree: 'free text — not linked to a gallery model',
     modelNoCatalogue: 'free text — the catalogue has no models in this category',
     categories: {
-      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', garage: 'Garage',
+      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', capsule: 'Space capsule', garage: 'Garage',
     },
     newDeal: 'New lead',
     newDealHint: 'For customers who did not come through the site — a call, a trade fair, a referral.',
@@ -355,7 +355,7 @@ const LOG_TYPES = ['note', 'call', 'meeting']
 // the two disagree.
 const REPLY_MAX_BYTES = 20 * 1024 * 1024
 
-// The four categories the gallery filters on, and the only ones that can lead to a list of
+// The five categories the gallery filters on, and the only ones that can lead to a list of
 // models. Kept in step with galleryUtils.FILTER_IDS and HouseCategories on the server.
 //
 // A lead's category is NOT limited to these: "Контейнер", "Logistics" and "Interiors" are
@@ -363,12 +363,12 @@ const REPLY_MAX_BYTES = 20 * 1024 * 1024
 // separate from whatever a lead happens to hold — it answers "can we offer models for
 // this?", which is a different question from "what did they ask about?".
 //
-// And a third question again: which of the four the gallery actually HOLDS models under.
+// And a third question again: which of the five the gallery actually HOLDS models under.
 // That one changes when the catalogue does rather than when this file does, so the server
 // answers it and the panel only carries a fallback — WITH_GALLERY_MODELS_FALLBACK, in
 // modelPicker.js beside the function that takes it, so the two admin screens cannot end up
 // disagreeing about the same catalogue.
-const GALLERY_CATEGORIES = ['prefab', 'wagon', 'modular', 'garage']
+const GALLERY_CATEGORIES = ['prefab', 'wagon', 'modular', 'capsule', 'garage']
 
 const TABS = [
   // First, because it is the one view that answers "what did I promise?" — and the one

@@ -79,7 +79,7 @@ public class Lead
     // is usually answerable long before the model is.
     //
     // NOT constrained to HouseCategories, and that is the point rather than an oversight.
-    // Most of these are gallery categories — prefab, modular, wagon, garage — and for
+    // Most of these are gallery categories — prefab, modular, capsule, wagon, garage — and for
     // those the panel can offer the actual models to pick from. But the real enquiry mix
     // also contains "Контейнер", "Logistics", "Interiors": things the company sells that
     // the gallery has no filter for. Forcing those into a gallery key would file them

@@ -227,18 +227,44 @@ public class CustomerAdminTests
         // cannot be saved at all. See BackfillPurchaseModelLinks.
         Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Modular));
         Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Wagon));
-        Assert.False(PurchaseCategories.AllowsGalleryModel(HouseCategories.Prefab));
         Assert.False(PurchaseCategories.AllowsGalleryModel(HouseCategories.Garage));
 
-        // All four remain things we sell; carrying no catalogue model is not the same as not
+        // 2026-10-17, the owner's two new gallery sections: the space capsule gets its own key
+        // and prefab holds the steel-frame projects already built, so both now carry gallery
+        // rows a sale can point at. Additions only ever permit; see WithGalleryModels.
+        Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Capsule));
+        Assert.True(PurchaseCategories.AllowsGalleryModel(HouseCategories.Prefab));
+
+        // All five remain things we sell; carrying no catalogue model is not the same as not
         // being on the price list.
-        foreach (var key in new[]
-                 {
-                     HouseCategories.Modular, HouseCategories.Wagon,
-                     HouseCategories.Prefab, HouseCategories.Garage,
-                 })
+        foreach (var key in HouseCategories.All)
         {
             Assert.True(PurchaseCategories.IsValid(key));
+        }
+    }
+
+    [Fact]
+    public void A_capsule_is_paid_in_stages_like_the_box_house_it_is_sold_as()
+    {
+        // Same delivery, crane, lead time and warranty as a Box house (owner, 2026-10-17), and
+        // the same deposit-then-final payment; only wagons are paid in one go.
+        Assert.True(PurchaseCategories.IsValid(HouseCategories.Capsule));
+        Assert.True(PurchaseCategories.TracksStagedPayment(HouseCategories.Capsule));
+    }
+
+    [Fact]
+    public void A_capsule_sale_links_to_the_capsule_under_either_key()
+    {
+        // Before staff move it (still modular) and after (capsule). A purchase recorded as
+        // modular with the capsule attached must keep saving once the gallery row has moved:
+        // the panel resends every purchase on every save, and nothing here compares the
+        // purchase's category with the house's.
+        foreach (var key in new[] { HouseCategories.Modular, HouseCategories.Capsule })
+        {
+            var input = Customer("person");
+            input.Purchases = new List<PurchaseInput> { new() { CategoryKey = key, HouseId = 15 } };
+
+            Assert.Empty(CustomerAdminService.Validate(input));
         }
     }
 
@@ -431,10 +457,13 @@ public class CustomerAdminTests
 
         // The list is written out rather than read from PurchaseCategories, which is right
         // for a migration and wrong anywhere else — this statement has to keep meaning what
-        // it meant on the day it ran, however the constant moves afterwards.
-        foreach (var key in PurchaseCategories.WithGalleryModels) Assert.Contains($"'{key}'", up);
+        // it meant on the day it ran, however the constant moves afterwards. So the test
+        // pins the 2026-08-21 list as a literal too: the constant has since grown capsule and
+        // prefab (2026-10-17), and a ran migration must not be read as if it knew that.
+        foreach (var key in new[] { "wagon", "modular" }) Assert.Contains($"'{key}'", up);
         Assert.DoesNotContain($"'{HouseCategories.Prefab}'", up);
         Assert.DoesNotContain($"'{HouseCategories.Garage}'", up);
+        Assert.DoesNotContain($"'{HouseCategories.Capsule}'", up);
 
         // Nothing to reverse: Up destroys the only record of which row each purchase pointed
         // at, and guessing them back by matching titles would relink purchases that never

@@ -82,6 +82,9 @@ export default {
   // The lines are gallery item 100015's; the basis is the owner's answer of 2026-10-17: the
   // capsule needs no assembly, it arrives ready.
   capsule: {
+    // Its Product markup's category once it is filed under its own "capsule" (2026-10-17),
+    // the gallery's own name for it (content/en/gallery.js filters.categories.capsule).
+    schemaCategory: 'Space capsule',
     basis: 'incl. VAT; arrives ready, no assembly needed',
     lines: [
       '38 m², 11.5 × 3.3 m',

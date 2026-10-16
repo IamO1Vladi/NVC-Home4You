@@ -112,6 +112,7 @@ public class AdminValidationTests
     [InlineData("house")]
     [InlineData("Сглобяема къща")]   // the display label, not the key
     [InlineData("PREFAB")]
+    [InlineData("Космическа капсула")]   // the capsule's label, not its key
     public void An_unrecognised_category_is_refused(string category)
     {
         // Including the Bulgarian label: it is what Quickbase stored, so it is the mistake
@@ -128,6 +129,7 @@ public class AdminValidationTests
     [InlineData("prefab")]
     [InlineData("wagon")]
     [InlineData("modular")]
+    [InlineData("capsule")]   // 2026-10-17: what staff move the space capsule into
     [InlineData("garage")]
     public void Each_real_category_is_accepted(string category)
     {

@@ -60,4 +60,6 @@ export function modelsFor(houses, categoryKey, allowedCategories) {
  * customer sheet ended up disagreeing with each other and with the server at once — and the
  * disagreement is invisible until the day the request fails, which is the day it matters.
  */
-export const WITH_GALLERY_MODELS_FALLBACK = ['wagon', 'modular']
+// The server's list since 2026-10-17 (PurchaseCategories.WithGalleryModels): the capsule moved
+// out of modular into its own key, and prefab holds the steel-frame projects already built.
+export const WITH_GALLERY_MODELS_FALLBACK = ['wagon', 'modular', 'capsule', 'prefab']

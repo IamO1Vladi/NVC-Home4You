@@ -27,17 +27,20 @@ const HOUSE = {
 }
 
 let retired
+// The models /api/admin/gallery serves; a test may swap them.
+let houses = [HOUSE]
 
 beforeEach(() => {
   retired = () => json([])
+  houses = [HOUSE]
   Element.prototype.scrollIntoView = vi.fn()
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
     if (u.includes('/api/admin/me')) return json({ name: 'Owner' })
     if (u.includes('/counts')) return json({ pending: 0, notReachedOut: 0 })
-    if (u.endsWith('/api/admin/gallery/categories')) return json(['prefab', 'wagon', 'modular', 'garage'])
+    if (u.endsWith('/api/admin/gallery/categories')) return json(['prefab', 'wagon', 'modular', 'capsule', 'garage'])
     if (u.endsWith('/retired-addresses')) return retired()
-    if (u.endsWith('/api/admin/gallery')) return json([HOUSE])
+    if (u.endsWith('/api/admin/gallery')) return json(houses)
     return json({})
   }))
 })
@@ -89,5 +92,31 @@ describe('AdminGalleryPage — old addresses (#37)', () => {
 
     await waitFor(() => expect(within(section).getByText(/не можаха да се заредят|could not be loaded/)).toBeTruthy())
     expect(within(section).queryByText(/Няма —|None —/)).toBeNull()
+  })
+})
+
+// The capsule's own category (2026-10-17): staff move the capsule into it here, so the panel
+// must name it in words, in the editor's dropdown and in the list, never by its raw key.
+describe('AdminGalleryPage — the capsule category', () => {
+  it('offers every category the server lists, the capsule by its name', async () => {
+    await openEditor()
+    const select = screen.getByRole('combobox', { name: /Категория|Category/ })
+    const options = within(select).getAllByRole('option').map((o) => [o.value, o.textContent])
+    expect(options).toEqual([
+      ['', '—'],
+      ['prefab', 'Сглобяема къща'],
+      ['wagon', 'Фургон'],
+      ['modular', 'Модулна къща'],
+      ['capsule', 'Космическа капсула'],
+      ['garage', 'Гараж'],
+    ])
+  })
+
+  it('names a capsule in the list by its category', async () => {
+    houses = [{ ...HOUSE, id: 15, title: 'Space house', categoryKey: 'capsule' }]
+    render(<AdminGalleryPage />)
+    const row = (await screen.findByText('Space house')).closest('li')
+    expect(row).toHaveTextContent('Космическа капсула')
+    expect(row.textContent).not.toMatch(/\bcapsule\b/)
   })
 })

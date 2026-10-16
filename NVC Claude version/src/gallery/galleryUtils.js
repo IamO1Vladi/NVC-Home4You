@@ -6,24 +6,38 @@ import { useEffect, useMemo, useState } from 'react'
 export const PAGE_SIZE = 24
 
 // Every category a model can be filed under: what the API and the admin send, and what the
-// item page names under its title. All four stay, so a model the admin files under any of
-// them still resolves.
-export const FILTER_IDS = ['prefab', 'wagon', 'modular', 'garage']
+// item page names under its title (HouseCategories.All in api-dotnet, in its order). All five
+// stay, so a model the admin files under any of them still resolves. "capsule" is new on
+// 2026-10-17 (the owner's space capsules section); "prefab" now holds the steel-frame projects
+// already built, which a customer can ask for something similar to.
+export const FILTER_IDS = ['prefab', 'wagon', 'modular', 'capsule', 'garage']
 
-// The filters the gallery index offers, in this order. "prefab" and "garage" always opened
-// empty (no model is filed under them), and the owner had them removed on 2026-10-17.
-export const INDEX_FILTER_IDS = ['wagon', 'modular']
+// The filters the gallery index can offer, in this order: containers, Box houses, space
+// capsules, steel-frame houses. Each is offered only while it has a model (indexFilterIds), so
+// an empty filter never comes back: "prefab" and "garage" always opened empty and were removed
+// on 2026-10-17, and the owner asked the same day for the capsules and the steel-frame projects
+// to have their own. Garage is not one of them: it stays internal.
+export const INDEX_FILTER_IDS = ['wagon', 'modular', 'capsule', 'prefab']
 
+// The index's filters before the list has arrived, so the row does not jump when it does:
+// the two lines the gallery always has.
+export const LOADING_FILTER_IDS = ['wagon', 'modular']
+
+// A category's names in the labels the API and old links have used. The aliases are the index
+// chips' own plural names (content/<locale>/gallery.js filters.shown), for a ?cat= that spells
+// one out.
 const FILTERS = [
-  { id: 'prefab', bg: 'Сглобяема къща', en: 'Prefab house' },
+  { id: 'prefab', bg: 'Сглобяема къща', en: 'Prefab house', aliases: ['Сглобяеми къщи', 'Steel-frame houses'] },
   { id: 'wagon', bg: 'Фургон', en: 'Wagon / site cabin' },
   { id: 'modular', bg: 'Модулна къща', en: 'Modular house' },
+  { id: 'capsule', bg: 'Космическа капсула', en: 'Space capsule', aliases: ['Космически капсули', 'Space capsules'] },
   { id: 'garage', bg: 'Гараж', en: 'Garage' },
 ]
 
 const norm = (v) => String(v ?? '').trim().toLowerCase()
 const byBg = Object.fromEntries(FILTERS.map((f) => [norm(f.bg), f.id]))
 const byEn = Object.fromEntries(FILTERS.map((f) => [norm(f.en), f.id]))
+const byAlias = Object.fromEntries(FILTERS.flatMap((f) => (f.aliases || []).map((a) => [norm(a), f.id])))
 const byId = new Set(FILTERS.map((f) => f.id))
 
 export function clamp(n, min, max) {
@@ -97,18 +111,28 @@ export function resolveCatParam(v) {
   if (!n) return 'all'
   if (n === 'all') return 'all'
   if (byId.has(n)) return n
-  return byBg[n] || byEn[n] || 'all'
+  return byBg[n] || byEn[n] || byAlias[n] || 'all'
 }
 
 /**
- * The index filter a ?cat= asks for: one the index offers (INDEX_FILTER_IDS), or 'all'. A
- * category it no longer offers (?cat=prefab, ?cat=Гараж from an old shared link) or junk
- * shows every model rather than an empty page. The canonical drops the query either way
- * (GalleryRoutes.jsx).
+ * The index filters on offer for this list: those of INDEX_FILTER_IDS that hold at least one
+ * model, in that order. The capsules' filter appears once a model is filed under "capsule",
+ * the steel-frame houses' once staff add a project under "prefab".
  */
-export function resolveIndexFilter(v) {
+export function indexFilterIds(items) {
+  const held = new Set((items || []).flatMap((item) => catFromItemCategory(item?.category)))
+  return INDEX_FILTER_IDS.filter((id) => held.has(id))
+}
+
+/**
+ * The index filter a ?cat= asks for: one the index offers right now (`offered`, by default
+ * every filter it can offer), or 'all'. A category it does not offer (?cat=garage, ?cat=Гараж
+ * from an old shared link, ?cat=capsule while no model is filed there) or junk shows every
+ * model rather than an empty page. The canonical drops the query either way (GalleryRoutes.jsx).
+ */
+export function resolveIndexFilter(v, offered = INDEX_FILTER_IDS) {
   const id = resolveCatParam(v)
-  return INDEX_FILTER_IDS.includes(id) ? id : 'all'
+  return offered.includes(id) ? id : 'all'
 }
 
 /** The 1-based index page a ?page= asks for, kept inside 1..pageCount. */
@@ -126,6 +150,7 @@ export function catFromItemCategory(raw) {
     if (byId.has(n)) codes.push(n)
     else if (byBg[n]) codes.push(byBg[n])
     else if (byEn[n]) codes.push(byEn[n])
+    else if (byAlias[n]) codes.push(byAlias[n])
   }
   return Array.from(new Set(codes))
 }
@@ -235,17 +260,30 @@ export function getCurrency(item) {
   return 'EUR'
 }
 
+// The categories whose models are made to order (offerAvailability).
+const MADE_TO_ORDER = new Set(['modular', 'capsule', 'prefab'])
+
 /**
  * The schema.org availability of a model's offer. The containers in the gallery are stock
  * models (the owner, 2026-10-12: "the six gallery units are stock models"); a Box house is made
  * to order — up to 40 days in production, about 3–4 months to the buyer's address (the owner,
- * 2026-10-15; the delivery page's lead times) — so it is not "in stock". The capsule is filed
- * with the Box houses ("modular") and follows them.
+ * 2026-10-15; the delivery page's lead times) — so it is not "in stock". The capsule follows the
+ * Box houses whether it is filed with them ("modular") or under its own "capsule", and a
+ * steel-frame project ("prefab") is built anew for each customer.
  */
 export function offerAvailability(item) {
-  return catFromItemCategory(item?.category).includes('modular')
+  return catFromItemCategory(item?.category).some((id) => MADE_TO_ORDER.has(id))
     ? 'https://schema.org/MadeToOrder'
     : 'https://schema.org/InStock'
+}
+
+/**
+ * Whether a model is a steel-frame project already built (the prefab category, 2026-10-17): a
+ * customer asks for a house like it, and its price is what that project cost, not a standard
+ * price (the owner: every steel house is its own project, priced per project).
+ */
+export function isPrefabItem(item) {
+  return catFromItemCategory(item?.category).includes('prefab')
 }
 
 export function getItemSlug(item, locale) {

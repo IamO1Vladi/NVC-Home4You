@@ -5,7 +5,10 @@
 //
 // Every target is one that exists, checked here rather than assumed:
 //   - the product page, by the item's gallery category: wagon -> the containers page, modular
-//     -> the Box houses page (the capsule's page too). Other categories link nowhere.
+//     -> the Box houses page, prefab (a steel-frame project already built, 2026-10-17) -> the
+//     steel-frame houses page. The capsule, filed under modular or under its own capsule
+//     category, links to its own card on the Box houses page (#item-<id>, UnitCard's anchor),
+//     where it is sold. Garage links nowhere.
 //   - its card on the prices page, #item-<id>: PricesPage gives every row of buildPriceSections
 //     that id, so the same call decides whether the row is there (a priced wagon or Box house).
 //     "With assembly" only where the row has an assembly figure: not for the capsule, which
@@ -15,11 +18,11 @@
 //     and the veranda-and-double-roof house of each size (the configurator builds both; the
 //     same ids ModularHousesPage's size cards use). Never the panoramic, two-storey, 18 m² or
 //     capsule houses, which it cannot build.
-//   - the delivery calculator preset to the product, ?product=container|box, which DeliveryPage
-//     reads. The capsule's is the Box houses' (owner, 2026-10-17: the same rate, crane and lead
-//     time).
+//   - the delivery calculator preset to the product, ?product=container|box|project, which
+//     DeliveryPage reads. The capsule's is the Box houses' (owner, 2026-10-17: the same rate,
+//     crane and lead time); a steel-frame project's is "project", the calculator's own.
 import { paths } from '../routes/paths.js'
-import { buildPriceSections } from '../content/shared/prices.js'
+import { buildPriceSections, CAPSULE_ID, isCapsuleItem } from '../content/shared/prices.js'
 import { getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import { catFromItemCategory } from './galleryUtils.js'
 
@@ -33,12 +36,12 @@ export const CONFIGURATOR_MODEL_BY_ID = {
   15: '73', // Разгъваема къща – 73 м² с веранда и двоен покрив
 }
 
-/** The Space capsule (served as 100000 + its SQL id, like every house added in the admin panel). */
-export const CAPSULE_ID = 100015
+// The Space capsule's id lives in shared/prices.js beside the rule that it arrives ready.
+export { CAPSULE_ID }
 
-const PRODUCT_PAGE = { wagon: 'modularBuilds', modular: 'modularHouses' }
-const PAGE_LINK = { modularBuilds: 'containers', modularHouses: 'box' }
-const DELIVERY_PRODUCT = { wagon: 'container', modular: 'box' }
+const PRODUCT_PAGE = { wagon: 'modularBuilds', modular: 'modularHouses', capsule: 'modularHouses', prefab: 'steelHouses' }
+const PAGE_LINK = { modularBuilds: 'containers', modularHouses: 'box', steelHouses: 'steel' }
+const DELIVERY_PRODUCT = { wagon: 'container', modular: 'box', capsule: 'box', prefab: 'project' }
 
 /**
  * The links for one gallery item, in reading order: [{ key, to, label }], router paths in this
@@ -52,7 +55,13 @@ export function galleryItemLinks(item, locale = 'en', copy = {}) {
 
   if (kind) {
     const page = PRODUCT_PAGE[kind]
-    links.push({ key: 'product', to: at(page), label: copy[PAGE_LINK[page]] })
+    // The capsule's own card on the Box houses page, in either of its categories.
+    const capsule = page === 'modularHouses' && isCapsuleItem(item)
+    links.push({
+      key: 'product',
+      to: capsule ? `${at(page)}#item-${item.id}` : at(page),
+      label: (capsule && copy.capsule) || copy[PAGE_LINK[page]],
+    })
   }
 
   const { box, wagon } = buildPriceSections([item])
@@ -69,7 +78,10 @@ export function galleryItemLinks(item, locale = 'en', copy = {}) {
   }
 
   if (kind) {
-    links.push({ key: 'delivery', to: `${at('delivery')}?product=${DELIVERY_PRODUCT[kind]}`, label: copy.delivery })
+    // The calculator works out no figure for a house to a plan (its delivery is quoted with the
+    // project), so a steel-frame project's link does not promise one.
+    const label = (DELIVERY_PRODUCT[kind] === 'project' && copy.deliveryProject) || copy.delivery
+    links.push({ key: 'delivery', to: `${at('delivery')}?product=${DELIVERY_PRODUCT[kind]}`, label })
   }
 
   return links.filter((link) => link.to && link.label)

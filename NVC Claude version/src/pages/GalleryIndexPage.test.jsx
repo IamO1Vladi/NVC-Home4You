@@ -186,7 +186,7 @@ describe('the gallery index filters', () => {
     expect(location.search).toBe('')
   })
 
-  it.each(['?cat=prefab', '?cat=garage', '?cat=Гараж', '?cat=Сглобяема къща', '?cat=nonsense', '?cat='])(
+  it.each(['?cat=prefab', '?cat=garage', '?cat=Гараж', '?cat=Сглобяема къща', '?cat=capsule', '?cat=Космически капсули', '?cat=nonsense', '?cat='])(
     'a ?cat= the index does not offer (%s) shows every model',
     (query) => {
       const { container } = renderIndex('bg', query)
@@ -379,13 +379,120 @@ describe('loading, empty and error', () => {
     expect(container.querySelector('.gl-grid')).toBeNull()
   })
 
-  it('with none in a filter: says so and offers all of them', () => {
+  // A filter is drawn only while its line has a model (2026-10-17), so a ?cat= for a line with
+  // none is one the index does not offer, and shows every model rather than an empty page.
+  it('with no model in the filter asked for: shows all of them, and no chip for it', () => {
     mock.raw = LIVE.filter((i) => i.category === 'wagon')
     const { container } = renderIndex('bg', '?cat=modular')
 
-    expect(container.querySelector('.gl-state')).toHaveTextContent(bgGallery.empty.filtered)
-    fireEvent.click(screen.getByRole('button', { name: bgGallery.empty.showAll }))
+    expect(container.querySelector('.gl-state')).toBeNull()
     expect(cards(container)).toHaveLength(WAGONS)
-    expect(location.search).toBe('')
+    expect(chips(bgGallery).map((b) => b.textContent)).toEqual(['Всички', 'Контейнери'])
+    expect(chips(bgGallery)[0]).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+// The owner's two new sections (2026-10-17): "Космически капсули" and "Сглобяеми къщи". Today
+// (state A) the capsule is filed under modular and no steel-frame project is in the gallery, so
+// neither chip shows; once staff move the capsule (state B) its chip appears after the Box
+// houses, and once they add a project, the steel-frame houses' chip comes last.
+const CAPSULE = LIVE.find((i) => i.id === 100015)
+const STATE_B = LIVE.map((i) => (i.id === 100015 ? { ...i, category: 'capsule' } : i))
+const PROJECT = item(100020, 'prefab', 42000, 'Къща на метална конструкция – Банско', 'Steel-frame house – Bansko', 'Μεταλλικό σπίτι – Μπάνσκο')
+const PROJECT_NO_PRICE = { ...item(100021, 'prefab', null, 'Къща на метална конструкция – Пловдив', 'Steel-frame house – Plovdiv', 'Μεταλλικό σπίτι – Πλόβντιβ'), price: undefined }
+
+// The ItemList entry for the card whose name starts so.
+const listed = (container, start) => itemList(container).itemListElement.find((entry) => entry.item.name.startsWith(start))
+
+describe('the space capsules and the steel-frame houses', () => {
+  it('today, with the capsule under modular: no capsule chip, and the capsule among the Box houses', () => {
+    const { container } = renderIndex('bg', '?cat=modular')
+    expect(chips(bgGallery).map((b) => b.textContent)).toEqual(['Всички', 'Контейнери', 'Бокс къщи'])
+    expect(cards(container)).toHaveLength(BOXES)
+    expect(cardTitled(container, 'Космическа къща')).toBeTruthy()
+  })
+
+  it.each([
+    ['bg', ['Всички', 'Контейнери', 'Бокс къщи', 'Космически капсули']],
+    ['en', ['All', 'Containers', 'Box houses', 'Space capsules']],
+    ['el', ['Όλα', 'Κοντέινερ', 'Σπίτια Box', 'Κάψουλες χώρου']],
+  ])('%s: once the capsule is moved, its chip comes after the Box houses and holds it alone', (locale, labels) => {
+    mock.raw = STATE_B
+    const { content } = LOCALES[locale]
+    const { container } = renderIndex(locale)
+
+    const buttons = chips(content)
+    expect(buttons.map((b) => b.textContent)).toEqual(labels)
+    expect(cards(container)).toHaveLength(LIVE.length)
+
+    fireEvent.click(buttons[3])
+    expect(location.search).toBe('?cat=capsule')
+    expect(cards(container)).toHaveLength(1)
+    expect(buttons[3]).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(buttons[2])
+    expect(location.search).toBe('?cat=modular')
+    expect(cards(container)).toHaveLength(BOXES - 1)
+  })
+
+  it('a link to ?cat=capsule lands on it once the capsule is moved', () => {
+    mock.raw = STATE_B
+    const { container } = renderIndex('bg', '?cat=capsule')
+    expect(cards(container)).toHaveLength(1)
+    expect(chips(bgGallery)[3]).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it.each([['under modular', LIVE], ['moved', STATE_B]])('the capsule\'s card says it arrives ready, %s, and its offer is made to order', (_, raw) => {
+    mock.raw = raw
+    const { container } = renderIndex('bg')
+    const capsule = cardTitled(container, 'Космическа къща')
+    expect(capsule.querySelector('.gl-price').textContent).toBe(euro(CAPSULE.price, 'bg'))
+    expect(capsule.querySelector('.gl-basis')).toHaveTextContent(bgGallery.card.basis.ready)
+    expect(listed(container, 'Космическа къща').item.offers.availability).toBe('https://schema.org/MadeToOrder')
+  })
+
+  it.each([
+    ['bg', 'Сглобяеми къщи'],
+    ['en', 'Steel-frame houses'],
+    ['el', 'Μεταλλικά σπίτια'],
+  ])('%s: a steel-frame project brings its chip, last, and its card names its price as this project\'s', (locale, label) => {
+    mock.raw = [...STATE_B, PROJECT, PROJECT_NO_PRICE]
+    const { content } = LOCALES[locale]
+    const { container } = renderIndex(locale)
+
+    const buttons = chips(content)
+    expect(buttons).toHaveLength(5)
+    expect(buttons[4]).toHaveTextContent(label)
+    fireEvent.click(buttons[4])
+    expect(location.search).toBe('?cat=prefab')
+    const shown = cards(container)
+    expect(shown).toHaveLength(2)
+
+    const [priced, unpriced] = shown
+    expect(priced.querySelector('.gl-price').textContent).toBe(euro(42000, locale))
+    expect(priced.querySelector('.gl-basis')).toHaveTextContent(content.card.basis.project)
+    // No price: priced per project, not "on request".
+    expect(unpriced.querySelector('.gl-price')).toBeNull()
+    expect(unpriced.querySelector('.gl-basis')).toHaveTextContent(content.card.basis.projectOnRequest)
+    expect(unpriced.querySelector('.gl-basis')).not.toHaveTextContent(content.detail.priceOnRequest)
+  })
+
+  it('a steel-frame project carries no offer in the markup: it is priced per project', () => {
+    mock.raw = [PROJECT]
+    const { container } = renderIndex('bg')
+    expect(listed(container, 'Къща на метална конструкция').item.offers).toBeUndefined()
+  })
+
+  it('a garage model brings no chip: garage stays internal', () => {
+    mock.raw = [...LIVE, item(30, 'garage', 9000, 'Гараж', 'Garage', 'Γκαράζ')]
+    renderIndex('bg')
+    expect(chips(bgGallery).map((b) => b.textContent)).toEqual(['Всички', 'Контейнери', 'Бокс къщи'])
+  })
+
+  it('while loading: the two lines the gallery always has, so the row does not jump', () => {
+    mock.raw = []
+    mock.loading = true
+    renderIndex('bg', '?cat=capsule')
+    expect(chips(bgGallery).map((b) => b.textContent)).toEqual(['Всички', 'Контейнери', 'Бокс къщи'])
   })
 })

@@ -839,6 +839,50 @@ describe('AdminCustomersPage', () => {
     })
   })
 
+  it('keeps the model linked when the category moves to the one the model is filed under', async () => {
+    // The capsule's own key (2026-10-17): staff move the gallery capsule out of modular, then
+    // refile a capsule sale recorded as "Модулна къща". The text is re-resolved against the
+    // NEW category's models; resolving it against the old category's list could never match
+    // and dropped the link, so the next save cleared the HouseId.
+    detail = {
+      ...DETAIL,
+      purchases: [{
+        ...DETAIL.purchases[0], categoryKey: 'modular',
+        houseId: 15, houseTitle: 'Space house', customModel: null, files: [],
+      }],
+    }
+    const base = globalThis.fetch
+    vi.stubGlobal('fetch', vi.fn((url, options = {}) => {
+      const u = String(url)
+      if (u.includes('/api/admin/customers/categories')) {
+        calls.push({ url: u, method: options.method || 'GET', body: options.body })
+        return json({
+          ...CATEGORIES,
+          all: [...CATEGORIES.all, 'capsule'],
+          withGalleryModels: [...CATEGORIES.withGalleryModels, 'modular', 'capsule'],
+        })
+      }
+      if (u.includes('/api/admin/gallery')) {
+        calls.push({ url: u, method: options.method || 'GET', body: options.body })
+        return json([{ id: 15, title: 'Space house', categoryKey: 'capsule', isPublished: true }])
+      }
+      return base(url, options)
+    }))
+    const user = userEvent.setup()
+    render(<AdminCustomersPage />)
+    const dialog = await openCustomer(user)
+
+    await waitFor(() => expect(within(dialog).getByRole('option', { name: 'Космическа капсула' })).toBeInTheDocument())
+    fireEvent.change(within(dialog).getByLabelText('Какво е купил'), { target: { value: 'capsule' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Запази' }))
+
+    await waitFor(() => {
+      const saved = JSON.parse(calls.find((c) => c.method === 'PUT').body)
+      expect(saved.purchases[0].categoryKey).toBe('capsule')
+      expect(saved.purchases[0].houseId).toBe(15)
+    })
+  })
+
   it('keeps anything else as free text', async () => {
     detail = {
       ...DETAIL,

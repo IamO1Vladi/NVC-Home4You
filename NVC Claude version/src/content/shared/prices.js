@@ -121,12 +121,17 @@ const BOX_ASSEMBLY_NET_BY_ID = {
   17: 3000,   // Двуетажна разгъваема къща – 74 м²
 }
 
+/** The Space capsule (served as 100000 + its SQL id, like every house added in the admin panel). */
+export const CAPSULE_ID = 100015
+
 /**
  * Houses filed with the Box houses that have NO assembly: they arrive ready (owner, 2026-10-17,
  * the Space capsule, served as 100015). Their row says so instead of "on request", and their
  * total is their price. Delivery, the crane, the lead time and the warranty are the Box houses'.
+ * A model filed under the capsule category arrives ready too (isCapsuleItem), so the capsule
+ * reads the same before and after staff move it out of "modular".
  */
-const ARRIVES_READY_IDS = new Set([100015])
+const ARRIVES_READY_IDS = new Set([CAPSULE_ID])
 
 /** A Box house's assembly cost without VAT, by gallery id; null where it is not known. */
 export function boxAssemblyNet(id) {
@@ -171,12 +176,34 @@ export const PRICE_SECTION_IDS = { box: 'prices-box', wagon: 'prices-wagon' }
 
 /** Categories, as /api/gallery labels them. Matched case-insensitively against either. */
 const CATEGORY_LABELS = {
-  box: ['модулна къща', 'modular house', 'modular', 'δομικό σπίτι'],
+  modular: ['модулна къща', 'modular house', 'modular', 'δομικό σπίτι'],
+  // Its own gallery category since 2026-10-17 (the owner's "space capsules" section). Until
+  // staff move it there, the capsule is filed under modular and found by its id instead.
+  // The plural chip names too, which galleryUtils catFromItemCategory also reads as capsule,
+  // so the two never disagree on one.
+  capsule: ['capsule', 'космическа капсула', 'space capsule', 'κάψουλα χώρου', 'космически капсули', 'space capsules'],
   wagon: ['фургон', 'wagon', 'wagon / site cabin', 'δομική μονάδα'],
 }
 
 const inCategory = (item, group) =>
   CATEGORY_LABELS[group].includes(String(item?.category || '').trim().toLowerCase())
+
+/**
+ * The Box houses' section holds the Box houses and the capsule, whichever category the capsule
+ * is filed under: it is sold like a Box house (the same delivery, crane, lead time and
+ * warranty, owner 2026-10-17), so its row stays on the prices page and the Box houses page.
+ * The prefab category (steel-frame projects, priced per project) is in neither section.
+ */
+const inBoxSection = (item) => inCategory(item, 'modular') || inCategory(item, 'capsule')
+
+/**
+ * Whether a gallery item is the capsule: filed under the capsule category, or the Space
+ * capsule by its id while it is still filed under modular. Both, so the site reads the same
+ * before and after staff move it.
+ */
+export function isCapsuleItem(item) {
+  return inCategory(item, 'capsule') || Number(item?.id) === CAPSULE_ID
+}
 
 /**
  * Turns /api/gallery into the two priced sections the page renders.
@@ -192,9 +219,10 @@ export function buildPriceSections(items = []) {
   const rows = (items || []).filter((i) => i && Number(i.price) > 0)
 
   const box = rows
-    .filter((i) => inCategory(i, 'box'))
+    .filter(inBoxSection)
     .map((i) => {
-      const arrivesReady = ARRIVES_READY_IDS.has(Number(i.id))
+      const capsule = isCapsuleItem(i)
+      const arrivesReady = ARRIVES_READY_IDS.has(Number(i.id)) || inCategory(i, 'capsule')
       const assemblyNet = arrivesReady ? null : boxAssemblyNet(i.id)
       const assemblyGross = assemblyNet == null ? null : addVat(assemblyNet)
       return {
@@ -206,6 +234,7 @@ export function buildPriceSections(items = []) {
         total: assemblyGross == null ? Number(i.price) : Number(i.price) + assemblyGross,
         assemblyIncluded: false,
         arrivesReady,
+        capsule,
       }
     })
     .sort((a, b) => a.total - b.total)
@@ -225,4 +254,12 @@ export function buildPriceSections(items = []) {
     .sort((a, b) => a.total - b.total)
 
   return { box, wagon }
+}
+
+/**
+ * The Box section's rows without the capsule: what a "Box houses from" figure is taken over.
+ * The capsule is a different product at a different price, in either category.
+ */
+export function boxHouseRows(box = []) {
+  return (box || []).filter((row) => !row.capsule)
 }

@@ -128,7 +128,8 @@ export function absoluteUrl(path) {
  * pick chooses the figure, and it must be the one the card shows beside it: a container's
  * total (VAT and assembly in), a Box house's house price (VAT in, assembly not). Rows whose
  * pick is null are left out rather than published at zero. The description is the gallery's
- * own text, shortened, or the title when the gallery has none.
+ * own text, shortened, or the title when the gallery has none. category is a name, or a
+ * function of the row that returns one.
  */
 export function productJsonLdItems(rows, { pick = (row) => row.total, category } = {}) {
   return (rows || [])
@@ -149,7 +150,9 @@ export function productJsonLdItems(rows, { pick = (row) => row.total, category }
         currency: 'EUR',
         // A container is a stock model, a Box house is made to order (galleryUtils.js).
         availability: offerAvailability(item),
-        category,
+        // One name per row where a page holds two kinds (the Box houses page: the houses and
+        // the capsule), so a product's category is the one its gallery page gives it.
+        category: typeof category === 'function' ? category(row) : category,
       }
     })
     .filter(Boolean)

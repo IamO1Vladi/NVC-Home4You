@@ -33,8 +33,9 @@ const TEXT = {
       price: 'Цена', currency: 'Валута', category: 'Категория', catalogId: 'Facebook каталог ID',
       isPublished: 'Публикуван на сайта',
     },
+    // prefab holds the steel-frame projects already built, capsule the space capsules (2026-10-17).
     categories: {
-      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', garage: 'Гараж',
+      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', capsule: 'Космическа капсула', garage: 'Гараж',
     },
     images: 'Снимки',
     // Creating a model and adding photos cannot be one step: the photo has to be attached to
@@ -89,7 +90,7 @@ const TEXT = {
       isPublished: 'Live on the site',
     },
     categories: {
-      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', garage: 'Garage',
+      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', capsule: 'Space capsule', garage: 'Garage',
     },
     images: 'Photos',
     photosAfterSave: 'Photos can be added as soon as you save the model — you will stay on this screen.',

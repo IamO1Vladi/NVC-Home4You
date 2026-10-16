@@ -19,6 +19,7 @@ import {
   getItemSlug,
   getMetaContentId,
   buildMetaProductPayload,
+  isPrefabItem,
 } from '../gallery/galleryUtils.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { paths } from '../routes/paths.js'
@@ -35,9 +36,14 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
   const displayImages = images.length ? images : (cover ? [cover] : [])
   const current = displayImages[activeImage] || displayImages[0] || ''
 
-  const priceText = typeof item?.price === 'number'
-    ? `${content.pricePrefix}${formatGalleryPrice(item.price, currency, locale)}`
-    : content.priceOnRequest
+  // A steel-frame project already built (prefab, 2026-10-17) is not a model with a "from"
+  // price: its price is what that project cost, a house like it is priced per project, and
+  // the enquiry is for a house like it (the owner: every steel house is its own project).
+  const prefab = isPrefabItem(item)
+  const price = typeof item?.price === 'number' ? formatGalleryPrice(item.price, currency, locale) : null
+  let priceText = price ? `${content.pricePrefix}${price}` : content.priceOnRequest
+  if (prefab && price && content.projectPrice) priceText = content.projectPrice.replace('{price}', price)
+  else if (prefab && !price && content.priceByProject) priceText = content.priceByProject
   const categoryText = getCategoryLabels(item?.category, content.categories).join(' · ')
   const links = galleryItemLinks(item, locale, content.links)
 
@@ -65,7 +71,9 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
       </div>
 
       <div className="gdetail-card">
-        <div className="gdetail-titleRow">
+        {/* A project's price carries its note ("· с ДДС, за този проект"), too long to sit
+            beside the title on a laptop: that row wraps the pill under the title instead. */}
+        <div className={['gdetail-titleRow', prefab && price && 'gdetail-titleRow--wrap'].filter(Boolean).join(' ')}>
           <div>
             <h1 className="gdetail-title">{title}</h1>
             {categoryText ? <div className="gdetail-kicker">{categoryText}</div> : null}
@@ -101,11 +109,13 @@ function ProductBody({ item, content, locale, onRequestModel, onClose }) {
                 titleBg: getLocalizedTitle(item, 'bg'),
                 path: `${paths.gallery.bg}/${getItemSlug(item, 'bg')}`,
                 catalogId: getMetaContentId(item),
+                // The offer form names it as "a house like" this one.
+                ...(prefab ? { like: true } : {}),
               })
               onClose()
             }}
           >
-            {content.requestCta}
+            {(prefab && content.requestLikeCta) || content.requestCta}
           </button>
         </div>
 

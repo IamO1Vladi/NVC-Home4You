@@ -190,7 +190,10 @@ function AppShell() {
     const titleBg = m?.titleBg ?? ''
     const path = m?.path ?? ''
     const catalogId = m?.catalogId ? String(m.catalogId) : ''
-    setSelectedModel(id ? { id, title, titleBg, path, catalogId } : null)
+    // A steel-frame project (gallery prefab): the form names it as "a house like" it. Display
+    // only: the lead carries the same id, title and page as any other model's.
+    const like = m?.like === true
+    setSelectedModel(id ? { id, title, titleBg, path, catalogId, like } : null)
     openOfferModal()
   }, [openOfferModal])
 
@@ -520,7 +523,7 @@ function AppShell() {
                   Only for a request made from a gallery model; a generic offer shows none. */}
               {selectedModel?.title ? (
                 <p className="offer-model" style={{ margin: 0 }}>
-                  {ui.forms.offer.model}: <strong>{selectedModel.title}</strong>
+                  {(selectedModel.like && ui.forms.offer.like) || ui.forms.offer.model}: <strong>{selectedModel.title}</strong>
                 </p>
               ) : null}
               <input name="name" required placeholder={ui.forms.offer.fields.name} autoComplete="name" />

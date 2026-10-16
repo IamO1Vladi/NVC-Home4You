@@ -342,6 +342,9 @@ export default {
       },
       // Labels the line naming the gallery model an offer was requested for.
       model: 'Модел',
+      // The same line for a steel-frame project (gallery prefab): the enquiry is for one like it.
+      // "Подобна на: <проект>", not "Подобна къща на", which reads as the project's own house.
+      like: 'Подобна на',
       submit: 'Изпрати',
     },
     question: {

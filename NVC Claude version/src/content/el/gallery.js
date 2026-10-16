@@ -5,7 +5,9 @@ export default {
   // the lead does not call every model "available"; the gallery's containers are stock models.
   eyebrow: 'Μοντέλα και τιμές',
   heading: 'Γκαλερί: κοντέινερ και σπίτια Box',
-  lead: 'Κάθε μοντέλο με την τιμή του με ΦΠΑ: τα κοντέινερ είναι σε απόθεμα, ενώ τα σπίτια Box κατασκευάζονται κατά παραγγελία.',
+  // Not "every model with its price": a steel-frame project (prefab, 2026-10-17) is priced per
+  // project and its card may have none.
+  lead: 'Οι τιμές περιλαμβάνουν ΦΠΑ: τα κοντέινερ είναι σε απόθεμα, ενώ τα σπίτια Box κατασκευάζονται κατά παραγγελία.',
   loading: 'Φόρτωση μοντέλων…',
   error: 'Η γκαλερί δεν ήταν δυνατό να φορτωθεί. Παρακαλούμε δοκιμάστε ξανά αργότερα.',
   retry: 'Δοκιμάστε ξανά',
@@ -20,18 +22,23 @@ export default {
   filters: {
     all: 'Όλα',
     // The index's filters (galleryUtils INDEX_FILTER_IDS), in the words the rest of the site
-    // uses for the two product lines. The prefab and garage filters always opened empty and
-    // were removed (the owner, 2026-10-17).
+    // uses for its product lines. Each one is shown only while it has a model (indexFilterIds):
+    // the prefab and garage filters always opened empty and were removed, and the owner asked
+    // for the capsules and the steel-frame projects to have their own (both 2026-10-17).
     shown: {
       wagon: 'Κοντέινερ',
       modular: 'Σπίτια Box',
+      capsule: 'Κάψουλες χώρου',
+      prefab: 'Μεταλλικά σπίτια',
     },
     // The item page's name for a model's category, under its title and in its Product markup
-    // (GalleryRoutes.jsx). All four ids keep one: the admin can still file a model under any.
+    // (GalleryRoutes.jsx). All five ids keep one: the admin can still file a model under any.
+    // prefab is named as its chip names it (filters.shown), a steel-frame project.
     categories: {
-      prefab: 'Προκατασκευασμένο σπίτι',
+      prefab: 'Μεταλλικό σπίτι',
       wagon: 'Βαγονέτο / Καμπίνα εργοταξίου',
       modular: 'Δομικό σπίτι',
+      capsule: 'Κάψουλα χώρου',
       garage: 'Γκαράζ',
     },
   },
@@ -45,6 +52,10 @@ export default {
       vat: 'με ΦΠΑ',
       // A house that needs no assembly (shared/prices.js arrivesReady: the capsule, the owner 2026-10-17).
       ready: 'με ΦΠΑ, φτάνει έτοιμη',
+      // A steel-frame project already built (prefab): its price is what that project cost, and a
+      // house like it is priced per project (the owner, 2026-10-17).
+      project: 'με ΦΠΑ, για αυτό το έργο',
+      projectOnRequest: 'Τιμή ανά έργο',
     },
     more: 'Φωτογραφίες και περιγραφή →',
   },
@@ -68,6 +79,11 @@ export default {
     requestCta: 'Ζητήστε προσφορά',
     pricePrefix: 'Από ',
     priceOnRequest: 'Τιμή κατόπιν αιτήματος',
+    // A steel-frame project (prefab): its own price with no "Από", or none at all, and the
+    // enquiry is for a house like it.
+    projectPrice: '{price} · με ΦΠΑ, για αυτό το έργο',
+    priceByProject: 'Τιμή ανά έργο',
+    requestLikeCta: 'Ζητήστε προσφορά για παρόμοιο σπίτι',
     imageThumb: 'Εικόνα',
     closeLabel: 'Κλείσιμο',
     loading: 'Φόρτωση μοντέλου…',
@@ -81,11 +97,17 @@ export default {
       heading: 'Περισσότερα για αυτό το μοντέλο',
       containers: 'Όλα για τα κοντέινερ: συναρμολόγηση, παράδοση, εγγύηση →',
       box: 'Τα σπίτια Box: μεγέθη, συναρμολόγηση, εγγύηση →',
+      // The capsule's own card on the Box houses page, and a steel-frame project's page.
+      capsule: 'Η κάψουλα χώρου: διαστάσεις, παράδοση, εγγύηση →',
+      steel: 'Μεταλλικά σπίτια σε δικό σας σχέδιο: πώς δουλεύουμε →',
       prices: 'Η τιμή του με τη συναρμολόγηση στον πίνακα τιμών →',
       // For a house whose assembly is still quoted on request (its row says so).
       pricesNoAssembly: 'Η τιμή του στον πίνακα τιμών →',
       configurator: 'Διαμορφώστε αυτό το σπίτι στον διαμορφωτή →',
       delivery: 'Υπολογίστε το κόστος παράδοσης σε εσάς →',
+      // A steel-frame project's: the calculator quotes its delivery with the project (the delivery
+      // page's own name for it, "Σπίτι σε δικό σας σχέδιο").
+      deliveryProject: 'Παράδοση και εκτελωνισμός για σπίτι σε δικό σας σχέδιο →',
     },
   },
   altBase: {

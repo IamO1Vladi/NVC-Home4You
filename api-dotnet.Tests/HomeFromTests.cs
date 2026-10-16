@@ -53,8 +53,12 @@ public class HomeFromTests
     private static HomePhotoService Svc(AppDbContext db, IGalleryStore? gallery, IMemoryCache? cache = null) =>
         new(db, NewUrls(), cache ?? new MemoryCache(new MemoryCacheOptions()), gallery: gallery);
 
-    private static GalleryItem Item(string? category, decimal? price, string currency = "EUR") =>
-        new() { Title = "x", Category = category, Price = price, Currency = currency };
+    private static GalleryItem Item(string? category, decimal? price, string currency = "EUR", long id = 0) =>
+        new() { Id = id, Title = "x", Category = category, Price = price, Currency = currency };
+
+    // The space capsule as the live gallery serves it: admin-created house 15, 55 000 €.
+    private static GalleryItem Capsule(string category, decimal price = 55000m) =>
+        Item(category, price, id: HomeFromDto.CapsulePublicId);
 
     // --- The minimum ------------------------------------------------------------------
 
@@ -107,6 +111,105 @@ public class HomeFromTests
             Item(null, 50m),
             Item("unheard of", 60m),
         });
+
+        Assert.Equal(4300m, from.Wagon);
+        Assert.Null(from.Modular);
+    }
+
+    // --- The capsule, in both states ---------------------------------------------------
+    //
+    // 2026-10-17: the space capsule gets its own gallery key. Until staff move it in the admin
+    // panel it is still filed as modular (state A); after, as capsule (state B). Either way
+    // it is not a Box house — its own product, arriving ready — so it must never become the
+    // Modular figure, which is defined as the cheapest Box house.
+
+    [Fact]
+    public void The_capsule_id_is_the_admin_created_house_15()
+    {
+        // The number the SPA holds as CAPSULE_ID; the two must name the same house.
+        Assert.Equal(100015L, HomeFromDto.CapsulePublicId);
+    }
+
+    [Theory]
+    [InlineData("modular")]   // A: as the live gallery holds it today
+    [InlineData("capsule")]   // B: after staff move it
+    public void The_capsule_is_never_the_box_house_figure(string category)
+    {
+        // Priced below every Box house on purpose, so that counting it would show.
+        var from = HomeFromDto.Of(new[]
+        {
+            Item("wagon", 4300m),
+            Capsule(category, price: 9000m),
+            Item("modular", 10500m, id: 100016),
+            Item("modular", 14000m),
+        });
+
+        Assert.Equal(4300m, from.Wagon);
+        Assert.Equal(10500m, from.Modular);
+    }
+
+    [Theory]
+    [InlineData("modular")]
+    [InlineData("capsule")]
+    public void A_gallery_whose_only_priced_box_row_is_the_capsule_has_no_box_figure(string category)
+    {
+        // Unknown, not 55 000: the SPA then prints its lead without a Box "from".
+        var from = HomeFromDto.Of(new[] { Item("wagon", 4300m), Capsule(category) });
+
+        Assert.Equal(4300m, from.Wagon);
+        Assert.Null(from.Modular);
+    }
+
+    [Fact]
+    public void The_live_gallery_gives_the_same_figures_before_and_after_the_move()
+    {
+        // The live prices of 2026-10-17: the capsule at 55 000 €, the cheapest Box house
+        // (100016) at 10 500 €, the cheapest container at 4 300 €.
+        GalleryItem[] Gallery(string capsuleCategory) => new[]
+        {
+            Item("wagon", 4300m),
+            Item("wagon", 6500m),
+            Item("modular", 10500m, id: 100016),
+            Item("modular", 24900m),
+            Capsule(capsuleCategory),
+        };
+
+        var before = HomeFromDto.Of(Gallery("modular"));
+        var after = HomeFromDto.Of(Gallery("capsule"));
+
+        Assert.Equal(new HomeFromDto(4300m, 10500m), before);
+        Assert.Equal(before, after);
+    }
+
+    [Theory]
+    [InlineData(Data.Entities.HouseCategories.Modular)]
+    [InlineData(Data.Entities.HouseCategories.Capsule)]
+    public async Task Through_the_sql_store_the_capsule_stays_out_of_the_box_figure(string capsuleKey)
+    {
+        // End to end over the store that serves the live site: the capsule is SQL house 15,
+        // made in the panel, so the store serves it as 100015 — the id Of() keeps out while it
+        // is still filed as modular.
+        using var db = NewDb();
+        db.Houses.AddRange(
+            new Data.Entities.House { Id = 15, Title = "Space house", Price = 9000m, CategoryKey = capsuleKey },
+            new Data.Entities.House { Id = 16, Title = "Box 18", Price = 10500m, CategoryKey = Data.Entities.HouseCategories.Modular },
+            new Data.Entities.House { Id = 17, Title = "Container 6x3", Price = 4300m, CategoryKey = Data.Entities.HouseCategories.Wagon });
+        await db.SaveChangesAsync();
+
+        var store = new SqlGalleryService(db, new MemoryCache(new MemoryCacheOptions()), NewUrls());
+        Assert.Contains(await store.GetAsync(), i => i.Id == HomeFromDto.CapsulePublicId);
+
+        var dto = await Svc(db, store).ReadPublicAsync(CancellationToken.None);
+
+        Assert.Equal(new HomeFromDto(4300m, 10500m), dto.From);
+    }
+
+    [Fact]
+    public void A_prefab_project_is_in_neither_figure()
+    {
+        // Prefab holds the steel-frame projects already built (2026-10-17); a price there is
+        // what that one project cost, never a "from".
+        var from = HomeFromDto.Of(new[] { Item("prefab", 3000m), Item("wagon", 4300m) });
 
         Assert.Equal(4300m, from.Wagon);
         Assert.Null(from.Modular);

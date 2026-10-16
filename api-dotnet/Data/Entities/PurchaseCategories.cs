@@ -6,7 +6,7 @@ namespace Data.Entities;
 
 // What a customer can have bought.
 //
-// A superset of HouseCategories, because the gallery's four filters are not the full list of
+// A superset of HouseCategories, because the gallery's five filters are not the full list of
 // what the company sells. Leads already hit this — the imported enquiry mix contains
 // "Контейнер", "Logistics" and "Interiors" — and a purchase hits it harder, since materials
 // orders are a real and frequent line of business that no gallery filter will ever cover.
@@ -21,6 +21,7 @@ public static class PurchaseCategories
         HouseCategories.Prefab,
         HouseCategories.Wagon,
         HouseCategories.Modular,
+        HouseCategories.Capsule,
         HouseCategories.Garage,
         "container",
         "interiors",
@@ -59,11 +60,23 @@ public static class PurchaseCategories
     /// Confirmed with the owner 2026-08-21, superseding the 2026-08-14 rule that read modular
     /// as always-custom. If the catalogue ever grows prefab or garage models, adding the key
     /// back here is the whole change; taking one off needs the stored rows dealt with first.
+    ///
+    /// 2026-10-17, the owner's two new gallery sections, and that is the case that came:
+    /// capsule and prefab join. Capsule because the space capsule moves out of modular into
+    /// its own key — a capsule sale linked to its gallery row must stay linkable once staff
+    /// move it, and a purchase already filed as modular with the capsule attached stays valid
+    /// too, since modular stays on this list. Prefab because it now holds the steel-frame
+    /// projects already built, which is exactly a row a sale points at ("a house like this
+    /// one"). Both are additions, so they only ever permit; prefab's suggestions are simply
+    /// empty until staff add its first project, and the box still takes typed text. Garage
+    /// stays off — nothing in the gallery to offer.
     /// </summary>
     public static readonly IReadOnlyList<string> WithGalleryModels = new[]
     {
         HouseCategories.Wagon,
         HouseCategories.Modular,
+        HouseCategories.Capsule,
+        HouseCategories.Prefab,
     };
 
     public static bool AllowsGalleryModel(string? key) =>

@@ -205,6 +205,12 @@
   gap: 14px;
 }
 
+/* A steel-frame project's price pill (GalleryItemPage.jsx) is longer than a model's "От …":
+   it goes under the title rather than past the card's edge. */
+.gdetail-titleRow--wrap{
+  flex-wrap: wrap;
+}
+
 .gdetail-kicker{
   margin-top: 6px;
   font-weight: 800;

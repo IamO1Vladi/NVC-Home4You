@@ -48,7 +48,7 @@ public class House
     public decimal? Price { get; set; }
     [MaxLength(8)] public string Currency { get; set; } = "EUR";
 
-    // Category (16). Stored as a STABLE KEY — "prefab" / "wagon" / "modular" / "garage" —
+    // Category (16). Stored as a STABLE KEY — "prefab" / "wagon" / "modular" / "capsule" / "garage" —
     // not as the Bulgarian display label Quickbase held.
     //
     // The gallery filter resolves a house's category by matching the raw string against the

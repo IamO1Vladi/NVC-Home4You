@@ -55,6 +55,20 @@ const TWIN_ADMIN = {
   images: ['https://img.example/space.webp'],
 }
 
+// A steel-frame project already built (gallery prefab, 2026-10-17): the visitor asks for a house
+// like it, and the form says so; the lead names the project exactly as it names any model.
+const PROJECT = {
+  id: 100020,
+  title: 'Steel-frame house – Bansko',
+  titleBg: 'Къща на метална конструкция – Банско',
+  description: '<p>A steel-frame house.</p>',
+  category: 'prefab',
+  price: 42000,
+  currency: 'EUR',
+  coverUrl: 'https://img.example/steel.webp',
+  images: ['https://img.example/steel.webp'],
+}
+
 const SPACE_HOUSE = {
   modelId: '15',
   modelTitle: 'Космическа къща',
@@ -110,7 +124,7 @@ beforeEach(() => {
   })
   vi.stubGlobal('fetch', vi.fn((url, init) => {
     const u = String(url)
-    if (u.endsWith('/api/gallery')) return json({ items: [TWIN_QUICKBASE, TWIN_ADMIN] })
+    if (u.endsWith('/api/gallery')) return json({ items: [TWIN_QUICKBASE, TWIN_ADMIN, PROJECT] })
     if (u.endsWith('/api/offer')) {
       offers.push(JSON.parse(init.body))
       return json({ ok: true })
@@ -191,6 +205,41 @@ describe('a gallery offer request', () => {
 
     await waitFor(() => expect(offers).toHaveLength(1))
     expect(offers[0]).toMatchObject({ ...SPACE_HOUSE, locale: 'en' })
+  }, 30000)
+
+  it('asks for a house like a steel-frame project, and names the project for staff as any model', async () => {
+    const user = userEvent.setup()
+    renderAppAt(`${paths.gallery.en}/steel-frame-house-bansko`)
+
+    await user.click(await screen.findByRole('button', { name: enGallery.detail.requestLikeCta }, SLOW))
+
+    expect(offerDialog(EN)).toHaveTextContent(`${EN.forms.offer.like}: Steel-frame house – Bansko`)
+    expect(offerDialog(EN)).not.toHaveTextContent(`${EN.forms.offer.model}:`)
+    await fillAndSend(user, EN)
+
+    await waitFor(() => expect(offers).toHaveLength(1))
+    expect(offers[0]).toMatchObject({
+      modelId: '100020',
+      modelTitle: 'Къща на метална конструкция – Банско',
+      modelPath: '/bg/galeriq/къща-на-метална-конструкция-банско',
+      locale: 'en',
+    })
+    // The payload is the shape it always was: the "like" is the form's words only.
+    expect(offers[0]).not.toHaveProperty('like')
+  }, 30000)
+
+  it('names an ordinary model as a model again after a steel-frame project', async () => {
+    const user = userEvent.setup()
+    renderAppAt(`${paths.gallery.en}/steel-frame-house-bansko`)
+    await user.click(await screen.findByRole('button', { name: enGallery.detail.requestLikeCta }, SLOW))
+    await user.click(within(offerDialog(EN)).getByRole('button', { name: EN.common.close }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: EN.forms.offer.title })).toBeNull())
+
+    await user.click(screen.getByRole('link', { name: enGallery.detail.backToGallery }))
+    await user.click(await screen.findByRole('link', { name: /Space house/ }, SLOW))
+    await user.click(await screen.findByRole('button', { name: enGallery.detail.requestCta }, SLOW))
+    await waitFor(() => expect(document.querySelector('.gmodal-portal')).toBeNull())
+    expect(offerDialog(EN)).toHaveTextContent('Model: Space house')
   }, 30000)
 
   it('leaves no model on the generic offers made after it, on the same page or another', async () => {

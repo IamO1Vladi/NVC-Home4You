@@ -103,6 +103,33 @@ public class GalleryAdminTests
     }
 
     [Fact]
+    public async Task Moving_the_capsule_into_its_own_category_changes_nothing_else()
+    {
+        // What staff do after the 2026-10-17 release: open the space capsule, which was filed
+        // as modular because there was nowhere else for it, and pick "capsule". The site then
+        // serves the new key under the SAME public id — stored enquiries, the prices page's
+        // anchors and the SPA's capsule id all hold that number.
+        using var db = NewDb();
+        var svc = NewService(db);
+        var input = ValidInput("Space house");
+        input.Price = 55000m;
+        var created = await svc.CreateAsync(input, null, CancellationToken.None);
+
+        var before = Assert.Single(await new SqlGalleryService(db, NewCache(), NewUrls()).GetAsync(CancellationToken.None));
+        Assert.Equal(HouseCategories.Modular, before.Category);
+
+        input.CategoryKey = HouseCategories.Capsule;
+        var moved = await svc.UpdateAsync(created.Id, input, "staff@example.com", CancellationToken.None);
+        Assert.Equal(HouseCategories.Capsule, moved!.CategoryKey);
+
+        var after = Assert.Single(await new SqlGalleryService(db, NewCache(), NewUrls()).GetAsync(CancellationToken.None));
+        Assert.Equal(HouseCategories.Capsule, after.Category);
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal(before.Title, after.Title);
+        Assert.Equal(55000m, after.Price);
+    }
+
+    [Fact]
     public async Task Updating_a_missing_house_reports_failure()
     {
         using var db = NewDb();

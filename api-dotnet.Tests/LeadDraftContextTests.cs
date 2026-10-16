@@ -399,6 +399,64 @@ public class LeadDraftContextTests
         }
     }
 
+    [Fact]
+    public async Task A_prefab_project_s_price_is_marked_as_that_project_s_in_the_list()
+    {
+        // Since 2026-10-17 prefab holds the steel-frame projects already built; every steel
+        // house is priced per project. The prompt invites quoting a listed price as the
+        // standard one, so a bare prefab figure would become a fixed price nobody offered.
+        using var db = NewDb();
+        db.Houses.AddRange(
+            new House { Id = 6, Title = "Steel house Bansko", Price = 68000m, Currency = "EUR", CategoryKey = HouseCategories.Prefab, SortOrder = 1 },
+            new House { Id = 7, Title = "Nova 40", Price = 18900m, Currency = "EUR", CategoryKey = HouseCategories.Modular, SortOrder = 2 },
+            new House { Id = 8, Title = "Space house", Price = 55000m, Currency = "EUR", CategoryKey = HouseCategories.Capsule, SortOrder = 3 });
+        await db.SaveChangesAsync();
+        var lead = await SeedLead(db);
+
+        var ctx = await new LeadDraftContextBuilder(db).BuildAsync(lead.Id);
+        var lines = ctx!.PriceList!.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+
+        var steel = Assert.Single(lines, l => l.Contains("Steel house Bansko"));
+        Assert.Contains("68000 EUR", steel);
+        Assert.EndsWith(LeadDraftContextBuilder.PrefabProjectNote, steel);
+
+        // Every other row is a catalogue price and says nothing of the kind — the capsule
+        // included, under its own key.
+        Assert.DoesNotContain(lines, l => l.Contains("Nova 40") && l.Contains("priced per project"));
+        var capsule = Assert.Single(lines, l => l.Contains("Space house"));
+        Assert.Contains("55000 EUR (capsule)", capsule);
+        Assert.DoesNotContain("priced per project", capsule);
+    }
+
+    [Fact]
+    public async Task A_lead_about_a_prefab_project_is_told_it_is_priced_per_project()
+    {
+        // "A house like this one": the linked row is the reference, not the offer.
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 6, Title = "Steel house Bansko", Price = 68000m, Currency = "EUR", CategoryKey = HouseCategories.Prefab });
+        await db.SaveChangesAsync();
+        var lead = await SeedLead(db, l => l.HouseId = 6);
+
+        var ctx = await new LeadDraftContextBuilder(db).BuildAsync(lead.Id);
+
+        Assert.Contains("68000 EUR", ctx!.ModelSummary);
+        Assert.Contains("priced per project", ctx.ModelSummary);
+    }
+
+    [Fact]
+    public async Task A_prefab_project_without_a_price_is_still_marked()
+    {
+        using var db = NewDb();
+        db.Houses.Add(new House { Id = 6, Title = "Steel house Pernik", CategoryKey = HouseCategories.Prefab });
+        await db.SaveChangesAsync();
+        var lead = await SeedLead(db);
+
+        var ctx = await new LeadDraftContextBuilder(db).BuildAsync(lead.Id);
+
+        Assert.Contains("not published", ctx!.PriceList);
+        Assert.Contains("priced per project", ctx.PriceList);
+    }
+
     // --- The model's own description --------------------------------------------------
 
     [Fact]

@@ -14,7 +14,7 @@ const byKey = (links) => Object.fromEntries(links.map((l) => [l.key, l.to]))
 
 describe('galleryItemLinks', () => {
   it.each(['bg', 'en', 'el'])('%s: every link has words in the gallery content', (locale) => {
-    for (const key of ['heading', 'containers', 'box', 'prices', 'pricesNoAssembly', 'configurator', 'delivery']) {
+    for (const key of ['heading', 'containers', 'box', 'capsule', 'steel', 'prices', 'pricesNoAssembly', 'configurator', 'delivery']) {
       expect(COPY[locale][key], key).toBeTruthy()
     }
   })
@@ -50,12 +50,43 @@ describe('galleryItemLinks', () => {
     expect(links[0].label).toBe(COPY[locale].containers)
   })
 
-  it('gives the capsule the Box houses\' delivery link: their delivery terms are its own (owner, 2026-10-17)', () => {
-    expect(byKey(galleryItemLinks(item(CAPSULE_ID, 'modular', 55000), 'bg', COPY.bg))).toEqual({
-      product: paths.modularHouses.bg,
-      prices: `${paths.prices.bg}#item-${CAPSULE_ID}`,
+  // The capsule is filed under modular today and moves to its own "capsule" category once staff
+  // move it (2026-10-17). Its links must be the same in both states.
+  it.each(['modular', 'capsule'])('gives the capsule filed under %s its card on the Box houses page and the Box houses\' delivery (owner, 2026-10-17)', (category) => {
+    for (const locale of ['bg', 'en', 'el']) {
+      const links = galleryItemLinks(item(CAPSULE_ID, category, 55000), locale, COPY[locale])
+      expect(byKey(links), locale).toEqual({
+        product: `${paths.modularHouses[locale]}#item-${CAPSULE_ID}`,
+        prices: `${paths.prices[locale]}#item-${CAPSULE_ID}`,
+        delivery: `${paths.delivery[locale]}?product=box`,
+      })
+      expect(links[0].label).toBe(COPY[locale].capsule)
+      // It arrives ready: no "with assembly", and never the configurator.
+      expect(links.find((l) => l.key === 'prices').label).toBe(COPY[locale].pricesNoAssembly)
+    }
+  })
+
+  it('links any model filed under capsule to its own card, by its own id', () => {
+    expect(byKey(galleryItemLinks(item(100030, 'capsule', 60000), 'bg', COPY.bg))).toEqual({
+      product: `${paths.modularHouses.bg}#item-100030`,
+      prices: `${paths.prices.bg}#item-100030`,
       delivery: `${paths.delivery.bg}?product=box`,
     })
+  })
+
+  it.each(['bg', 'en', 'el'])('%s: a steel-frame project (prefab) links to the steel-frame houses page and the project delivery, with or without a price', (locale) => {
+    for (const price of [42000, null]) {
+      const links = galleryItemLinks(item(100020, 'prefab', price), locale, COPY[locale])
+      // Priced per project: no row on the prices page, and no configurator.
+      expect(byKey(links)).toEqual({
+        product: paths.steelHouses[locale],
+        delivery: `${paths.delivery[locale]}?product=project`,
+      })
+      expect(links[0].label).toBe(COPY[locale].steel)
+      // The calculator quotes a house to a plan with the project: the link promises no figure.
+      expect(links.find((l) => l.key === 'delivery').label).toBe(COPY[locale].deliveryProject)
+      expect(COPY[locale].deliveryProject).toBeTruthy()
+    }
   })
 
   it.each(['bg', 'en', 'el'])('%s: says "with assembly" only where the prices row has an assembly figure', (locale) => {
@@ -69,6 +100,7 @@ describe('galleryItemLinks', () => {
 
   it('links no prices row the prices page does not have: no price, or a category it does not list', () => {
     expect(byKey(galleryItemLinks(item(5, 'modular', 0), 'bg', COPY.bg)).prices).toBeUndefined()
+    // Garage stays internal: it has no page to link to.
     expect(galleryItemLinks(item(30, 'garage', 9000), 'bg', COPY.bg)).toEqual([])
   })
 

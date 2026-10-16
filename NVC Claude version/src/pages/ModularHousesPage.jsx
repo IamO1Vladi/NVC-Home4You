@@ -19,13 +19,15 @@
 //
 // The 37, 58 and 73 m² cards open the configurator on that model, so the price tapped is
 // the price the configurator opens on. The others ask for an offer with the model attached.
-// The capsule is one wide card that says only what its gallery entry says.
+// The capsule is one wide card that says only what its gallery entry says. It is found by the
+// rows' capsule flag (prices.js isCapsuleItem), so it stays on this page whether staff keep it
+// under "modular" or move it to its own "capsule" category (2026-10-17).
 //
 // The main photo is the admin's page-modular-houses slot when one is set, and otherwise the
 // delivered 58 m² house from the published case, with a chip naming where it stands. The
 // proof card reads the same case from /api/cases-page and is not drawn if it is unpublished.
 import React from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import '../style/HomePage.css'
 import '../style/ProductPage.css'
 import ProductHero from '../components/product/ProductHero.jsx'
@@ -43,11 +45,12 @@ import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, disp
 import { usePagePhoto } from '../lib/homePhotos.js'
 import { euro, getBoxConfiguratorCatalog } from '../content/shared/boxConfiguratorCatalog.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
-import { PRICE_SECTION_IDS } from '../content/shared/prices.js'
+import { CAPSULE_ID, PRICE_SECTION_IDS, boxHouseRows } from '../content/shared/prices.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 import { hubTopicPath, productQuestions } from '../lib/productQuestions.js'
+import { catFromItemCategory } from '../gallery/galleryUtils.js'
 
 // The size cards, by gallery id, in the order a visitor reads sizes. `variant` is the same
 // house with veranda and double roof, printed as one line of its card rather than a card of
@@ -61,7 +64,6 @@ const SIZES = [
   { id: 16 },
   { id: 17 },
 ]
-const CAPSULE_ID = 100015
 
 // The truck leg and the crane a Box house needs, the owner's figures shared with every page.
 const BOX_DELIVERY = DELIVERY_RATES.products.box
@@ -94,21 +96,42 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
   const modelKeys = new Set(models.map((m) => m.key))
 
   // The capsule is a different product at a different price; the "from" is the Box houses'.
-  const houses = box.filter((row) => String(row.id) !== String(CAPSULE_ID))
+  const houses = boxHouseRows(box)
   const from = lowest(houses, (row) => row.house)
-  const capsule = rowById(box, CAPSULE_ID)
+  // Each capsule gets its wide card (rows come sorted by price, so the comparison row's
+  // "from" is the first). Only the Space capsule has its lines written in the content file.
+  const capsules = box.filter((row) => row.capsule)
+  const capsule = capsules[0] || null
+
+  // A link into a card (the capsule's gallery page sends visitors to #item-100015) lands on
+  // that card, as on the prices page: the router does no hash scrolling of its own, and on a
+  // direct load the cards are not there until /api/gallery answers, so this runs again once
+  // the rows arrive. Only an #item-<id> that is on the page counts; a plain jump, no smooth
+  // scrolling.
+  const location = useLocation()
+  React.useEffect(() => {
+    const match = /^#(item-\d+)$/.exec(location.hash || '')
+    if (!match) return
+    document.getElementById(match[1])?.scrollIntoView({ block: 'start' })
+  }, [location.hash, box])
 
   // The cards in SIZES order, each with its variant row; a house the gallery has and this
   // list does not know yet (added in the admin panel) still gets a plain card at the end,
   // rather than a priced product silently missing from its own page.
-  const known = new Set([CAPSULE_ID, ...SIZES.flatMap((s) => [s.id, s.variant])].filter(Boolean).map(String))
+  const known = new Set(SIZES.flatMap((s) => [s.id, s.variant]).filter(Boolean).map(String))
   const cards = [
     ...SIZES.map((size) => ({ ...size, row: rowById(box, size.id), variantRow: size.variant ? rowById(box, size.variant) : null })),
     ...houses.filter((row) => !known.has(String(row.id))).map((row) => ({ id: row.id, row, variantRow: null })),
   ].filter((card) => card.row)
 
-  const shown = [...cards.flatMap((card) => [card.row, card.variantRow]), capsule].filter(Boolean)
-  const jsonLdItems = productJsonLdItems(shown, { pick: (row) => row.house, category: c.schemaCategory })
+  const shown = [...cards.flatMap((card) => [card.row, card.variantRow]), ...capsules].filter(Boolean)
+  // The capsule's category is the one its gallery page names (GalleryProductJSONLD): a modular
+  // house while staff keep it under "modular", a space capsule once it is filed under its own
+  // "capsule", so the one Product never carries two categories.
+  const schemaCategory = (row) => (catFromItemCategory(row.item?.category).includes('capsule')
+    ? c.capsule?.schemaCategory || c.schemaCategory
+    : c.schemaCategory)
+  const jsonLdItems = productJsonLdItems(shown, { pick: (row) => row.house, category: schemaCategory })
 
   const money = (value) => euro(value, locale)
 
@@ -189,7 +212,7 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
 
           {/* A list of the sizes, as the containers page has: a screen reader announces how
               many there are, and the capsule's item spans the grid (pp-units-full). */}
-          {cards.length || capsule ? (
+          {cards.length || capsules.length ? (
             <ul className="pp-units">
               {cards.map(({ id, row, variantRow, model }) => (
                 <li key={id}>
@@ -208,20 +231,20 @@ export default function ModularHousesPage({ locale = 'bg', content }) {
                 </li>
               ))}
 
-              {capsule ? (
-                <li className="pp-units-full">
+              {capsules.map((row) => (
+                <li key={row.id} className="pp-units-full">
                   <UnitCard
                     wide
-                    id={capsule.id}
-                    title={displayTitle(capsule.item.title)}
-                    photo={{ url: capsule.item.coverUrl }}
-                    price={{ value: money(capsule.house), caption: c.capsule.basis }}
-                    lines={c.capsule.lines}
-                    primary={{ label: c.sizes.ask, onClick: () => requestModel(modelRequest(capsule)) }}
-                    details={{ label: c.sizes.more, to: capsule.item.url }}
+                    id={row.id}
+                    title={displayTitle(row.item.title)}
+                    photo={{ url: row.item.coverUrl }}
+                    price={{ value: money(row.house), caption: c.capsule.basis }}
+                    lines={String(row.id) === String(CAPSULE_ID) ? c.capsule.lines : null}
+                    primary={{ label: c.sizes.ask, onClick: () => requestModel(modelRequest(row)) }}
+                    details={{ label: c.sizes.more, to: row.item.url }}
                   />
                 </li>
-              ) : null}
+              ))}
             </ul>
           ) : null}
 

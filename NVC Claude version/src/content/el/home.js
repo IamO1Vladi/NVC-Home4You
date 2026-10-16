@@ -345,6 +345,8 @@ export default {
       },
       // Labels the line naming the gallery model an offer was requested for.
       model: 'Μοντέλο',
+      // The same line for a steel-frame project (gallery prefab): the enquiry is for one like it.
+      like: 'Σπίτι παρόμοιο με',
       submit: 'Υποβολή',
     },
     question: {

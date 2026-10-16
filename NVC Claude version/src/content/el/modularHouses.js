@@ -84,6 +84,9 @@ export default {
   // The lines are gallery item 100015's; the basis is the owner's answer of 2026-10-17: the
   // capsule needs no assembly, it arrives ready.
   capsule: {
+    // Its Product markup's category once it is filed under its own "capsule" (2026-10-17),
+    // the gallery's own name for it (content/el/gallery.js filters.categories.capsule).
+    schemaCategory: 'Κάψουλα χώρου',
     basis: 'με ΦΠΑ· φτάνει έτοιμη, δεν χρειάζεται συναρμολόγηση',
     lines: [
       '38 m², 11,5 × 3,3 m',

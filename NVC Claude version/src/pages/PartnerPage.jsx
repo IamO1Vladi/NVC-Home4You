@@ -61,6 +61,7 @@ import { useModalActions } from '../context/ModalActions.jsx'
 import { getHomeContent } from '../content/home/index.js'
 import { usePublishedCase, langOf, caseHref } from '../lib/usePublishedCase.js'
 import { useProductRows, lowest } from '../lib/productRows.js'
+import { boxHouseRows } from '../content/shared/prices.js'
 import { writeConfiguratorPrefill } from '../lib/configPrefill.js'
 import { euro } from '../lib/euro.js'
 import { fill, pageQuestions, partnerFigures as figures, shown } from '../lib/questions.js'
@@ -188,7 +189,7 @@ export default function PartnerPage({ locale = 'bg', content }) {
   const priceLine = (value, basis) => (value == null ? undefined : `${c.products.from} ${euro(value, locale)} ${basis}`)
   const products = [
     { to: pathOf('modularBuilds'), label: c.products.containers.label, desc: c.products.containers.desc, price: priceLine(lowest(wagon), c.products.containers.basis) },
-    { to: pathOf('modularHouses'), label: c.products.houses.label, desc: c.products.houses.desc, price: priceLine(lowest(box, (row) => row.house), c.products.houses.basis) },
+    { to: pathOf('modularHouses'), label: c.products.houses.label, desc: c.products.houses.desc, price: priceLine(lowest(boxHouseRows(box), (row) => row.house), c.products.houses.basis) },
     { to: pathOf('steelHouses'), label: c.products.steel.label, desc: c.products.steel.desc },
     // The doors are sold in bulk too (owner, 2026-10-15): builders, developers, shops.
     c.products.doors ? { to: pathOf('doors'), label: c.products.doors.label, desc: c.products.doors.desc } : null,

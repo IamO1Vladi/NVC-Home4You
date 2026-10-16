@@ -84,7 +84,7 @@ const TEXT = {
     mixedCurrency: 'смесени валути',
     total: 'Общо',
     categories: {
-      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', garage: 'Гараж',
+      prefab: 'Сглобяема къща', wagon: 'Фургон', modular: 'Модулна къща', capsule: 'Космическа капсула', garage: 'Гараж',
       container: 'Контейнер', interiors: 'Интериор', logistics: 'Транспорт',
       materials: 'Материали', other: 'Друго',
     },
@@ -149,7 +149,7 @@ const TEXT = {
     mixedCurrency: 'mixed currencies',
     total: 'Total',
     categories: {
-      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', garage: 'Garage',
+      prefab: 'Prefab house', wagon: 'Wagon / site cabin', modular: 'Modular house', capsule: 'Space capsule', garage: 'Garage',
       container: 'Container', interiors: 'Interiors', logistics: 'Logistics',
       materials: 'Materials', other: 'Other',
     },
@@ -204,9 +204,9 @@ const filesForSlot = (files, kind) =>
 // is not cosmetic — a stale list here turns a linked purchase's model box into free text,
 // and the next save writes that reading back over a HouseId somebody chose.
 const FALLBACK_CATEGORIES = {
-  all: ['prefab', 'wagon', 'modular', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
+  all: ['prefab', 'wagon', 'modular', 'capsule', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
   withGalleryModels: WITH_GALLERY_MODELS_FALLBACK,
-  stagedPayment: ['prefab', 'modular', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
+  stagedPayment: ['prefab', 'modular', 'capsule', 'garage', 'container', 'interiors', 'logistics', 'materials', 'other'],
 }
 
 const emptyPurchase = () => ({
@@ -866,8 +866,14 @@ function PurchaseCard({
             onChange={(e) => onPatch({
               categoryKey: e.target.value,
               // A model belongs to a category, so the text is re-resolved against the new
-              // one rather than left as a mismatch nobody notices.
-              ...resolveModel(purchase.modelText, e.target.value, models),
+              // one rather than left as a mismatch nobody notices — against the NEW
+              // category's models, as the leads sheet does: `models` is the old category's
+              // list, which can never match the new key, so a sale filed as modular and
+              // moved to capsule (the capsule's own key, 2026-10-17) lost its model link.
+              ...resolveModel(
+                purchase.modelText, e.target.value,
+                modelsFor(houses, e.target.value, categories.withGalleryModels),
+              ),
             })}
           >
             <option value="">{t.noCategory}</option>

@@ -5,7 +5,9 @@ export default {
   // the lead does not call every model "available"; the gallery's containers are stock models.
   eyebrow: 'Модели и цени',
   heading: 'Галерия: контейнери и Бокс къщи',
-  lead: 'Всеки модел с цената му с ДДС: контейнерите са на склад, а Бокс къщите се изработват по поръчка.',
+  // Not "every model with its price": a steel-frame project (prefab, 2026-10-17) is priced per
+  // project and its card may have none.
+  lead: 'Цените са с ДДС: контейнерите са на склад, а Бокс къщите се изработват по поръчка.',
   loading: 'Зареждане на модели…',
   error: 'Галерията не можа да се зареди. Опитайте по-късно.',
   retry: 'Опитайте отново',
@@ -20,18 +22,23 @@ export default {
   filters: {
     all: 'Всички',
     // The index's filters (galleryUtils INDEX_FILTER_IDS), in the words the rest of the site
-    // uses for the two product lines. "Сглобяема къща" and "Гараж" always opened empty and
-    // were removed (the owner, 2026-10-17).
+    // uses for its product lines. Each one is shown only while it has a model (indexFilterIds):
+    // "Сглобяема къща" and "Гараж" always opened empty and were removed, and the owner asked for
+    // the capsules and the steel-frame projects to have their own (both 2026-10-17). "prefab"
+    // holds the steel-frame houses already built, which a customer can ask for one like.
     shown: {
       wagon: 'Контейнери',
       modular: 'Бокс къщи',
+      capsule: 'Космически капсули',
+      prefab: 'Сглобяеми къщи',
     },
     // The item page's name for a model's category, under its title and in its Product markup
-    // (GalleryRoutes.jsx). All four ids keep one: the admin can still file a model under any.
+    // (GalleryRoutes.jsx). All five ids keep one: the admin can still file a model under any.
     categories: {
       prefab: 'Сглобяема къща',
       wagon: 'Фургон',
       modular: 'Модулна къща',
+      capsule: 'Космическа капсула',
       garage: 'Гараж',
     },
   },
@@ -45,6 +52,10 @@ export default {
       vat: 'с ДДС',
       // A house that needs no assembly (shared/prices.js arrivesReady: the capsule, the owner 2026-10-17).
       ready: 'с ДДС, пристига готова',
+      // A steel-frame project already built (prefab): its price is what that project cost, and a
+      // house like it is priced per project (the owner, 2026-10-17).
+      project: 'с ДДС, за този проект',
+      projectOnRequest: 'Цена по проект',
     },
     more: 'Снимки и описание →',
   },
@@ -68,6 +79,11 @@ export default {
     requestCta: 'Поискай оферта',
     pricePrefix: 'От ',
     priceOnRequest: 'Цена по запитване',
+    // A steel-frame project (prefab): its own price with no "От", or none at all, and the
+    // enquiry is for a house like it.
+    projectPrice: '{price} · с ДДС, за този проект',
+    priceByProject: 'Цена по проект',
+    requestLikeCta: 'Поискай оферта за подобна къща',
     imageThumb: 'Изображение',
     closeLabel: 'Затвори',
     loading: 'Зареждане на модела…',
@@ -81,11 +97,17 @@ export default {
       heading: 'Още за този модел',
       containers: 'Всичко за контейнерите: монтаж, доставка, гаранция →',
       box: 'Бокс къщите: размери, монтаж, гаранция →',
+      // The capsule's own card on the Box houses page, and a steel-frame project's page.
+      capsule: 'Космическата капсула: размери, доставка, гаранция →',
+      steel: 'Сглобяемите къщи по проект: как работим →',
       prices: 'Цената с монтажа в таблицата с цени →',
       // For a house whose assembly is still quoted on request (its row says so).
       pricesNoAssembly: 'Цената в таблицата с цени →',
       configurator: 'Сглобете тази къща в конфигуратора →',
       delivery: 'Изчислете доставката до вас →',
+      // A steel-frame project's: the calculator quotes its delivery with the project (the delivery
+      // page's own name for it, "Къща по проект").
+      deliveryProject: 'Доставка и митница при къща по проект →',
     },
   },
   altBase: {

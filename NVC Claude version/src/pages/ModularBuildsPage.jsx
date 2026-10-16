@@ -47,6 +47,7 @@ import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { cdnImage, cdnSrcSet } from '../lib/img.js'
 import { usePagePhoto } from '../lib/homePhotos.js'
 import { useProductRows, lowest, rowById, modelRequest, productJsonLdItems, displayTitle } from '../lib/productRows.js'
+import { boxHouseRows } from '../content/shared/prices.js'
 import { paths } from '../routes/paths.js'
 import { DELIVERY_RATES, LEAD_TIMES } from '../content/shared/deliveryRates.js'
 import { hubTopicPath, productQuestions } from '../lib/productQuestions.js'
@@ -81,7 +82,8 @@ export default function ModularBuildsPage({ locale = 'en', content, related }) {
   // Every container carries the same assembly share (WAGON_ASSEMBLY_GROSS, read off the
   // rows so a page without rows prints no figure).
   const assemblyGross = lowest(wagon, (row) => row.assemblyGross)
-  const housesFrom = lowest(box, (row) => row.house)
+  // The Box houses' own "from", as their page has it: never the capsule (prices.js).
+  const housesFrom = lowest(boxHouseRows(box), (row) => row.house)
 
   // The admin types one alt, in Bulgarian, so it is used on the Bulgarian page only; a blank
   // one, and every other language, get the page's generic adminAlt. Not the default photo's

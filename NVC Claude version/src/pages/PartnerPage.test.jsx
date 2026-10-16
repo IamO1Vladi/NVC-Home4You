@@ -33,8 +33,9 @@ vi.mock('../content/shared/partnerTerms.js', () => ({ PARTNER_MIN_UNITS: TERMS }
 const YEARS = vi.hoisted(() => ({ structure: 17, panels: 9, joinery: 8, sanitary: 5 }))
 vi.mock('../content/shared/warranty.js', () => ({ WARRANTY_YEARS: YEARS }))
 
-// The gallery rows the product cards price from, without the gallery.
-const ROWS = vi.hoisted(() => ({ wagon: [{ total: 9800 }, { total: 8600 }], box: [{ house: 21000 }, { house: 15500 }] }))
+// The gallery rows the product cards price from, without the gallery. The capsule's row is the
+// cheapest on purpose: the Box houses' "from" is never the capsule's (2026-10-17).
+const ROWS = vi.hoisted(() => ({ wagon: [{ total: 9800 }, { total: 8600 }], box: [{ house: 21000 }, { house: 15500 }, { house: 9000, capsule: true }] }))
 vi.mock('../lib/productRows.js', async (importOriginal) => ({
   ...(await importOriginal()),
   useProductRows: () => ({ ...ROWS, loading: false, error: null, items: [], galleryPath: '/bg/galeriq' }),
@@ -309,6 +310,7 @@ describe('PartnerPage', () => {
     expect(cards).toHaveLength(4)
     expect(cards[0]).toContain(flat(euro(8600, 'bg')))
     expect(cards[1]).toContain(flat(euro(15500, 'bg')))
+    expect(cards[1]).not.toContain(flat(euro(9000, 'bg')))
     expect(cards[2]).not.toMatch(/€/)
     expect(cards[3]).not.toMatch(/€/)
   })

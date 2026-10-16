@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   getPriceRows, startingPrice, startingHousePrice, VAT_RATE, buildPriceSections,
   boxAssemblyNet, boxAssemblyFromNet, BOX_ASSEMBLY_CREW, ARCHITECT_PROJECT_EUR,
+  boxHouseRows, isCapsuleItem, CAPSULE_ID,
 } from './prices.js'
 import { getBoxConfiguratorCatalog } from './boxConfiguratorCatalog.js'
+import { catFromItemCategory } from '../../gallery/galleryUtils.js'
 
 // The published price table.
 //
@@ -212,5 +214,70 @@ describe('the owner\'s figures of 2026-10-17', () => {
   it('has two of our workers assemble a Box house in 3–4 days, and an architectural project cost 1,000', () => {
     expect(BOX_ASSEMBLY_CREW).toEqual({ workers: 2, days: '3–4' })
     expect(ARCHITECT_PROJECT_EUR).toBe(1000)
+  })
+})
+
+// The owner's two new gallery sections (2026-10-17). The capsule moves out of "modular" into its
+// own "capsule" category once staff move it in the admin panel, and "prefab" holds the
+// steel-frame projects already built. The prices page, the Box houses page and the gallery cards
+// read these rows, so both states of the data must give the same capsule row, and a
+// steel-frame project (priced per project) must give none.
+describe('the capsule in either category, and the steel-frame projects', () => {
+  const BOX_18 = { id: 100016, category: 'modular', price: 10500, title: '18' }
+  const STATE_A = { id: CAPSULE_ID, category: 'modular', price: 55000, title: 'capsule' }
+  const STATE_B = { ...STATE_A, category: 'capsule' }
+
+  it.each([['filed under modular (today)', STATE_A], ['moved to capsule', STATE_B]])(
+    'keeps the capsule\'s row in the Box section, arriving ready, %s',
+    (_, capsule) => {
+      const { box, wagon } = buildPriceSections([BOX_18, capsule])
+      expect(wagon).toEqual([])
+      expect(box.map((r) => r.id)).toEqual([100016, CAPSULE_ID])
+      expect(box[1]).toMatchObject({ house: 55000, total: 55000, assemblyNet: null, assemblyGross: null, arrivesReady: true, capsule: true })
+      expect(box[0]).toMatchObject({ capsule: false, arrivesReady: false, assemblyGross: 1200 })
+    },
+  )
+
+  it('reads the capsule the same in both states', () => {
+    const strip = ({ item, ...row }) => row
+    expect(buildPriceSections([STATE_A]).box.map(strip)).toEqual(buildPriceSections([STATE_B]).box.map(strip))
+  })
+
+  it('treats any model filed under capsule as a capsule that arrives ready', () => {
+    const { box } = buildPriceSections([{ id: 100030, category: 'Space capsule', price: 60000, title: 'another' }])
+    expect(box[0]).toMatchObject({ capsule: true, arrivesReady: true, total: 60000 })
+  })
+
+  it('reads the chips\' plural names as capsule too, as galleryUtils catFromItemCategory does', () => {
+    for (const category of ['Космически капсули', 'Space capsules']) {
+      const { box } = buildPriceSections([{ id: 100030, category, price: 60000, title: 'another' }])
+      expect(box[0]).toMatchObject({ capsule: true, arrivesReady: true, total: 60000 })
+      expect(catFromItemCategory(category)).toEqual(['capsule'])
+    }
+  })
+
+  it('never takes a Box houses "from" over the capsule, in either state, even when it is the cheapest', () => {
+    for (const capsule of [STATE_A, STATE_B]) {
+      const cheap = { ...capsule, price: 5000 }
+      const { box } = buildPriceSections([BOX_18, cheap])
+      expect(boxHouseRows(box).map((r) => r.id)).toEqual([100016])
+    }
+    expect(boxHouseRows(undefined)).toEqual([])
+  })
+
+  it('knows the capsule by its category or, while it is filed under modular, by its id', () => {
+    expect(isCapsuleItem(STATE_A)).toBe(true)
+    expect(isCapsuleItem(STATE_B)).toBe(true)
+    expect(isCapsuleItem({ id: 100030, category: 'capsule' })).toBe(true)
+    expect(isCapsuleItem({ id: '100015', category: 'modular' })).toBe(true)
+    expect(isCapsuleItem(BOX_18)).toBe(false)
+    expect(isCapsuleItem({ id: 13, category: 'wagon' })).toBe(false)
+    expect(isCapsuleItem(null)).toBe(false)
+  })
+
+  it('lists a steel-frame project in neither section: it is priced per project, with or without a price', () => {
+    for (const price of [42000, null]) {
+      expect(buildPriceSections([{ id: 100020, category: 'prefab', price, title: 'project' }])).toEqual({ box: [], wagon: [] })
+    }
   })
 })

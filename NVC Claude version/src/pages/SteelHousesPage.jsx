@@ -68,6 +68,7 @@ import { getHomeContent } from '../content/home/index.js'
 import { getPricesCopy } from '../content/shared/pricesCopy.js'
 import { euro } from '../content/shared/boxConfiguratorCatalog.js'
 import { useProductRows, lowest } from '../lib/productRows.js'
+import { boxHouseRows } from '../content/shared/prices.js'
 import { slotAlt, usePagePhoto, useSlotPhotos } from '../lib/homePhotos.js'
 import { STEEL_STEP_SLOTS } from '../lib/photoSlotNames.js'
 import { paths } from '../routes/paths.js'
@@ -116,7 +117,8 @@ export default function SteelHousesPage({ locale = 'en', content }) {
   // for the Box houses (assembly is added per model, and the 18 m² one has none yet).
   const priceLine = (value, basis) => (value == null ? null : `${c.ready.from} ${euro(value, locale)} ${basis}`)
   const containersFrom = lowest(wagon)
-  const housesFrom = lowest(box, (row) => row.house)
+  // The Box houses' own "from", as their page has it: never the capsule (prices.js).
+  const housesFrom = lowest(boxHouseRows(box), (row) => row.house)
 
   // Nothing while the answer is on its way (undefined), not only for an empty slot: a photo
   // that arrived after the first paint would push the heading down on a phone. The answer

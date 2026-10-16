@@ -5,7 +5,9 @@ export default {
   // the lead does not call every model "available"; the gallery's containers are stock models.
   eyebrow: 'Models and prices',
   heading: 'Gallery: containers and Box houses',
-  lead: 'Every model with its price incl. VAT: the containers are in stock and the Box houses are made to order.',
+  // Not "every model with its price": a steel-frame project (prefab, 2026-10-17) is priced per
+  // project and its card may have none.
+  lead: 'Prices include VAT: the containers are in stock and the Box houses are made to order.',
   loading: 'Loading models…',
   error: 'The gallery could not be loaded. Please try again later.',
   retry: 'Try again',
@@ -20,18 +22,23 @@ export default {
   filters: {
     all: 'All',
     // The index's filters (galleryUtils INDEX_FILTER_IDS), in the words the rest of the site
-    // uses for the two product lines. "Prefab house" and "Garage" always opened empty and
-    // were removed (the owner, 2026-10-17).
+    // uses for its product lines. Each one is shown only while it has a model (indexFilterIds):
+    // "Prefab house" and "Garage" always opened empty and were removed, and the owner asked for
+    // the capsules and the steel-frame projects to have their own (both 2026-10-17).
     shown: {
       wagon: 'Containers',
       modular: 'Box houses',
+      capsule: 'Space capsules',
+      prefab: 'Steel-frame houses',
     },
     // The item page's name for a model's category, under its title and in its Product markup
-    // (GalleryRoutes.jsx). All four ids keep one: the admin can still file a model under any.
+    // (GalleryRoutes.jsx). All five ids keep one: the admin can still file a model under any.
+    // prefab is named as its chip names it (filters.shown), a steel-frame project.
     categories: {
-      prefab: 'Prefab house',
+      prefab: 'Steel-frame house',
       wagon: 'Wagon / site cabin',
       modular: 'Modular house',
+      capsule: 'Space capsule',
       garage: 'Garage',
     },
   },
@@ -45,6 +52,10 @@ export default {
       vat: 'incl. VAT',
       // A house that needs no assembly (shared/prices.js arrivesReady: the capsule, the owner 2026-10-17).
       ready: 'incl. VAT, arrives ready',
+      // A steel-frame project already built (prefab): its price is what that project cost, and a
+      // house like it is priced per project (the owner, 2026-10-17).
+      project: 'incl. VAT, for this project',
+      projectOnRequest: 'Priced per project',
     },
     more: 'Photos and description →',
   },
@@ -68,6 +79,11 @@ export default {
     requestCta: 'Request an offer',
     pricePrefix: 'From ',
     priceOnRequest: 'Price on request',
+    // A steel-frame project (prefab): its own price with no "From", or none at all, and the
+    // enquiry is for a house like it.
+    projectPrice: '{price} · incl. VAT, for this project',
+    priceByProject: 'Priced per project',
+    requestLikeCta: 'Request an offer for a similar house',
     imageThumb: 'Image',
     closeLabel: 'Close',
     loading: 'Loading model…',
@@ -81,11 +97,17 @@ export default {
       heading: 'More about this model',
       containers: 'All about the containers: assembly, delivery, warranty →',
       box: 'The Box houses: sizes, assembly, warranty →',
+      // The capsule's own card on the Box houses page, and a steel-frame project's page.
+      capsule: 'The space capsule: size, delivery, warranty →',
+      steel: 'Steel-frame houses to your plan: how we work →',
       prices: 'Its price with assembly in the price table →',
       // For a house whose assembly is still quoted on request (its row says so).
       pricesNoAssembly: 'Its price in the price table →',
       configurator: 'Build this house in the configurator →',
       delivery: 'Work out the delivery to you →',
+      // A steel-frame project's: the calculator quotes its delivery with the project (the delivery
+      // page's own name for it, "House to your plan").
+      deliveryProject: 'Delivery and customs for a house to your plan →',
     },
   },
   altBase: {

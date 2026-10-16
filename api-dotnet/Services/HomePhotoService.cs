@@ -454,6 +454,18 @@ public sealed record HomeFromDto(decimal? Wagon, decimal? Modular)
     public static readonly HomeFromDto Unknown = new(null, null);
 
     /// <summary>
+    /// The space capsule's public id: the admin-created house with SQL id 15 (see
+    /// HousePublicIds). The SPA holds the same number as CAPSULE_ID.
+    ///
+    /// Needed because the capsule is not a Box house "from" price, whichever key it is filed
+    /// under. Until 2026-10-17 the only place for it was modular, and it stays there until
+    /// staff move it into HouseCategories.Capsule in the admin panel. Under capsule it falls
+    /// out of both figures by its category; while it still sits under modular, only its id
+    /// can keep it out.
+    /// </summary>
+    public const long CapsulePublicId = HousePublicIds.AdminOffset + 15;
+
+    /// <summary>
     /// The minimum per category over the gallery items either store serves. The category goes
     /// through HouseCategories.FromQuickbaseLabel because the SQL store sends the key ("wagon")
     /// and the Quickbase store the label ("Фургон"), and that function reads both. A price that
@@ -474,8 +486,12 @@ public sealed record HomeFromDto(decimal? Wagon, decimal? Modular)
                     if (wagon is null || price < wagon) wagon = price;
                     break;
                 case HouseCategories.Modular:
+                    if (item.Id == CapsulePublicId) break;   // still filed as modular; see above
                     if (modular is null || price < modular) modular = price;
                     break;
+                // Capsule, prefab and garage are in neither figure: the hero quotes the
+                // cheapest container and the cheapest Box house, and a prefab price is one
+                // built project's, never a "from".
             }
         }
         return new HomeFromDto(wagon, modular);

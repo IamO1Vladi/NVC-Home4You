@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { catFromItemCategory, resolveCatParam, resolveIndexFilter, resolvePageParam, slugify, FILTER_IDS, INDEX_FILTER_IDS, PAGE_SIZE, getCategoryLabels, formatGalleryPrice, htmlToText, blockText, offerAvailability, getCurrency } from './galleryUtils'
+import { catFromItemCategory, resolveCatParam, resolveIndexFilter, resolvePageParam, slugify, FILTER_IDS, INDEX_FILTER_IDS, LOADING_FILTER_IDS, PAGE_SIZE, getCategoryLabels, formatGalleryPrice, htmlToText, blockText, offerAvailability, getCurrency, indexFilterIds, isPrefabItem } from './galleryUtils'
 import elGallery from '../content/el/gallery.js'
 import enGallery from '../content/en/gallery.js'
 import bgGallery from '../content/bg/gallery.js'
@@ -29,6 +29,7 @@ describe('gallery category filtering', () => {
       ['Сглобяема къща', 'prefab'],
       ['Фургон', 'wagon'],
       ['Модулна къща', 'modular'],
+      ['Космическа капсула', 'capsule'],
       ['Гараж', 'garage'],
     ])('maps %s to %s', (label, expected) => {
       expect(catFromItemCategory(label)).toEqual([expected])
@@ -40,6 +41,7 @@ describe('gallery category filtering', () => {
       ['Prefab house', 'prefab'],
       ['Wagon / site cabin', 'wagon'],
       ['Modular house', 'modular'],
+      ['Space capsule', 'capsule'],
       ['Garage', 'garage'],
     ])('maps %s to %s', (label, expected) => {
       expect(catFromItemCategory(label)).toEqual([expected])
@@ -81,24 +83,43 @@ describe('gallery category filtering', () => {
     })
   })
 
-  // The index offers two of the four (the owner, 2026-10-17: "Сглобяема къща" and "Гараж" always
-  // opened empty). The other two still resolve above, for the item page and the admin.
+  // The index can offer four of the five (the owner, 2026-10-17): containers, Box houses, the
+  // space capsules and the steel-frame houses ("prefab", now the projects already built), each
+  // only while it has a model, so no filter opens empty again. Garage stays internal.
   describe('the filters the index offers', () => {
-    it('are the two product lines, containers first', () => {
-      expect(INDEX_FILTER_IDS).toEqual(['wagon', 'modular'])
+    it('are the product lines, containers first, never garage', () => {
+      expect(INDEX_FILTER_IDS).toEqual(['wagon', 'modular', 'capsule', 'prefab'])
+      expect(INDEX_FILTER_IDS).not.toContain('garage')
       for (const id of INDEX_FILTER_IDS) expect(FILTER_IDS).toContain(id)
+      // Before the list arrives, the two lines it always has.
+      expect(LOADING_FILTER_IDS).toEqual(['wagon', 'modular'])
     })
 
-    it('take a ?cat= of theirs, by key or by an old label', () => {
+    it('take a ?cat= of theirs, by key, an old label or the chip\'s own name', () => {
       expect(resolveIndexFilter('wagon')).toBe('wagon')
       expect(resolveIndexFilter('Модулна къща')).toBe('modular')
       expect(resolveIndexFilter('Wagon / site cabin')).toBe('wagon')
+      expect(resolveIndexFilter('capsule')).toBe('capsule')
+      expect(resolveIndexFilter('Космически капсули')).toBe('capsule')
+      expect(resolveIndexFilter('prefab')).toBe('prefab')
+      expect(resolveIndexFilter('Сглобяема къща')).toBe('prefab')
+      expect(resolveIndexFilter('Сглобяеми къщи')).toBe('prefab')
     })
 
-    it('show all for a category they no longer offer, or anything unknown', () => {
-      for (const v of ['prefab', 'garage', 'Гараж', 'Сглобяема къща', 'Garage', 'nonsense', '', undefined, null]) {
+    it('show all for garage, or anything unknown', () => {
+      for (const v of ['garage', 'Гараж', 'Garage', 'nonsense', '', undefined, null]) {
         expect(resolveIndexFilter(v)).toBe('all')
       }
+    })
+
+    it('show all for a category the list holds no model in', () => {
+      // Today's gallery (the capsule still filed under modular): no capsule, no prefab filter.
+      const offered = ['wagon', 'modular']
+      for (const v of ['capsule', 'prefab', 'Сглобяеми къщи', 'Космически капсули']) {
+        expect(resolveIndexFilter(v, offered)).toBe('all')
+      }
+      expect(resolveIndexFilter('modular', offered)).toBe('modular')
+      expect(resolveIndexFilter('wagon', [])).toBe('all')
     })
 
     it('have a label in every locale', () => {
@@ -106,6 +127,36 @@ describe('gallery category filtering', () => {
         expect(Object.keys(content.filters.shown)).toEqual(INDEX_FILTER_IDS)
         for (const id of INDEX_FILTER_IDS) expect(content.filters.shown[id]).toBeTruthy()
       }
+    })
+
+    it('name the two new ones in the site\'s own words', () => {
+      expect(bgGallery.filters.shown).toMatchObject({ capsule: 'Космически капсули', prefab: 'Сглобяеми къщи' })
+      expect(enGallery.filters.shown).toMatchObject({ capsule: 'Space capsules', prefab: 'Steel-frame houses' })
+      expect(elGallery.filters.shown).toMatchObject({ capsule: 'Κάψουλες χώρου', prefab: 'Μεταλλικά σπίτια' })
+    })
+  })
+
+  describe('the filters a list has models for', () => {
+    const wagon = { id: 13, category: 'wagon' }
+    const box = { id: 10, category: 'modular' }
+
+    it('today, with the capsule filed under modular: containers and Box houses', () => {
+      expect(indexFilterIds([wagon, box, { id: 100015, category: 'modular' }])).toEqual(['wagon', 'modular'])
+    })
+
+    it('once staff move the capsule: its own filter, after the Box houses', () => {
+      expect(indexFilterIds([{ id: 100015, category: 'capsule' }, box, wagon])).toEqual(['wagon', 'modular', 'capsule'])
+    })
+
+    it('once staff add a steel-frame project: its filter last', () => {
+      expect(indexFilterIds([{ id: 100020, category: 'prefab' }, { id: 100015, category: 'capsule' }, box, wagon]))
+        .toEqual(['wagon', 'modular', 'capsule', 'prefab'])
+    })
+
+    it('never a garage filter, nor one for a line with no model', () => {
+      expect(indexFilterIds([{ id: 30, category: 'garage' }, wagon])).toEqual(['wagon'])
+      expect(indexFilterIds([])).toEqual([])
+      expect(indexFilterIds(undefined)).toEqual([])
     })
   })
 
@@ -128,7 +179,7 @@ describe('gallery category filtering', () => {
   it('the filter ids match the keys the API will send', () => {
     // Guards the contract from the other side: if someone adds a filter here without adding
     // the key to HouseCategories (or vice versa), this is where it surfaces.
-    expect(FILTER_IDS).toEqual(['prefab', 'wagon', 'modular', 'garage'])
+    expect(FILTER_IDS).toEqual(['prefab', 'wagon', 'modular', 'capsule', 'garage'])
   })
 })
 
@@ -202,6 +253,12 @@ describe('category labels', () => {
     expect(getCategoryLabels('modular', bgGallery.filters.categories)).toEqual(['Модулна къща'])
   })
 
+  it('names the capsule in every language', () => {
+    expect(getCategoryLabels('capsule', bgGallery.filters.categories)).toEqual(['Космическа капсула'])
+    expect(getCategoryLabels('capsule', enGallery.filters.categories)).toEqual(['Space capsule'])
+    expect(getCategoryLabels('capsule', el)).toEqual(['Κάψουλα χώρου'])
+  })
+
   it('names a stored label in the page language too', () => {
     // The Quickbase read path sends the Bulgarian label rather than the key.
     expect(getCategoryLabels('Модулна къща', el)).toEqual(['Δομικό σπίτι'])
@@ -272,8 +329,27 @@ describe('the offer a model publishes', () => {
     expect(offerAvailability({ category: 'Модулна къща' })).toBe('https://schema.org/MadeToOrder')
   })
 
+  it('the capsule stays made to order in its own category, and so is a steel-frame project', () => {
+    expect(offerAvailability({ id: 100015, category: 'modular' })).toBe('https://schema.org/MadeToOrder')
+    expect(offerAvailability({ id: 100015, category: 'capsule' })).toBe('https://schema.org/MadeToOrder')
+    expect(offerAvailability({ category: 'prefab' })).toBe('https://schema.org/MadeToOrder')
+  })
+
   it('is priced in euro when the API names no currency, in every language', () => {
     for (const locale of ['bg', 'en', 'el']) expect(getCurrency({ price: 4300 }, locale)).toBe('EUR')
     expect(getCurrency({ currency: 'EUR' }, 'bg')).toBe('EUR')
+  })
+})
+
+// "prefab" holds the steel-frame projects already built (2026-10-17): its card, item page and
+// enquiry read differently, so the test for it must not catch anything else.
+describe('a steel-frame project', () => {
+  it('is a model filed under prefab, by key or label, and nothing else', () => {
+    expect(isPrefabItem({ category: 'prefab' })).toBe(true)
+    expect(isPrefabItem({ category: 'Сглобяема къща' })).toBe(true)
+    for (const category of ['wagon', 'modular', 'capsule', 'garage', '', null]) {
+      expect(isPrefabItem({ category }), String(category)).toBe(false)
+    }
+    expect(isPrefabItem(null)).toBe(false)
   })
 })

@@ -88,9 +88,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function renderPage(locale, { onRequestModel = () => {} } = {}) {
+function renderPage(locale, { onRequestModel = () => {}, hash = '' } = {}) {
   return render(
-    <MemoryRouter initialEntries={[paths.modularHouses[locale]]}>
+    <MemoryRouter initialEntries={[`${paths.modularHouses[locale]}${hash}`]}>
       <ModalActionsProvider onOpenOffer={() => {}} onOpenQuestion={() => {}} onRequestModel={onRequestModel}>
         <ModularHousesPage locale={locale} content={CONTENT[locale]} />
       </ModalActionsProvider>
@@ -424,6 +424,25 @@ describe('ModularHousesPage', () => {
     // The house price the card shows, never a total; the container is not on this page.
     expect(offers.map((o) => o.price).sort((a, b) => a - b))
       .toEqual([10500, 14000, 16700, 17800, 23000, 25500, 26500, 28000, 32700, 55000])
+    // The capsule is filed under modular today, so it is a modular house here as on its own
+    // gallery page (capsuleCategory.test.jsx has it under its own category).
+    expect(lists[0].itemListElement.every((e) => e.item.category === CONTENT[locale].schemaCategory)).toBe(true)
+  })
+
+  it('lands on the card a link names, once the rows arrive on a direct load', async () => {
+    // The capsule's gallery page links to #item-100015 here. The router does no hash scrolling
+    // on a first load and the cards are not there until /api/gallery answers.
+    const original = Element.prototype.scrollIntoView
+    const scrolled = []
+    Element.prototype.scrollIntoView = function scrollIntoView() { scrolled.push(this.id) }
+    try {
+      const { container } = renderPage('bg', { hash: '#item-100015' })
+      await ready(container)
+      await waitFor(() => expect(scrolled).toContain('item-100015'))
+      expect(scrolled.every((id) => id === 'item-100015')).toBe(true)
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
   })
 
   it.each(['en', 'el'])('has no Cyrillic in the %s content or on the rendered page', async (locale) => {

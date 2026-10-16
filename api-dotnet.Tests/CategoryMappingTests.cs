@@ -13,6 +13,7 @@ public class CategoryMappingTests
     [InlineData("Сглобяема къща", "prefab")]
     [InlineData("Фургон", "wagon")]
     [InlineData("Модулна къща", "modular")]
+    [InlineData("Космическа капсула", "capsule")]
     [InlineData("Гараж", "garage")]
     public void The_bulgarian_labels_quickbase_stores_map_to_stable_keys(string label, string expected)
     {
@@ -22,6 +23,7 @@ public class CategoryMappingTests
     [Theory]
     [InlineData("Prefab house", "prefab")]
     [InlineData("Wagon / site cabin", "wagon")]
+    [InlineData("Space capsule", "capsule")]
     public void The_english_labels_map_too(string label, string expected)
     {
         // galleryUtils.js accepts either language, so the live data may hold either.
@@ -54,10 +56,30 @@ public class CategoryMappingTests
     }
 
     [Fact]
-    public void Only_the_four_filter_ids_are_valid()
+    public void Only_the_five_filter_ids_are_valid()
     {
-        Assert.Equal(new[] { "prefab", "wagon", "modular", "garage" }, HouseCategories.All);
+        // Capsule joined on 2026-10-17 (the owner's "space capsules" section). The order is
+        // the admin panel's dropdown order.
+        Assert.Equal(new[] { "prefab", "wagon", "modular", "capsule", "garage" }, HouseCategories.All);
         Assert.False(HouseCategories.IsValid("house"));
+        Assert.False(HouseCategories.IsValid("Capsule"));   // keys are exact; labels map case-blind
+    }
+
+    [Fact]
+    public void The_capsule_key_passes_through_like_the_others()
+    {
+        // What the SQL store sends once staff move the capsule, and what HomeFromDto and the
+        // CRM import read back through this function.
+        Assert.Equal(HouseCategories.Capsule, HouseCategories.FromQuickbaseLabel("capsule"));
+        Assert.True(HouseCategories.IsValid(HouseCategories.Capsule));
+    }
+
+    [Fact]
+    public void The_capsule_title_is_not_a_category_label()
+    {
+        // The gallery item's own name. A label map that matched it would file a house by its
+        // title, which is the guess FromQuickbaseLabel exists to refuse.
+        Assert.Null(HouseCategories.FromQuickbaseLabel("Космическа къща – капсула"));
     }
 
     [Fact]

@@ -80,6 +80,16 @@ public class LeadDraftContextBuilder
     // rather than a prompt nobody budgeted for.
     public const int MaxPriceListRows = 150;
 
+    // Said beside every prefab row, in the price list and on the linked model alike. Since
+    // 2026-10-17 prefab holds the steel-frame projects already built, shown so a customer can
+    // ask for a house like one of them; every steel house is its own project, priced per
+    // project. The system prompt calls a listed price "the catalogue price for the model as
+    // standard" and invites quoting it, which is true of every other row and wrong for these:
+    // quoted bare, a built project's figure becomes a fixed price nobody offered.
+    public const string PrefabProjectNote =
+        " — a steel-frame project already built: any figure is what that project cost; " +
+        "a house like it is priced per project, so do not quote it as a fixed price";
+
     /// <summary>
     /// Assembles the context for one lead, or null if the lead does not exist.
     /// </summary>
@@ -164,6 +174,8 @@ public class LeadDraftContextBuilder
 
             if (!string.IsNullOrWhiteSpace(house.CategoryKey))
                 sb.Append(" (").Append(house.CategoryKey).Append(')');
+
+            if (house.CategoryKey == HouseCategories.Prefab) sb.Append(PrefabProjectNote);
 
             sb.AppendLine();
         }
@@ -257,6 +269,7 @@ public class LeadDraftContextBuilder
                 line.Append(CultureInfo.InvariantCulture,
                     $" — {price.ToString("0.##", CultureInfo.InvariantCulture)} {house.Currency}");
             }
+            if (house.CategoryKey == HouseCategories.Prefab) line.Append(PrefabProjectNote);
             parts.Add(line.ToString());
         }
 

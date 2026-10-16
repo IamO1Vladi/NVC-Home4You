@@ -156,6 +156,11 @@ public class CrmLeadImportTests
     [InlineData("Модулна / Контейнерна къща", HouseCategories.Modular)]
     [InlineData("Modular Houses", HouseCategories.Modular)]
     [InlineData("Modular Builds", HouseCategories.Modular)]
+    // The capsule's own section since 2026-10-17: spelled the way the site names it, or as
+    // the key, it lands on the capsule key rather than being kept as free text.
+    [InlineData("Космическа капсула", HouseCategories.Capsule)]
+    [InlineData("Space capsule", HouseCategories.Capsule)]
+    [InlineData("capsule", HouseCategories.Capsule)]
     public void A_product_line_the_gallery_filters_on_becomes_that_category(string interest, string expected)
     {
         Assert.Equal(expected, CrmLeadImportService.MapInterestCategory(new[] { interest }));
