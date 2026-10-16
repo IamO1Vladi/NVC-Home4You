@@ -4,10 +4,13 @@ export default {
   // The Box houses are made to order (up to 40 days in production, the owner 2026-10-15), so
   // the lead does not call every model "available"; the gallery's containers are stock models.
   eyebrow: 'Models and prices',
-  heading: 'Gallery: containers and Box houses',
+  // The four lines, in the chips' words and order (filters.shown), since 2026-10-17. Longer than
+  // the title, which has no room for "Gallery" or "space" (routeMeta.js META.gallery).
+  heading: 'Gallery: containers, Box houses, space capsules and steel-frame houses',
   // Not "every model with its price": a steel-frame project (prefab, 2026-10-17) is priced per
-  // project and its card may have none.
-  lead: 'Prices include VAT: the containers are in stock and the Box houses are made to order.',
+  // project and its card may have none. The capsule takes 3–4 months, as a Box house does (the
+  // owner, 2026-10-17); every steel-frame house is its own project (the owner, 2026-10-12).
+  lead: 'Prices include VAT: the containers are in stock, the Box houses and the capsule are made to order, and each steel-frame house is its own project.',
   loading: 'Loading models…',
   error: 'The gallery could not be loaded. Please try again later.',
   retry: 'Try again',

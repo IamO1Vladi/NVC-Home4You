@@ -4,10 +4,13 @@ export default {
   // The Box houses are made to order (up to 40 days in production, the owner 2026-10-15), so
   // the lead does not call every model "available"; the gallery's containers are stock models.
   eyebrow: 'Модели и цени',
-  heading: 'Галерия: контейнери и Бокс къщи',
+  // The four lines, in the chips' words and order (filters.shown), since 2026-10-17. Longer than
+  // the title, which has no room for "Галерия" or "космически" (routeMeta.js META.gallery).
+  heading: 'Галерия: контейнери, Бокс къщи, космически капсули и сглобяеми къщи',
   // Not "every model with its price": a steel-frame project (prefab, 2026-10-17) is priced per
-  // project and its card may have none.
-  lead: 'Цените са с ДДС: контейнерите са на склад, а Бокс къщите се изработват по поръчка.',
+  // project and its card may have none. The capsule takes 3–4 months, as a Box house does (the
+  // owner, 2026-10-17); every steel-frame house is its own project (the owner, 2026-10-12).
+  lead: 'Цените са с ДДС: контейнерите са на склад, Бокс къщите и капсулата се изработват по поръчка, а всяка сглобяема къща е отделен проект.',
   loading: 'Зареждане на модели…',
   error: 'Галерията не можа да се зареди. Опитайте по-късно.',
   retry: 'Опитайте отново',

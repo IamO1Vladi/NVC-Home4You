@@ -137,6 +137,30 @@ describe('the gallery index head', () => {
     expect(enGallery.lead).toMatch(/made to order/)
     expect(elGallery.lead).toMatch(/κατά παραγγελία/)
   })
+
+  // The owner (2026-10-17): the head names the project houses and the space capsules too. The H1
+  // names the four lines in their chips' words and order, and keeps "Галерия", which the title
+  // has no room for (routeMeta.test.js).
+  it.each([
+    ['bg', 'Галерия: контейнери, Бокс къщи, космически капсули и сглобяеми къщи'],
+    ['en', 'Gallery: containers, Box houses, space capsules and steel-frame houses'],
+    ['el', 'Γκαλερί: κοντέινερ, σπίτια Box, κάψουλες χώρου και μεταλλικά σπίτια'],
+  ])('%s: the H1 names the four lines in their chips\' words', (locale, heading) => {
+    const { content } = LOCALES[locale]
+    expect(content.heading).toBe(heading)
+    const named = Object.values(content.filters.shown).map((label) => content.heading.toLowerCase().indexOf(label.toLowerCase()))
+    expect(named.every((at) => at > 0)).toBe(true)
+    expect(named).toEqual([...named].sort((a, b) => a - b))
+  })
+
+  it('the lead: the capsule made to order like a Box house, each steel-frame house its own project', () => {
+    expect(bgGallery.lead).toMatch(/Бокс къщите и капсулата се изработват по поръчка/)
+    expect(bgGallery.lead).toMatch(/сглобяема къща е отделен проект/)
+    expect(enGallery.lead).toMatch(/the Box houses and the capsule are made to order/)
+    expect(enGallery.lead).toMatch(/each steel-frame house is its own project/)
+    expect(elGallery.lead).toMatch(/τα σπίτια Box και η κάψουλα κατασκευάζονται κατά παραγγελία/)
+    expect(elGallery.lead).toMatch(/κάθε μεταλλικό σπίτι είναι ξεχωριστό έργο/)
+  })
 })
 
 describe('the gallery index filters', () => {

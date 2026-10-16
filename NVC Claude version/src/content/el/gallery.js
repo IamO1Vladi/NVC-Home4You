@@ -4,10 +4,13 @@ export default {
   // The Box houses are made to order (up to 40 days in production, the owner 2026-10-15), so
   // the lead does not call every model "available"; the gallery's containers are stock models.
   eyebrow: 'Μοντέλα και τιμές',
-  heading: 'Γκαλερί: κοντέινερ και σπίτια Box',
+  // The four lines, in the chips' words and order (filters.shown), since 2026-10-17. Longer than
+  // the title, which has no room for "Γκαλερί" or "χώρου" (routeMeta.js META.gallery).
+  heading: 'Γκαλερί: κοντέινερ, σπίτια Box, κάψουλες χώρου και μεταλλικά σπίτια',
   // Not "every model with its price": a steel-frame project (prefab, 2026-10-17) is priced per
-  // project and its card may have none.
-  lead: 'Οι τιμές περιλαμβάνουν ΦΠΑ: τα κοντέινερ είναι σε απόθεμα, ενώ τα σπίτια Box κατασκευάζονται κατά παραγγελία.',
+  // project and its card may have none. The capsule takes 3–4 months, as a Box house does (the
+  // owner, 2026-10-17); every steel-frame house is its own project (the owner, 2026-10-12).
+  lead: 'Οι τιμές περιλαμβάνουν ΦΠΑ: τα κοντέινερ είναι σε απόθεμα, τα σπίτια Box και η κάψουλα κατασκευάζονται κατά παραγγελία, ενώ κάθε μεταλλικό σπίτι είναι ξεχωριστό έργο.',
   loading: 'Φόρτωση μοντέλων…',
   error: 'Η γκαλερί δεν ήταν δυνατό να φορτωθεί. Παρακαλούμε δοκιμάστε ξανά αργότερα.',
   retry: 'Δοκιμάστε ξανά',

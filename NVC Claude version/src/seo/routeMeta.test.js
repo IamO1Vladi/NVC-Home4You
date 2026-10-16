@@ -276,12 +276,44 @@ describe('the home snippet', () => {
 })
 
 describe('the gallery snippet', () => {
-  // The priced catalogue: containers and Box houses with the capsule. The content files' old
-  // copy promised garages (there are none) and "its own URL and detail page".
+  // The priced catalogue in its four lines (the index's chips, 2026-10-17): the containers, the
+  // Box houses, the space capsule and the steel-frame houses. The content files' old copy
+  // promised garages (there are none) and "its own URL and detail page".
   it.each(LOCALES)('%s: no garages and no developer talk', (locale) => {
     const { title, description } = getRouteSeo(paths.gallery[locale], locale)
     expect(`${title} ${description}`).not.toMatch(/гараж|garage|γκαράζ|\bURL\b|завършени|completed|ολοκληρωμένα/i)
     expect(title).toMatch(/Box|Бокс/)
+  })
+
+  // The owner (2026-10-17): the head names the project houses and the space capsules too. Within
+  // 70 characters the brand stays and "Галерия" goes; the H1 keeps it (GalleryIndexPage.test.jsx).
+  const TITLE = {
+    bg: 'Контейнери, Бокс къщи, капсули и сглобяеми къщи с цени | NVC Home4You',
+    en: 'Container, Box, Capsule and Steel-Frame Houses: Prices | NVC Home4You',
+    el: 'Κοντέινερ, κάψουλες, Box και μεταλλικά σπίτια με τιμές | NVC Home4You',
+  }
+  // Each line in the words the site uses for it, and the prices the page is searched for.
+  const LINES = {
+    bg: ['контейнери', 'бокс къщи', 'капсул', 'сглобяеми къщи', 'цени'],
+    en: ['container', 'box', 'capsule', 'steel-frame houses', 'prices'],
+    el: ['κοντέινερ', 'box', 'κάψουλ', 'μεταλλικά σπίτια', 'τιμές'],
+  }
+  // A house like a project is priced per project, as its card says ("Цена по проект"): the
+  // description names that rather than promising every house a fixed price.
+  const PER_PROJECT = { bg: 'сглобяеми къщи с цена по проект', en: 'steel-frame houses priced per project', el: 'μεταλλικά σπίτια με τιμή ανά έργο' }
+
+  it.each(LOCALES)('%s: the title names all four lines and the prices', (locale) => {
+    const { title, description } = getRouteSeo(paths.gallery[locale], locale)
+    expect(title).toBe(TITLE[locale])
+    for (const word of LINES[locale]) expect(title.toLowerCase()).toContain(word)
+    for (const word of LINES[locale].slice(0, 4)) expect(description.toLowerCase()).toContain(word)
+  })
+
+  it.each(LOCALES)('%s: prices with VAT, and the project houses priced per project', (locale) => {
+    const { description } = getRouteSeo(paths.gallery[locale], locale)
+    expect(description).toMatch(/с ДДС|incl\. VAT|με ΦΠΑ/)
+    expect(description).toContain(PER_PROJECT[locale])
+    expect(description).not.toMatch(/всички наши модели|every model|όλα τα μοντέλα/i)
   })
 })
 

@@ -156,25 +156,34 @@ const META = {
         `NVC Home4You, Μαρικοστίνοβο Πέτριτς: κοντέινερ και σπίτια Box από το εργοστάσιό μας, εκτελωνισμός από εμάς, εγγύηση ${WARRANTY_YEARS.structure} ετών στον σκελετό, παράδοση στην Ελλάδα.`,
     },
   },
-  // The gallery is the priced catalogue: the six containers and the Box houses with the capsule,
-  // each with photos and its price with VAT (the /api/gallery models, 2026-10-16). Not "completed
-  // projects", and no garages: the old content-file copy promised both. The sizes are the ones
-  // the containers' and the houses' snippets above already name.
+  // The gallery is the priced catalogue, in its four lines (the index's chips, 2026-10-17): the
+  // containers, the Box houses, the space capsule and the steel-frame houses ("Сглобяеми къщи",
+  // the projects a customer can ask for one like), each with photos and a price with VAT (a
+  // project's too, the owner said, when its card carries one; it may not). A house like a
+  // project is priced per project, which the descriptions say in the card's own words.
+  // Not "completed projects", and no garages: the old content-file copy promised both.
+  //
+  // The titles name all four lines and keep "с цени" / prices, the page's query; the brand fits
+  // only without "Галерия", which the H1 keeps (content/*/gallery.js heading). The capsule is
+  // "капсули" here and "космически капсули" in the H1 and its chip. The sizes are the ones the
+  // containers' and the houses' snippets above already name.
   gallery: {
     en: {
-      title: 'Gallery: Containers and Box Houses with Prices | NVC Home4You',
+      title: 'Container, Box, Capsule and Steel-Frame Houses: Prices | NVC Home4You',
       description:
-        'Every model we sell, with photos and prices incl. VAT: living and office containers 6×3, 7×3 and 8×3 m, Box houses from 18 to 74 m² and a capsule.',
+        'Photos and prices incl. VAT: containers 6×3, 7×3 and 8×3 m, Box houses from 18 to 74 m², a space capsule and steel-frame houses priced per project. Get a quote.',
     },
     bg: {
-      title: 'Галерия: контейнери и Бокс къщи с цени | NVC Home4You',
+      title: 'Контейнери, Бокс къщи, капсули и сглобяеми къщи с цени | NVC Home4You',
       description:
-        'Всички наши модели със снимки и цени с ДДС: жилищни и офис контейнери 6×3, 7×3 и 8×3 м, Бокс къщи от 18 до 74 м² и капсула. Отворете модел за подробности.',
+        'Снимки и цени с ДДС: контейнери 6×3, 7×3 и 8×3 м, Бокс къщи от 18 до 74 м², космическа капсула и сглобяеми къщи с цена по проект. Поискайте оферта.',
     },
     el: {
-      title: 'Γκαλερί: κοντέινερ και σπίτια Box με τιμές | NVC Home4You',
+      // "Box και μεταλλικά σπίτια": the one order that names all four lines within 70 characters
+      // and still reads as Greek.
+      title: 'Κοντέινερ, κάψουλες, Box και μεταλλικά σπίτια με τιμές | NVC Home4You',
       description:
-        'Όλα τα μοντέλα μας με φωτογραφίες και τιμές με ΦΠΑ: κοντέινερ κατοικίας και γραφείου 6×3, 7×3 και 8×3 m, σπίτια Box από 18 έως 74 m² και κάψουλα.',
+        'Φωτογραφίες και τιμές με ΦΠΑ: κοντέινερ 6×3, 7×3 και 8×3 m, σπίτια Box από 18 έως 74 m², κάψουλα χώρου και μεταλλικά σπίτια με τιμή ανά έργο. Ζητήστε προσφορά.',
     },
   },
   // The interiors page: bathroom and kitchen renovations by NVC's own builders, from Sofia to
