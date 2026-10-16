@@ -174,8 +174,18 @@ public class LeadPipelineTests
     // no status at all, so it rests entirely on ClosedAt rather than on a stage filter —
     // exactly the path nothing was covering.
     //
-    // Dated relative to ArchiveAfter rather than to a literal three days, so changing the
-    // window moves these with it instead of breaking them.
+    // Dated relative to ArchiveAfter rather than to a literal number of days, so changing the
+    // window (three days until 2026-10-16, one since) moves these with it instead of
+    // breaking them.
+
+    [Fact]
+    public void Won_and_Lost_deals_archive_after_one_day()
+    {
+        // The owner's window (2026-10-16): a closed deal leaves the board a day after it is
+        // marked Won or Lost. The tests around this one are relative to the constant; this is
+        // the one place its value is pinned.
+        Assert.Equal(TimeSpan.FromDays(1), LeadPipelineService.ArchiveAfter);
+    }
 
     [Fact]
     public async Task A_lead_closed_beyond_the_window_is_off_the_mine_tab_too()
@@ -197,7 +207,7 @@ public class LeadPipelineTests
     {
         // The grace period is the feature, not an oversight: a deal just won still has
         // paperwork, a deposit and a last email attached to it. A Won lead sitting on the
-        // board for a couple of days is this rule working, and it is the likeliest thing
+        // board until the next day is this rule working, and it is the likeliest thing
         // anyone means when they report seeing a finished lead there.
         using var db = NewDb();
         var justWon = NewLead("Won this morning", LeadStatuses.Won, owner: "ivan@nvc-home4you.eu");

@@ -155,7 +155,7 @@ public class Lead
     // When the deal reached Won or Lost. Null while it is still in play, and cleared again
     // if someone reopens it.
     //
-    // A column rather than a computed thing, because "closed three days ago" is the whole
+    // A column rather than a computed thing, because "closed a day ago" is the whole
     // basis of the archive rule and deriving it from the thread would mean scanning
     // activities for the last status change on every board query. Distinct from UpdatedAt,
     // which moves whenever anyone edits a note — a closed deal must not un-archive itself

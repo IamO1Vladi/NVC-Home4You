@@ -33,8 +33,9 @@ public class LeadPipelineService
 
     /// <summary>
     /// How long a Won or Lost deal stays on the working board before it archives itself.
+    /// One day (owner, 2026-10-16; it was three).
     /// </summary>
-    public static readonly TimeSpan ArchiveAfter = TimeSpan.FromDays(3);
+    public static readonly TimeSpan ArchiveAfter = TimeSpan.FromDays(1);
 
     /// <summary>
     /// Every open lead whose follow-up date has arrived or passed, most overdue first.
@@ -76,7 +77,7 @@ public class LeadPipelineService
 
         // A deal that has been Won or Lost for more than this drops off the board. Won and
         // Lost are not "done" the moment they are set — there is usually paperwork, a
-        // deposit, a polite last email — so it stays visible for a few days and then gets
+        // deposit, a polite last email — so it stays visible for a day and then gets
         // out of the way on its own. Nothing deletes it; the archive view still has it.
         var archivedBefore = DateTimeOffset.UtcNow - ArchiveAfter;
 

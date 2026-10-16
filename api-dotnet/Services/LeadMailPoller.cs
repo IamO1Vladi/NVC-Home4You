@@ -495,10 +495,10 @@ public class LeadMailPoller : BackgroundService
     /// LastActivityAt is the board's sort key, so it moves to the newest thing that
     /// happened — that much was always here.
     ///
-    /// ClosedAt moving is the deliberate part (2026-08-28). The three-day archive countdown
-    /// (LeadPipelineService.ArchiveAfter) runs from ClosedAt, so a customer writing back to
-    /// a Won or Lost deal restarts it: the lead returns to the board wearing its
-    /// awaiting-reply badge, and puts itself away again three days later if nobody acts.
+    /// ClosedAt moving is the deliberate part (2026-08-28). The archive countdown
+    /// (LeadPipelineService.ArchiveAfter, one day since 2026-10-16) runs from ClosedAt, so a
+    /// customer writing back to a Won or Lost deal restarts it: the lead returns to the board
+    /// wearing its awaiting-reply badge, and puts itself away again a day later if nobody acts.
     /// Before this, the reply was filed faithfully onto the archived lead and seen by
     /// nobody — the only tab that showed it is the one tab nobody works from.
     ///

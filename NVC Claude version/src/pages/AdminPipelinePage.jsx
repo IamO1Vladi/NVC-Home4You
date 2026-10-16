@@ -6,6 +6,7 @@ import RichTextEditor from '../admin/RichTextEditor.jsx'
 import { adminGet, adminSend, adminSendForm, adminUpload, ForbiddenError, UnauthorizedError } from '../admin/adminApi.js'
 import { adminSave, keepsTheEditorOpen } from '../admin/adminSave.js'
 import { resolveModel, modelsFor, WITH_GALLERY_MODELS_FALLBACK } from '../admin/modelPicker.js'
+import { WEBSITE_PHONE } from '../content/shared/company.js'
 import {
   sanitizeRichText, isRichTextEmpty, escapeHtml, plainTextToRichHtml, richTextToPlain,
 } from '../lib/sanitizeRichText.js'
@@ -297,8 +298,17 @@ function daysSince(iso) {
 }
 
 // The office number, shared by every signature. The name and email are the signed-in
-// user's; this is the one line that is the same for everyone (owner, 2026-08-17).
+// user's; this is the one line that is the same for everyone (owner, 2026-08-17)...
 const SIGNATURE_PHONE = '024 371 650'
+
+// ...except for these sign-ins, who sign with the number the website publishes (owner,
+// 2026-10-16: Radina, sales). Matched on the sign-in email /me returns, lower-cased.
+export const WEBSITE_PHONE_SIGNERS = ['rivanova@nvc-home4you.eu']
+
+export function signaturePhone(email) {
+  const who = String(email || '').trim().toLowerCase()
+  return WEBSITE_PHONE_SIGNERS.includes(who) ? WEBSITE_PHONE.display : SIGNATURE_PHONE
+}
 
 // The signature the composer starts with, in the language the CUSTOMER reads — it goes to
 // them, so the lead's locale decides, not the panel's UI language.
@@ -312,7 +322,7 @@ function signatureHtml(me, locale) {
     `${greeting},`,
     me.name ? `<strong>${escapeHtml(me.name)}</strong>` : '',
     'NVC Home4You',
-    `${tel}. ${SIGNATURE_PHONE}`,
+    `${tel}. ${signaturePhone(me.email)}`,
     me.email ? `<a href="mailto:${escapeHtml(me.email)}">${escapeHtml(me.email)}</a>` : '',
   ].filter(Boolean)
 
@@ -367,7 +377,8 @@ const TABS = [
   { key: 'open', query: 'status=open' },
   { key: 'mine', query: 'owner=mine' },
   { key: 'all', query: '' },
-  // Won or lost for more than three days. Out of the way by default, never deleted.
+  // Won or lost for more than a day (LeadPipelineService.ArchiveAfter). Out of the way by
+  // default, never deleted.
   { key: 'archived', query: 'status=archived' },
 ]
 

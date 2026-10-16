@@ -3,7 +3,11 @@ import { render as rtlRender, screen, waitFor, within, fireEvent } from '@testin
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import AdminPipelinePage, { isPartnerSource } from './AdminPipelinePage.jsx'
+import AdminPipelinePage, { isPartnerSource, signaturePhone, WEBSITE_PHONE_SIGNERS } from './AdminPipelinePage.jsx'
+import { WEBSITE_PHONE } from '../content/shared/company.js'
+import bgHome from '../content/bg/home.js'
+import enHome from '../content/en/home.js'
+import elHome from '../content/el/home.js'
 import SubmitStatus from '../components/SubmitStatus.jsx'
 import { MAX_ATTEMPTS, _resetSubmissions, _setRetryDelays } from '../lib/backgroundSubmit.js'
 
@@ -57,6 +61,8 @@ let withGalleryModels = ['wagon', 'modular']
 // Whether the signed-in account is on the allow-list. False is the 403 every admin route
 // answers anyone else with — a representative who opened /admin, say (#38).
 let allowed = true
+// Who /api/admin/me says is signed in: the signature is built from it.
+let meBody = { name: 'Sales', email: 'sales@x.eu' }
 
 beforeEach(() => {
   calls = []
@@ -64,6 +70,7 @@ beforeEach(() => {
   boardRows = BOARD
   withGalleryModels = ['wagon', 'modular']
   allowed = true
+  meBody = { name: 'Sales', email: 'sales@x.eu' }
   _resetSubmissions()
   // Zero backoff. A save that fell back to the retries would otherwise still be firing
   // requests into the NEXT test's call log a second after this one ended.
@@ -75,7 +82,7 @@ beforeEach(() => {
     calls.push({ url, method: options.method || 'GET', body: options.body })
     const u = String(url)
     if (!allowed) return refuse(403)
-    if (u.includes('/api/admin/me')) return json({ name: 'Sales', email: 'sales@x.eu' })
+    if (u.includes('/api/admin/me')) return json(meBody)
     if (u.includes('/api/admin/reviews/counts')) return json({ pending: 0 })
     if (u.includes('/api/admin/leads/counts')) return json({ notReachedOut: 0 })
     if (u.includes('/api/admin/pipeline/1/draft')) return json({ ok: true, text: 'Здравейте Иван, ...' })
@@ -371,6 +378,29 @@ describe('AdminPipelinePage', () => {
     expect(replyBox().textContent).toContain('Поздрави')
     expect(replyBox().textContent).toContain('024 371 650')
     expect(replyBox().textContent).toContain('sales@x.eu')
+  })
+
+  it('signs Radina’s replies with the number the website publishes, not the office line', async () => {
+    // Owner, 2026-10-16. Matched on the sign-in email whatever its case.
+    meBody = { name: 'Радина Иванова', email: 'RIvanova@nvc-home4you.eu' }
+    render(<AdminPipelinePage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ivan Petrov' })).toBeInTheDocument())
+
+    await waitFor(() => expect(replyBox().textContent).toContain('Радина Иванова'))
+    expect(replyBox().textContent).toContain(WEBSITE_PHONE.display)
+    expect(replyBox().textContent).not.toContain('024 371 650')
+  })
+
+  it('keeps the website number in the signature equal to the one the site prints', () => {
+    for (const bundle of [bgHome, enHome, elHome]) {
+      expect(bundle.home.finalCta.phone).toBe(WEBSITE_PHONE.display)
+      expect(bundle.home.localBusiness.telephone).toBe(WEBSITE_PHONE.tel)
+    }
+    expect(WEBSITE_PHONE_SIGNERS).toEqual(['rivanova@nvc-home4you.eu'])
+    expect(signaturePhone(' rivanova@nvc-home4you.eu ')).toBe(WEBSITE_PHONE.display)
+    // Everyone else keeps the office number.
+    expect(signaturePhone('vvladimirov@nvc-home4you.eu')).toBe('024 371 650')
+    expect(signaturePhone('')).toBe('024 371 650')
   })
 
   // --- The Cc line ---------------------------------------------------------------------
